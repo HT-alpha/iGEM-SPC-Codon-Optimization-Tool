@@ -1,0 +1,2331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; media-src blob:; worker-src blob:">
+  <title>BioForge — Codon Optimisation &amp; Primer Design</title>
+  <style>
+    :root {
+      --bg-void:#0d0f14; --bg-surface:#151820; --bg-elevated:#1e2230;
+      --border:#2c3147; --border-strong:#404866; --accent-dna:#00c896;
+      --accent-warn:#f5a623; --accent-error:#e8445a; --accent-info:#4a9eff;
+      --text-primary:#e8eaf0; --text-secondary:#9ba2bb; --text-muted:#646b88;
+      --nucleotide-A:#ff6b6b; --nucleotide-T:#ffd93d; --nucleotide-G:#6bcb77;
+      --nucleotide-C:#4d96ff; --radius:10px; --header:68px;
+      --mono:"IBM Plex Mono","JetBrains Mono","SFMono-Regular",Consolas,monospace;
+      --sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    }
+    * { box-sizing:border-box; }
+    html { background:var(--bg-void); color:var(--text-primary); scroll-behavior:smooth; }
+    body { margin:0; min-width:320px; font:14px/1.5 var(--sans); background:
+      radial-gradient(circle at 78% 8%,rgba(0,200,150,.08),transparent 26rem),var(--bg-void); }
+    button,input,select,textarea { font:inherit; color:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:.58; }
+    :focus-visible { outline:2px solid var(--accent-info); outline-offset:2px; }
+    ::selection { background:rgba(0,200,150,.3); }
+    .skip-link { position:fixed; z-index:100; top:8px; left:8px; transform:translateY(-150%);
+      padding:8px 12px; color:#07110e; background:var(--accent-dna); border-radius:6px; }
+    .skip-link:focus { transform:none; }
+    .app-header { position:sticky; z-index:20; top:0; height:var(--header); display:flex;
+      align-items:center; gap:28px; padding:0 24px; border-bottom:1px solid var(--border);
+      background:rgba(13,15,20,.94); backdrop-filter:blur(16px); }
+    .brand { display:flex; align-items:center; gap:10px; min-width:max-content; font:700 19px var(--mono); letter-spacing:-.04em; }
+    .brand-mark { display:grid; place-items:center; width:31px; height:31px; border:1px solid rgba(0,200,150,.5);
+      border-radius:8px; color:var(--accent-dna); background:rgba(0,200,150,.08); font-size:18px; }
+    .brand span:last-child { color:var(--text-secondary); font-weight:400; }
+    .primary-tabs,.subtabs { display:flex; gap:4px; align-items:center; }
+    .tab-button { min-height:38px; padding:8px 13px; border:1px solid transparent; border-radius:7px;
+      color:var(--text-secondary); background:transparent; font-weight:650; }
+    .tab-button:hover { color:var(--text-primary); background:var(--bg-surface); }
+    .tab-button[aria-selected="true"] { color:var(--text-primary); border-color:var(--border);
+      background:var(--bg-elevated); box-shadow:inset 0 -2px var(--accent-dna); }
+    .header-meta { margin-left:auto; display:flex; gap:9px; align-items:center; color:var(--text-secondary); font-size:12px; }
+    .offline-dot { width:7px; height:7px; border-radius:50%; background:var(--accent-dna); box-shadow:0 0 10px var(--accent-dna); }
+    main { min-height:calc(100vh - var(--header)); }
+    [hidden] { display:none !important; }
+    .tool-layout { display:grid; grid-template-columns:380px minmax(0,1fr); min-height:calc(100vh - var(--header)); }
+    .control-panel { padding:24px; border-right:1px solid var(--border); background:rgba(21,24,32,.72); }
+    .results-panel { min-width:0; padding:24px clamp(18px,3vw,40px) 50px; }
+    .panel-title { margin:0; font:700 20px/1.25 var(--mono); letter-spacing:-.04em; }
+    .eyebrow { margin:0 0 7px; color:var(--accent-dna); font:700 10px var(--mono); letter-spacing:.13em; text-transform:uppercase; }
+    .panel-intro { margin:7px 0 22px; color:var(--text-secondary); }
+    .field { margin:0 0 17px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .field > label,.label-row { display:flex; align-items:center; justify-content:space-between; gap:8px;
+      margin-bottom:7px; color:var(--text-primary); font-weight:650; }
+    .label-meta { color:var(--text-muted); font:11px var(--mono); font-weight:400; }
+    textarea,input[type="text"],input[type="number"],select,.text-input {
+      width:100%; border:1px solid var(--border); border-radius:7px; background:var(--bg-elevated);
+      padding:10px 11px; transition:border-color .15s,box-shadow .15s; }
+    textarea:focus,input:focus,select:focus { border-color:var(--accent-info); box-shadow:0 0 0 3px rgba(74,158,255,.1); outline:0; }
+    textarea { min-height:136px; resize:vertical; font:12px/1.6 var(--mono); text-transform:uppercase; }
+    textarea[aria-invalid="true"],input[aria-invalid="true"] { border-color:var(--accent-error); }
+    .input-status { display:flex; justify-content:space-between; gap:8px; min-height:20px; margin-top:6px;
+      color:var(--text-muted); font-size:11px; }
+    .parser-status.valid { color:var(--accent-dna); }
+    .parser-status.invalid { color:var(--accent-error); }
+    .badge { display:inline-flex; align-items:center; gap:5px; width:max-content; padding:3px 7px; border:1px solid var(--border);
+      border-radius:99px; color:var(--text-secondary); background:var(--bg-elevated); font:10px var(--mono); text-transform:uppercase; letter-spacing:.05em; }
+    .badge.good { border-color:rgba(0,200,150,.35); color:var(--accent-dna); }
+    .badge.warn { border-color:rgba(245,166,35,.35); color:var(--accent-warn); }
+    .badge.bad { border-color:rgba(232,68,90,.4); color:var(--accent-error); }
+    .quick-actions { display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; }
+    .small-button,.icon-button { min-height:34px; padding:6px 10px; border:1px solid var(--border); border-radius:6px;
+      color:var(--text-secondary); background:var(--bg-surface); font-size:11px; }
+    .small-button:hover,.icon-button:hover { color:var(--text-primary); border-color:var(--border-strong); }
+    .radio-stack { display:grid; gap:8px; }
+    .radio-card { display:grid; grid-template-columns:auto 1fr; gap:9px; padding:10px; border:1px solid var(--border);
+      border-radius:7px; background:rgba(30,34,48,.55); cursor:pointer; }
+    .radio-card:has(input:checked) { border-color:rgba(0,200,150,.55); background:rgba(0,200,150,.05); }
+    .radio-card input { margin-top:3px; accent-color:var(--accent-dna); }
+    .radio-card strong { display:block; font-size:12px; }
+    .radio-card small { display:block; margin-top:2px; color:var(--text-secondary); line-height:1.35; }
+    details { margin-bottom:17px; border:1px solid var(--border); border-radius:8px; background:rgba(21,24,32,.5); }
+    summary { padding:11px 12px; cursor:pointer; font-weight:650; list-style:none; }
+    summary::-webkit-details-marker { display:none; }
+    summary::after { content:"＋"; float:right; color:var(--text-muted); }
+    details[open] summary::after { content:"−"; }
+    .details-body { padding:0 12px 12px; border-top:1px solid var(--border); }
+    .toggle-row { display:grid; grid-template-columns:auto 1fr; gap:9px; padding:10px 0; border-bottom:1px solid rgba(44,49,71,.65); }
+    .toggle-row:last-child { border-bottom:0; }
+    .toggle-row input { accent-color:var(--accent-dna); }
+    .toggle-copy strong { font-size:12px; }
+    .toggle-copy small { display:block; color:var(--text-secondary); line-height:1.35; margin-top:2px; }
+    .toggle-controls { grid-column:2; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+    .toggle-controls input[type="number"] { width:76px; padding:6px 8px; }
+    .enzyme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; width:100%; }
+    .enzyme-chip { display:flex; align-items:center; gap:4px; min-height:30px; padding:4px 6px; border:1px solid var(--border);
+      border-radius:5px; color:var(--text-secondary); font-size:10px; background:var(--bg-elevated); }
+    .range-pair { display:grid; grid-template-columns:1fr 1fr; gap:7px; width:100%; }
+    .tooltip { position:relative; display:inline-grid; place-items:center; width:17px; height:17px; border:1px solid var(--border);
+      border-radius:50%; color:var(--text-secondary); font:10px var(--mono); cursor:help; }
+    .tooltip::after { content:attr(data-tip); position:absolute; z-index:30; left:50%; bottom:calc(100% + 8px);
+      width:210px; padding:8px 9px; border:1px solid var(--border-strong); border-radius:6px;
+      color:var(--text-primary); background:#202536; box-shadow:0 8px 25px rgba(0,0,0,.35);
+      font:11px/1.35 var(--sans); transform:translate(-50%,4px); opacity:0; pointer-events:none; transition:.15s; }
+    .tooltip:hover::after,.tooltip:focus::after { opacity:1; transform:translate(-50%,0); }
+    .run-button { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; min-height:46px;
+      border:0; border-radius:7px; color:#04130f; background:var(--accent-dna); font-weight:800;
+      box-shadow:0 8px 22px rgba(0,200,150,.14); }
+    .run-button:hover:not(:disabled) { filter:brightness(1.08); transform:translateY(-1px); }
+    .spinner { width:15px; height:15px; border:2px solid rgba(4,19,15,.3); border-top-color:#04130f; border-radius:50%; animation:spin .7s linear infinite; }
+    .privacy-note { margin:10px 0 0; color:var(--text-muted); font-size:10px; text-align:center; }
+    .results-header { display:flex; justify-content:space-between; gap:15px; align-items:flex-start; margin-bottom:20px; }
+    .results-header h2 { margin:0; font:700 clamp(20px,3vw,29px) var(--mono); letter-spacing:-.055em; }
+    .results-header p { margin:5px 0 0; color:var(--text-secondary); }
+    .empty-state { display:grid; place-items:center; min-height:430px; padding:30px; border:1px dashed var(--border);
+      border-radius:var(--radius); text-align:center; color:var(--text-secondary); background:rgba(21,24,32,.35); }
+    .empty-icon { display:grid; place-items:center; width:66px; height:66px; margin:0 auto 15px; border:1px solid var(--border);
+      border-radius:18px; color:var(--accent-dna); background:var(--bg-elevated); font:25px var(--mono); }
+    .empty-state h3 { margin:0 0 7px; color:var(--text-primary); font:700 16px var(--mono); }
+    .empty-state p { max-width:430px; margin:0; }
+    .error-state { padding:16px; border:1px solid rgba(232,68,90,.42); border-radius:8px; color:#ffb3bf;
+      background:rgba(232,68,90,.07); }
+    .score-grid { display:grid; grid-template-columns:repeat(4,minmax(130px,1fr)); gap:10px; margin-bottom:14px; }
+    .score-card,.module,.primer-card { border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-surface); }
+    .score-card { position:relative; overflow:hidden; padding:15px; }
+    .score-card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--status,var(--accent-info)); }
+    .score-card .metric { color:var(--text-secondary); font:10px var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+    .score-card .value { margin:5px 0 1px; font:700 24px var(--mono); letter-spacing:-.05em; }
+    .score-card .meaning { color:var(--text-muted); font-size:10px; }
+    .module { margin-top:12px; padding:17px; }
+    .module-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:13px; }
+    .module-header h3 { margin:0; font:700 14px var(--mono); }
+    .module-header p { margin:2px 0 0; color:var(--text-secondary); font-size:11px; }
+    .button-row { display:flex; gap:7px; flex-wrap:wrap; }
+    .sequence-shell { position:relative; overflow:hidden; border:1px solid var(--border); border-radius:8px; background:#10131a; }
+    .sequence-shell::after { content:""; position:absolute; inset:0 auto 0 0; width:22%; pointer-events:none;
+      background:linear-gradient(90deg,transparent,rgba(0,200,150,.08),transparent); animation:scan .3s ease-out both; }
+    .sequence-output { overflow:auto; max-height:330px; padding:14px; font:12px/1.9 var(--mono); letter-spacing:.02em; }
+    .sequence-line { display:grid; grid-template-columns:48px 1fr; min-width:max-content; }
+    .sequence-pos { color:var(--text-muted); user-select:none; }
+    .codon { display:inline-block; padding:0 2px; border-radius:2px; }
+    .codon:nth-child(even) { background:rgba(255,255,255,.025); }
+    .base-A { color:var(--nucleotide-A); }.base-T,.base-U { color:var(--nucleotide-T); }
+    .base-G { color:var(--nucleotide-G); }.base-C { color:var(--nucleotide-C); }
+    .translation-line { color:var(--text-secondary); letter-spacing:.2em; }
+    .comparison { width:100%; border-collapse:collapse; font-size:12px; }
+    .comparison th,.comparison td { padding:9px 10px; border-bottom:1px solid var(--border); text-align:right; }
+    .comparison th:first-child,.comparison td:first-child { text-align:left; }
+    .comparison th { color:var(--text-secondary); font:10px var(--mono); text-transform:uppercase; }
+    .delta-positive { color:var(--accent-dna); }.delta-negative { color:var(--accent-error); }
+    .chart-wrap { overflow:auto; min-height:190px; }
+    .chart-wrap svg { display:block; width:100%; min-width:520px; height:auto; }
+    .heatmap { display:grid; grid-template-columns:repeat(8,minmax(52px,1fr)); gap:5px; }
+    .heat-cell { min-height:45px; padding:6px; border:1px solid var(--border); border-radius:5px; color:var(--text-primary);
+      background:rgba(0,200,150,var(--heat,.05)); font:10px var(--mono); }
+    .heat-cell.used { box-shadow:inset 0 0 0 2px var(--accent-dna); }
+    .heat-cell span { display:block; color:var(--text-secondary); font-size:8px; }
+    .log-list { margin:0; padding:0; list-style:none; counter-reset:steps; }
+    .log-list li { position:relative; padding:9px 8px 9px 38px; border-bottom:1px solid var(--border); color:var(--text-secondary); }
+    .log-list li::before { counter-increment:steps; content:counter(steps); position:absolute; left:7px; top:8px;
+      display:grid; place-items:center; width:21px; height:21px; border:1px solid var(--border); border-radius:50%;
+      color:var(--accent-dna); font:10px var(--mono); }
+    .subtab-header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:14px 24px;
+      border-bottom:1px solid var(--border); background:var(--bg-surface); }
+    .subtab-header strong { font:700 13px var(--mono); }
+    .subtabs { overflow-x:auto; }
+    .subtab-panel .tool-layout { min-height:calc(100vh - var(--header) - 67px); }
+    .parameter-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .parameter-grid .field { margin-bottom:3px; }
+    .unit-input { display:grid; grid-template-columns:1fr auto; align-items:center; }
+    .unit-input input { border-radius:7px 0 0 7px; }
+    .unit { height:100%; display:grid; place-items:center; padding:0 9px; border:1px solid var(--border); border-left:0;
+      border-radius:0 7px 7px 0; color:var(--text-muted); background:var(--bg-surface); font-size:11px; }
+    .primer-list { display:grid; gap:11px; }
+    .primer-card { overflow:hidden; }
+    .primer-card-head { display:flex; justify-content:space-between; align-items:center; padding:11px 14px; border-bottom:1px solid var(--border); }
+    .primer-card-head strong { font:700 13px var(--mono); }
+    .pair-score { color:var(--accent-dna); font:700 13px var(--mono); }
+    .primer-strands { display:grid; grid-template-columns:1fr 1fr; }
+    .primer-strand { min-width:0; padding:13px; }
+    .primer-strand + .primer-strand { border-left:1px solid var(--border); }
+    .primer-label { color:var(--text-muted); font:10px var(--mono); letter-spacing:.08em; }
+    .primer-sequence { overflow:auto; margin:6px 0; color:var(--text-primary); font:12px var(--mono); white-space:nowrap; }
+    .primer-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:3px 10px; color:var(--text-secondary); font-size:10px; }
+    .primer-card-foot { display:flex; justify-content:space-between; gap:10px; padding:9px 13px; border-top:1px solid var(--border);
+      color:var(--text-secondary); font-size:11px; }
+    .stats-row { display:grid; grid-template-columns:repeat(6,minmax(95px,1fr)); gap:8px; }
+    .stat { padding:10px; border:1px solid var(--border); border-radius:7px; background:var(--bg-elevated); }
+    .stat span { display:block; color:var(--text-muted); font:9px var(--mono); text-transform:uppercase; }
+    .stat strong { display:block; margin-top:4px; font:700 15px var(--mono); }
+    .formula { overflow:auto; padding:12px; border:1px solid var(--border); border-radius:7px; color:#cbd5ed;
+      background:#0f1219; font:11px/1.7 var(--mono); white-space:pre-wrap; }
+    .structure-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .structure-panel { min-width:0; padding:12px; border:1px solid var(--border); border-radius:7px; background:var(--bg-elevated); }
+    .structure-panel h4 { margin:0 0 9px; font:700 11px var(--mono); }
+    .structure-panel svg { display:block; width:100%; height:auto; }
+    .alignment { overflow:auto; padding:11px; border-radius:6px; background:#0f1219; font:12px/1.6 var(--mono); white-space:pre; }
+    .match { color:var(--accent-dna); }.mismatch { color:var(--text-muted); }
+    .feature-map { display:flex; flex-wrap:wrap; gap:2px; padding:10px; border-radius:6px; background:#0f1219; font:13px var(--mono); }
+    .feature-base { position:relative; display:inline-grid; place-items:center; width:21px; height:27px; border-bottom:2px solid transparent; }
+    .feature-base.clamp { border-bottom-color:var(--accent-dna); }.feature-base.run { outline:1px solid var(--accent-warn); }
+    .restriction-layout { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; max-height:220px; overflow:auto; }
+    .restriction-option { display:grid; grid-template-columns:auto 1fr; gap:5px; padding:7px; border:1px solid var(--border); border-radius:6px; font-size:10px; }
+    .restriction-option small { display:block; color:var(--text-muted); }
+    .restriction-option:has(input:checked) { border-color:var(--accent-dna); }
+    .strategy-summary { padding:14px; border-left:3px solid var(--accent-dna); color:var(--text-secondary); background:rgba(0,200,150,.05); }
+    .references { margin-top:20px; padding:15px; border:1px solid var(--border); border-radius:8px; color:var(--text-muted); font-size:10px; }
+    .references strong { color:var(--text-secondary); }
+    .toast-region { position:fixed; z-index:50; right:16px; bottom:16px; display:grid; gap:8px; }
+    .toast { max-width:330px; padding:10px 13px; border:1px solid var(--border-strong); border-radius:7px;
+      color:var(--text-primary); background:#202536; box-shadow:0 10px 35px rgba(0,0,0,.4); animation:toast-in .2s ease-out; }
+    .sr-only { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes scan { from { transform:translateX(-120%); } to { transform:translateX(600%); } }
+    @keyframes toast-in { from { opacity:0; transform:translateY(8px); } }
+    @media (max-width:1050px) {
+      .score-grid { grid-template-columns:repeat(2,1fr); }
+      .stats-row { grid-template-columns:repeat(3,1fr); }
+      .heatmap { grid-template-columns:repeat(6,1fr); }
+    }
+    @media (max-width:899px) {
+      .app-header { padding:0 14px; gap:12px; }
+      .brand span:last-child,.header-meta span:last-child { display:none; }
+      .tool-layout { grid-template-columns:1fr; }
+      .control-panel { border-right:0; border-bottom:1px solid var(--border); }
+      .subtab-header { align-items:flex-start; flex-direction:column; gap:8px; }
+      .structure-grid { grid-template-columns:1fr; }
+    }
+    @media (max-width:580px) {
+      .app-header { height:auto; min-height:var(--header); flex-wrap:wrap; padding-block:8px; }
+      .primary-tabs { order:3; width:100%; }
+      .primary-tabs .tab-button { flex:1; }
+      .control-panel,.results-panel { padding:18px 14px 32px; }
+      .score-grid,.primer-strands,.field-row,.parameter-grid { grid-template-columns:1fr; }
+      .primer-strand + .primer-strand { border-left:0; border-top:1px solid var(--border); }
+      .stats-row { grid-template-columns:repeat(2,1fr); }
+      .heatmap { grid-template-columns:repeat(4,1fr); }
+      .enzyme-grid,.restriction-layout { grid-template-columns:repeat(2,1fr); }
+      .results-header { flex-direction:column; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+    }
+    @media (forced-colors:active) {
+      .score-card::before,.offline-dot { forced-color-adjust:none; }
+      .base-A,.base-T,.base-U,.base-G,.base-C { color:CanvasText; text-decoration:underline; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to workspace</a>
+  <header class="app-header">
+    <div class="brand" aria-label="BioForge">
+      <span class="brand-mark" aria-hidden="true">⌁</span>
+      <strong>BioForge</strong><span>/ sequence engineering</span>
+    </div>
+    <nav class="primary-tabs" role="tablist" aria-label="BioForge tools">
+      <button class="tab-button" id="tab-codon" role="tab" aria-selected="true" aria-controls="panel-codon" data-main-tab="codon">Codon Optimiser</button>
+      <button class="tab-button" id="tab-primer" role="tab" aria-selected="false" aria-controls="panel-primer" tabindex="-1" data-main-tab="primer">Primer Design</button>
+    </nav>
+    <div class="header-meta"><span class="offline-dot" aria-hidden="true"></span><span>Local computation · v1.0</span></div>
+  </header>
+
+  <main id="main">
+    <section id="panel-codon" role="tabpanel" aria-labelledby="tab-codon">
+      <div class="tool-layout">
+        <aside class="control-panel" aria-labelledby="codon-control-title">
+          <p class="eyebrow">Tool 01 / expression</p>
+          <h1 class="panel-title" id="codon-control-title">Codon Optimiser</h1>
+          <p class="panel-intro">Deterministic reverse translation with visible constraints and host usage data.</p>
+
+          <div class="field">
+            <div class="label-row"><label for="codon-input">Input sequence</label><span class="badge" id="codon-detected">Awaiting input</span></div>
+            <textarea id="codon-input" spellcheck="false" autocomplete="off" placeholder="Paste protein or coding DNA…" aria-describedby="codon-input-status"></textarea>
+            <div class="input-status" id="codon-input-status"><span class="parser-status">Protein or DNA, FASTA accepted</span><span class="label-meta" id="codon-count">0</span></div>
+            <div class="quick-actions">
+              <button class="small-button" type="button" data-sample="gfp">Load GFP</button>
+              <button class="small-button" type="button" data-sample="cart">Load CAR-T antigen</button>
+              <select id="codon-input-mode" aria-label="Sequence type override" style="width:auto;padding:6px 8px;font-size:11px">
+                <option value="auto">Auto-detect</option><option value="dna">DNA</option><option value="protein">Protein</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="host-select">Target host organism <span class="tooltip" tabindex="0" data-tip="Host codon frequencies are genome-wide Kazusa/CUTG observations, not direct measurements of expression.">i</span></label>
+            <select id="host-select">
+              <option value="ecoli_k12">Escherichia coli K-12 W3110</option>
+              <option value="s_cerevisiae">Saccharomyces cerevisiae</option>
+              <option value="h_sapiens_generic">Homo sapiens (HEK293 / generic)</option>
+              <option value="h_sapiens_liver">Homo sapiens — Liver (genome proxy)</option>
+              <option value="h_sapiens_muscle">Homo sapiens — Muscle (genome proxy)</option>
+              <option value="m_musculus">Mus musculus</option>
+              <option value="p_pastoris">Pichia pastoris</option>
+              <option value="cho">Chinese Hamster Ovary (genome proxy)</option>
+              <option value="b_subtilis">Bacillus subtilis</option>
+              <option value="custom">Custom (upload CSV)</option>
+            </select>
+            <div id="host-note" class="input-status"><span>Source: Kazusa CUTG</span></div>
+          </div>
+          <div class="field" id="custom-table-field" hidden>
+            <label for="custom-table">Custom codon table CSV</label>
+            <input id="custom-table" type="file" accept=".csv,text/csv">
+            <div class="input-status"><span>codon, amino_acid, frequency_per_thousand, fraction</span></div>
+          </div>
+
+          <fieldset class="field" style="border:0;padding:0">
+            <legend class="label-row">Algorithm <span class="tooltip" tabindex="0" data-tip="All stochastic choices use the visible seed and a named deterministic PRNG.">i</span></legend>
+            <div class="radio-stack">
+              <label class="radio-card"><input type="radio" name="codon-strategy" value="harmonised" checked><span><strong>Distribution-matched</strong><small>Samples the host’s observed synonymous-codon distribution.</small></span></label>
+              <label class="radio-card"><input type="radio" name="codon-strategy" value="maximum"><span><strong>Maximum frequency</strong><small>Selects the most frequent host codon for every residue.</small></span></label>
+              <label class="radio-card"><input type="radio" name="codon-strategy" value="hybrid"><span><strong>CAI / constraint hybrid</strong><small>Starts with high-weight codons, then balances GC and sequence constraints.</small></span></label>
+            </div>
+          </fieldset>
+
+          <details open>
+            <summary>Sequence constraints</summary>
+            <div class="details-body">
+              <div class="toggle-row">
+                <input id="avoid-sites" type="checkbox" checked>
+                <div class="toggle-copy"><label for="avoid-sites"><strong>Avoid restriction sites</strong></label><small>Synonymous repair preserves the translated protein.</small></div>
+                <div class="toggle-controls enzyme-grid" id="codon-enzyme-grid"></div>
+              </div>
+              <div class="toggle-row">
+                <input id="enforce-gc" type="checkbox" checked>
+                <div class="toggle-copy"><label for="enforce-gc"><strong>Enforce GC content</strong></label><small>Global target plus independent 50 bp window limits.</small></div>
+                <div class="toggle-controls">
+                  <div class="range-pair"><input id="gc-min" type="number" value="40" min="0" max="100" aria-label="Minimum global GC percent"><input id="gc-max" type="number" value="60" min="0" max="100" aria-label="Maximum global GC percent"></div>
+                  <label class="enzyme-chip"><input id="gc-window-on" type="checkbox" checked> 50 bp windows 25–75%</label>
+                </div>
+              </div>
+              <div class="toggle-row">
+                <input id="avoid-poly" type="checkbox" checked>
+                <div class="toggle-copy"><label for="avoid-poly"><strong>Avoid poly-A/T runs</strong></label><small>Repairs homopolymers longer than the selected limit.</small></div>
+                <div class="toggle-controls"><label>Maximum <input id="poly-max" type="number" value="6" min="3" max="20"></label></div>
+              </div>
+              <div class="toggle-row">
+                <input id="avoid-repeats" type="checkbox" checked>
+                <div class="toggle-copy"><label for="avoid-repeats"><strong>Avoid repeated k-mers</strong></label><small>Flags repeated windows and attempts synonymous repair.</small></div>
+                <div class="toggle-controls"><label>Window <input id="repeat-window" type="number" value="9" min="6" max="30"></label></div>
+              </div>
+              <div class="toggle-row">
+                <input id="pause-heuristic" type="checkbox">
+                <div class="toggle-copy"><label for="pause-heuristic"><strong>Experimental hydrophobic-boundary pause</strong></label><small>Kyte–Doolittle detects hydrophobic regions, not β-sheets. Off by default.</small></div>
+              </div>
+              <div class="toggle-row">
+                <input id="avoid-splice" type="checkbox">
+                <div class="toggle-copy"><label for="avoid-splice"><strong>Avoid canonical splice motifs</strong></label><small>Repairs simple MAG|GTRAGT and Y₁₀NCAG|G motif matches; not a splice predictor.</small></div>
+              </div>
+              <div class="toggle-row">
+                <input id="cap-cpg" type="checkbox">
+                <div class="toggle-copy"><label for="cap-cpg"><strong>Cap CpG dinucleotides</strong></label><small>Reduces excess CpG motifs for contexts where innate immune sensing matters.</small></div>
+              </div>
+            </div>
+          </details>
+
+          <div class="field-row">
+            <div class="field"><label for="prefix-input">5′ prefix</label><input id="prefix-input" type="text" spellcheck="false" placeholder="e.g. GCCACC"></div>
+            <div class="field"><label for="suffix-input">3′ suffix</label><input id="suffix-input" type="text" spellcheck="false" placeholder="e.g. TAA"></div>
+          </div>
+          <div class="field">
+            <label for="seed-input">Deterministic seed <span class="tooltip" tabindex="0" data-tip="FNV-1a hashes this text, then Mulberry32 generates repeatable choices.">i</span></label>
+            <input id="seed-input" type="text" value="BioForge-2026">
+          </div>
+          <button class="run-button" id="optimise-button" type="button">Optimise sequence <span aria-hidden="true">→</span></button>
+          <p class="privacy-note">Sequences remain in this browser. Drafts are stored locally.</p>
+        </aside>
+
+        <section class="results-panel" aria-labelledby="codon-results-title">
+          <div class="results-header">
+            <div><p class="eyebrow">Analysis output</p><h2 id="codon-results-title" tabindex="-1">Expression-ready sequence</h2><p id="codon-result-subtitle">Configure a host and sequence to begin.</p></div>
+            <div class="button-row" id="codon-export-buttons" hidden>
+              <button class="small-button" type="button" data-action="copy-codon">Copy DNA</button>
+              <button class="small-button" type="button" data-action="fasta-codon">Download FASTA</button>
+            </div>
+          </div>
+          <div class="empty-state" id="codon-empty"><div><div class="empty-icon" aria-hidden="true">ATG</div><h3>No optimisation run</h3><p>Results include CAI, GC windows, constraint outcomes, a codon heatmap and a reproducible decision log.</p></div></div>
+          <div class="error-state" id="codon-error" role="alert" hidden></div>
+          <div id="codon-results" hidden>
+            <div class="score-grid" id="codon-score-grid"></div>
+            <section class="module"><div class="module-header"><div><h3>Optimised sequence</h3><p>5′→3′ · codon-shaded · translation below each line</p></div></div><div id="codon-sequence-output"></div></section>
+            <section class="module"><div class="module-header"><div><h3>Original vs optimised</h3><p>Metrics use the coding region; immutable tails are reported separately.</p></div></div><div style="overflow:auto"><table class="comparison" id="codon-comparison"></table></div></section>
+            <section class="module"><div class="module-header"><div><h3>GC sliding window</h3><p>50 bp windows with 25% and 75% safety guides</p></div></div><div class="chart-wrap" id="gc-chart"></div></section>
+            <section class="module"><div class="module-header"><div><h3>Host codon usage</h3><p>Opacity = synonymous fraction; green ring = used in output</p></div></div><div class="heatmap" id="codon-heatmap"></div></section>
+            <details class="module"><summary>How was this sequence generated?</summary><div class="details-body"><ol class="log-list" id="transparency-log"></ol></div></details>
+          </div>
+          <div class="references"><strong>Methods:</strong> genetic code: NCBI standard table; usage: Nakamura, Gojobori &amp; Ikemura (2000); CAI: Sharp &amp; Li (1987); hydropathy: Kyte &amp; Doolittle (1982). Genome-wide usage is not an expression guarantee.</div>
+        </section>
+      </div>
+    </section>
+
+    <section id="panel-primer" role="tabpanel" aria-labelledby="tab-primer" hidden>
+      <div class="subtab-header">
+        <strong>Primer Design &amp; Oligo Analysis</strong>
+        <nav class="subtabs" role="tablist" aria-label="Primer tools">
+          <button class="tab-button" id="subtab-pcr" role="tab" aria-selected="true" aria-controls="subpanel-pcr" data-subtab="pcr">PCR Primer Design</button>
+          <button class="tab-button" id="subtab-oligo" role="tab" aria-selected="false" aria-controls="subpanel-oligo" tabindex="-1" data-subtab="oligo">Oligo Analyser</button>
+          <button class="tab-button" id="subtab-cloning" role="tab" aria-selected="false" aria-controls="subpanel-cloning" tabindex="-1" data-subtab="cloning">Restriction Cloning</button>
+        </nav>
+      </div>
+
+      <section class="subtab-panel" id="subpanel-pcr" role="tabpanel" aria-labelledby="subtab-pcr">
+        <div class="tool-layout">
+          <aside class="control-panel" aria-labelledby="pcr-control-title">
+            <p class="eyebrow">Tool 02A / amplification</p><h2 class="panel-title" id="pcr-control-title">PCR Primer Design</h2>
+            <p class="panel-intro">Deterministic primer search with thermodynamics, structure checks and explicit ranking.</p>
+            <div class="field"><label for="pcr-template">Template sequence</label><textarea id="pcr-template" spellcheck="false" placeholder="Paste double-stranded DNA template…"></textarea><div class="input-status" id="pcr-template-status"><span class="parser-status">DNA, FASTA accepted</span><span id="pcr-template-count">0 bp</span></div></div>
+            <div class="field-row">
+              <div class="field"><label for="amplicon-start">Amplicon start</label><input id="amplicon-start" type="number" min="1" placeholder="1"></div>
+              <div class="field"><label for="amplicon-end">Amplicon end</label><input id="amplicon-end" type="number" min="1" placeholder="Template end"></div>
+            </div>
+            <div class="parameter-grid">
+              <div class="field"><label for="tm-target">Tm target</label><div class="unit-input"><input id="tm-target" type="number" value="60" min="50" max="72" step=".1"><span class="unit">°C</span></div></div>
+              <div class="field"><label for="tm-tolerance">Tolerance</label><div class="unit-input"><input id="tm-tolerance" type="number" value="2" min=".5" max="10" step=".1"><span class="unit">±°C</span></div></div>
+              <div class="field"><label for="primer-min">Min length</label><div class="unit-input"><input id="primer-min" type="number" value="18" min="12" max="40"><span class="unit">bp</span></div></div>
+              <div class="field"><label for="primer-max">Max length</label><div class="unit-input"><input id="primer-max" type="number" value="25" min="12" max="50"><span class="unit">bp</span></div></div>
+              <div class="field"><label for="primer-gc-min">Min GC</label><div class="unit-input"><input id="primer-gc-min" type="number" value="40" min="0" max="100"><span class="unit">%</span></div></div>
+              <div class="field"><label for="primer-gc-max">Max GC</label><div class="unit-input"><input id="primer-gc-max" type="number" value="60" min="0" max="100"><span class="unit">%</span></div></div>
+              <div class="field"><label for="salt-na">Na⁺</label><div class="unit-input"><input id="salt-na" type="number" value="50" min=".1" max="1000"><span class="unit">mM</span></div></div>
+              <div class="field"><label for="oligo-conc">Total strands</label><div class="unit-input"><input id="oligo-conc" type="number" value="250" min="1" max="10000"><span class="unit">nM</span></div></div>
+            </div>
+            <div class="field"><label for="tm-method">Tm method <span class="tooltip" tabindex="0" data-tip="SantaLucia nearest-neighbour is recommended. Wallace and Marmur–Doty are rough screening formulas.">i</span></label><select id="tm-method"><option value="nn">Nearest-neighbour (SantaLucia 1998)</option><option value="wallace">Wallace rule</option><option value="marmur">Marmur–Doty approximation</option></select></div>
+            <details>
+              <summary>Advanced options</summary>
+              <div class="details-body">
+                <div class="toggle-row"><input id="m13-tails" type="checkbox"><div class="toggle-copy"><label for="m13-tails"><strong>Add M13 sequencing tails</strong></label><small>M13F −21 / M13R −27 variants are named in output.</small></div></div>
+                <div class="toggle-row"><input id="attb-tails" type="checkbox"><div class="toggle-copy"><label for="attb-tails"><strong>Add Gateway attB tails</strong></label><small>attB1 to forward and attB2 to reverse.</small></div></div>
+                <div class="toggle-row"><input id="gc-clamp" type="checkbox"><div class="toggle-copy"><label for="gc-clamp"><strong>Prefer 3′ G/C clamp</strong></label><small>Ranking preference, not a hard requirement.</small></div></div>
+                <div class="toggle-row"><input id="avoid-primer-dimer" type="checkbox" checked><div class="toggle-copy"><label for="avoid-primer-dimer"><strong>Avoid 3′ pair complementarity</strong></label><small>Penalises stable alignments involving either 3′ end.</small></div></div>
+                <div class="field"><label for="forward-tail">Forward 5′ overhang</label><input id="forward-tail" type="text" spellcheck="false"></div>
+                <div class="field"><label for="reverse-tail">Reverse 5′ overhang</label><input id="reverse-tail" type="text" spellcheck="false"></div>
+              </div>
+            </details>
+            <button class="run-button" id="design-primers-button" type="button">Design primers <span aria-hidden="true">→</span></button>
+          </aside>
+          <section class="results-panel" aria-labelledby="pcr-results-title">
+            <div class="results-header"><div><p class="eyebrow">Ranked candidates</p><h2 id="pcr-results-title" tabindex="-1">Primer pairs</h2><p id="pcr-result-subtitle">The top three pairs appear here with all ranking terms.</p></div><div class="button-row" id="pcr-export-buttons" hidden><button class="small-button" type="button" data-action="copy-primers">Copy order table</button><button class="small-button" type="button" data-action="csv-primers">Download CSV</button></div></div>
+            <div class="empty-state" id="pcr-empty"><div><div class="empty-icon" aria-hidden="true">→←</div><h3>No primer search run</h3><p>Paste a template. Blank coordinates design primers at the template ends.</p></div></div>
+            <div class="error-state" id="pcr-error" role="alert" hidden></div>
+            <div id="pcr-results" hidden>
+              <div class="primer-list" id="primer-list"></div>
+              <section class="module"><div class="module-header"><div><h3>Amplicon geometry</h3><p>Template coordinates are 1-based and inclusive in the interface.</p></div></div><div class="chart-wrap" id="amplicon-visual"></div></section>
+              <section class="module"><div class="module-header"><div><h3>Order-ready table</h3><p>Sequences are always shown 5′→3′.</p></div></div><div class="formula" id="primer-order-table"></div></section>
+            </div>
+            <div class="references"><strong>Methods:</strong> SantaLucia (1998) unified DNA nearest-neighbour parameters and salt-entropy correction; primer ranking follows Primer3-style hard filters and deterministic multi-term scoring. Tails do not contribute to annealing Tm.</div>
+          </section>
+        </div>
+      </section>
+
+      <section class="subtab-panel" id="subpanel-oligo" role="tabpanel" aria-labelledby="subtab-oligo" hidden>
+        <div class="tool-layout">
+          <aside class="control-panel" aria-labelledby="oligo-control-title">
+            <p class="eyebrow">Tool 02B / thermodynamics</p><h2 class="panel-title" id="oligo-control-title">Oligo Analyser</h2>
+            <p class="panel-intro">DNA physical properties and transparent nearest-neighbour calculations.</p>
+            <div class="field"><label for="oligo-input">Oligo sequence (5′→3′)</label><textarea id="oligo-input" spellcheck="false" placeholder="Enter DNA or RNA oligo…"></textarea><div class="input-status" id="oligo-status"><span class="parser-status">DNA or RNA</span><span id="oligo-count">0 nt</span></div><div class="quick-actions"><button class="small-button" type="button" data-load-primer="forward">Load forward primer</button><button class="small-button" type="button" data-load-primer="reverse">Load reverse primer</button></div></div>
+            <div class="parameter-grid">
+              <div class="field"><label for="oligo-na">Na⁺</label><div class="unit-input"><input id="oligo-na" type="number" value="50" min=".1" max="1000"><span class="unit">mM</span></div></div>
+              <div class="field"><label for="oligo-mg">Mg²⁺</label><div class="unit-input"><input id="oligo-mg" type="number" value="0" min="0" max="20" step=".1"><span class="unit">mM</span></div></div>
+              <div class="field"><label for="analyser-conc">Total strands</label><div class="unit-input"><input id="analyser-conc" type="number" value="250" min="1" max="10000"><span class="unit">nM</span></div></div>
+              <div class="field"><label for="analysis-temp">Structure temp</label><div class="unit-input"><input id="analysis-temp" type="number" value="37" min="0" max="100"><span class="unit">°C</span></div></div>
+            </div>
+            <div class="field"><label for="second-oligo">Compare with second oligo</label><textarea id="second-oligo" style="min-height:85px" spellcheck="false" placeholder="Optional heterodimer partner…"></textarea></div>
+            <button class="run-button" id="analyse-oligo-button" type="button">Analyse oligo <span aria-hidden="true">→</span></button>
+            <p class="privacy-note">Mg²⁺ is reported but not folded into the monovalent SantaLucia model.</p>
+          </aside>
+          <section class="results-panel" aria-labelledby="oligo-results-title">
+            <div class="results-header"><div><p class="eyebrow">Six-module analysis</p><h2 id="oligo-results-title" tabindex="-1">Oligo profile</h2><p>Physical properties, thermodynamics, structures and sequence features.</p></div><div class="button-row" id="oligo-export-buttons" hidden><button class="small-button" type="button" data-action="copy-oligo-fasta">Copy FASTA</button><button class="small-button" type="button" data-action="report-oligo">Download report</button></div></div>
+            <div class="empty-state" id="oligo-empty"><div><div class="empty-icon" aria-hidden="true">ΔG</div><h3>No oligo analysed</h3><p>DNA receives the full SantaLucia analysis. RNA is accepted but unsupported DNA-only metrics are explicitly withheld.</p></div></div>
+            <div class="error-state" id="oligo-error" role="alert" hidden></div>
+            <div id="oligo-results" hidden>
+              <section class="module"><div class="module-header"><div><h3>1 · Basic properties</h3></div></div><div class="stats-row" id="oligo-stats"></div></section>
+              <section class="module"><div class="module-header"><div><h3>2 · Tm calculator</h3><p>Salt and concentration values are substituted below.</p></div></div><div class="formula" id="tm-formula"></div></section>
+              <section class="module"><div class="module-header"><div><h3>3 · Self-complementarity</h3><p>Exact-match, ungapped DNA structure heuristic at the selected temperature.</p></div></div><div class="structure-grid"><div class="structure-panel" id="hairpin-panel"></div><div class="structure-panel" id="homodimer-panel"></div></div></section>
+              <section class="module"><div class="module-header"><div><h3>4 · Heterodimer</h3><p>Best antiparallel ungapped alignment; 3′ involvement is flagged.</p></div></div><div id="heterodimer-panel"></div></section>
+              <section class="module"><div class="module-header"><div><h3>5 · Sequence features</h3><p>3′ GC clamp, palindromes and homopolymer runs.</p></div></div><div id="oligo-feature-map"></div></section>
+              <section class="module"><div class="module-header"><div><h3>6 · Reproducible export</h3><p>Reports include inputs, assumptions, units and method versions.</p></div><div class="button-row"><button class="small-button" type="button" data-action="copy-oligo-fasta">Copy FASTA</button><button class="small-button" type="button" data-action="report-oligo">Download report</button><button class="small-button" type="button" data-action="csv-primers">Primer pair CSV</button></div></div></section>
+            </div>
+            <div class="references"><strong>Methods:</strong> SantaLucia (1998); extinction coefficients: nearest-neighbour values after Cantor &amp; Tinoco / Fasman compilations; DNA average molecular mass uses unmodified 5′/3′ hydroxyl termini. Structure ΔG values are a limited exact-match heuristic, not a full mfold prediction.</div>
+          </section>
+        </div>
+      </section>
+
+      <section class="subtab-panel" id="subpanel-cloning" role="tabpanel" aria-labelledby="subtab-cloning" hidden>
+        <div class="tool-layout">
+          <aside class="control-panel" aria-labelledby="cloning-control-title">
+            <p class="eyebrow">Tool 02C / assembly</p><h2 class="panel-title" id="cloning-control-title">Restriction Cloning</h2>
+            <p class="panel-intro">Directional enzyme selection, internal-site checks and cloning-primer generation.</p>
+            <div class="field"><label for="insert-input">Insert sequence</label><textarea id="insert-input" spellcheck="false" placeholder="Paste coding DNA insert…"></textarea><div class="input-status" id="insert-status"><span class="parser-status">DNA, FASTA accepted</span><span id="insert-count">0 bp</span></div></div>
+            <div class="field"><label for="vector-select">Vector backbone</label><select id="vector-select"><option value="pUC19">pUC19 MCS</option><option value="pET28a">pET-28a(+) MCS</option><option value="pCMV">pCMV MCS model</option><option value="pAAV">pAAV MCS model</option><option value="custom">Custom MCS sequence</option></select></div>
+            <div class="field" id="custom-vector-field" hidden><label for="custom-vector">Custom MCS (5′→3′)</label><input id="custom-vector" type="text" spellcheck="false"></div>
+            <fieldset class="field" style="border:0;padding:0"><legend class="label-row">Desired orientation</legend><div class="quick-actions"><label class="enzyme-chip"><input type="radio" name="orientation" value="forward" checked> Forward</label><label class="enzyme-chip"><input type="radio" name="orientation" value="reverse"> Reverse</label><label class="enzyme-chip"><input id="frame-check" type="checkbox" checked> Check frame</label></div></fieldset>
+            <div class="field"><div class="label-row">Choose exactly two enzymes <span class="badge" id="enzyme-selection-count">0 / 2</span></div><input id="enzyme-filter" type="text" placeholder="Filter enzymes…" aria-label="Filter restriction enzymes"><div class="restriction-layout" id="cloning-enzyme-grid" style="margin-top:8px"></div></div>
+            <button class="run-button" id="analyse-cloning-button" type="button">Build cloning strategy <span aria-hidden="true">→</span></button>
+          </aside>
+          <section class="results-panel" aria-labelledby="cloning-results-title">
+            <div class="results-header"><div><p class="eyebrow">Directional assembly</p><h2 id="cloning-results-title" tabindex="-1">Cloning strategy</h2><p>Internal sites, overhang compatibility, frame and primer tails.</p></div><div class="button-row" id="cloning-export-buttons" hidden><button class="small-button" type="button" data-action="copy-cloning">Copy strategy</button></div></div>
+            <div class="empty-state" id="cloning-empty"><div><div class="empty-icon" aria-hidden="true">✂</div><h3>No cloning strategy</h3><p>Select two enzymes. BioForge rejects internal insert cuts before suggesting primers.</p></div></div>
+            <div class="error-state" id="cloning-error" role="alert" hidden></div>
+            <div id="cloning-results" hidden>
+              <section class="module"><div class="module-header"><div><h3>Restriction map</h3><p>All selected and common-enzyme sites on the insert.</p></div></div><div class="chart-wrap" id="restriction-map"></div></section>
+              <section class="module"><div class="module-header"><div><h3>Strategy summary</h3></div></div><div class="strategy-summary" id="cloning-summary"></div></section>
+              <section class="module"><div class="module-header"><div><h3>Reading frame</h3><p>First coding bases after the forward tail, grouped as codons.</p></div></div><div class="formula" id="reading-frame"></div></section>
+              <section class="module"><div class="module-header"><div><h3>Suggested cloning primers</h3><p>4 bp protective leader + recognition site + 20–24 bp annealing region.</p></div><button class="small-button" type="button" data-action="copy-cloning">Copy</button></div><div class="formula" id="cloning-primers"></div></section>
+            </div>
+            <div class="references"><strong>Methods:</strong> recognition sequences and cleavage coordinates follow standard Type II restriction maps. Built-in vector entries are MCS models, not complete vector sequences; verify the exact plasmid lot and annotation before ordering primers.</div>
+          </section>
+        </div>
+      </section>
+    </section>
+  </main>
+  <div class="sr-only" id="polite-status" role="status" aria-live="polite"></div>
+  <div class="sr-only" id="assertive-status" role="alert" aria-live="assertive"></div>
+  <div class="toast-region" id="toast-region" aria-live="polite"></div>
+  <script>
+    (() => {
+      'use strict';
+
+      const APP_VERSION = '1.0.0';
+      const DATA_VERSION = 'Kazusa CUTG release 160 / embedded 2026-07';
+      const DEFAULT_SEED = 'BioForge-2026';
+      const CODON_ORDER = 'TTT TCT TAT TGT TTC TCC TAC TGC TTA TCA TAA TGA TTG TCG TAG TGG CTT CCT CAT CGT CTC CCC CAC CGC CTA CCA CAA CGA CTG CCG CAG CGG ATT ACT AAT AGT ATC ACC AAC AGC ATA ACA AAA AGA ATG ACG AAG AGG GTT GCT GAT GGT GTC GCC GAC GGC GTA GCA GAA GGA GTG GCG GAG GGG'.split(' ');
+      const AA_BY_ORDER = 'FSYC FSYC LS** LS*W LPHR LPHR LPQR LPQR ITNS ITNS ITKR MTKR VADG VADG VAEG VAEG'.split(' ').join('');
+      const GENETIC_CODE = Object.freeze(Object.fromEntries(CODON_ORDER.map((codon, index) => [codon, AA_BY_ORDER[index]])));
+      const AA_NAMES = Object.freeze({
+        A:'Ala',C:'Cys',D:'Asp',E:'Glu',F:'Phe',G:'Gly',H:'His',I:'Ile',K:'Lys',
+        L:'Leu',M:'Met',N:'Asn',P:'Pro',Q:'Gln',R:'Arg',S:'Ser',T:'Thr',V:'Val',
+        W:'Trp',Y:'Tyr','*':'Stop'
+      });
+      const COMPLEMENT = Object.freeze({A:'T',T:'A',U:'A',G:'C',C:'G'});
+
+      // Frequencies per thousand, in CODON_ORDER. Sources: Kazusa CUTG organism pages.
+      const RAW_USAGE = Object.freeze({
+        ecoli_k12: [
+          22.2,8.4,16.1,5.1,16.5,8.6,12.2,6.4,13.8,7,2,.9,13.6,8.9,.2,15.2,
+          11,7,13,21,11.1,5.5,9.8,22.3,3.8,8.4,15.4,3.5,53.1,23.4,29,5.4,
+          30.4,8.8,17.6,8.7,25.2,23.5,21.6,16.1,4.2,6.9,33.6,2,27.8,14.4,10.3,1.1,
+          18.2,15.2,32.2,24.7,15.3,25.7,19.1,29.8,10.9,20.1,39.7,7.9,26.3,33.9,18,11
+        ],
+        s_cerevisiae: [
+          26.1,23.5,18.8,8.1,18.4,14.2,14.8,4.8,26.2,18.7,1.1,.7,27.2,8.6,.5,10.4,
+          12.3,13.5,13.6,6.4,5.4,6.8,7.8,2.6,13.4,18.3,27.3,3,10.5,5.3,12.1,1.7,
+          30.1,20.3,35.7,14.2,17.2,12.7,24.8,9.8,17.8,17.8,41.9,21.3,20.9,8,30.8,9.2,
+          22.1,21.2,37.6,23.9,11.8,12.6,20.2,9.8,11.8,16.2,45.6,10.9,10.8,6.2,19.2,6
+        ],
+        h_sapiens_generic: [
+          17.6,15.2,12.2,10.6,20.3,17.7,15.3,12.6,7.7,12.2,1,1.6,12.9,4.4,.8,13.2,
+          13.2,17.5,10.9,4.5,19.6,19.8,15.1,10.4,7.2,16.9,12.3,6.2,39.6,6.9,34.2,11.4,
+          16,13.1,17,12.1,20.8,18.9,19.1,19.5,7.5,15.1,24.4,12.2,22,6.1,31.9,12,
+          11,18.4,21.8,10.8,14.5,27.7,25.1,22.2,7.1,15.8,29,16.5,28.1,7.4,39.6,16.5
+        ],
+        m_musculus: [
+          17.2,16.2,12.2,11.4,21.8,18.1,16.1,12.3,6.7,11.8,1,1.6,13.4,4.2,.8,12.5,
+          13.4,18.4,10.6,4.7,20.2,18.2,15.3,9.4,8.1,17.3,12,6.6,39.5,6.2,34.1,10.2,
+          15.4,13.7,15.6,12.7,22.5,19,20.3,19.7,7.4,16,21.9,12.1,22.8,5.6,33.6,12.2,
+          10.7,20,21,11.4,15.4,26,26,21.2,7.4,15.8,27,16.8,28.4,6.4,39.4,15.2
+        ],
+        p_pastoris: [
+          24.1,24.4,16,7.7,20.6,16.5,18.1,4.4,15.6,15.2,.8,.3,31.5,7.4,.5,10.3,
+          15.9,15.8,11.8,6.9,7.6,6.8,9.1,2.2,10.7,18.9,25.4,4.2,14.9,3.9,16.3,1.9,
+          31.1,22.4,25.1,12.5,19.4,14.5,26.7,7.6,11.1,13.8,29.9,20.1,18.7,6,33.8,6.6,
+          26.9,28.9,35.7,25.5,14.9,16.6,25.9,8.1,9.9,15.1,37.4,19.1,12.3,3.9,29,5.8
+        ],
+        cho: [
+          19.6,16,13.1,9.1,22,16.5,16.4,10.3,6.4,10.3,.6,1.2,14.1,3.4,.5,13.1,
+          13.2,16.7,10.2,5.6,18.4,17,12.9,9.3,7.6,15.6,10.3,7.2,38.8,4.3,33.4,10.1,
+          17.4,14.1,17.4,11.4,24.8,20.3,21.2,16.4,6.9,15.7,24.6,10.1,23,4.5,38.4,10.2,
+          11.6,22.4,24.6,12.8,15.7,25.9,28.1,21.3,7.8,16.3,28.4,15.8,30.1,5,41.1,13.4
+        ],
+        b_subtilis: [
+          30,12.7,23.3,3.6,14.3,8.3,12.6,4.3,19.8,14.6,1.9,.8,15.8,6.5,.5,10.7,
+          21.8,10.6,15.7,7.2,10.7,3.5,7.5,8.2,4.9,7.1,20.4,4.3,23,16.3,18.5,6.9,
+          36.2,8.7,22.9,6.8,27.2,9,17.8,14.4,9.8,21.6,48.4,10.5,26.3,14.9,20.8,4.1,
+          18.6,18.6,33.2,13,17.3,16.5,19,23.3,13,21.1,48.1,21.8,17.3,19.8,22.6,11.2
+        ]
+      });
+      const HOST_METADATA = Object.freeze({
+        ecoli_k12:{label:'Escherichia coli K-12 W3110',taxid:'316407',source:'Kazusa CUTG · 4,332 CDS'},
+        s_cerevisiae:{label:'Saccharomyces cerevisiae',taxid:'4932',source:'Kazusa CUTG · 14,411 CDS'},
+        h_sapiens_generic:{label:'Homo sapiens',taxid:'9606',source:'Kazusa CUTG · 93,487 CDS'},
+        h_sapiens_liver:{label:'Homo sapiens — liver proxy',taxid:'9606',source:'Genome-wide human proxy; tissue-specific tRNA data are not a codon table',proxy:'h_sapiens_generic'},
+        h_sapiens_muscle:{label:'Homo sapiens — muscle proxy',taxid:'9606',source:'Genome-wide human proxy; tissue-specific tRNA data are not a codon table',proxy:'h_sapiens_generic'},
+        m_musculus:{label:'Mus musculus',taxid:'10090',source:'Kazusa CUTG · 53,036 CDS'},
+        p_pastoris:{label:'Pichia pastoris',taxid:'4922',source:'Kazusa CUTG · 137 CDS'},
+        cho:{label:'Cricetulus griseus / CHO proxy',taxid:'10029',source:'Chinese hamster genome-wide Kazusa proxy · 331 CDS'},
+        b_subtilis:{label:'Bacillus subtilis',taxid:'1423',source:'Kazusa CUTG · 2,529 CDS'}
+      });
+
+      function buildUsageTable(key) {
+        const meta = HOST_METADATA[key];
+        const sourceKey = meta?.proxy || key;
+        const frequencies = RAW_USAGE[sourceKey];
+        if (!frequencies || frequencies.length !== 64) throw new Error(`Incomplete usage data for ${key}`);
+        const totals = {};
+        CODON_ORDER.forEach((codon,index) => {
+          const aa = GENETIC_CODE[codon];
+          totals[aa] = (totals[aa] || 0) + frequencies[index];
+        });
+        return Object.freeze(Object.fromEntries(CODON_ORDER.map((codon,index) => {
+          const aa = GENETIC_CODE[codon];
+          return [codon,Object.freeze({aa,fraction:frequencies[index] / totals[aa],freq_per_thousand:frequencies[index]})];
+        })));
+      }
+      const CODON_TABLES = Object.freeze(Object.fromEntries(Object.keys(HOST_METADATA).map(key => [key,buildUsageTable(key)])));
+
+      const RESTRICTION_ENZYMES = Object.freeze({
+        EcoRI:{site:'GAATTC',topCut:1,bottomCut:5,overhang:"5′ AATT",family:'6-cutter'},
+        BamHI:{site:'GGATCC',topCut:1,bottomCut:5,overhang:"5′ GATC",family:'6-cutter'},
+        HindIII:{site:'AAGCTT',topCut:1,bottomCut:5,overhang:"5′ AGCT",family:'6-cutter'},
+        NcoI:{site:'CCATGG',topCut:1,bottomCut:5,overhang:"5′ CATG",family:'6-cutter'},
+        XhoI:{site:'CTCGAG',topCut:1,bottomCut:5,overhang:"5′ TCGA",family:'6-cutter'},
+        NheI:{site:'GCTAGC',topCut:1,bottomCut:5,overhang:"5′ CTAG",family:'6-cutter'},
+        SalI:{site:'GTCGAC',topCut:1,bottomCut:5,overhang:"5′ TCGA",family:'6-cutter'},
+        XbaI:{site:'TCTAGA',topCut:1,bottomCut:5,overhang:"5′ CTAG",family:'6-cutter'},
+        SpeI:{site:'ACTAGT',topCut:1,bottomCut:5,overhang:"5′ CTAG",family:'6-cutter'},
+        PstI:{site:'CTGCAG',topCut:5,bottomCut:1,overhang:"3′ TGCA",family:'6-cutter'},
+        SacI:{site:'GAGCTC',topCut:5,bottomCut:1,overhang:"3′ TCGA",family:'6-cutter'},
+        KpnI:{site:'GGTACC',topCut:5,bottomCut:1,overhang:"3′ GTAC",family:'6-cutter'},
+        SmaI:{site:'CCCGGG',topCut:3,bottomCut:3,overhang:'blunt',family:'6-cutter'},
+        NotI:{site:'GCGGCCGC',topCut:2,bottomCut:6,overhang:"5′ GGCC",family:'8-cutter'},
+        BglII:{site:'AGATCT',topCut:1,bottomCut:5,overhang:"5′ GATC",family:'6-cutter'}
+      });
+      const NN = Object.freeze({
+        AA:{h:-7.9,s:-22.2},TT:{h:-7.9,s:-22.2},AT:{h:-7.2,s:-20.4},TA:{h:-7.2,s:-21.3},
+        CA:{h:-8.5,s:-22.7},TG:{h:-8.5,s:-22.7},GT:{h:-8.4,s:-22.4},AC:{h:-8.4,s:-22.4},
+        CT:{h:-7.8,s:-21},AG:{h:-7.8,s:-21},GA:{h:-8.2,s:-22.2},TC:{h:-8.2,s:-22.2},
+        CG:{h:-10.6,s:-27.2},GC:{h:-9.8,s:-24.4},GG:{h:-8,s:-19.9},CC:{h:-8,s:-19.9}
+      });
+      const KD = Object.freeze({A:1.8,R:-4.5,N:-3.5,D:-3.5,C:2.5,Q:-3.5,E:-3.5,G:-.4,H:-3.2,I:4.5,L:3.8,K:-3.9,M:1.9,F:2.8,P:-1.6,S:-.8,T:-.7,W:-.9,Y:-1.3,V:4.2});
+      const MONOMER_EPSILON = Object.freeze({A:15400,C:7400,G:11500,T:8700});
+      const DINUCLEOTIDE_EPSILON = Object.freeze({
+        AA:27400,AC:21200,AG:25000,AT:22800,CA:21200,CC:14600,CG:18000,CT:15200,
+        GA:25200,GC:17600,GG:21600,GT:20000,TA:23400,TC:16200,TG:19000,TT:16800
+      });
+      const DNA_MASS = Object.freeze({A:313.21,T:304.19,G:329.21,C:289.18});
+      const RNA_MASS = Object.freeze({A:329.21,U:306.17,G:345.21,C:305.18});
+      const SAMPLES = Object.freeze({
+        gfp:'MVSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFGYPVDIPDYFKQSFPEGFTWERVTTYEDGGVLTATQDTSLQDGCLIYNVKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK',
+        cart:'MALPVTALLLPLALLLHAARPEEPLVVKVEEGDNAVLQCLKGTSDGPTQQLTWSRESPLKPFLKLSLGLPGLGIHMRPLAIWLFIFNVSQQMGGFYLCQPGPPSEKAWQPGWTVNVEGSGELFRWNVSDLGGLGCGLKNRSSEGPSSPSGKLMSPKLYVWAKDRPEIWEGEPPCLPPRDSLNQSLSQDLTMAPGSTLWLSCGVPPDSVSRGPLSWTHVHPKGPKSLLSLELKDDRPARDMWVMETGLLLPRATAQDAGKYYCHRGNLTMSFHLEITARPVLWHWLLRTGGWK'
+      });
+      const VECTOR_MCS = Object.freeze({
+        pUC19:'GAATTCCCGGGGATCCTCTAGAGTCGACCTGCAGGCATGCAAGCTT',
+        pET28a:'GCTAGCATGACTGGTGGACAGCAAATGGGTCGCGGATCCGAATTCGAGCTCCGTCGACAAGCTTGCGGCCGC',
+        pCMV:'GCTAGCGGTACCGAGCTCGGATCCACTAGTCCCGGGCTCGAG',
+        pAAV:'GGTACCGCGGCCGCGCTAGCGATATCGAATTCCTCGAG'
+      });
+
+      const byId = id => typeof document === 'undefined' ? null : document.getElementById(id);
+      const clamp = (value,min,max) => Math.min(max,Math.max(min,value));
+      const mean = values => values.length ? values.reduce((sum,value) => sum + value,0) / values.length : 0;
+      const round = (value,digits=1) => Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
+      const escapeXml = value => String(value).replace(/[&<>"']/g,char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const cleanSequence = raw => String(raw || '').split(/\r?\n/).filter(line => !line.trim().startsWith('>')).join('').replace(/[\s\d]/g,'').toUpperCase();
+      const reverseComplement = sequence => [...sequence.toUpperCase()].reverse().map(base => COMPLEMENT[base] || 'N').join('');
+      const splitCodons = sequence => sequence.match(/.{1,3}/g) || [];
+      const gcPercent = sequence => sequence.length ? 100 * ((sequence.match(/[GC]/g) || []).length / sequence.length) : 0;
+
+      function validateSequence(raw,kind='dna') {
+        const sequence = cleanSequence(raw);
+        if (!sequence) return {valid:false,sequence,error:'Enter a sequence to continue.',positions:[]};
+        const pattern = kind === 'protein' ? /[ACDEFGHIKLMNPQRSTVWY*]/ : kind === 'rna' ? /[ACGU]/ : /[ACGT]/;
+        const positions = [...sequence].flatMap((char,index) => pattern.test(char) ? [] : [{char,index:index + 1}]);
+        return positions.length
+          ? {valid:false,sequence,positions,error:`Invalid ${kind.toUpperCase()} character “${positions[0].char}” at position ${positions[0].index}.`}
+          : {valid:true,sequence,positions:[],error:null};
+      }
+
+      function detectSequenceKind(raw,override='auto') {
+        const sequence = cleanSequence(raw);
+        if (override !== 'auto') return override;
+        if (/^[ACGT]+$/.test(sequence)) return 'dna';
+        if (/^[ACGU]+$/.test(sequence) && sequence.includes('U')) return 'rna';
+        if (/^[ACDEFGHIKLMNPQRSTVWY*]+$/.test(sequence)) return 'protein';
+        return 'unknown';
+      }
+
+      function translateDna(sequence,{trimTerminalStop=false}={}) {
+        if (sequence.length % 3) throw new Error('Coding DNA length must be divisible by three.');
+        let protein = splitCodons(sequence).map(codon => GENETIC_CODE[codon] ?? '?').join('');
+        if (trimTerminalStop && protein.endsWith('*')) protein = protein.slice(0,-1);
+        return protein;
+      }
+
+      function fnv1a(text) {
+        let hash = 0x811c9dc5;
+        for (const byte of new TextEncoder().encode(String(text))) {
+          hash ^= byte;
+          hash = Math.imul(hash,0x01000193) >>> 0;
+        }
+        return hash >>> 0;
+      }
+
+      function mulberry32(seed) {
+        let state = seed >>> 0;
+        return () => {
+          state = (state + 0x6d2b79f5) >>> 0;
+          let value = state;
+          value = Math.imul(value ^ (value >>> 15),value | 1);
+          value ^= value + Math.imul(value ^ (value >>> 7),value | 61);
+          return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function synonymsFor(aa,table) {
+        return Object.entries(table).filter(([,entry]) => entry.aa === aa).sort(([a],[b]) => a.localeCompare(b));
+      }
+
+      function calculateCai(sequence,table) {
+        const weights = [];
+        for (const codon of splitCodons(sequence)) {
+          const entry = table[codon];
+          if (!entry) throw new Error(`No usage entry for codon ${codon}.`);
+          if (entry.aa === '*' || entry.aa === 'M' || entry.aa === 'W') continue;
+          const family = synonymsFor(entry.aa,table);
+          const maxFraction = Math.max(...family.map(([,item]) => item.fraction));
+          const weight = entry.fraction / maxFraction;
+          if (weight <= 0) return 0;
+          weights.push(weight);
+        }
+        return weights.length ? Math.exp(mean(weights.map(Math.log))) : null;
+      }
+
+      function rareCodonCount(sequence,table,threshold=.1) {
+        return splitCodons(sequence).filter(codon => table[codon] && table[codon].aa !== '*' && table[codon].fraction < threshold).length;
+      }
+
+      function gcSlidingWindow(sequence,windowSize=50) {
+        if (!sequence.length) return [];
+        const size = Math.min(windowSize,sequence.length);
+        const prefix = new Uint32Array(sequence.length + 1);
+        for (let index=0; index<sequence.length; index++) prefix[index + 1] = prefix[index] + (/[GC]/.test(sequence[index]) ? 1 : 0);
+        const results = [];
+        for (let index=0; index<=sequence.length-size; index++) {
+          results.push({position:index + size / 2,gc:100 * (prefix[index + size] - prefix[index]) / size,start:index,end:index + size});
+        }
+        return results;
+      }
+
+      function scanRestrictionSites(sequence,enzymes=RESTRICTION_ENZYMES) {
+        const hits = [];
+        for (const [name,enzyme] of Object.entries(enzymes)) {
+          const forward = enzyme.site.toUpperCase();
+          const reverse = reverseComplement(forward);
+          for (let index=0; index<=sequence.length-forward.length; index++) {
+            if (sequence.slice(index,index + forward.length) === forward) {
+              hits.push({enzyme:name,position:index,strand:'+',topCut:index + enzyme.topCut,bottomCut:index + enzyme.bottomCut});
+            }
+            if (reverse !== forward && sequence.slice(index,index + reverse.length) === reverse) {
+              hits.push({enzyme:name,position:index,strand:'-',topCut:index + reverse.length - enzyme.bottomCut,bottomCut:index + reverse.length - enzyme.topCut});
+            }
+          }
+        }
+        return hits.sort((a,b) => a.position - b.position || a.enzyme.localeCompare(b.enzyme));
+      }
+
+      function findHomopolymers(sequence,maxRun=6) {
+        const results = [];
+        let start = 0;
+        for (let index=1; index<=sequence.length; index++) {
+          if (sequence[index] !== sequence[start]) {
+            if (index - start > maxRun) results.push({start,end:index,base:sequence[start],length:index-start});
+            start = index;
+          }
+        }
+        return results;
+      }
+
+      function findRepeats(sequence,k=9) {
+        const seen = new Map();
+        const repeats = [];
+        for (let index=0; index<=sequence.length-k; index++) {
+          const fragment = sequence.slice(index,index+k);
+          if (seen.has(fragment)) repeats.push({sequence:fragment,first:seen.get(fragment),second:index,length:k});
+          else seen.set(fragment,index);
+        }
+        return repeats;
+      }
+
+      function findSpliceMotifs(sequence) {
+        const motifs = [];
+        const patterns = [
+          {name:'canonical donor-like motif',regex:/[AC]AGGT[AG]AGT/g},
+          {name:'canonical acceptor-like motif',regex:/[CT]{6,12}[ACGT]CAGG/g}
+        ];
+        for (const pattern of patterns) {
+          let match;
+          while ((match = pattern.regex.exec(sequence))) {
+            motifs.push({name:pattern.name,start:match.index,end:match.index+match[0].length,sequence:match[0]});
+            pattern.regex.lastIndex = match.index + 1;
+          }
+        }
+        return motifs;
+      }
+
+      function findHydrophobicRegions(protein,windowSize=9,threshold=1.8) {
+        const regions = [];
+        let open = null;
+        for (let index=0; index<=protein.length-windowSize; index++) {
+          const score = mean([...protein.slice(index,index+windowSize)].map(aa => KD[aa] ?? -10));
+          if (score > threshold && open === null) open = index;
+          if (score <= threshold && open !== null) {
+            regions.push({start:open,end:index+windowSize-1});
+            open = null;
+          }
+        }
+        if (open !== null) regions.push({start:open,end:protein.length});
+        return regions;
+      }
+
+      function nearestNeighbourThermodynamics(sequence,naMm=50,totalNm=250) {
+        const dna = cleanSequence(sequence);
+        const validation = validateSequence(dna,'dna');
+        if (!validation.valid || dna.length < 2) throw new Error('Nearest-neighbour Tm requires at least two unambiguous DNA bases.');
+        if (!(naMm > 0) || !(totalNm > 0)) throw new Error('Na⁺ and total strand concentration must be positive.');
+        let enthalpy = 0;
+        let entropy = 0;
+        for (let index=0; index<dna.length-1; index++) {
+          const parameter = NN[dna.slice(index,index+2)];
+          if (!parameter) throw new Error(`Missing nearest-neighbour parameter at position ${index+1}.`);
+          enthalpy += parameter.h;
+          entropy += parameter.s;
+        }
+        for (const terminal of [dna[0],dna.at(-1)]) {
+          if (/[GC]/.test(terminal)) { enthalpy += .1; entropy -= 2.8; }
+          else { enthalpy += 2.3; entropy += 4.1; }
+        }
+        const selfComplementary = dna === reverseComplement(dna);
+        if (selfComplementary) entropy -= 1.4;
+        const sodiumM = naMm / 1000;
+        const saltEntropy = .368 * (dna.length - 1) * Math.log(sodiumM);
+        const adjustedEntropy = entropy + saltEntropy;
+        const totalM = totalNm * 1e-9;
+        const effectiveConcentration = selfComplementary ? totalM : totalM / 4;
+        const tm = (enthalpy * 1000) / (adjustedEntropy + 1.987 * Math.log(effectiveConcentration)) - 273.15;
+        return {enthalpy,entropy,saltEntropy,adjustedEntropy,selfComplementary,effectiveConcentration,tm,naMm,totalNm};
+      }
+
+      function wallaceTm(sequence) {
+        const counts = Object.fromEntries('ATGC'.split('').map(base => [base,(sequence.match(new RegExp(base,'g')) || []).length]));
+        return 2 * (counts.A + counts.T) + 4 * (counts.G + counts.C);
+      }
+
+      function marmurDotyTm(sequence) {
+        return 64.9 + 41 * ((sequence.match(/[GC]/g) || []).length - 16.4) / sequence.length;
+      }
+
+      function selectedTm(sequence,method,naMm,totalNm) {
+        if (method === 'wallace') return wallaceTm(sequence);
+        if (method === 'marmur') return marmurDotyTm(sequence);
+        return nearestNeighbourThermodynamics(sequence,naMm,totalNm).tm;
+      }
+
+      function stackDeltaG(sequence,tempC=37,naMm=50) {
+        if (sequence.length < 2) return 0;
+        let enthalpy = 0;
+        let entropy = 0;
+        for (let index=0; index<sequence.length-1; index++) {
+          const parameter = NN[sequence.slice(index,index+2)];
+          if (!parameter) continue;
+          enthalpy += parameter.h;
+          entropy += parameter.s;
+        }
+        entropy += .368 * (sequence.length - 1) * Math.log(naMm / 1000);
+        return enthalpy - (tempC + 273.15) * entropy / 1000;
+      }
+
+      function findBestHairpin(sequence,tempC=37,naMm=50) {
+        const dna = cleanSequence(sequence);
+        let best = null;
+        for (let stem=3; stem<=Math.min(12,Math.floor((dna.length-3)/2)); stem++) {
+          for (let loop=3; loop<=10; loop++) {
+            for (let left=0; left+stem+loop+stem<=dna.length; left++) {
+              const right = left + stem + loop;
+              const leftArm = dna.slice(left,left+stem);
+              const rightArm = dna.slice(right,right+stem);
+              if (leftArm !== reverseComplement(rightArm)) continue;
+              const dg = stackDeltaG(leftArm,tempC,naMm) + 5.4 + .4 * (loop - 3);
+              const candidate = {left,right,stem,loop,leftArm,rightArm,dg};
+              if (!best || candidate.dg < best.dg || (candidate.dg === best.dg && candidate.stem > best.stem)) best = candidate;
+            }
+          }
+        }
+        return best;
+      }
+
+      function findBestDimer(first,second=first,tempC=37,naMm=50) {
+        const top = cleanSequence(first);
+        const partner = cleanSequence(second);
+        const alignedPartner = reverseComplement(partner);
+        let best = null;
+        for (let shift=-(alignedPartner.length-1); shift<top.length; shift++) {
+          const matches = [];
+          for (let index=0; index<top.length; index++) {
+            const otherIndex = index - shift;
+            matches[index] = otherIndex >= 0 && otherIndex < alignedPartner.length && top[index] === alignedPartner[otherIndex];
+          }
+          let runStart = -1;
+          for (let index=0; index<=top.length; index++) {
+            if (matches[index] && runStart < 0) runStart = index;
+            if ((!matches[index] || index === top.length) && runStart >= 0) {
+              const runEnd = index;
+              const length = runEnd - runStart;
+              if (length >= 2) {
+                const segment = top.slice(runStart,runEnd);
+                const dg = stackDeltaG(segment,tempC,naMm);
+                const otherStart = runStart - shift;
+                const involvesFirst3 = runEnd === top.length;
+                const involvesSecond3 = otherStart === 0;
+                const candidate = {shift,runStart,runEnd,otherStart,length,segment,dg,involves3Prime:involvesFirst3 || involvesSecond3,matches,top,partner,alignedPartner};
+                if (!best || candidate.dg < best.dg || (candidate.dg === best.dg && candidate.involves3Prime && !best.involves3Prime)) best = candidate;
+              }
+              runStart = -1;
+            }
+          }
+        }
+        return best;
+      }
+
+      function molecularWeight(sequence,type='dna') {
+        const masses = type === 'rna' ? RNA_MASS : DNA_MASS;
+        return [...sequence].reduce((sum,base) => sum + masses[base],0) - 61.96;
+      }
+
+      function extinctionCoefficient(sequence) {
+        const dna = sequence.replace(/U/g,'T');
+        if (dna.length === 1) return MONOMER_EPSILON[dna];
+        let coefficient = 0;
+        for (let index=0; index<dna.length-1; index++) coefficient += DINUCLEOTIDE_EPSILON[dna.slice(index,index+2)];
+        for (let index=1; index<dna.length-1; index++) coefficient -= MONOMER_EPSILON[dna[index]];
+        return coefficient;
+      }
+
+      function palindromes(sequence,minLength=4) {
+        const found = [];
+        for (let length=minLength; length<=Math.min(12,sequence.length); length++) {
+          for (let index=0; index<=sequence.length-length; index++) {
+            const fragment = sequence.slice(index,index+length);
+            if (fragment === reverseComplement(fragment)) found.push({start:index,end:index+length,sequence:fragment});
+          }
+        }
+        return found;
+      }
+
+      function parseCustomCodonCsv(text) {
+        const lines = String(text).trim().split(/\r?\n/);
+        const header = lines.shift().split(',').map(value => value.trim().toLowerCase());
+        const required = ['codon','amino_acid','frequency_per_thousand','fraction'];
+        const indices = Object.fromEntries(required.map(name => [name,header.indexOf(name)]));
+        if (Object.values(indices).some(index => index < 0)) throw new Error(`CSV header must contain: ${required.join(', ')}.`);
+        const table = {};
+        for (const [lineIndex,line] of lines.entries()) {
+          if (!line.trim()) continue;
+          const fields = line.split(',').map(value => value.trim());
+          const codon = fields[indices.codon].toUpperCase().replace(/U/g,'T');
+          const rawAa = fields[indices.amino_acid];
+          const aa = rawAa.length === 1 ? rawAa.toUpperCase() : Object.entries(AA_NAMES).find(([,name]) => name.toLowerCase() === rawAa.toLowerCase())?.[0];
+          const freq = Number(fields[indices.frequency_per_thousand]);
+          const fraction = Number(fields[indices.fraction]);
+          if (!GENETIC_CODE[codon] || GENETIC_CODE[codon] !== aa || !Number.isFinite(freq) || freq < 0 || !Number.isFinite(fraction) || fraction < 0) {
+            throw new Error(`Invalid codon-table row ${lineIndex + 2}.`);
+          }
+          table[codon] = {aa,fraction,freq_per_thousand:freq};
+        }
+        if (Object.keys(table).length !== 64) throw new Error(`Custom table has ${Object.keys(table).length} codons; exactly 64 are required.`);
+        for (const aa of new Set(Object.values(table).map(entry => entry.aa))) {
+          const sum = Object.values(table).filter(entry => entry.aa === aa).reduce((total,entry) => total + entry.fraction,0);
+          if (Math.abs(sum - 1) > .02) throw new Error(`Fractions for ${AA_NAMES[aa]} sum to ${sum.toFixed(3)}, not 1.000.`);
+        }
+        return Object.freeze(table);
+      }
+
+      function issueRange(issue,sequenceLength) {
+        if (Number.isInteger(issue.start)) return [issue.start,issue.end ?? issue.start + 1];
+        return [0,sequenceLength];
+      }
+
+      function evaluateConstraints(sequence,options) {
+        const issues = [];
+        if (options.avoidSites) {
+          const selected = Object.fromEntries(options.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]]).filter(([,enzyme]) => enzyme));
+          for (const hit of scanRestrictionSites(sequence,selected)) {
+            issues.push({type:'restriction',start:hit.position,end:hit.position + RESTRICTION_ENZYMES[hit.enzyme].site.length,weight:120,detail:hit});
+          }
+        }
+        if (options.enforceGc) {
+          const gc = gcPercent(sequence);
+          if (gc < options.gcMin) issues.push({type:'global-gc-low',weight:(options.gcMin-gc)*3,gc});
+          if (gc > options.gcMax) issues.push({type:'global-gc-high',weight:(gc-options.gcMax)*3,gc});
+          if (options.gcWindow) {
+            for (const window of gcSlidingWindow(sequence,50)) {
+              if (window.gc < 25) issues.push({type:'window-gc-low',start:window.start,end:window.end,weight:25-window.gc,gc:window.gc});
+              if (window.gc > 75) issues.push({type:'window-gc-high',start:window.start,end:window.end,weight:window.gc-75,gc:window.gc});
+            }
+          }
+        }
+        if (options.avoidPoly) {
+          for (const run of findHomopolymers(sequence,options.polyMax)) {
+            if (run.base === 'A' || run.base === 'T') issues.push({type:'homopolymer',start:run.start,end:run.end,weight:40+run.length,detail:run});
+          }
+        }
+        if (options.avoidRepeats) {
+          for (const repeat of findRepeats(sequence,options.repeatWindow).slice(0,40)) {
+            issues.push({type:'repeat',start:repeat.second,end:repeat.second+repeat.length,weight:18,detail:repeat});
+          }
+        }
+        if (options.avoidSplice) {
+          for (const motif of findSpliceMotifs(sequence)) issues.push({type:'splice',start:motif.start,end:motif.end,weight:60,detail:motif});
+        }
+        if (options.capCpg) {
+          const positions = [];
+          for (let index=0; index<sequence.length-1; index++) if (sequence.slice(index,index+2) === 'CG') positions.push(index);
+          const allowance = Math.ceil(sequence.length / 20);
+          for (const position of positions.slice(allowance)) issues.push({type:'cpg',start:position,end:position+2,weight:10});
+        }
+        return issues.sort((a,b) => b.weight-a.weight || (a.start ?? 0)-(b.start ?? 0));
+      }
+
+      function issuePenalty(issues) {
+        return issues.reduce((sum,issue) => sum + issue.weight,0);
+      }
+
+      function chooseInitialCodon(aa,table,strategy,random,targetGc=50) {
+        const choices = synonymsFor(aa,table);
+        if (!choices.length) throw new Error(`No synonymous codons available for ${aa}.`);
+        if (strategy === 'maximum') return [...choices].sort((a,b) => b[1].fraction-a[1].fraction || a[0].localeCompare(b[0]))[0][0];
+        if (strategy === 'hybrid') {
+          return [...choices].sort((a,b) => {
+            const scoreA = -Math.log(Math.max(a[1].fraction,1e-12)) + Math.abs(gcPercent(a[0])-targetGc)/100;
+            const scoreB = -Math.log(Math.max(b[1].fraction,1e-12)) + Math.abs(gcPercent(b[0])-targetGc)/100;
+            return scoreA-scoreB || a[0].localeCompare(b[0]);
+          })[0][0];
+        }
+        const total = choices.reduce((sum,[,entry]) => sum + entry.fraction,0);
+        const draw = random() * total;
+        let cumulative = 0;
+        for (const [codon,entry] of choices) {
+          cumulative += entry.fraction;
+          if (draw < cumulative) return codon;
+        }
+        return choices.at(-1)[0];
+      }
+
+      function repairGlobalGc(codons,issue,table) {
+        const needMoreGc = issue.type.endsWith('low');
+        let best = null;
+        for (let index=0; index<codons.length; index++) {
+          const current = codons[index];
+          const aa = table[current].aa;
+          for (const [candidate,entry] of synonymsFor(aa,table)) {
+            if (candidate === current) continue;
+            const delta = (candidate.match(/[GC]/g) || []).length - (current.match(/[GC]/g) || []).length;
+            if ((needMoreGc && delta <= 0) || (!needMoreGc && delta >= 0)) continue;
+            const maxFraction = Math.max(...synonymsFor(aa,table).map(([,item]) => item.fraction));
+            const caiCost = -Math.log(Math.max(entry.fraction/maxFraction,1e-12));
+            const candidateScore = Math.abs(delta)*10-caiCost;
+            if (!best || candidateScore > best.score || (candidateScore === best.score && index < best.index)) {
+              best = {index,codon:candidate,score:candidateScore};
+            }
+          }
+        }
+        if (!best) return null;
+        const previous = codons[best.index];
+        codons[best.index] = best.codon;
+        return {index:best.index,previous,next:best.codon};
+      }
+
+      function repairLocalIssue(codons,issue,table,options,currentIssues) {
+        const sequence = codons.join('');
+        const [start,end] = issueRange(issue,sequence.length);
+        const firstCodon = clamp(Math.floor(start/3)-1,0,codons.length-1);
+        const lastCodon = clamp(Math.floor((Math.max(start,end-1))/3)+1,0,codons.length-1);
+        const baselinePenalty = issuePenalty(currentIssues);
+        const candidates = [];
+        for (let index=firstCodon; index<=lastCodon; index++) {
+          const current = codons[index];
+          const aa = table[current].aa;
+          for (const [candidate,entry] of synonymsFor(aa,table)) {
+            if (candidate === current) continue;
+            const copy = codons.slice();
+            copy[index] = candidate;
+            const nextIssues = evaluateConstraints(copy.join(''),options);
+            const penalty = issuePenalty(nextIssues);
+            const familyMax = Math.max(...synonymsFor(aa,table).map(([,item]) => item.fraction));
+            const caiCost = -Math.log(Math.max(entry.fraction/familyMax,1e-12));
+            candidates.push({index,codon:candidate,penalty,caiCost,nextIssues});
+          }
+        }
+        candidates.sort((a,b) => a.penalty-b.penalty || a.caiCost-b.caiCost || a.index-b.index || a.codon.localeCompare(b.codon));
+        const best = candidates[0];
+        if (!best || best.penalty >= baselinePenalty) return null;
+        const previous = codons[best.index];
+        codons[best.index] = best.codon;
+        return {index:best.index,previous,next:best.codon,nextIssues:best.nextIssues};
+      }
+
+      function applyHydrophobicPause(codons,protein,table,log) {
+        const regions = findHydrophobicRegions(protein);
+        for (const region of regions) {
+          const index = region.end;
+          if (index >= codons.length || protein[index] === '*') continue;
+          const choices = synonymsFor(protein[index],table).sort((a,b) => a[1].fraction-b[1].fraction || a[0].localeCompare(b[0]));
+          if (choices.length < 2) continue;
+          const replacement = choices[1][0];
+          const previous = codons[index];
+          if (replacement !== previous) {
+            codons[index] = replacement;
+            log.push(`Experimental pause: hydrophobic region ${region.start+1}–${region.end}; residue ${index+1} changed ${previous} → ${replacement}. Kyte–Doolittle does not predict β-sheets.`);
+          }
+        }
+      }
+
+      function optimiseCodingSequence({input,inputMode,table,hostKey,strategy,seed,prefix='',suffix='',constraints}) {
+        const kind = detectSequenceKind(input,inputMode);
+        if (kind !== 'dna' && kind !== 'protein') throw new Error('Input must be unambiguous protein or coding DNA.');
+        const validation = validateSequence(input,kind);
+        if (!validation.valid) throw new Error(validation.error);
+        if (kind === 'dna' && validation.sequence.length % 3) throw new Error('Coding DNA length must be divisible by three.');
+        const prefixValidation = prefix ? validateSequence(prefix,'dna') : {valid:true,sequence:''};
+        const suffixValidation = suffix ? validateSequence(suffix,'dna') : {valid:true,sequence:''};
+        if (!prefixValidation.valid) throw new Error(`5′ prefix: ${prefixValidation.error}`);
+        if (!suffixValidation.valid) throw new Error(`3′ suffix: ${suffixValidation.error}`);
+        const originalDna = kind === 'dna' ? validation.sequence : null;
+        const protein = kind === 'dna' ? translateDna(validation.sequence) : validation.sequence;
+        if (protein.includes('*') && !protein.endsWith('*')) throw new Error('Internal stop codons are not accepted. Remove the stop or provide the intended protein.');
+        const random = mulberry32(fnv1a(seed || DEFAULT_SEED));
+        const log = [
+          `Input detected as ${kind === 'dna' ? 'coding DNA' : 'protein'} (${validation.sequence.length} ${kind === 'dna' ? 'bp' : 'aa'}).`,
+          `Algorithm: ${strategy}; seed “${seed || DEFAULT_SEED}” (FNV-1a → Mulberry32).`,
+          `Host: ${HOST_METADATA[hostKey]?.label || 'custom table'}; 64 codons loaded.`
+        ];
+        const codons = [...protein].map(aa => chooseInitialCodon(aa,table,strategy,random,(constraints.gcMin+constraints.gcMax)/2));
+        const baselineDna = codons.join('');
+        if (constraints.pauseHeuristic) applyHydrophobicPause(codons,protein,table,log);
+        let issues = evaluateConstraints(codons.join(''),constraints);
+        let repairs = 0;
+        const repairLimit = Math.max(100,codons.length * 10);
+        const repairCounts = {};
+        while (issues.length && repairs < repairLimit) {
+          const issue = issues[0];
+          let repair;
+          if (issue.type === 'global-gc-low' || issue.type === 'global-gc-high') {
+            repair = repairGlobalGc(codons,issue,table);
+            if (repair) issues = evaluateConstraints(codons.join(''),constraints);
+          } else {
+            repair = repairLocalIssue(codons,issue,table,constraints,issues);
+            if (repair) issues = repair.nextIssues;
+          }
+          if (!repair) {
+            const skippedKey = `${issue.type}:${issue.start ?? 'global'}`;
+            repairCounts[skippedKey] = (repairCounts[skippedKey] || 0) + 1;
+            if (repairCounts[skippedKey] > 1) {
+              issues.push(issues.shift());
+              if (Object.values(repairCounts).reduce((sum,value) => sum+value,0) > issues.length*2) break;
+            } else issues.push(issues.shift());
+          } else {
+            repairs++;
+            repairCounts[issue.type] = (repairCounts[issue.type] || 0) + 1;
+          }
+        }
+        const codingDna = codons.join('');
+        const finalIssues = evaluateConstraints(codingDna,constraints);
+        const fullSequence = prefixValidation.sequence + codingDna + suffixValidation.sequence;
+        const tailHits = constraints.avoidSites
+          ? scanRestrictionSites(fullSequence,Object.fromEntries(constraints.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]])))
+              .filter(hit => hit.position < prefixValidation.sequence.length || hit.position + RESTRICTION_ENZYMES[hit.enzyme].site.length > prefixValidation.sequence.length + codingDna.length)
+          : [];
+        const typeCounts = Object.entries(repairCounts).filter(([key]) => !key.includes(':')).map(([type,count]) => `${count} ${type}`).join(', ');
+        log.push(repairs ? `Constraint repair applied ${repairs} synonymous substitution${repairs === 1 ? '' : 's'}${typeCounts ? ` (${typeCounts})` : ''}.` : 'No synonymous constraint repairs were required.');
+        if (tailHits.length) log.push(`${tailHits.length} selected restriction site(s) overlap immutable prefix/suffix sequence and were not altered.`);
+        if (finalIssues.length) log.push(`${finalIssues.length} coding-region constraint violation(s) remain because no improving synonymous substitution was found.`);
+        else log.push('All enabled coding-region constraints passed.');
+        const originalForComparison = originalDna || baselineDna;
+        const originalSites = scanRestrictionSites(originalForComparison,Object.fromEntries(constraints.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]])));
+        const optimisedSites = scanRestrictionSites(codingDna,Object.fromEntries(constraints.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]])));
+        const hairpin = findBestHairpin(codingDna.slice(0,50),37,50);
+        const metrics = {
+          cai:calculateCai(codingDna,table),gc:gcPercent(codingDna),hairpinDg:hairpin?.dg ?? null,cpb:null,
+          rare:rareCodonCount(codingDna,table),sites:optimisedSites.length,length:codingDna.length
+        };
+        const originalMetrics = {
+          cai:calculateCai(originalForComparison,table),gc:gcPercent(originalForComparison),
+          rare:rareCodonCount(originalForComparison,table),sites:originalSites.length,length:originalForComparison.length
+        };
+        log.push(`Final CAI ${metrics.cai === null ? 'N/A' : metrics.cai.toFixed(4)}; GC ${metrics.gc.toFixed(2)}%; 5′ exact-match hairpin score ${metrics.hairpinDg === null ? 'none found' : `${metrics.hairpinDg.toFixed(2)} kcal/mol`}.`);
+        log.push('CPB is reported as N/A: no versioned host codon-pair corpus is embedded, so a pair-bias value would not be reproducible.');
+        return {kind,protein,originalDna,baselineDna,codingDna,prefix:prefixValidation.sequence,suffix:suffixValidation.sequence,fullSequence,metrics,originalMetrics,windows:gcSlidingWindow(codingDna,50),log,finalIssues,tailHits,table,hostKey,strategy,seed:seed||DEFAULT_SEED};
+      }
+
+      function countOccurrences(sequence,query) {
+        let count = 0;
+        for (let index=0; index<=sequence.length-query.length; index++) if (sequence.slice(index,index+query.length) === query) count++;
+        return count;
+      }
+
+      function primerMetrics(sequence,params) {
+        const hairpin = findBestHairpin(sequence,37,params.naMm);
+        const selfDimer = findBestDimer(sequence,sequence,37,params.naMm);
+        return {
+          sequence,length:sequence.length,gc:gcPercent(sequence),tm:selectedTm(sequence,params.method,params.naMm,params.totalNm),
+          hairpin,selfDimer,selfComplement:selfDimer?.length || 0,clamp:/[GC]/.test(sequence.at(-1))
+        };
+      }
+
+      function primerPenalty(metrics,params) {
+        let penalty = Math.abs(metrics.tm-params.targetTm)*4;
+        if (metrics.tm < params.targetTm-params.tolerance || metrics.tm > params.targetTm+params.tolerance) penalty += 18;
+        if (metrics.gc < params.gcMin) penalty += (params.gcMin-metrics.gc)*1.5+15;
+        if (metrics.gc > params.gcMax) penalty += (metrics.gc-params.gcMax)*1.5+15;
+        if (metrics.selfComplement > 6) penalty += (metrics.selfComplement-6)*8;
+        if (metrics.hairpin?.dg < -2) penalty += Math.abs(metrics.hairpin.dg+2)*8;
+        if (/(A{5,}|T{5,}|G{5,}|C{5,})/.test(metrics.sequence)) penalty += 20;
+        if (params.preferClamp && !metrics.clamp) penalty += 4;
+        return penalty;
+      }
+
+      function enumeratePrimerCandidates(template,targetStart,targetEnd,params,direction) {
+        const candidates = [];
+        for (let length=params.minLength; length<=params.maxLength; length++) {
+          let positions = [];
+          if (direction === 'forward') {
+            if (targetStart === 0) positions = [0];
+            else {
+              const latest = Math.max(0,targetStart-length);
+              for (let start=Math.max(0,latest-60); start<=latest; start++) positions.push(start);
+            }
+          } else {
+            if (targetEnd === template.length) positions = [template.length-length];
+            else {
+              for (let start=targetEnd; start<=Math.min(template.length-length,targetEnd+60); start++) positions.push(start);
+            }
+          }
+          for (const start of positions) {
+            if (start < 0 || start+length > template.length) continue;
+            const annealing = direction === 'forward' ? template.slice(start,start+length) : reverseComplement(template.slice(start,start+length));
+            const metrics = primerMetrics(annealing,params);
+            const specificity = countOccurrences(template,annealing) + countOccurrences(template,reverseComplement(annealing));
+            const penalty = primerPenalty(metrics,params) + Math.max(0,specificity-1)*20;
+            candidates.push({direction,start,end:start+length,annealing,metrics,specificity,penalty});
+          }
+        }
+        return candidates.sort((a,b) => a.penalty-b.penalty || a.start-b.start || a.annealing.localeCompare(b.annealing)).slice(0,60);
+      }
+
+      function primerTails(params) {
+        let forward = cleanSequence(params.forwardTail);
+        let reverse = cleanSequence(params.reverseTail);
+        const labels = [];
+        if (params.m13) {
+          forward = 'TGTAAAACGACGGCCAGT' + forward;
+          reverse = 'CAGGAAACAGCTATGAC' + reverse;
+          labels.push('M13F −21 / M13R −27');
+        }
+        if (params.attb) {
+          forward = 'GGGGACAAGTTTGTACAAAAAAGCAGGCT' + forward;
+          reverse = 'GGGGACCACTTTGTACAAGAAAGCTGGGT' + reverse;
+          labels.push('Gateway attB1 / attB2');
+        }
+        return {forward,reverse,labels};
+      }
+
+      function designPrimerPairs(template,params) {
+        const validation = validateSequence(template,'dna');
+        if (!validation.valid) throw new Error(validation.error);
+        if (validation.sequence.length < params.minLength*2) throw new Error(`Template must be at least ${params.minLength*2} bp.`);
+        if (params.minLength > params.maxLength) throw new Error('Minimum primer length cannot exceed maximum length.');
+        const targetStart = params.start ? params.start-1 : 0;
+        const targetEnd = params.end || validation.sequence.length;
+        if (targetStart < 0 || targetEnd > validation.sequence.length || targetStart >= targetEnd) throw new Error('Amplicon coordinates are outside the template or reversed.');
+        const forward = enumeratePrimerCandidates(validation.sequence,targetStart,targetEnd,params,'forward');
+        const reverse = enumeratePrimerCandidates(validation.sequence,targetStart,targetEnd,params,'reverse');
+        if (!forward.length || !reverse.length) throw new Error('No primer candidates can flank the requested interval with these length settings.');
+        const tails = primerTails(params);
+        const pairs = [];
+        for (const fwd of forward) {
+          for (const rev of reverse) {
+            if (rev.end <= fwd.start) continue;
+            const fullForward = tails.forward + fwd.annealing;
+            const fullReverse = tails.reverse + rev.annealing;
+            const dimer = findBestDimer(fullForward,fullReverse,37,params.naMm);
+            const deltaTm = Math.abs(fwd.metrics.tm-rev.metrics.tm);
+            let penalty = fwd.penalty + rev.penalty + deltaTm*6;
+            if (params.avoidDimer && dimer) {
+              if (dimer.dg <= -6) penalty += 35;
+              else if (dimer.dg <= -2) penalty += 12;
+              if (dimer.involves3Prime) penalty += 18;
+            }
+            pairs.push({
+              forward:{...fwd,fullSequence:fullForward,tail:tails.forward},
+              reverse:{...rev,fullSequence:fullReverse,tail:tails.reverse},
+              dimer,deltaTm,ampliconStart:fwd.start,ampliconEnd:rev.end,ampliconSize:rev.end-fwd.start,
+              score:clamp(Math.round(100-penalty/3),0,100),penalty,tailLabels:tails.labels
+            });
+          }
+        }
+        pairs.sort((a,b) => a.penalty-b.penalty || a.ampliconSize-b.ampliconSize || a.forward.start-b.forward.start || a.forward.annealing.localeCompare(b.forward.annealing));
+        if (!pairs.length) throw new Error('No geometrically valid primer pairs were found.');
+        return {template:validation.sequence,targetStart,targetEnd,pairs:pairs.slice(0,3),params};
+      }
+
+      function analyseOligo(raw,secondRaw,conditions) {
+        const sequence = cleanSequence(raw);
+        const type = sequence.includes('U') ? 'rna' : 'dna';
+        const validation = validateSequence(sequence,type);
+        if (!validation.valid) throw new Error(validation.error);
+        if (sequence.length > 500) throw new Error('Oligo analysis is limited to 500 nt.');
+        const second = cleanSequence(secondRaw);
+        if (second) {
+          const secondType = second.includes('U') ? 'rna' : 'dna';
+          const secondValidation = validateSequence(second,secondType);
+          if (!secondValidation.valid) throw new Error(`Second oligo: ${secondValidation.error}`);
+          if (secondType !== type) throw new Error('Both oligos must use the same nucleic-acid type.');
+        }
+        const dna = sequence.replace(/U/g,'T');
+        const nn = type === 'dna' && sequence.length >= 2 ? nearestNeighbourThermodynamics(dna,conditions.naMm,conditions.totalNm) : null;
+        const hairpin = type === 'dna' ? findBestHairpin(dna,conditions.tempC,conditions.naMm) : null;
+        const homodimer = type === 'dna' ? findBestDimer(dna,dna,conditions.tempC,conditions.naMm) : null;
+        const heterodimer = type === 'dna' && second ? findBestDimer(dna,second.replace(/U/g,'T'),conditions.tempC,conditions.naMm) : null;
+        return {
+          sequence,type,second,conditions,nn,hairpin,homodimer,heterodimer,
+          length:sequence.length,gc:gcPercent(sequence),wallace:type === 'dna' ? wallaceTm(dna) : null,
+          mw:molecularWeight(sequence,type),extinction:extinctionCoefficient(sequence),
+          palindromes:palindromes(dna),runs:findHomopolymers(dna,4),clamp:/[GC]{2,}$/.test(dna.slice(-5))
+        };
+      }
+
+      function buildCloningStrategy(insert,vectorKey,customVector,enzymeNames,orientation,checkFrame=true) {
+        const validation = validateSequence(insert,'dna');
+        if (!validation.valid) throw new Error(validation.error);
+        if (enzymeNames.length !== 2) throw new Error('Select exactly two restriction enzymes.');
+        const [firstName,secondName] = enzymeNames;
+        const first = RESTRICTION_ENZYMES[firstName];
+        const second = RESTRICTION_ENZYMES[secondName];
+        if (!first || !second || firstName === secondName) throw new Error('Choose two different supported enzymes.');
+        const vector = vectorKey === 'custom' ? cleanSequence(customVector) : VECTOR_MCS[vectorKey];
+        const vectorValidation = validateSequence(vector,'dna');
+        if (!vectorValidation.valid) throw new Error(`Vector MCS: ${vectorValidation.error}`);
+        const orientedInsert = orientation === 'reverse' ? reverseComplement(validation.sequence) : validation.sequence;
+        const selected = {[firstName]:first,[secondName]:second};
+        const internalHits = scanRestrictionSites(orientedInsert,selected);
+        const vectorHits = scanRestrictionSites(vector,selected);
+        if (internalHits.length) {
+          const list = internalHits.map(hit => `${hit.enzyme} at ${hit.position+1}`).join(', ');
+          throw new Error(`Selected enzyme${internalHits.length === 1 ? '' : 's'} cut inside the insert: ${list}. Choose enzymes absent from the insert.`);
+        }
+        const annealLength = clamp(Math.max(20,Math.min(24,Math.ceil(60/(Math.max(1,gcPercent(orientedInsert.slice(0,24)))/50)))),20,24);
+        const forwardAnneal = orientedInsert.slice(0,annealLength);
+        const reverseAnneal = reverseComplement(orientedInsert.slice(-annealLength));
+        const leader = 'GCGC';
+        const forwardPrimer = leader + first.site + forwardAnneal;
+        const reversePrimer = leader + second.site + reverseAnneal;
+        const allHits = scanRestrictionSites(orientedInsert);
+        const compatible = first.overhang !== second.overhang || first.overhang === 'blunt';
+        const inFrame = orientedInsert.length % 3 === 0;
+        const frameCodons = splitCodons(orientedInsert.slice(0,30));
+        const strategyText = `Digest the ${orientation} insert and ${vectorKey === 'custom' ? 'custom MCS' : vectorKey} with ${firstName} + ${secondName}. The ${orientedInsert.length} bp insert has no internal site for either selected enzyme. Ends are ${compatible ? 'directionally distinguishable' : 'compatible with each other; background orientation may increase'}.`;
+        return {insert:orientedInsert,vector,vectorKey,firstName,secondName,first,second,vectorHits,allHits,forwardPrimer,reversePrimer,forwardAnneal,reverseAnneal,compatible,inFrame,checkFrame,frameCodons,strategyText,orientation};
+      }
+
+      function selfTest() {
+        const fixtureTable = Object.freeze({
+          GCT:{aa:'A',fraction:.4,freq_per_thousand:0},GCC:{aa:'A',fraction:.3,freq_per_thousand:0},
+          GCA:{aa:'A',fraction:.2,freq_per_thousand:0},GCG:{aa:'A',fraction:.1,freq_per_thousand:0},
+          ATG:{aa:'M',fraction:1,freq_per_thousand:0},TGG:{aa:'W',fraction:1,freq_per_thousand:0},
+          TAA:{aa:'*',fraction:1,freq_per_thousand:0}
+        });
+        const approx = (actual,expected,tolerance) => Math.abs(actual-expected) <= tolerance;
+        const tests = [];
+        const test = (name,fn) => {
+          try { const detail = fn(); tests.push({name,pass:true,detail}); }
+          catch (error) { tests.push({name,pass:false,detail:error.message}); }
+        };
+        test('genetic code has 64 codons',() => { if (Object.keys(GENETIC_CODE).length !== 64) throw new Error('wrong size'); return 64; });
+        test('all host tables have 64 codons and normalized families',() => {
+          for (const [key,table] of Object.entries(CODON_TABLES)) {
+            if (Object.keys(table).length !== 64) throw new Error(`${key} incomplete`);
+            for (const aa of new Set(Object.values(table).map(entry => entry.aa))) {
+              const sum = Object.values(table).filter(entry => entry.aa === aa).reduce((total,entry) => total+entry.fraction,0);
+              if (!approx(sum,1,1e-12)) throw new Error(`${key}/${aa} sums ${sum}`);
+            }
+          }
+          return Object.keys(CODON_TABLES);
+        });
+        test('CAI hand fixture',() => {
+          const value = calculateCai('GCTGCCGCAGCGATGTGGTAA',fixtureTable);
+          if (!approx(value,.5533409599,1e-9)) throw new Error(`${value}`);
+          return value;
+        });
+        test('SantaLucia fixture',() => {
+          const value = nearestNeighbourThermodynamics('GCTATGCGTACGATCGAT',50,250);
+          if (!approx(value.enthalpy,-142.7,1e-9) || !approx(value.entropy,-388,1e-9) || !approx(value.tm,51.3881,.001)) throw new Error(JSON.stringify(value));
+          return value.tm;
+        });
+        test('hairpin fixture',() => {
+          const value = findBestHairpin('GCGCTTTTGCGC',37,1000);
+          if (!value || value.stem !== 4 || value.loop !== 4 || !approx(value.dg,-.8286,.001)) throw new Error(JSON.stringify(value));
+          return value.dg;
+        });
+        test('restriction overlaps and cut offsets',() => {
+          const hits = scanRestrictionSites('TTTGAATTCCCCGGATCC',{EcoRI:RESTRICTION_ENZYMES.EcoRI,BamHI:RESTRICTION_ENZYMES.BamHI});
+          if (hits.length !== 2 || hits[0].topCut !== 4 || hits[1].topCut !== 13) throw new Error(JSON.stringify(hits));
+          const overlaps = scanRestrictionSites('GCGGCCGCGGCCGC',{NotI:RESTRICTION_ENZYMES.NotI});
+          if (overlaps.length !== 2 || overlaps[1].position !== 6) throw new Error(JSON.stringify(overlaps));
+          return hits;
+        });
+        test('molecular weight and extinction',() => {
+          const mw = molecularWeight('ATCGATCGATCG');
+          const epsilon = extinctionCoefficient('ATCGATCGATCG');
+          if (!approx(mw,3645.41,.001) || epsilon !== 119300) throw new Error(`${mw}/${epsilon}`);
+          return {mw,epsilon};
+        });
+        test('seeded determinism',() => {
+          const random = mulberry32(fnv1a(DEFAULT_SEED));
+          const values = [random(),random(),random()];
+          const expected = [.7338999645,.3800242376,.5835312202];
+          if (values.some((value,index) => !approx(value,expected[index],1e-9))) throw new Error(JSON.stringify(values));
+          return values;
+        });
+        test('optimization preserves translation',() => {
+          const result = optimiseCodingSequence({
+            input:'MKTLLV',inputMode:'protein',table:CODON_TABLES.ecoli_k12,hostKey:'ecoli_k12',strategy:'hybrid',seed:DEFAULT_SEED,
+            constraints:{avoidSites:true,enzymes:['EcoRI','BamHI'],enforceGc:true,gcMin:40,gcMax:60,gcWindow:true,avoidPoly:true,polyMax:6,avoidRepeats:true,repeatWindow:9,pauseHeuristic:false,avoidSplice:false,capCpg:false}
+          });
+          if (translateDna(result.codingDna) !== 'MKTLLV') throw new Error(result.codingDna);
+          return result.codingDna;
+        });
+        return {pass:tests.every(item => item.pass),tests,version:APP_VERSION};
+      }
+
+      const state = {
+        customTable:null,codonResult:null,pcrResult:null,oligoResult:null,cloningResult:null,
+        cloningEnzymes:[],restored:false
+      };
+
+      function setText(id,text) {
+        const element = byId(id);
+        if (element) element.textContent = text;
+      }
+
+      function show(id,visible=true) {
+        const element = byId(id);
+        if (element) element.hidden = !visible;
+      }
+
+      function setError(prefix,error) {
+        const element = byId(`${prefix}-error`);
+        if (!element) return;
+        if (error) {
+          element.textContent = error instanceof Error ? error.message : String(error);
+          element.hidden = false;
+          setText('assertive-status',element.textContent);
+        } else {
+          element.textContent = '';
+          element.hidden = true;
+        }
+      }
+
+      function toast(message) {
+        const region = byId('toast-region');
+        if (!region) return;
+        const item = document.createElement('div');
+        item.className = 'toast';
+        item.textContent = message;
+        region.append(item);
+        setTimeout(() => item.remove(),3600);
+      }
+
+      function setButtonBusy(button,busy,label) {
+        if (!button) return;
+        if (busy) {
+          button.dataset.originalLabel = button.textContent;
+          button.disabled = true;
+          button.replaceChildren();
+          const spinner = document.createElement('span');
+          spinner.className = 'spinner';
+          spinner.setAttribute('aria-hidden','true');
+          button.append(spinner,document.createTextNode(label));
+        } else {
+          button.disabled = false;
+          button.textContent = button.dataset.originalLabel || label;
+        }
+      }
+
+      const waitFrame = (delay=45) => new Promise(resolve => setTimeout(() => requestAnimationFrame(resolve),delay));
+      async function runPhases(button,labels,work) {
+        try {
+          for (const label of labels) {
+            setButtonBusy(button,true,label);
+            setText('polite-status',label);
+            await waitFrame();
+          }
+          return work();
+        } finally {
+          setButtonBusy(button,false,'Done');
+          setText('polite-status','Analysis complete');
+        }
+      }
+
+      function metricStatus(type,value) {
+        if (value === null || value === undefined) return {color:'var(--accent-info)',label:'Not available'};
+        if (type === 'cai') return value >= .8 ? {color:'var(--accent-dna)',label:'Strong host match'} : value >= .6 ? {color:'var(--accent-warn)',label:'Moderate host match'} : {color:'var(--accent-error)',label:'Low host match'};
+        if (type === 'gc') return value >= 40 && value <= 60 ? {color:'var(--accent-dna)',label:'Within 40–60%'} : value >= 30 && value <= 70 ? {color:'var(--accent-warn)',label:'Outside target'} : {color:'var(--accent-error)',label:'Extreme composition'};
+        if (type === 'dg') return value > -2 ? {color:'var(--accent-dna)',label:'Low exact-match risk'} : value > -6 ? {color:'var(--accent-warn)',label:'Review structure'} : {color:'var(--accent-error)',label:'Stable exact match'};
+        return {color:'var(--accent-info)',label:'Contextual metric'};
+      }
+
+      function makeScoreCard(label,value,meaning,statusType) {
+        const status = metricStatus(statusType,value);
+        const card = document.createElement('article');
+        card.className = 'score-card';
+        card.style.setProperty('--status',status.color);
+        const metric = document.createElement('div');
+        metric.className = 'metric';
+        metric.textContent = label;
+        const display = document.createElement('div');
+        display.className = 'value';
+        display.textContent = value;
+        const detail = document.createElement('div');
+        detail.className = 'meaning';
+        detail.textContent = `${status.label} · ${meaning}`;
+        card.append(metric,display,detail);
+        return card;
+      }
+
+      function sequenceSpans(sequence) {
+        const fragment = document.createDocumentFragment();
+        [...sequence].forEach(base => {
+          const span = document.createElement('span');
+          span.className = `base-${base}`;
+          span.textContent = base;
+          fragment.append(span);
+        });
+        return fragment;
+      }
+
+      function renderSequenceResult(result) {
+        const target = byId('codon-sequence-output');
+        target.replaceChildren();
+        const shell = document.createElement('div');
+        shell.className = 'sequence-shell';
+        const output = document.createElement('div');
+        output.className = 'sequence-output';
+        output.setAttribute('aria-label',`Optimised DNA sequence: ${result.fullSequence}`);
+        const codingOffset = result.prefix.length;
+        for (let lineStart=0; lineStart<result.fullSequence.length; lineStart+=60) {
+          const lineSequence = result.fullSequence.slice(lineStart,lineStart+60);
+          const line = document.createElement('div');
+          line.className = 'sequence-line';
+          const position = document.createElement('span');
+          position.className = 'sequence-pos';
+          position.textContent = String(lineStart+1).padStart(5,' ');
+          const bases = document.createElement('span');
+          bases.setAttribute('aria-hidden','true');
+          for (let offset=0; offset<lineSequence.length; offset++) {
+            const absolute = lineStart+offset;
+            const base = lineSequence[offset];
+            const span = document.createElement('span');
+            span.className = `base-${base}`;
+            if (absolute >= codingOffset && absolute < codingOffset+result.codingDna.length) {
+              const codonIndex = Math.floor((absolute-codingOffset)/3);
+              span.classList.add('codon');
+              span.dataset.codon = String(codonIndex);
+            }
+            span.textContent = base;
+            bases.append(span);
+          }
+          line.append(position,bases);
+          output.append(line);
+          const codingStart = Math.max(lineStart,codingOffset);
+          const codingEnd = Math.min(lineStart+lineSequence.length,codingOffset+result.codingDna.length);
+          if (codingEnd > codingStart) {
+            const relativeStart = codingStart-codingOffset;
+            const relativeEnd = codingEnd-codingOffset;
+            const aaStart = Math.floor(relativeStart/3);
+            const aaEnd = Math.ceil(relativeEnd/3);
+            const translation = document.createElement('div');
+            translation.className = 'sequence-line translation-line';
+            const marker = document.createElement('span');
+            marker.className = 'sequence-pos';
+            marker.textContent = 'AA';
+            const amino = document.createElement('span');
+            amino.textContent = result.protein.slice(aaStart,aaEnd).split('').map(aa => `${aa}  `).join('');
+            translation.append(marker,amino);
+            output.append(translation);
+          }
+        }
+        shell.append(output);
+        target.append(shell);
+      }
+
+      function renderComparison(result) {
+        const table = byId('codon-comparison');
+        table.replaceChildren();
+        const header = document.createElement('tr');
+        ['Metric','Original','Optimised','Δ'].forEach(text => {
+          const th = document.createElement('th');
+          th.textContent = text;
+          header.append(th);
+        });
+        const thead = document.createElement('thead');
+        thead.append(header);
+        const tbody = document.createElement('tbody');
+        const metrics = [
+          ['CAI',result.originalMetrics.cai,result.metrics.cai,4],
+          ['GC%',result.originalMetrics.gc,result.metrics.gc,2],
+          ['Length (bp)',result.originalMetrics.length,result.metrics.length,0],
+          ['Rare codons (<0.1)',result.originalMetrics.rare,result.metrics.rare,0],
+          ['Selected restriction sites',result.originalMetrics.sites,result.metrics.sites,0]
+        ];
+        for (const [label,original,optimised,digits] of metrics) {
+          const row = document.createElement('tr');
+          const delta = original === null || optimised === null ? null : optimised-original;
+          const values = [label,original === null ? 'N/A' : Number(original).toFixed(digits),optimised === null ? 'N/A' : Number(optimised).toFixed(digits),delta === null ? 'N/A' : `${delta > 0 ? '+' : ''}${delta.toFixed(digits)}`];
+          values.forEach((text,index) => {
+            const cell = document.createElement('td');
+            cell.textContent = text;
+            if (index === 3 && delta !== null) cell.className = delta > 0 ? 'delta-positive' : delta < 0 ? 'delta-negative' : '';
+            row.append(cell);
+          });
+          tbody.append(row);
+        }
+        table.append(thead,tbody);
+      }
+
+      function renderGcChart(windows,sequenceLength) {
+        const target = byId('gc-chart');
+        target.replaceChildren();
+        const width = 760,height = 220,pad = 36;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
+        svg.setAttribute('role','img');
+        const title = document.createElementNS(svg.namespaceURI,'title');
+        title.textContent = 'GC percent across the optimised coding sequence';
+        svg.append(title);
+        const make = (name,attrs) => {
+          const node = document.createElementNS(svg.namespaceURI,name);
+          Object.entries(attrs).forEach(([key,value]) => node.setAttribute(key,String(value)));
+          return node;
+        };
+        svg.append(make('rect',{x:pad,y:pad+(100-75)*(height-2*pad)/100,width:width-2*pad,height:50*(height-2*pad)/100,fill:'rgba(0,200,150,.07)'}));
+        for (const threshold of [25,75]) {
+          const y = pad+(100-threshold)*(height-2*pad)/100;
+          svg.append(make('line',{x1:pad,y1:y,x2:width-pad,y2:y,stroke:'#f5a623','stroke-dasharray':'5 5','stroke-width':1}));
+        }
+        const points = windows.map((item,index) => {
+          const x = pad + (windows.length === 1 ? .5 : index/(windows.length-1))*(width-2*pad);
+          const y = pad+(100-item.gc)*(height-2*pad)/100;
+          return `${x},${y}`;
+        }).join(' ');
+        if (points) svg.append(make('polyline',{points,fill:'none',stroke:'#00c896','stroke-width':2,'stroke-linejoin':'round'}));
+        svg.append(make('line',{x1:pad,y1:height-pad,x2:width-pad,y2:height-pad,stroke:'#404866'}),make('line',{x1:pad,y1:pad,x2:pad,y2:height-pad,stroke:'#404866'}));
+        const labels = [[pad,height-12,'1'],[width-pad,height-12,String(sequenceLength)],[7,pad+4,'100%'],[13,height-pad+4,'0%']];
+        for (const [x,y,text] of labels) {
+          const node = make('text',{x,y,fill:'#8a90a8','font-size':10,'font-family':'monospace'});
+          node.textContent = text;
+          svg.append(node);
+        }
+        target.append(svg);
+      }
+
+      function renderCodonHeatmap(result) {
+        const target = byId('codon-heatmap');
+        target.replaceChildren();
+        const used = new Set(splitCodons(result.codingDna));
+        const maxFraction = Math.max(...Object.values(result.table).map(entry => entry.fraction));
+        for (const codon of CODON_ORDER) {
+          const entry = result.table[codon];
+          const cell = document.createElement('div');
+          cell.className = `heat-cell${used.has(codon) ? ' used' : ''}`;
+          cell.style.setProperty('--heat',String(.04+.55*entry.fraction/maxFraction));
+          cell.title = `${AA_NAMES[entry.aa]} · fraction ${entry.fraction.toFixed(3)} · ${entry.freq_per_thousand.toFixed(1)} per thousand`;
+          const name = document.createElement('strong');
+          name.textContent = codon;
+          const meta = document.createElement('span');
+          meta.textContent = `${entry.aa} · ${(entry.fraction*100).toFixed(0)}%`;
+          cell.append(name,meta);
+          target.append(cell);
+        }
+      }
+
+      function renderCodonResult(result) {
+        state.codonResult = result;
+        show('codon-empty',false); show('codon-results',true); show('codon-export-buttons',true);
+        setError('codon',null);
+        setText('codon-result-subtitle',`${HOST_METADATA[result.hostKey]?.label || 'Custom host'} · ${result.codingDna.length} bp coding region · deterministic seed ${result.seed}`);
+        const grid = byId('codon-score-grid');
+        grid.replaceChildren(
+          makeScoreCard('CAI',result.metrics.cai === null ? 'N/A' : result.metrics.cai.toFixed(4),'Sharp–Li relative adaptiveness','cai'),
+          makeScoreCard('GC%',`${result.metrics.gc.toFixed(2)}%`,'global coding-region composition','gc'),
+          makeScoreCard('5′ ΔG',result.metrics.hairpinDg === null ? 'None' : `${result.metrics.hairpinDg.toFixed(1)}`,'kcal/mol exact-match heuristic','dg'),
+          makeScoreCard('CPB','N/A','host pair corpus not embedded','cpb')
+        );
+        renderSequenceResult(result);
+        renderComparison(result);
+        renderGcChart(result.windows,result.codingDna.length);
+        renderCodonHeatmap(result);
+        const log = byId('transparency-log');
+        log.replaceChildren();
+        result.log.forEach(text => {
+          const item = document.createElement('li');
+          item.textContent = text;
+          log.append(item);
+        });
+        byId('codon-results-title').focus();
+      }
+
+      function riskForDg(dg) {
+        if (dg === null || dg === undefined) return {label:'No structure',className:'good'};
+        if (dg <= -6) return {label:'Risk',className:'bad'};
+        if (dg <= -2) return {label:'Marginal',className:'warn'};
+        return {label:'Low risk',className:'good'};
+      }
+
+      function renderPrimerResults(result) {
+        state.pcrResult = result;
+        show('pcr-empty',false); show('pcr-results',true); show('pcr-export-buttons',true);
+        setError('pcr',null);
+        setText('pcr-result-subtitle',`${result.pairs.length} ranked pair${result.pairs.length === 1 ? '' : 's'} · target ${result.targetStart+1}–${result.targetEnd}`);
+        const list = byId('primer-list');
+        list.replaceChildren();
+        result.pairs.forEach((pair,index) => {
+          const card = document.createElement('article');
+          card.className = 'primer-card';
+          const head = document.createElement('div');
+          head.className = 'primer-card-head';
+          const heading = document.createElement('strong');
+          heading.textContent = `Pair #${index+1}`;
+          const score = document.createElement('span');
+          score.className = 'pair-score';
+          score.textContent = `Score ${pair.score}`;
+          head.append(heading,score);
+          const strands = document.createElement('div');
+          strands.className = 'primer-strands';
+          for (const [direction,primer] of [['Forward',pair.forward],['Reverse',pair.reverse]]) {
+            const panel = document.createElement('div');
+            panel.className = 'primer-strand';
+            const label = document.createElement('div');
+            label.className = 'primer-label';
+            label.textContent = direction.toUpperCase();
+            const sequence = document.createElement('div');
+            sequence.className = 'primer-sequence';
+            sequence.textContent = `5′-${primer.fullSequence}-3′`;
+            const stats = document.createElement('div');
+            stats.className = 'primer-stats';
+            const values = [
+              `Anneal ${primer.annealing.length} bp`,`Tm ${primer.metrics.tm.toFixed(1)}°C`,
+              `GC ${primer.metrics.gc.toFixed(1)}%`,`Self-comp ${primer.metrics.selfComplement}`,
+              `Hairpin ${primer.metrics.hairpin ? `${primer.metrics.hairpin.dg.toFixed(1)} kcal/mol` : 'none'}`,
+              `Template ${primer.start+1}–${primer.end}`
+            ];
+            values.forEach(value => { const item = document.createElement('span'); item.textContent = value; stats.append(item); });
+            const load = document.createElement('button');
+            load.className = 'small-button';
+            load.type = 'button';
+            load.dataset.transferPrimer = `${index}:${direction.toLowerCase()}`;
+            load.textContent = 'Analyse this oligo';
+            panel.append(label,sequence,stats,load);
+            strands.append(panel);
+          }
+          const foot = document.createElement('div');
+          foot.className = 'primer-card-foot';
+          const dimerRisk = riskForDg(pair.dimer?.dg);
+          foot.textContent = `Amplicon ${pair.ampliconSize} bp · ΔTm ${pair.deltaTm.toFixed(1)}°C · Pair dimer ${pair.dimer ? `${pair.dimer.dg.toFixed(1)} kcal/mol (${dimerRisk.label})` : 'none'}`;
+          card.append(head,strands,foot);
+          list.append(card);
+        });
+        renderAmplicon(result);
+        const top = result.pairs[0];
+        setText('primer-order-table',`Name,Sequence (5′→3′),Annealing Tm\nBioForge_F,${top.forward.fullSequence},${top.forward.metrics.tm.toFixed(1)} °C\nBioForge_R,${top.reverse.fullSequence},${top.reverse.metrics.tm.toFixed(1)} °C`);
+        byId('pcr-results-title').focus();
+      }
+
+      function renderAmplicon(result) {
+        const pair = result.pairs[0];
+        const target = byId('amplicon-visual');
+        const width=760,height=150,pad=45;
+        const scale = position => pad + position/result.template.length*(width-2*pad);
+        const start=scale(pair.ampliconStart),end=scale(pair.ampliconEnd);
+        target.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Amplicon from base ${pair.ampliconStart+1} to ${pair.ampliconEnd}">
+          <title>Top-ranked amplicon geometry</title>
+          <line x1="${pad}" y1="76" x2="${width-pad}" y2="76" stroke="#404866" stroke-width="5"/>
+          <line x1="${start}" y1="76" x2="${end}" y2="76" stroke="#4a9eff" stroke-width="9"/>
+          <path d="M${start} 58 H${Math.min(start+85,end)} l-10 -8 m10 8 l-10 8" fill="none" stroke="#00c896" stroke-width="3"/>
+          <path d="M${end} 94 H${Math.max(end-85,start)} l10 -8 m-10 8 l10 8" fill="none" stroke="#e8445a" stroke-width="3"/>
+          <text x="${(start+end)/2}" y="35" text-anchor="middle" fill="#e8eaf0" font-family="monospace" font-size="13">${pair.ampliconSize} bp</text>
+          <text x="${pad}" y="125" fill="#8a90a8" font-family="monospace" font-size="10">1</text>
+          <text x="${width-pad}" y="125" text-anchor="end" fill="#8a90a8" font-family="monospace" font-size="10">${result.template.length}</text>
+        </svg>`;
+      }
+
+      function alignmentText(alignment) {
+        if (!alignment) return 'No contiguous complementary run ≥2 bp.';
+        const topPad = alignment.shift < 0 ? -alignment.shift : 0;
+        const bottomPad = alignment.shift > 0 ? alignment.shift : 0;
+        const bottom = [...alignment.partner].reverse().join('');
+        const width = Math.max(topPad+alignment.top.length,bottomPad+bottom.length);
+        const topLine = `${' '.repeat(topPad)}${alignment.top}`.padEnd(width);
+        const bottomLine = `${' '.repeat(bottomPad)}${bottom}`.padEnd(width);
+        let matches = '';
+        for (let column=0; column<width; column++) {
+          const topIndex = column-topPad;
+          const bottomIndex = column-bottomPad;
+          const paired = topIndex >= 0 && topIndex < alignment.top.length && bottomIndex >= 0 && bottomIndex < bottom.length && COMPLEMENT[alignment.top[topIndex]] === bottom[bottomIndex];
+          matches += paired ? '|' : ' ';
+        }
+        return `5′ ${topLine} 3′\n   ${matches}\n3′ ${bottomLine} 5′`;
+      }
+
+      function renderHairpinPanel(result) {
+        const target = byId('hairpin-panel');
+        target.replaceChildren();
+        const heading = document.createElement('h4');
+        heading.textContent = 'Hairpin';
+        target.append(heading);
+        if (!result.hairpin) {
+          const text = document.createElement('p');
+          text.textContent = result.type === 'rna' ? 'RNA thermodynamic model not embedded.' : 'No exact complementary stem ≥3 bp.';
+          target.append(text);
+          return;
+        }
+        const hairpin = result.hairpin;
+        const risk = riskForDg(hairpin.dg);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('viewBox','0 0 300 150');
+        svg.setAttribute('role','img');
+        svg.innerHTML = `<title>Hairpin with ${hairpin.stem} base-pair stem and ${hairpin.loop} nucleotide loop</title>
+          <path d="M85 125 Q150 10 215 125" fill="none" stroke="#4a9eff" stroke-width="3"/>
+          ${Array.from({length:hairpin.stem},(_,index) => `<line x1="${98+index*6}" y1="${118-index*15}" x2="${202-index*6}" y2="${118-index*15}" stroke="#00c896" stroke-width="3"/>`).join('')}
+          <text x="150" y="143" text-anchor="middle" fill="#e8eaf0" font-family="monospace" font-size="11">ΔG ${hairpin.dg.toFixed(2)} kcal/mol · ${risk.label}</text>`;
+        target.append(svg);
+      }
+
+      function renderDimerPanel(targetId,title,alignment,type='dna') {
+        const target = byId(targetId);
+        target.replaceChildren();
+        const heading = document.createElement('h4');
+        heading.textContent = title;
+        const badge = document.createElement('span');
+        if (type !== 'dna') {
+          badge.className = 'badge warn';
+          badge.textContent = 'RNA model unavailable';
+          target.append(heading,badge);
+          return;
+        }
+        const risk = riskForDg(alignment?.dg);
+        badge.className = `badge ${risk.className}`;
+        badge.textContent = alignment ? `${alignment.dg.toFixed(2)} kcal/mol · ${risk.label}${alignment.involves3Prime ? ' · 3′ involved' : ''}` : risk.label;
+        const pre = document.createElement('div');
+        pre.className = 'alignment';
+        pre.textContent = alignmentText(alignment);
+        target.append(heading,badge,pre);
+      }
+
+      function renderOligoResult(result) {
+        state.oligoResult = result;
+        show('oligo-empty',false); show('oligo-results',true); show('oligo-export-buttons',true);
+        setError('oligo',null);
+        const stats = byId('oligo-stats');
+        stats.replaceChildren();
+        const values = [
+          ['Length',`${result.length} nt`],['GC%',`${result.gc.toFixed(2)}%`],
+          ['Tm (NN)',result.nn ? `${result.nn.tm.toFixed(1)}°C` : 'N/A'],
+          ['Tm (Wallace)',result.wallace === null ? 'N/A' : `${result.wallace.toFixed(1)}°C`],
+          ['Molecular weight',`${result.mw.toFixed(2)} Da`],['ε₂₆₀',`${result.extinction.toLocaleString()} L·mol⁻¹·cm⁻¹`]
+        ];
+        values.forEach(([label,value]) => {
+          const card=document.createElement('div'); card.className='stat';
+          const name=document.createElement('span'); name.textContent=label;
+          const display=document.createElement('strong'); display.textContent=value;
+          card.append(name,display); stats.append(card);
+        });
+        if (result.nn) {
+          const n=result.nn;
+          setText('tm-formula',`SantaLucia 1998 DNA/DNA model\nΔH° = ${n.enthalpy.toFixed(1)} kcal/mol\nΔS° (1 M Na⁺) = ${n.entropy.toFixed(1)} cal/(mol·K)\nΔS°salt = 0.368 × (${result.length}−1) × ln(${(n.naMm/1000).toFixed(4)}) = ${n.saltEntropy.toFixed(3)} cal/(mol·K)\nCeff = ${n.selfComplementary ? 'Cₜ' : 'Cₜ/4'} = ${n.effectiveConcentration.toExponential(3)} mol/L\nTm = (1000 × ${n.enthalpy.toFixed(1)}) / (${n.adjustedEntropy.toFixed(3)} + 1.987 × ln(${n.effectiveConcentration.toExponential(3)})) − 273.15\nTm = ${n.tm.toFixed(2)} °C${result.conditions.mgMm ? `\n\nMg²⁺ = ${result.conditions.mgMm} mM is not included; this model only applies its monovalent-salt correction.` : ''}`);
+        } else {
+          setText('tm-formula','RNA detected. BioForge does not substitute DNA SantaLucia parameters for RNA; ΔH, ΔS and Tm are withheld.');
+        }
+        renderHairpinPanel(result);
+        renderDimerPanel('homodimer-panel','Homodimer',result.homodimer,result.type);
+        renderDimerPanel('heterodimer-panel','Heterodimer',result.heterodimer,result.type);
+        const map=byId('oligo-feature-map'); map.replaceChildren();
+        const shell=document.createElement('div'); shell.className='feature-map'; shell.setAttribute('aria-label',result.sequence);
+        [...result.sequence].forEach((base,index) => {
+          const span=document.createElement('span'); span.className=`feature-base base-${base}`;
+          if (index >= result.sequence.length-5 && /[GC]/.test(base)) span.classList.add('clamp');
+          if (result.runs.some(run => index>=run.start && index<run.end)) span.classList.add('run');
+          span.textContent=base; span.title=`Position ${index+1}${span.classList.contains('clamp') ? ' · 3′ GC' : ''}${span.classList.contains('run') ? ' · homopolymer' : ''}`;
+          shell.append(span);
+        });
+        map.append(shell);
+        const notes=document.createElement('p'); notes.className='panel-intro';
+        notes.textContent=`${result.clamp ? '✓' : '○'} 3′ GC clamp · ${result.palindromes.length} palindrome${result.palindromes.length===1?'':'s'} (4–12 nt) · ${result.runs.length} homopolymer run${result.runs.length===1?'':'s'} >4 nt.`;
+        map.append(notes);
+        byId('oligo-results-title').focus();
+      }
+
+      function renderRestrictionMap(result) {
+        const target=byId('restriction-map'),width=760,height=180,pad=45;
+        const scale=position=>pad+position/Math.max(1,result.insert.length)*(width-2*pad);
+        const hits=result.allHits;
+        const marks=hits.map((hit,index) => {
+          const x=scale(hit.position);
+          const color=RESTRICTION_ENZYMES[hit.enzyme].family==='8-cutter'?'#4a9eff':RESTRICTION_ENZYMES[hit.enzyme].family==='6-cutter'?'#00c896':'#f5a623';
+          const y=35+(index%3)*30;
+          return `<line x1="${x}" y1="${y+8}" x2="${x}" y2="108" stroke="${color}" stroke-width="1"/><text x="${x+3}" y="${y}" fill="${color}" font-family="monospace" font-size="9">${escapeXml(hit.enzyme)} ${hit.position+1}</text>`;
+        }).join('');
+        target.innerHTML=`<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${hits.length} restriction sites across ${result.insert.length} base pair insert"><title>Insert restriction map</title>
+          <rect x="${pad}" y="105" width="${width-2*pad}" height="12" rx="5" fill="#2c3147"/><rect x="${pad}" y="108" width="${width-2*pad}" height="6" rx="3" fill="#4a9eff"/>${marks}
+          <text x="${pad}" y="145" fill="#8a90a8" font-family="monospace" font-size="10">1</text><text x="${width-pad}" y="145" text-anchor="end" fill="#8a90a8" font-family="monospace" font-size="10">${result.insert.length} bp</text>
+        </svg>`;
+      }
+
+      function renderCloningResult(result) {
+        state.cloningResult=result;
+        show('cloning-empty',false); show('cloning-results',true); show('cloning-export-buttons',true);
+        setError('cloning',null);
+        renderRestrictionMap(result);
+        setText('cloning-summary',`${result.strategyText} ${result.firstName} produces ${result.first.overhang}; ${result.secondName} produces ${result.second.overhang}. Built-in vector analysis found ${result.vectorHits.length} selected site${result.vectorHits.length===1?'':'s'} in the MCS model.`);
+        setText('reading-frame',result.checkFrame ? `Insert length: ${result.insert.length} bp → ${result.inFrame ? 'in frame (multiple of 3)' : `out of frame by ${result.insert.length%3} base${result.insert.length%3===1?'':'s'}`}.\n5′ coding view: ${result.frameCodons.join(' ')}` : 'Reading-frame check disabled.');
+        setText('cloning-primers',`Forward_${result.firstName}  5′-${result.forwardPrimer}-3′\n  leader GCGC · site ${result.first.site} · anneal ${result.forwardAnneal}\n\nReverse_${result.secondName}  5′-${result.reversePrimer}-3′\n  leader GCGC · site ${result.second.site} · anneal ${result.reverseAnneal}`);
+        byId('cloning-results-title').focus();
+      }
+
+      function fastaText(header,sequence) {
+        const safeHeader=String(header).replace(/[^\w .|:-]/g,'_');
+        return `>${safeHeader}\n${sequence.match(/.{1,60}/g).join('\n')}\n`;
+      }
+
+      function csvCell(value) {
+        let text=String(value);
+        if (/^[=+\-@]/.test(text)) text=`'${text}`;
+        return `"${text.replace(/"/g,'""')}"`;
+      }
+
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const area=document.createElement('textarea');
+          area.value=text; area.style.position='fixed'; area.style.opacity='0';
+          document.body.append(area); area.select();
+          const copied=document.execCommand('copy');
+          area.remove();
+          if (!copied) throw new Error('Clipboard access was denied.');
+        }
+        toast('Copied to clipboard');
+      }
+
+      function downloadText(filename,text,type='text/plain') {
+        const blob=new Blob([text],{type:`${type};charset=utf-8`});
+        const url=URL.createObjectURL(blob);
+        const link=document.createElement('a');
+        link.href=url; link.download=filename; link.hidden=true;
+        document.body.append(link); link.click(); link.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+        toast(`Downloaded ${filename}`);
+      }
+
+      function primerCsv(result=state.pcrResult) {
+        if (!result) throw new Error('Design primers before exporting a primer pair.');
+        const pair=result.pairs[0];
+        return [
+          ['Name','Sequence_5to3','Annealing_sequence','Length_nt','Tm_C','GC_percent'],
+          ['BioForge_F',pair.forward.fullSequence,pair.forward.annealing,pair.forward.fullSequence.length,pair.forward.metrics.tm.toFixed(2),pair.forward.metrics.gc.toFixed(2)],
+          ['BioForge_R',pair.reverse.fullSequence,pair.reverse.annealing,pair.reverse.fullSequence.length,pair.reverse.metrics.tm.toFixed(2),pair.reverse.metrics.gc.toFixed(2)]
+        ].map(row=>row.map(csvCell).join(',')).join('\r\n')+'\r\n';
+      }
+
+      function oligoReport(result) {
+        const lines=[
+          'BIOFORGE OLIGO ANALYSIS',
+          `App version: ${APP_VERSION}`,
+          `Data/method version: ${DATA_VERSION}`,
+          `Sequence type: ${result.type.toUpperCase()}`,
+          `Sequence (5′→3′): ${result.sequence}`,
+          `Length: ${result.length} nt`,
+          `GC: ${result.gc.toFixed(2)}%`,
+          `Average molecular weight: ${result.mw.toFixed(2)} Da`,
+          `Extinction coefficient ε260: ${result.extinction} L·mol⁻¹·cm⁻¹`,
+          `Na+: ${result.conditions.naMm} mM`,
+          `Mg2+: ${result.conditions.mgMm} mM (not included in SantaLucia correction)`,
+          `Total strand concentration: ${result.conditions.totalNm} nM`,
+          `Structure temperature: ${result.conditions.tempC} °C`,
+          result.nn ? `Nearest-neighbour Tm: ${result.nn.tm.toFixed(2)} °C` : 'Nearest-neighbour Tm: N/A (RNA model not embedded)',
+          result.nn ? `ΔH°: ${result.nn.enthalpy.toFixed(2)} kcal/mol; ΔS° adjusted: ${result.nn.adjustedEntropy.toFixed(3)} cal/(mol·K)` : '',
+          `Hairpin exact-match heuristic: ${result.hairpin ? `${result.hairpin.dg.toFixed(2)} kcal/mol, stem ${result.hairpin.stem}, loop ${result.hairpin.loop}` : 'none / unavailable'}`,
+          `Homodimer exact-match heuristic: ${result.homodimer ? `${result.homodimer.dg.toFixed(2)} kcal/mol${result.homodimer.involves3Prime?' (3′ involved)':''}` : 'none / unavailable'}`,
+          `Heterodimer exact-match heuristic: ${result.heterodimer ? `${result.heterodimer.dg.toFixed(2)} kcal/mol${result.heterodimer.involves3Prime?' (3′ involved)':''}` : 'not analysed / none'}`,
+          '',
+          'References: SantaLucia J. Proc Natl Acad Sci USA. 1998;95:1460–1465. Cantor & Tinoco nearest-neighbour extinction method.',
+          'Limitation: structure scores enumerate exact, ungapped complementary runs; they are not full secondary-structure predictions.'
+        ];
+        return lines.filter(line=>line!==undefined).join('\n')+'\n';
+      }
+
+      function cloningText(result) {
+        return `${result.strategyText}\n${result.firstName}: ${result.first.site}, ${result.first.overhang}\n${result.secondName}: ${result.second.site}, ${result.second.overhang}\nForward primer (5′→3′): ${result.forwardPrimer}\nReverse primer (5′→3′): ${result.reversePrimer}\nFrame: ${result.checkFrame?(result.inFrame?'in frame':'out of frame'):'not checked'}\n`;
+      }
+
+      function activateMainTab(name,focus=false) {
+        document.querySelectorAll('[data-main-tab]').forEach(button=>{
+          const active=button.dataset.mainTab===name;
+          button.setAttribute('aria-selected',String(active));
+          button.tabIndex=active?0:-1;
+          if (focus&&active) button.focus();
+        });
+        for (const panelName of ['codon','primer']) {
+          const panel=byId(`panel-${panelName}`),active=panelName===name;
+          panel.hidden=!active; panel.inert=!active;
+        }
+      }
+
+      function activateSubtab(name,focus=false) {
+        document.querySelectorAll('[data-subtab]').forEach(button=>{
+          const active=button.dataset.subtab===name;
+          button.setAttribute('aria-selected',String(active));
+          button.tabIndex=active?0:-1;
+          if (focus&&active) button.focus();
+        });
+        for (const panelName of ['pcr','oligo','cloning']) {
+          const panel=byId(`subpanel-${panelName}`),active=panelName===name;
+          panel.hidden=!active; panel.inert=!active;
+        }
+      }
+
+      function bindTabKeyboard(selector,activate) {
+        const tabs=[...document.querySelectorAll(selector)];
+        tabs.forEach((tab,index)=>tab.addEventListener('keydown',event=>{
+          let next=null;
+          if (event.key==='ArrowRight') next=(index+1)%tabs.length;
+          if (event.key==='ArrowLeft') next=(index-1+tabs.length)%tabs.length;
+          if (event.key==='Home') next=0;
+          if (event.key==='End') next=tabs.length-1;
+          if (next!==null) { event.preventDefault(); activate(tabs[next].dataset.mainTab||tabs[next].dataset.subtab,true); }
+        }));
+      }
+
+      function renderEnzymeControls() {
+        const codonGrid=byId('codon-enzyme-grid');
+        const defaults=new Set(['EcoRI','BamHI','HindIII','NcoI','XhoI','NheI','SalI','XbaI','SpeI','PstI']);
+        Object.keys(RESTRICTION_ENZYMES).forEach(name=>{
+          const label=document.createElement('label'); label.className='enzyme-chip';
+          const input=document.createElement('input'); input.type='checkbox'; input.value=name; input.dataset.codonEnzyme='';
+          input.checked=defaults.has(name);
+          label.append(input,document.createTextNode(name)); codonGrid.append(label);
+        });
+        const cloningGrid=byId('cloning-enzyme-grid');
+        Object.entries(RESTRICTION_ENZYMES).forEach(([name,enzyme])=>{
+          const label=document.createElement('label'); label.className='restriction-option'; label.dataset.enzymeOption=name.toLowerCase();
+          const input=document.createElement('input'); input.type='checkbox'; input.value=name; input.dataset.cloningEnzyme='';
+          const copy=document.createElement('span'); const strong=document.createElement('strong'); strong.textContent=name;
+          const small=document.createElement('small'); small.textContent=`${enzyme.site} · ${enzyme.overhang}`;
+          copy.append(strong,small); label.append(input,copy); cloningGrid.append(label);
+        });
+      }
+
+      function updateCodonValidation() {
+        const raw=byId('codon-input').value,mode=byId('codon-input-mode').value,kind=detectSequenceKind(raw,mode);
+        const sequence=cleanSequence(raw);
+        setText('codon-count',kind==='protein'?`${sequence.length} aa`:`${sequence.length} bp`);
+        const detected=byId('codon-detected');
+        detected.textContent=sequence?`Detected: ${kind==='unknown'?'invalid':kind}`:'Awaiting input';
+        detected.className=`badge ${kind==='unknown'&&sequence?'bad':sequence?'good':''}`;
+        let validation={valid:false,error:'Protein or DNA, FASTA accepted'};
+        if (kind==='dna'||kind==='protein') validation=validateSequence(raw,kind);
+        if (validation.valid&&kind==='dna'&&sequence.length%3) validation={valid:false,error:`DNA length ${sequence.length} is not divisible by 3.`};
+        const status=byId('codon-input-status').querySelector('.parser-status');
+        status.textContent=validation.valid?`✓ ${sequence.length} ${kind==='protein'?'aa':'bp'} — valid ${kind}`:sequence?`⚠ ${validation.error}`:'Protein or DNA, FASTA accepted';
+        status.className=`parser-status ${validation.valid?'valid':sequence?'invalid':''}`;
+        byId('codon-input').setAttribute('aria-invalid',String(Boolean(sequence)&&!validation.valid));
+        return {kind,validation};
+      }
+
+      function updateDnaValidation(inputId,statusId,countId) {
+        const raw=byId(inputId).value,sequence=cleanSequence(raw),validation=validateSequence(raw,'dna');
+        const status=byId(statusId).querySelector('.parser-status');
+        status.textContent=validation.valid?`✓ ${sequence.length} bp — valid DNA`:sequence?`⚠ ${validation.error}`:'DNA, FASTA accepted';
+        status.className=`parser-status ${validation.valid?'valid':sequence?'invalid':''}`;
+        setText(countId,`${sequence.length} bp`);
+        byId(inputId).setAttribute('aria-invalid',String(Boolean(sequence)&&!validation.valid));
+        return validation;
+      }
+
+      function updateOligoValidation() {
+        const raw=byId('oligo-input').value,sequence=cleanSequence(raw),type=sequence.includes('U')?'rna':'dna';
+        const validation=validateSequence(raw,type);
+        const status=byId('oligo-status').querySelector('.parser-status');
+        status.textContent=validation.valid?`✓ ${sequence.length} nt — valid ${type.toUpperCase()}`:sequence?`⚠ ${validation.error}`:'DNA or RNA';
+        status.className=`parser-status ${validation.valid?'valid':sequence?'invalid':''}`;
+        setText('oligo-count',`${sequence.length} nt`);
+        return validation;
+      }
+
+      function updateHostUi() {
+        const key=byId('host-select').value;
+        show('custom-table-field',key==='custom');
+        const metadata=HOST_METADATA[key];
+        setText('host-note',metadata?metadata.source:'Upload a complete standard-code table.');
+        if (/h_sapiens|s_cerevisiae/.test(key)) byId('avoid-splice').checked=true;
+      }
+
+      function codonConstraintOptions() {
+        const gcMin=Number(byId('gc-min').value),gcMax=Number(byId('gc-max').value);
+        if (!Number.isFinite(gcMin)||!Number.isFinite(gcMax)||gcMin<0||gcMax>100||gcMin>=gcMax) throw new Error('GC range must be two ordered values between 0 and 100.');
+        return {
+          avoidSites:byId('avoid-sites').checked,
+          enzymes:[...document.querySelectorAll('[data-codon-enzyme]:checked')].map(input=>input.value),
+          enforceGc:byId('enforce-gc').checked,gcMin,gcMax,gcWindow:byId('gc-window-on').checked,
+          avoidPoly:byId('avoid-poly').checked,polyMax:Number(byId('poly-max').value),
+          avoidRepeats:byId('avoid-repeats').checked,repeatWindow:Number(byId('repeat-window').value),
+          pauseHeuristic:byId('pause-heuristic').checked,avoidSplice:byId('avoid-splice').checked,capCpg:byId('cap-cpg').checked
+        };
+      }
+
+      async function handleOptimise() {
+        const button=byId('optimise-button');
+        setError('codon',null);
+        try {
+          const hostKey=byId('host-select').value;
+          const table=hostKey==='custom'?state.customTable:CODON_TABLES[hostKey];
+          if (!table) throw new Error('Upload and validate a custom codon table first.');
+          const strategy=document.querySelector('input[name="codon-strategy"]:checked').value;
+          const result=await runPhases(button,['Translating…','Scoring candidates…','Applying constraints…','Checking restriction sites…'],()=>optimiseCodingSequence({
+            input:byId('codon-input').value,inputMode:byId('codon-input-mode').value,table,hostKey,strategy,
+            seed:byId('seed-input').value,prefix:byId('prefix-input').value,suffix:byId('suffix-input').value,
+            constraints:codonConstraintOptions()
+          }));
+          renderCodonResult(result);
+        } catch(error) {
+          show('codon-empty',false); show('codon-results',false); show('codon-export-buttons',false);
+          setError('codon',error);
+        }
+      }
+
+      function pcrParameters() {
+        const params={
+          start:Number(byId('amplicon-start').value)||null,end:Number(byId('amplicon-end').value)||null,
+          targetTm:Number(byId('tm-target').value),tolerance:Number(byId('tm-tolerance').value),
+          minLength:Number(byId('primer-min').value),maxLength:Number(byId('primer-max').value),
+          gcMin:Number(byId('primer-gc-min').value),gcMax:Number(byId('primer-gc-max').value),
+          naMm:Number(byId('salt-na').value),totalNm:Number(byId('oligo-conc').value),method:byId('tm-method').value,
+          m13:byId('m13-tails').checked,attb:byId('attb-tails').checked,preferClamp:byId('gc-clamp').checked,
+          avoidDimer:byId('avoid-primer-dimer').checked,forwardTail:byId('forward-tail').value,reverseTail:byId('reverse-tail').value
+        };
+        if (Object.entries(params).filter(([,value])=>typeof value==='number').some(([,value])=>!Number.isFinite(value))) throw new Error('Every numerical primer parameter must be valid.');
+        if (params.gcMin>=params.gcMax) throw new Error('Primer minimum GC must be below maximum GC.');
+        return params;
+      }
+
+      async function handlePrimerDesign() {
+        const button=byId('design-primers-button'); setError('pcr',null);
+        try {
+          const result=await runPhases(button,['Enumerating primers…','Calculating thermodynamics…','Checking dimers…','Ranking pairs…'],()=>designPrimerPairs(byId('pcr-template').value,pcrParameters()));
+          renderPrimerResults(result);
+        } catch(error) {
+          show('pcr-empty',false); show('pcr-results',false); show('pcr-export-buttons',false); setError('pcr',error);
+        }
+      }
+
+      function oligoConditions() {
+        const values={naMm:Number(byId('oligo-na').value),mgMm:Number(byId('oligo-mg').value),totalNm:Number(byId('analyser-conc').value),tempC:Number(byId('analysis-temp').value)};
+        if (!Number.isFinite(values.naMm)||values.naMm<=0||!Number.isFinite(values.totalNm)||values.totalNm<=0||!Number.isFinite(values.mgMm)||values.mgMm<0||!Number.isFinite(values.tempC)) throw new Error('Oligo conditions contain an invalid value.');
+        return values;
+      }
+
+      async function handleOligoAnalysis() {
+        const button=byId('analyse-oligo-button'); setError('oligo',null);
+        try {
+          const result=await runPhases(button,['Validating chemistry…','Summing nearest neighbours…','Scanning structures…'],()=>analyseOligo(byId('oligo-input').value,byId('second-oligo').value,oligoConditions()));
+          renderOligoResult(result);
+        } catch(error) {
+          show('oligo-empty',false); show('oligo-results',false); show('oligo-export-buttons',false); setError('oligo',error);
+        }
+      }
+
+      async function handleCloningAnalysis() {
+        const button=byId('analyse-cloning-button'); setError('cloning',null);
+        try {
+          const orientation=document.querySelector('input[name="orientation"]:checked').value;
+          const result=await runPhases(button,['Scanning insert…','Checking vector MCS…','Building primer tails…'],()=>buildCloningStrategy(
+            byId('insert-input').value,byId('vector-select').value,byId('custom-vector').value,state.cloningEnzymes,orientation,byId('frame-check').checked
+          ));
+          renderCloningResult(result);
+        } catch(error) {
+          show('cloning-empty',false); show('cloning-results',false); show('cloning-export-buttons',false); setError('cloning',error);
+        }
+      }
+
+      const PERSIST_IDS=[
+        'codon-input','codon-input-mode','host-select','prefix-input','suffix-input','seed-input','avoid-sites','enforce-gc','gc-min','gc-max','gc-window-on','avoid-poly','poly-max','avoid-repeats','repeat-window','pause-heuristic','avoid-splice','cap-cpg',
+        'pcr-template','amplicon-start','amplicon-end','tm-target','tm-tolerance','primer-min','primer-max','primer-gc-min','primer-gc-max','salt-na','oligo-conc','tm-method','m13-tails','attb-tails','gc-clamp','avoid-primer-dimer','forward-tail','reverse-tail',
+        'oligo-input','second-oligo','oligo-na','oligo-mg','analyser-conc','analysis-temp','insert-input','vector-select','custom-vector','frame-check'
+      ];
+      let persistTimer;
+      function persistState() {
+        clearTimeout(persistTimer);
+        persistTimer=setTimeout(()=>{
+          try {
+            const values={schema:1};
+            PERSIST_IDS.forEach(id=>{ const element=byId(id); values[id]=element.type==='checkbox'?element.checked:element.value; });
+            values.strategy=document.querySelector('input[name="codon-strategy"]:checked').value;
+            values.orientation=document.querySelector('input[name="orientation"]:checked').value;
+            localStorage.setItem('bioforge.state.v1',JSON.stringify(values));
+          } catch {}
+        },250);
+      }
+
+      function restoreState() {
+        try {
+          const stored=JSON.parse(localStorage.getItem('bioforge.state.v1'));
+          if (!stored||stored.schema!==1) return;
+          PERSIST_IDS.forEach(id=>{
+            const element=byId(id);
+            if (!element||stored[id]===undefined) return;
+            if (element.type==='checkbox') element.checked=Boolean(stored[id]);
+            else element.value=String(stored[id]);
+          });
+          const strategy=document.querySelector(`input[name="codon-strategy"][value="${stored.strategy}"]`);
+          const orientation=document.querySelector(`input[name="orientation"][value="${stored.orientation}"]`);
+          if (strategy) strategy.checked=true;
+          if (orientation) orientation.checked=true;
+          state.restored=true;
+          toast('Restored previous local session');
+        } catch {}
+      }
+
+      function handleDelegatedAction(event) {
+        const action=event.target.closest('[data-action]')?.dataset.action;
+        const transfer=event.target.closest('[data-transfer-primer]')?.dataset.transferPrimer;
+        if (transfer) {
+          if (!state.pcrResult) return;
+          const [index,direction]=transfer.split(':');
+          const primer=state.pcrResult.pairs[Number(index)][direction].fullSequence;
+          byId('oligo-input').value=primer;
+          activateMainTab('primer'); activateSubtab('oligo');
+          updateOligoValidation(); persistState();
+          toast(`Loaded ${direction} primer into Oligo Analyser`);
+          return;
+        }
+        if (!action) return;
+        try {
+          if (action==='copy-codon') copyText(state.codonResult.fullSequence);
+          if (action==='fasta-codon') downloadText('bioforge_optimised.fasta',fastaText('BioForge_optimised',state.codonResult.fullSequence));
+          if (action==='copy-primers') copyText(byId('primer-order-table').textContent);
+          if (action==='csv-primers') downloadText('bioforge_primers.csv',primerCsv(),'text/csv');
+          if (action==='copy-oligo-fasta') copyText(fastaText('BioForge_oligo',state.oligoResult.sequence));
+          if (action==='report-oligo') downloadText('bioforge_oligo_report.txt',oligoReport(state.oligoResult));
+          if (action==='copy-cloning') copyText(cloningText(state.cloningResult));
+        } catch(error) { toast(error.message); }
+      }
+
+      function bindEvents() {
+        document.querySelectorAll('[data-main-tab]').forEach(button=>button.addEventListener('click',()=>activateMainTab(button.dataset.mainTab)));
+        document.querySelectorAll('[data-subtab]').forEach(button=>button.addEventListener('click',()=>activateSubtab(button.dataset.subtab)));
+        bindTabKeyboard('[data-main-tab]',activateMainTab);
+        bindTabKeyboard('[data-subtab]',activateSubtab);
+        document.querySelectorAll('[data-sample]').forEach(button=>button.addEventListener('click',()=>{
+          byId('codon-input').value=SAMPLES[button.dataset.sample]; byId('codon-input-mode').value='protein'; updateCodonValidation(); persistState();
+        }));
+        byId('codon-input').addEventListener('input',()=>{updateCodonValidation();persistState();});
+        byId('codon-input-mode').addEventListener('change',()=>{updateCodonValidation();persistState();});
+        byId('host-select').addEventListener('change',()=>{updateHostUi();persistState();});
+        byId('custom-table').addEventListener('change',event=>{
+          const file=event.target.files[0]; if (!file) return;
+          const reader=new FileReader();
+          reader.onload=()=>{ try { state.customTable=parseCustomCodonCsv(reader.result); toast('Custom 64-codon table validated'); } catch(error) { state.customTable=null; setError('codon',error); } };
+          reader.onerror=()=>setError('codon','Could not read the selected CSV.');
+          reader.readAsText(file);
+        });
+        byId('optimise-button').addEventListener('click',handleOptimise);
+        byId('pcr-template').addEventListener('input',()=>{updateDnaValidation('pcr-template','pcr-template-status','pcr-template-count');persistState();});
+        byId('design-primers-button').addEventListener('click',handlePrimerDesign);
+        byId('oligo-input').addEventListener('input',()=>{updateOligoValidation();persistState();});
+        byId('analyse-oligo-button').addEventListener('click',handleOligoAnalysis);
+        document.querySelectorAll('[data-load-primer]').forEach(button=>button.addEventListener('click',()=>{
+          if (!state.pcrResult) { toast('Design primers first.'); return; }
+          byId('oligo-input').value=state.pcrResult.pairs[0][button.dataset.loadPrimer].fullSequence; updateOligoValidation(); persistState();
+        }));
+        let liveTimer;
+        ['oligo-na','oligo-mg','analyser-conc','analysis-temp'].forEach(id=>byId(id).addEventListener('input',()=>{
+          persistState(); clearTimeout(liveTimer);
+          liveTimer=setTimeout(()=>{ if (state.oligoResult) { try { renderOligoResult(analyseOligo(byId('oligo-input').value,byId('second-oligo').value,oligoConditions())); } catch {} } },120);
+        }));
+        byId('insert-input').addEventListener('input',()=>{updateDnaValidation('insert-input','insert-status','insert-count');persistState();});
+        byId('vector-select').addEventListener('change',()=>{show('custom-vector-field',byId('vector-select').value==='custom');persistState();});
+        byId('enzyme-filter').addEventListener('input',event=>{
+          const query=event.target.value.trim().toLowerCase();
+          document.querySelectorAll('[data-enzyme-option]').forEach(option=>option.hidden=!option.dataset.enzymeOption.includes(query));
+        });
+        document.querySelectorAll('[data-cloning-enzyme]').forEach(input=>input.addEventListener('change',()=>{
+          if (input.checked&&state.cloningEnzymes.length>=2) { input.checked=false; toast('Choose exactly two enzymes; remove one before adding another.'); return; }
+          state.cloningEnzymes=[...document.querySelectorAll('[data-cloning-enzyme]:checked')].map(item=>item.value);
+          setText('enzyme-selection-count',`${state.cloningEnzymes.length} / 2`);
+        }));
+        byId('analyse-cloning-button').addEventListener('click',handleCloningAnalysis);
+        document.addEventListener('click',handleDelegatedAction);
+        document.addEventListener('change',event=>{ if (event.target.matches('input,select')) persistState(); });
+      }
+
+      function boot() {
+        renderEnzymeControls();
+        restoreState();
+        bindEvents();
+        updateCodonValidation(); updateHostUi(); updateDnaValidation('pcr-template','pcr-template-status','pcr-template-count');
+        updateOligoValidation(); updateDnaValidation('insert-input','insert-status','insert-count');
+        show('custom-vector-field',byId('vector-select').value==='custom');
+        const testResult=selfTest();
+        if (!testResult.pass) {
+          console.error('BioForge internal verification failed',testResult);
+          setText('assertive-status','BioForge internal verification failed. See browser console.');
+        } else console.info(`BioForge ${APP_VERSION}: ${testResult.tests.length} internal verification checks passed.`);
+      }
+
+      globalThis.BioForge=Object.freeze({
+        version:APP_VERSION,dataVersion:DATA_VERSION,
+        data:Object.freeze({GENETIC_CODE,CODON_TABLES,RESTRICTION_ENZYMES,HOST_METADATA,NN,KD}),
+        algorithms:Object.freeze({
+          cleanSequence,validateSequence,detectSequenceKind,reverseComplement,translateDna,fnv1a,mulberry32,
+          calculateCai,gcPercent,gcSlidingWindow,scanRestrictionSites,findRepeats,findHomopolymers,
+          nearestNeighbourThermodynamics,wallaceTm,marmurDotyTm,findBestHairpin,findBestDimer,
+          molecularWeight,extinctionCoefficient,optimiseCodingSequence,designPrimerPairs,analyseOligo,buildCloningStrategy
+        }),
+        selfTest
+      });
+      if (typeof document!=='undefined') boot();
+    })();
+  </script>
+</body>
+</html>
