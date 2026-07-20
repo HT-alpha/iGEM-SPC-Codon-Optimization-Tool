@@ -323,7 +323,9 @@
               <div class="toggle-row">
                 <input id="avoid-sites" type="checkbox" checked>
                 <div class="toggle-copy"><label for="avoid-sites"><strong>Avoid restriction sites</strong></label><small>Synonymous repair preserves the translated protein.</small></div>
-                <div class="toggle-controls enzyme-grid" id="codon-enzyme-grid"></div>
+                <div class="toggle-controls enzyme-grid" id="codon-enzyme-grid">
+                  <input id="custom-restriction-site" type="text" maxlength="20" spellcheck="false" placeholder="Custom recognition site (optional)" aria-label="Custom restriction recognition sequence" style="grid-column:1/-1">
+                </div>
               </div>
               <div class="toggle-row">
                 <input id="enforce-gc" type="checkbox" checked>
@@ -980,7 +982,7 @@
       function evaluateConstraints(sequence,options) {
         const issues = [];
         if (options.avoidSites) {
-          const selected = Object.fromEntries(options.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]]).filter(([,enzyme]) => enzyme));
+          const selected = constraintEnzymeCatalog(options);
           for (const hit of scanRestrictionSites(sequence,selected)) {
             issues.push({type:'restriction',start:hit.position,end:hit.position + RESTRICTION_ENZYMES[hit.enzyme].site.length,weight:120,detail:hit});
           }
@@ -1016,6 +1018,12 @@
           for (const position of positions.slice(allowance)) issues.push({type:'cpg',start:position,end:position+2,weight:10});
         }
         return issues.sort((a,b) => b.weight-a.weight || (a.start ?? 0)-(b.start ?? 0));
+      }
+
+      function constraintEnzymeCatalog(options) {
+        const selected = Object.fromEntries(options.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]]).filter(([,enzyme]) => enzyme));
+        if (options.customSite) selected.Custom = {site:options.customSite,topCut:0,bottomCut:options.customSite.length,overhang:'custom',family:`${options.customSite.length}-cutter`};
+        return selected;
       }
 
       function issuePenalty(issues) {
@@ -1163,9 +1171,10 @@
         const codingDna = codons.join('');
         const finalIssues = evaluateConstraints(codingDna,constraints);
         const fullSequence = prefixValidation.sequence + codingDna + suffixValidation.sequence;
+        const selectedEnzymes = constraintEnzymeCatalog(constraints);
         const tailHits = constraints.avoidSites
-          ? scanRestrictionSites(fullSequence,Object.fromEntries(constraints.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]])))
-              .filter(hit => hit.position < prefixValidation.sequence.length || hit.position + RESTRICTION_ENZYMES[hit.enzyme].site.length > prefixValidation.sequence.length + codingDna.length)
+          ? scanRestrictionSites(fullSequence,selectedEnzymes)
+              .filter(hit => hit.position < prefixValidation.sequence.length || hit.position + selectedEnzymes[hit.enzyme].site.length > prefixValidation.sequence.length + codingDna.length)
           : [];
         const typeCounts = Object.entries(repairCounts).filter(([key]) => !key.includes(':')).map(([type,count]) => `${count} ${type}`).join(', ');
         log.push(repairs ? `Constraint repair applied ${repairs} synonymous substitution${repairs === 1 ? '' : 's'}${typeCounts ? ` (${typeCounts})` : ''}.` : 'No synonymous constraint repairs were required.');
@@ -1173,8 +1182,8 @@
         if (finalIssues.length) log.push(`${finalIssues.length} coding-region constraint violation(s) remain because no improving synonymous substitution was found.`);
         else log.push('All enabled coding-region constraints passed.');
         const originalForComparison = originalDna || baselineDna;
-        const originalSites = scanRestrictionSites(originalForComparison,Object.fromEntries(constraints.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]])));
-        const optimisedSites = scanRestrictionSites(codingDna,Object.fromEntries(constraints.enzymes.map(name => [name,RESTRICTION_ENZYMES[name]])));
+        const originalSites = scanRestrictionSites(originalForComparison,selectedEnzymes);
+        const optimisedSites = scanRestrictionSites(codingDna,selectedEnzymes);
         const hairpin = findBestHairpin(codingDna.slice(0,50),37,50);
         const metrics = {
           cai:calculateCai(codingDna,table),gc:gcPercent(codingDna),hairpinDg:hairpin?.dg ?? null,cpb:null,
@@ -1470,7 +1479,8 @@
       function setButtonBusy(button,busy,label) {
         if (!button) return;
         if (busy) {
-          button.dataset.originalLabel = button.textContent;
+          if (button.dataset.busy !== 'true') button.dataset.originalLabel = button.textContent;
+          button.dataset.busy = 'true';
           button.disabled = true;
           button.replaceChildren();
           const spinner = document.createElement('span');
@@ -1480,6 +1490,8 @@
         } else {
           button.disabled = false;
           button.textContent = button.dataset.originalLabel || label;
+          delete button.dataset.busy;
+          delete button.dataset.originalLabel;
         }
       }
 
@@ -1853,7 +1865,7 @@
         target.append(heading,badge,pre);
       }
 
-      function renderOligoResult(result) {
+      function renderOligoResult(result,focusHeading=true) {
         state.oligoResult = result;
         show('oligo-empty',false); show('oligo-results',true); show('oligo-export-buttons',true);
         setError('oligo',null);
@@ -1893,7 +1905,7 @@
         const notes=document.createElement('p'); notes.className='panel-intro';
         notes.textContent=`${result.clamp ? '✓' : '○'} 3′ GC clamp · ${result.palindromes.length} palindrome${result.palindromes.length===1?'':'s'} (4–12 nt) · ${result.runs.length} homopolymer run${result.runs.length===1?'':'s'} >4 nt.`;
         map.append(notes);
-        byId('oligo-results-title').focus();
+        if (focusHeading) byId('oligo-results-title').focus();
       }
 
       function renderRestrictionMap(result) {
@@ -2104,9 +2116,15 @@
       function codonConstraintOptions() {
         const gcMin=Number(byId('gc-min').value),gcMax=Number(byId('gc-max').value);
         if (!Number.isFinite(gcMin)||!Number.isFinite(gcMax)||gcMin<0||gcMax>100||gcMin>=gcMax) throw new Error('GC range must be two ordered values between 0 and 100.');
+        const customSite=cleanSequence(byId('custom-restriction-site').value);
+        if (customSite) {
+          const validation=validateSequence(customSite,'dna');
+          if (!validation.valid||customSite.length<4) throw new Error('Custom restriction recognition site must contain 4–20 unambiguous DNA bases.');
+        }
         return {
           avoidSites:byId('avoid-sites').checked,
           enzymes:[...document.querySelectorAll('[data-codon-enzyme]:checked')].map(input=>input.value),
+          customSite,
           enforceGc:byId('enforce-gc').checked,gcMin,gcMax,gcWindow:byId('gc-window-on').checked,
           avoidPoly:byId('avoid-poly').checked,polyMax:Number(byId('poly-max').value),
           avoidRepeats:byId('avoid-repeats').checked,repeatWindow:Number(byId('repeat-window').value),
@@ -2189,7 +2207,7 @@
       }
 
       const PERSIST_IDS=[
-        'codon-input','codon-input-mode','host-select','prefix-input','suffix-input','seed-input','avoid-sites','enforce-gc','gc-min','gc-max','gc-window-on','avoid-poly','poly-max','avoid-repeats','repeat-window','pause-heuristic','avoid-splice','cap-cpg',
+        'codon-input','codon-input-mode','host-select','prefix-input','suffix-input','seed-input','avoid-sites','custom-restriction-site','enforce-gc','gc-min','gc-max','gc-window-on','avoid-poly','poly-max','avoid-repeats','repeat-window','pause-heuristic','avoid-splice','cap-cpg',
         'pcr-template','amplicon-start','amplicon-end','tm-target','tm-tolerance','primer-min','primer-max','primer-gc-min','primer-gc-max','salt-na','oligo-conc','tm-method','m13-tails','attb-tails','gc-clamp','avoid-primer-dimer','forward-tail','reverse-tail',
         'oligo-input','second-oligo','oligo-na','oligo-mg','analyser-conc','analysis-temp','insert-input','vector-select','custom-vector','frame-check'
       ];
@@ -2281,7 +2299,7 @@
         let liveTimer;
         ['oligo-na','oligo-mg','analyser-conc','analysis-temp'].forEach(id=>byId(id).addEventListener('input',()=>{
           persistState(); clearTimeout(liveTimer);
-          liveTimer=setTimeout(()=>{ if (state.oligoResult) { try { renderOligoResult(analyseOligo(byId('oligo-input').value,byId('second-oligo').value,oligoConditions())); } catch {} } },120);
+          liveTimer=setTimeout(()=>{ if (state.oligoResult) { try { renderOligoResult(analyseOligo(byId('oligo-input').value,byId('second-oligo').value,oligoConditions()),false); } catch {} } },120);
         }));
         byId('insert-input').addEventListener('input',()=>{updateDnaValidation('insert-input','insert-status','insert-count');persistState();});
         byId('vector-select').addEventListener('change',()=>{show('custom-vector-field',byId('vector-select').value==='custom');persistState();});
