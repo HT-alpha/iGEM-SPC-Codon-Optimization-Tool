@@ -1,1 +1,1 @@
-# iGEM-Codon-Optimization-Tool
+# iGEM Codon Optimization Tool
