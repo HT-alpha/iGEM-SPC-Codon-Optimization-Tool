@@ -1,0 +1,300 @@
+# Machine-readable traceability from the assignment brief to the planning artifacts.
+#
+# `planning/tools/validate_planning_package.py --check trace` asserts that every
+# requirement here has at least one artifact and that every artifact path exists.
+# The human-readable version, with commentary, is 01-assignment-traceability.md.
+#
+# Requirement ids follow the brief's own section numbering:
+#   BRIEF-2.x  deliverables (section 2)
+#   BRIEF-3.x  open questions that must be resolved (section 3)
+#   BRIEF-4.x  format and process constraints (section 4)
+#   BRIEF-5.x  acceptance criteria (section 5, numbered 8-11 in the source)
+
+schema_version: 1
+
+requirements:
+
+  # ------------------------------------------------ 2.1 repository & modules --
+  - id: BRIEF-2.1-a
+    text: >-
+      Proposed repository layout with one module per architectural layer, each
+      independently testable and independently swappable.
+    artifacts:
+      - planning/01-modules/01-repository-layout.md
+      - planning/01-modules/modules.yaml
+
+  - id: BRIEF-2.1-b
+    text: >-
+      Dependency graph between modules, called out explicitly so circular
+      dependencies are caught at design time.
+    artifacts:
+      - planning/01-modules/02-module-dependency-graph.md
+      - planning/01-modules/modules.yaml
+      - planning/tools/validate_planning_package.py
+
+  - id: BRIEF-2.1-c
+    text: >-
+      Decision, with justification, on implementation language(s) and the
+      runtime split.
+    artifacts:
+      - planning/07-decisions/ADR-0001-language-and-runtime-split.md
+
+  # -------------------------------------------------- 2.2 schemas & contracts --
+  - id: BRIEF-2.2-a
+    text: >-
+      Canonical internal sequence representation (codon-indexed, frame-safe)
+      plus conversion utilities to/from FASTA/GenBank.
+    artifacts:
+      - planning/02-schemas/sequence.schema.json
+      - planning/02-schemas/examples/sequence.example.json
+      - planning/02-schemas/interfaces/predictors.pyi
+
+  - id: BRIEF-2.2-b
+    text: >-
+      Formal schema for the landscape query interface: what a fitness query
+      contains and what it returns, including gradients/deltas and per-position
+      uncertainty.
+    artifacts:
+      - planning/02-schemas/landscape_query.schema.json
+      - planning/02-schemas/landscape_response.schema.json
+      - planning/07-decisions/ADR-0002-oracle-vs-differentiable-surrogate.md
+
+  - id: BRIEF-2.2-c
+    text: >-
+      Schemas for host reference data, construct context, and the Pareto front
+      output format with per-position rationale tags.
+    artifacts:
+      - planning/02-schemas/host_profile.schema.json
+      - planning/02-schemas/riboseq_track.schema.json
+      - planning/02-schemas/construct_context.schema.json
+      - planning/02-schemas/constraint_set.schema.json
+      - planning/02-schemas/pareto_front.schema.json
+      - planning/02-schemas/rationale_tags.json
+
+  - id: BRIEF-2.2-d
+    text: >-
+      Versioning scheme for host-specific trained model artifacts so results are
+      reproducible and auditable.
+    artifacts:
+      - planning/02-schemas/model_manifest.schema.json
+      - planning/02-schemas/landscape_lockfile.schema.json
+      - planning/07-decisions/ADR-0009-artifact-versioning-and-resolution.md
+
+  # --------------------------------------------------- 2.3 algorithmic spec --
+  - id: BRIEF-2.3-a
+    text: Fitting the epistatic surface via pseudo-likelihood maximization.
+    artifacts:
+      - planning/03-algorithms/01-epistatic-surface-fit.md
+
+  - id: BRIEF-2.3-b
+    text: Block-local coordinate-ascent search and its overlap-reconciliation step.
+    artifacts:
+      - planning/03-algorithms/02-block-local-coordinate-ascent.md
+
+  - id: BRIEF-2.3-c
+    text: >-
+      NSGA-II/III non-dominated sorting loop, including synonymous-codon-respecting
+      mutation and crossover operators.
+    artifacts:
+      - planning/03-algorithms/03-nsga-loop-and-operators.md
+
+  - id: BRIEF-2.3-d
+    text: Systems-level joint search and its resource-ledger sharing across cistrons.
+    artifacts:
+      - planning/03-algorithms/04-systems-level-joint-search.md
+
+  - id: BRIEF-2.3-e
+    text: >-
+      Saturating burden-penalty function and how the host-capacity threshold is
+      estimated or configured.
+    artifacts:
+      - planning/03-algorithms/05-burden-penalty-and-capacity.md
+      - planning/07-decisions/ADR-0004-resource-ledger-granularity.md
+
+  - id: BRIEF-2.3-f
+    text: >-
+      In-loop constraint-repair operator and how it interacts with (not fights)
+      the evolutionary loop.
+    artifacts:
+      - planning/03-algorithms/06-constraint-repair.md
+
+  - id: BRIEF-2.3-g
+    text: >-
+      Explicit complexity/performance analysis for each algorithm with target
+      budgets for a single gene <=2 kb and a multi-cistron construct <=15 kb.
+    artifacts:
+      - planning/03-algorithms/08-complexity-and-performance-budgets.md
+      - planning/07-decisions/ADR-0008-compute-budget-and-scaling.md
+
+  # ------------------------------------------------- 2.4 API & integration --
+  - id: BRIEF-2.4-a
+    text: >-
+      External-facing API surface (REST/CLI/library) to submit a design job,
+      poll status and retrieve a Pareto front.
+    artifacts:
+      - planning/04-api/openapi.yaml
+      - planning/04-api/01-rest-api.md
+      - planning/04-api/02-cli-and-library.md
+      - planning/02-schemas/job_request.schema.json
+      - planning/02-schemas/job_status.schema.json
+
+  - id: BRIEF-2.4-b
+    text: >-
+      Active-learning ingestion API schema, and how a submitted result triggers
+      recalibration without blocking other users' jobs.
+    artifacts:
+      - planning/04-api/03-active-learning-ingestion.md
+      - planning/02-schemas/observation.schema.json
+      - planning/02-schemas/landscape_lockfile.schema.json
+
+  - id: BRIEF-2.4-c
+    text: >-
+      Plan for how host-specific and dataset-specific model versions are selected
+      at query time.
+    artifacts:
+      - planning/04-api/04-model-resolution.md
+      - planning/07-decisions/ADR-0009-artifact-versioning-and-resolution.md
+
+  # --------------------------------------- 2.5 testing, benchmarking, harness --
+  - id: BRIEF-2.5-a
+    text: >-
+      Test plan mapping each validation unit in the architecture's section 5 to
+      specific automated tests or benchmark scripts, with thresholds defined up
+      front.
+    artifacts:
+      - planning/05-testing/01-test-plan.md
+      - planning/05-testing/02-acceptance-thresholds.md
+      - planning/05-testing/04-benchmark-harness.md
+
+  - id: BRIEF-2.5-b
+    text: >-
+      Synthetic-data test suite with known ground truth so core algorithms can be
+      validated before real biological training data exists.
+    artifacts:
+      - planning/05-testing/03-synthetic-data-suite.md
+
+  # ------------------------------------------ 2.6 build sequencing & risks --
+  - id: BRIEF-2.6-a
+    text: >-
+      Concrete, ordered, ticket-level task breakdown within each of the five
+      roadmap phases.
+    artifacts:
+      - planning/06-build/00-sequencing-overview.md
+      - planning/06-build/01-phase-1-tickets.md
+      - planning/06-build/02-phase-2-tickets.md
+      - planning/06-build/03-phase-3-tickets.md
+      - planning/06-build/04-phase-4-tickets.md
+      - planning/06-build/05-phase-5-tickets.md
+
+  - id: BRIEF-2.6-b
+    text: >-
+      Risk register identifying the highest-uncertainty technical bets with a
+      mitigation or fallback for each.
+    artifacts:
+      - planning/06-build/06-risk-register.md
+
+  # ------------------------------------------------------- 3 open questions --
+  - id: BRIEF-3.1
+    text: Epistasis window size and interaction order; fallback for data-poor hosts.
+    artifacts:
+      - planning/07-decisions/ADR-0003-epistasis-window-and-order.md
+      - planning/08-experiments/experiment-register.md
+
+  - id: BRIEF-3.2
+    text: Landscape model as oracle vs. differentiable surrogate, with performance cost.
+    artifacts:
+      - planning/07-decisions/ADR-0002-oracle-vs-differentiable-surrogate.md
+
+  - id: BRIEF-3.3
+    text: Resource-ledger granularity, and capacity estimation for data-poor organisms.
+    artifacts:
+      - planning/07-decisions/ADR-0004-resource-ledger-granularity.md
+      - planning/03-algorithms/05-burden-penalty-and-capacity.md
+
+  - id: BRIEF-3.4
+    text: >-
+      Concrete uncertainty method, and how uncertainty is propagated into Pareto
+      ranking rather than shown post hoc.
+    artifacts:
+      - planning/07-decisions/ADR-0005-uncertainty-and-pareto-ranking.md
+
+  - id: BRIEF-3.5
+    text: >-
+      Active-learning data isolation between tenants, with an opt-in
+      community-pooled baseline.
+    artifacts:
+      - planning/07-decisions/ADR-0006-active-learning-data-isolation.md
+
+  - id: BRIEF-3.6
+    text: Backward compatibility with existing tool outputs as seed candidates.
+    artifacts:
+      - planning/07-decisions/ADR-0007-external-tool-seed-import.md
+      - planning/02-schemas/seed_set.schema.json
+
+  - id: BRIEF-3.7
+    text: Target hardware profile and where algorithmic choices change to fit the budget.
+    artifacts:
+      - planning/07-decisions/ADR-0008-compute-budget-and-scaling.md
+
+  # ------------------------------------------- 4 deliverable format & limits --
+  - id: BRIEF-4.a
+    text: >-
+      Every schema given in a concrete serializable form reviewable line by line.
+    artifacts:
+      - planning/02-schemas/common.schema.json
+      - planning/02-schemas/README.md
+      - planning/tools/validate_planning_package.py
+
+  - id: BRIEF-4.b
+    text: >-
+      Every decision that departs from, extends or narrows the architecture
+      proposal flagged explicitly with a one-line rationale.
+    artifacts:
+      - planning/00-scope/03-architecture-amendments.md
+      - planning/00-scope/04-departure-index.md
+
+  - id: BRIEF-4.c
+    text: >-
+      No production implementation code; illustrative pseudocode and interface
+      stubs only.
+    artifacts:
+      - planning/00-scope/01-assignment-traceability.md
+      - planning/02-schemas/interfaces/predictors.pyi
+
+  - id: BRIEF-4.d
+    text: >-
+      Where a decision cannot be made without data that does not yet exist,
+      specify the experiment that would resolve it.
+    artifacts:
+      - planning/08-experiments/experiment-register.md
+
+  # --------------------------------------------------- 5 acceptance criteria --
+  - id: BRIEF-5.8
+    text: >-
+      Every module has a defined interface, input/output schema, and at least one
+      specified test.
+    artifacts:
+      - planning/01-modules/modules.yaml
+      - planning/05-testing/01-test-plan.md
+
+  - id: BRIEF-5.9
+    text: >-
+      Every open question in section 3 has an explicit answer or a named
+      experiment that resolves it before the relevant build phase.
+    artifacts:
+      - planning/00-scope/01-assignment-traceability.md
+      - planning/08-experiments/experiment-register.md
+
+  - id: BRIEF-5.10
+    text: >-
+      Phase 1 is granular enough to start immediately with no further design
+      discussion.
+    artifacts:
+      - planning/06-build/01-phase-1-tickets.md
+
+  - id: BRIEF-5.11
+    text: >-
+      The risk register names, for each of the four previously-unaddressed
+      capabilities, the technical bet and what would falsify it.
+    artifacts:
+      - planning/06-build/06-risk-register.md

@@ -339,6 +339,10 @@ def check_refs(rep: Report) -> None:
         ("EXP", r"\bEXP-(\d{2})\b", "08-experiments/experiment-register.md"),
         ("RISK", r"\bRISK-([A-Z]{3,4}-\d{3})\b", "06-build/06-risk-register.md"),
         ("GATE", r"\bGATE-([A-Z]{3,6}-\d{3})\b", "05-testing/02-acceptance-thresholds.md"),
+        ("TST", r"\bTST-([A-Z]{3,5}-\d{3})\b", "05-testing/01-test-plan.md"),
+        # BRIEF-4.b: every departure must appear in the departure index.
+        ("DEP", r"\bDEP-([A-Z]{2,4}-\d{3})\b", "00-scope/04-departure-index.md"),
+        ("SYN", r"\bSYN-(\d{2})\b", "05-testing/03-synthetic-data-suite.md"),
     ]
     for label, pattern, relpath in checks:
         defined = defined_in(relpath, pattern)
@@ -348,12 +352,17 @@ def check_refs(rep: Report) -> None:
         if cited and not (cited - defined):
             rep.ok(f"all {len(cited)} {label}-* identifiers resolve to planning/{relpath}")
 
-    # Departure markers must carry a rationale row (BRIEF-4.b).
-    dep_ids = _collect_ids(r"\bDEP-([A-Z]{2,4}-\d{3})\b", joined)
-    if dep_ids:
-        rep.ok(f"{len(dep_ids)} departure markers declared (BRIEF-4.b)")
-    else:
-        rep.fail("no DEP-* departure markers found; BRIEF-4.b requires departures be flagged")
+    # Every phase ticket id must live in its own phase file.
+    for phase in range(1, 6):
+        path = PLANNING / "06-build" / f"0{phase}-phase-{phase}-tickets.md"
+        if not path.exists():
+            rep.fail(f"missing planning/06-build/0{phase}-phase-{phase}-tickets.md")
+            continue
+        ids = _collect_ids(rf"\bP{phase}-(\d{{2}})\b", path.read_text(encoding="utf-8"))
+        if ids:
+            rep.ok(f"phase {phase} defines {len(ids)} tickets")
+        else:
+            rep.fail(f"phase {phase} ticket file defines no P{phase}-* tickets")
 
 
 def check_links(rep: Report) -> None:
@@ -374,6 +383,78 @@ def check_links(rep: Report) -> None:
         rep.ok(f"all {total} relative Markdown links resolve")
 
 
+def check_openapi(rep: Report) -> None:
+    rep.section("openapi")
+    path = PLANNING / "04-api" / "openapi.yaml"
+    if not path.exists():
+        rep.fail("planning/04-api/openapi.yaml is missing")
+        return
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:  # noqa: PERF203
+        rep.fail(f"openapi.yaml is not valid YAML: {exc}")
+        return
+    rep.ok(f"openapi.yaml parses (openapi {doc.get('openapi')})")
+
+    if not doc.get("paths"):
+        rep.fail("openapi.yaml declares no paths")
+    else:
+        rep.ok(f"{len(doc['paths'])} paths declared")
+
+    # every external $ref must resolve to a file that exists, and to a JSON
+    # pointer inside it where one is given
+    def walk(node, refs):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "$ref" and isinstance(value, str):
+                    refs.append(value)
+                else:
+                    walk(value, refs)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item, refs)
+
+    refs: list[str] = []
+    walk(doc, refs)
+    external = [r for r in refs if not r.startswith("#")]
+    for ref in sorted(set(external)):
+        file_part, _, pointer = ref.partition("#")
+        target = (path.parent / file_part).resolve()
+        if not target.exists():
+            rep.fail(f"openapi.yaml: $ref target does not exist: {ref}")
+            continue
+        if pointer:
+            doc_json = load_json(target)
+            node = doc_json
+            ok = True
+            for part in pointer.strip("/").split("/"):
+                part = part.replace("~1", "/").replace("~0", "~")
+                if isinstance(node, dict) and part in node:
+                    node = node[part]
+                else:
+                    ok = False
+                    break
+            if not ok:
+                rep.fail(f"openapi.yaml: JSON pointer does not resolve: {ref}")
+                continue
+        rep.ok(f"$ref resolves: {ref}")
+
+    internal = [r for r in refs if r.startswith("#")]
+    for ref in sorted(set(internal)):
+        node = doc
+        ok = True
+        for part in ref.lstrip("#").strip("/").split("/"):
+            if isinstance(node, dict) and part in node:
+                node = node[part]
+            else:
+                ok = False
+                break
+        if ok:
+            rep.ok(f"$ref resolves: {ref}")
+        else:
+            rep.fail(f"openapi.yaml: internal $ref does not resolve: {ref}")
+
+
 def check_trace(rep: Report) -> None:
     rep.section("trace")
     path = PLANNING / "00-scope" / "traceability.yaml"
@@ -392,10 +473,10 @@ def check_trace(rep: Report) -> None:
         if not artifacts:
             rep.fail(f"{rid}: no artifact satisfies this requirement")
             continue
-        for rel in artifacts:
-            if not (ROOT / rel).exists():
-                rep.fail(f"{rid}: artifact {rel} does not exist")
-        else:
+        missing = [rel for rel in artifacts if not (ROOT / rel).exists()]
+        for rel in missing:
+            rep.fail(f"{rid}: artifact {rel} does not exist")
+        if not missing:
             rep.ok(f"{rid}: satisfied by {len(artifacts)} artifact(s)")
 
     # Every section of the brief must be represented.
@@ -443,6 +524,7 @@ CHECKS = {
     "deps": check_deps,
     "refs": check_refs,
     "links": check_links,
+    "openapi": check_openapi,
     "trace": check_trace,
     "tags": check_tags,
 }

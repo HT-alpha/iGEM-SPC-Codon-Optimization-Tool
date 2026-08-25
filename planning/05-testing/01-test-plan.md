@@ -1,0 +1,222 @@
+# Test Plan
+
+Satisfies: `BRIEF-2.5-a` (mapping each validation unit in the architecture's §5 to specific automated tests or benchmark scripts) and `BRIEF-5.8` (every module has at least one specified test).
+Thresholds: [`02-acceptance-thresholds.md`](02-acceptance-thresholds.md). Synthetic fixtures: [`03-synthetic-data-suite.md`](03-synthetic-data-suite.md). Benchmarks: [`04-benchmark-harness.md`](04-benchmark-harness.md).
+
+---
+
+## 1. Tiers and where they run
+
+| Tier | Naming | Budget | Runs |
+| --- | --- | --- | --- |
+| **unit** | `unit_*` | < 100 ms each, no I/O | pre-commit, every PR |
+| **property** | `property_*` | < 30 s per property | every PR |
+| **contract** | `contract_*` | < 1 s each | every PR — validates a module's public contract against its JSON Schema using golden examples |
+| **integration** | `it_*` | < 5 min total | every PR |
+| **benchmark** | `bench_*` | minutes to hours | nightly; weekly for the full sweep |
+| **performance regression** | `perf_*` | ~30 min | nightly |
+
+`contract_*` is the tier that makes "independently swappable" real: a module can be replaced if and only if its replacement passes the same contract tests against the same golden documents.
+
+---
+
+## 2. Architecture §5 validation units → tests
+
+This is the mapping `BRIEF-2.5-a` asks for. Each of the four named validation units becomes a concrete, automated, thresholded check.
+
+| Architecture §5 validation unit | Test / benchmark | Gate |
+| --- | --- | --- |
+| Held-out ribosome-profiling prediction | `TST-EPI-003` (unit-scale) + `bench_epistasis_heldout` (full) | `GATE-EPI-001`, `GATE-EPI-002` |
+| MFE/CAI trade-off benchmarking against LinearDesign / CDSfold | `bench_mfe_cai_frontier` | `GATE-BEN-001`, `GATE-BEN-002` |
+| Burden-model back-testing against a Codon-Harmony-Index-style dataset | `bench_burden_backtest` | `GATE-BURD-001` |
+| Pareto-front hypervolume comparisons | `bench_hypervolume_vs_baselines` | `GATE-BEN-003` |
+
+Two supporting units the architecture implies but does not name, added here because without them the four above are not interpretable:
+
+| Added unit | Test | Gate | Why it is needed |
+| --- | --- | --- | --- |
+| Uncertainty calibration | `TST-UNC-002` | `GATE-UNC-001` | Every hypervolume and dominance claim in the plan depends on ranked candidates, and [ADR-0005](../07-decisions/ADR-0005-uncertainty-and-pareto-ranking.md) makes ranking depend on calibrated intervals. |
+| End-to-end performance | `TST-PERF-001` | `GATE-PERF-001` | `BRIEF-2.3-g` sets performance budgets; without a regression suite they decay silently. |
+
+---
+
+## 3. Test catalogue
+
+### `cf-types`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-CORE-001` | property | Sequence invariants I1–I5: length/codon-count agreement, translation matches the declared protein, protein invariance under every exposed operation, locked spans in range, digest stability. |
+| `TST-CORE-002` | unit | Codon-index bijection (`16·b₀+4·b₁+b₂`) round-trips for all 64 codons, and all 33 NCBI translation tables match a vendored reference. |
+| `TST-CORE-003` | unit | Canonical JSON (RFC 8785) serialization is stable across key insertion order, float formatting and platform. A digest that changes with map iteration order silently breaks every cache and every lockfile. |
+
+### `cf-metrics`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-METR-001` | property | Non-dominated sorting and hypervolume agree with brute force on 10⁴ random small fronts (`M ≤ 5`, `N ≤ 30`). |
+| `TST-METR-002` | unit | Das–Dennis directions: count equals `C(M+p−1, p)`, all sum to 1, all unique; the two-layer construction covers the interior. |
+| `TST-METR-003` | property | Hypervolume is monotone under front improvement and invariant to candidate ordering; IGD+ is zero iff the front equals the reference. |
+
+### `cf-landscape-api`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-LAPI-001` | contract | Every golden query/response document round-trips Rust → JSON → Python → JSON byte-identically. Catches the type-duplication drift that [ADR-0001](../07-decisions/ADR-0001-language-and-runtime-split.md) accepts as a cost. |
+| `TST-LAPI-002` | contract | A predictor's declared `capability` matches its actual method surface: an L1 claim without a working `delta_table` fails. |
+
+### `cf-constraints`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-CONS-001` | property | Incremental detectors agree exactly with a naive `O(n)` rescan over 10⁵ random edits, for every constraint class. |
+| `TST-CONS-002` | unit + property | Repair minimality on planted violations with a known unique fix; and, over 1 000 seeds on a violation with several minimal fixes, more than one distinct fix is returned (the diversity property). |
+| `TST-CONS-003` | property | Repair always terminates and never exceeds its declared work bound, including on adversarial overlapping and mutually-conflicting violations. |
+| `TST-CONS-004` | property | Repair never changes the translated protein and never touches a locked codon (10⁶ cases). |
+| `TST-CONS-005` | integration | Anti-thrashing: a scripted mutation/repair cycle designed to thrash is broken within `tabu_tenure` generations. |
+| `TST-CONS-006` | unit | Each of the five feasibility checks fires on a purpose-built infeasible input and stays silent on a feasible one. |
+
+### `cf-modelreg`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-MREG-001` | unit | The resolution ladder resolves in documented order and records `resolved_by` correctly at every rung. |
+| `TST-MREG-002` | unit | Replaying a lockfile with a missing digest fails with `CF-RESOLVE-006` and never substitutes a newer artifact. |
+| `TST-MREG-003` | unit | Fallback admissibility is enforced; admissible fallbacks set `fallback: true`, inflate `sigma`, and set `calibrated: false`. |
+| `TST-MREG-004` | unit | Mixing `contract_major` values across terms in one job is refused. |
+| `TST-MREG-005` | unit | A `yanked` artifact never resolves through a channel and always resolves by digest. |
+
+### `cf-testkit`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-SYN-001` | unit | The toy design space (8 codons, ≤3 synonyms, 6 561 sequences) enumerates exhaustively and its exact Pareto front is computable, giving every search test a ground truth. |
+| `TST-SYN-002` | unit | The synthetic Potts generator produces sequences whose empirical conditionals match the generating parameters. |
+| `TST-SYN-003` | unit | The two-cistron contention instance has an analytically known joint optimum that is strictly better than the best independent-optimization result. |
+| `TST-SYN-004` | unit | Planted-violation generators produce sequences with exactly the intended violations and a known minimal repair distance. |
+
+### `cf-ingest`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-INGE-001` | property | FASTA/GenBank → `CodonSequence` → FASTA/GenBank round-trips; frame is preserved; RNA input is transcoded; ambiguity codes and lower case are handled or rejected explicitly. |
+| `TST-INGE-002` | unit | Host loaders populate `data_completeness` correctly, and Ribo-seq QC gates flag low periodicity, low depth and replicate discordance. |
+| `TST-INGE-003` | unit | Seed importers accept valid output from each supported tool and reject a protein-mismatched seed **with a correct positional diff**. |
+
+### `cf-epistasis`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-EPI-001` | integration | Parameter recovery from a known synthetic Potts surface: Pearson `r ≥ 0.95` on `J` in zero-sum gauge. Catches gauge, indexing and gradient bugs with no biology involved. |
+| `TST-EPI-002` | property | **Delta correctness**: `delta == score(after) − score(before)` within `1e-9` over 10⁴ random substitutions. The highest-value test in the package — a wrong delta corrupts every tier-2 result while leaving tier-3 results looking plausible. |
+| `TST-EPI-003` | benchmark | Held-out dwell prediction beats the codon-usage baseline (`GATE-EPI-001`). |
+
+### `cf-burden`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-BURD-001` | property | Ledger conservation: total amino-acid demand is bit-identical before and after 10⁵ random synonymous substitutions. |
+| `TST-BURD-002` | property | Incremental and full ledger agree to `1e-12` over 10⁵ edits. |
+| `TST-BURD-003` | integration | Frozen-availability delta error stays below 1 % of the term's reference range. |
+| `TST-BURD-004` | property | `g` is monotone in each `u_α` and bounded in `[0, g_max]` over 10⁶ random ledgers. |
+| `TST-BURD-005` | unit | Tier-3 semantics: unit is `dimensionless`, `calibrated` is `false`, and `low_confidence_host` is attached. Keeps the honesty requirement of [ADR-0004](../07-decisions/ADR-0004-resource-ledger-granularity.md) from eroding. |
+
+### `cf-biophys-structure`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-STRU-001` | integration | Engine parity: on a reference sequence set, the native kernel's accessibility correlates with an installed ViennaRNA reference above a fixed threshold. Skipped, not failed, when ViennaRNA is absent. |
+| `TST-STRU-002` | property | Incremental accessibility equals full recomputation to `1e-9` over 10⁴ edits. |
+| `TST-STRU-003` | unit | With no optional engine installed, the native engine is selected, the lockfile records it, and no import of an absent package is attempted. |
+
+### `cf-biophys-kinetics`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-KIN-001` | unit | Desired pause windows land at `d+25 … d+45` and never overlap a boundary. |
+| `TST-KIN-002` | integration | Reconciliation with the epistasis term: a pause inside a designated window does not increase `dwell_deviation`; one 100 codons away does. |
+
+### `cf-biophys-lm`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-LM-001` | property | `score_batch` equals a loop over `score` to within float tolerance, for every batch size including 1 and `E_max`. |
+| `TST-LM-002` | unit | Given a fixed seed, MC-dropout uncertainty is reproducible across runs and across batch composition. |
+
+### `cf-landscape`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-LAND-001` | property | Cache correctness: a cache hit returns exactly what a cold evaluation returns; the cache key includes the lockfile digest so cross-version contamination is impossible. |
+| `TST-LAND-002` | unit | `status: partial` propagates as `UNKNOWN` and is never imputed; the deferred term appears in `diagnostics.terms_deferred`. |
+| `TST-LAND-003` | unit | `cargo tree -p cf-landscape` contains no predictor crate. The mechanical enforcement of the swappable-layer property. |
+
+### `cf-search`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-SRCH-001` | property | Tier-2 monotonicity: the scalarized surrogate never decreases across a half-sweep, over 500 randomized runs. |
+| `TST-SRCH-002` | integration | On the toy exhaustive space, tier 1 + tier 2 find the exact decomposable optimum in ≥99 % of seeds. |
+| `TST-SRCH-003` | property | Seam reconciliation never worsens the incumbent (10⁴ configurations). |
+| `TST-SRCH-004` | integration | Bit-identical output across 1, 4 and 16 threads. |
+| `TST-SRCH-005` | integration | Every emitted candidate carries an exact, non-surrogate evaluation. |
+| `TST-SRCH-006` | property | Protein and lock invariance after 10⁶ randomized operator applications. |
+| `TST-SRCH-007` | unit | Constraint-domination ordering matches Deb's definition on an enumerated truth table, including `UNKNOWN` cases. |
+| `TST-SRCH-008` | integration | Joint-search oscillation is detected and the fully-joint fallback produces a result at least as good as the decomposed path. |
+| `TST-SRCH-009` | integration | On the synthetic contention instance, joint search beats independent per-cistron optimization by the analytically known margin. The test that justifies the systems-level layer's existence. |
+
+### `cf-decision`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-DEC-001` | property | Probabilistic dominance agrees with exhaustive enumeration on small discrete predictive distributions, including the correlated case. |
+| `TST-DEC-002` | unit | Every rationale tag fires on a fixture that meets its trigger and stays silent on one that does not; every emitted tag is in the closed vocabulary with the right scope. |
+| `TST-DEC-003` | property | Front reduction always retains the per-objective extreme points, so a reduced front never hides the best value on any axis. |
+
+### `cf-orchestrator`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-ORCH-001` | integration | The lockfile is sealed before any search work begins, and no query in the job resolves outside it. |
+| `TST-ORCH-002` | integration | Checkpoint/resume: a job killed mid-tier-3 resumes to a bit-identical final front. |
+| `TST-ORCH-003` | integration | `codonforge replay --assert-identical` reproduces a front exactly. |
+
+### `cf-active`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-ACT-001` | unit | Each ingestion validation check fires and stays silent appropriately. |
+| `TST-ACT-002` | integration | Isolation invariant over a simulated multi-tenant history: no tenant artifact's manifest lists a foreign tenant's dataset. |
+| `TST-ACT-003` | integration | **Non-blocking**: a job running while a recalibration promotes a new artifact produces a bit-identical front to the same job with no concurrent promotion. The direct executable test of `BRIEF-2.4-b`. |
+| `TST-ACT-004` | integration | An artifact failing any required gate is unreachable through a channel and reachable only by explicit digest. |
+
+### `cf-api` / `cf-cli` / `cf-bench`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-API-001` | contract | Every response validates against its declared schema, driven from the OpenAPI document. |
+| `TST-API-002` | integration | Idempotency: same key + same body replays; same key + different body returns `409`. |
+| `TST-API-003` | integration | Tenancy: tenant A cannot read, pin or replay any tenant-B resource. Enumerates every endpoint. |
+| `TST-API-004` | unit | Every error path returns `application/problem+json` with a documented `code`. |
+| `TST-CLI-001` | integration | REST, CLI and library produce identical lockfiles and fronts for a corpus of requests under a fixed seed. |
+| `TST-CLI-002` | unit | Exit codes match the documented table, in particular that infeasible constraints exit `3` and not `1`. |
+| `TST-BEN-001` | integration | The benchmark harness reproduces a stored reference result exactly from its lockfile. |
+| `TST-BEN-002` | unit | The harness refuses to compare fronts computed at different budget tiers or with different lockfiles. |
+
+### Cross-cutting
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-UNC-001` | contract | Every term's `Uncertainty` declares `method` and `calibrated`; `method: none` appears only for deterministic terms. |
+| `TST-UNC-002` | benchmark | Empirical coverage of the nominal 90 % interval on held-out data lands in `[0.87, 0.93]` (`GATE-UNC-001`). |
+| `TST-PERF-001` | perf | End-to-end wall time for the 2 kb and 15 kb reference jobs at all three tiers; fails on a >25 % regression versus the trailing 7-day median. |
+
+---
+
+## 4. What is deliberately not tested by unit tests
+
+Stating this prevents a false sense of coverage:
+
+- **Whether the models are biologically right.** That is what the experiments in [`../08-experiments/experiment-register.md`](../08-experiments/experiment-register.md) are for. A unit test can prove the Potts fitter recovers its own synthetic parameters; only `EXP-01` can say whether the fitted surface means anything.
+- **Whether designs actually express better.** `EXP-10`.
+- **Absolute predictive accuracy.** Gates are relative, against named baselines — see [`02-acceptance-thresholds.md`](02-acceptance-thresholds.md) §1 for why.

@@ -1,0 +1,45 @@
+# Departure Index
+
+Satisfies `BRIEF-4.b`:
+
+> Every design decision that departs from, extends, or narrows something stated in the architecture proposal must be flagged explicitly with a one-line rationale, so reviewers can see where engineering necessity diverged from the original design.
+
+Each departure is flagged **in place**, next to the decision it qualifies. This index collects them so a reviewer can scan the full set without reading the whole package. Departures large enough to need a decision from the architecture's authors are promoted to [`03-architecture-amendments.md`](03-architecture-amendments.md) and cross-referenced below.
+
+| Id | Kind | One-line rationale | Where |
+| --- | --- | --- | --- |
+| `DEP-LAY-001` | narrows | "Biophysical predictors" is split into three sibling modules because they have different runtimes and one module would force a GPU dependency on every install. | [`../01-modules/01-repository-layout.md`](../01-modules/01-repository-layout.md) |
+| `DEP-LAY-002` | extends | Two support leaves (`cf-landscape-api`, `cf-metrics`) with no architectural counterpart are added purely to break the latent landscape↔predictor and search↔decision cycles. | [`../01-modules/01-repository-layout.md`](../01-modules/01-repository-layout.md) |
+| `DEP-LAY-003` | extends | `registry/` holds manifests only; weights are external content-addressed blobs, so tenant isolation is a storage property rather than a repository one. | [`../01-modules/01-repository-layout.md`](../01-modules/01-repository-layout.md) |
+| `DEP-RT-001` | extends | The compiled core also holds epistasis *scoring*, the burden ledger and the constraint machinery, because the split that matters is per-move vs. per-job, not model vs. search. | [ADR-0001](../07-decisions/ADR-0001-language-and-runtime-split.md) |
+| `DEP-RT-002` | narrows | The LM predictor stays in Python: a transformer forward pass is already compiled, and the batch-yield protocol removes it from the per-move path anyway. | [ADR-0001](../07-decisions/ADR-0001-language-and-runtime-split.md) |
+| `DEP-LAND-001` | extends | Introduces a third option beyond oracle-vs-gradient — an exact-delta capability — which dominates gradients for every decomposable term. | [ADR-0002](../07-decisions/ADR-0002-oracle-vs-differentiable-surrogate.md) |
+| `DEP-EPI-001` | narrows | The epistatic surface is split into a data-cheap context prior and a data-expensive dwell head so the layer degrades gracefully instead of being all-or-nothing. Promoted to `AMD-006`. | [`../03-algorithms/01-epistatic-surface-fit.md`](../03-algorithms/01-epistatic-surface-fit.md) |
+| `DEP-EPI-002` | narrows | Generic DCA/Potts is narrowed to a *conditional* Potts model normalized over synonymous sets only, so the model is directly a model of codon choice and transfers across proteins. | [`../03-algorithms/01-epistatic-surface-fit.md`](../03-algorithms/01-epistatic-surface-fit.md) |
+| `DEP-EPI-003` | extends | Defines what the epistatic objective optimizes *toward*: concordance with the host's native translational rhythm plus suppression of unintended pauses, not dwell minimization. | [`../03-algorithms/01-epistatic-surface-fit.md`](../03-algorithms/01-epistatic-surface-fit.md) |
+| `DEP-EPI-004` | extends | The window becomes a fitted, host-dependent, data-tiered hyperparameter, and higher-order terms become conditional on a per-host held-out gate. | [ADR-0003](../07-decisions/ADR-0003-epistasis-window-and-order.md) |
+| `DEP-SRCH-001` | narrows | Red-black block partitioning with `B ≥ W` makes overlap and reconciliation unnecessary; the overlapping scheme is retained only for the residual long-range case. | [`../03-algorithms/02-block-local-coordinate-ascent.md`](../03-algorithms/02-block-local-coordinate-ascent.md) |
+| `DEP-SRCH-002` | extends | Reconciliation is specified as an exact 3-state chain DP with the incumbent always available, because a heuristic merge can decrease the global objective. | [`../03-algorithms/02-block-local-coordinate-ascent.md`](../03-algorithms/02-block-local-coordinate-ascent.md) |
+| `DEP-SRCH-003` | narrows | "NSGA-II/III" is resolved to NSGA-III for `M ≥ 4` and NSGA-II for `M ≤ 3`, switched automatically and recorded. | [`../03-algorithms/03-nsga-loop-and-operators.md`](../03-algorithms/03-nsga-loop-and-operators.md) |
+| `DEP-SRCH-004` | extends | Since every codon-boundary operator is synonymous-respecting by construction, operator design effort is spent instead on preserving epistatic context (block-uniform crossover). | [`../03-algorithms/03-nsga-loop-and-operators.md`](../03-algorithms/03-nsga-loop-and-operators.md) |
+| `DEP-SRCH-005` | extends | Joint search uses price decomposition for the bulk of the work with a final genuinely-joint refinement, plus an explicit fallback when the decomposition will not converge. | [`../03-algorithms/04-systems-level-joint-search.md`](../03-algorithms/04-systems-level-joint-search.md) |
+| `DEP-BURD-001` | narrows | Synonymous redesign cannot reduce total amino-acid demand; the burden claim is narrowed to isoacceptor rebalancing and ribosome occupancy. | [`../03-algorithms/04-systems-level-joint-search.md`](../03-algorithms/04-systems-level-joint-search.md) |
+| `DEP-BURD-002` | extends | Two penalty functions ship — a bounded saturating one for reporting and an unbounded soft hinge for search — because a saturating objective gives no signal where it matters most. | [`../03-algorithms/05-burden-penalty-and-capacity.md`](../03-algorithms/05-burden-penalty-and-capacity.md) |
+| `DEP-BURD-003` | narrows | At capacity tier 3 the burden term is a demand-profile mismatch score and must not be presented as a growth-rate prediction. | [`../03-algorithms/05-burden-penalty-and-capacity.md`](../03-algorithms/05-burden-penalty-and-capacity.md) |
+| `DEP-BURD-004` | narrows | Three capacity tiers with *different output semantics*, rather than one uniform burden prediction. | [ADR-0004](../07-decisions/ADR-0004-resource-ledger-granularity.md) |
+| `DEP-CONS-001` | extends | Adds a constraint-feasibility analyser, absent from the architecture, because a hard-constraint layer without one produces unexplainable empty results. Promoted to `AMD-010`. | [`../03-algorithms/06-constraint-repair.md`](../03-algorithms/06-constraint-repair.md) |
+| `DEP-KIN-001` | narrows | Folding kinetics ships as a diagnostic term and is promoted to a Pareto axis only on evidence, because it is the one objective with no validated predictor. Promoted to `AMD-002`. | [`../03-algorithms/07-folding-kinetics-objective.md`](../03-algorithms/07-folding-kinetics-objective.md) |
+| `DEP-UNC-001` | extends | Per-term base estimators plus conformal calibration plus an explicit shared/idiosyncratic error decomposition, with the search loop using point estimates and selection using the predictive distribution. Promoted to `AMD-003`. | [ADR-0005](../07-decisions/ADR-0005-uncertainty-and-pareto-ranking.md) |
+| `DEP-ACT-001` | extends | Makes the lockfile the concurrency-isolation mechanism for recalibration, which also delivers reproducibility and query-time version selection. | [`../04-api/03-active-learning-ingestion.md`](../04-api/03-active-learning-ingestion.md) |
+| `DEP-ACT-002` | narrows | Tenant data may not enter any shared weight set in v1; the community pool is a separately-consented, separately-reviewed, separately-trained lineage. | [ADR-0006](../07-decisions/ADR-0006-active-learning-data-isolation.md) |
+| `DEP-BUDG-001` | extends | Fixes a hardware target (single workstation) and derives an algorithmic degradation ladder from it, rather than treating performance as post-hoc tuning. | [ADR-0008](../07-decisions/ADR-0008-compute-budget-and-scaling.md) |
+| `DEP-VER-001` | extends | The human-readable artifact coordinate is declared insufficient for reproducibility; a content digest is required everywhere the coordinate appears. | [ADR-0009](../07-decisions/ADR-0009-artifact-versioning-and-resolution.md) |
+| `DEP-SEQ-001` | extends | Seed import moves into Phase 1 because the benchmark harness needs it to place competitor output on CodonForge's axes. | [`../06-build/00-sequencing-overview.md`](../06-build/00-sequencing-overview.md) |
+| `DEP-SEQ-002` | extends | The batch-yield protocol lands in Phase 2 with a stub L0 term, so the search engine's control flow is not changed at the same time as a new model is introduced. | [`../06-build/00-sequencing-overview.md`](../06-build/00-sequencing-overview.md) |
+
+## How to read the "kind" column
+
+- **narrows** — the plan commits to one option among several the architecture left open, or restricts a claim the architecture states more broadly.
+- **extends** — the plan adds something the architecture does not mention, because planning found it necessary.
+
+There are no departures of a third kind — *contradicts* — in this package. Where the plan found the architecture genuinely unworkable rather than merely underspecified, the item was promoted to [`03-architecture-amendments.md`](03-architecture-amendments.md) so it gets an explicit decision instead of being resolved unilaterally in a departure note.

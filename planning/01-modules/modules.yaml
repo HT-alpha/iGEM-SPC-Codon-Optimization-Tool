@@ -200,8 +200,12 @@ modules:
       - TST-STRU-001
       - TST-STRU-002
 
+  # rank 3 rather than 2: the v1 kinetics proxy consumes the epistatic model's
+  # per-codon dwell prediction, which is the only predictor-to-predictor edge
+  # in the graph. Keeping ranks strictly decreasing along every edge is what
+  # lets the validator catch a future cycle before it becomes one.
   - name: cf-biophys-kinetics
-    rank: 2
+    rank: 3
     layer: biophysical-predictors
     runtime: rust-core
     path: crates/cf-biophys-kinetics

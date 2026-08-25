@@ -14,8 +14,9 @@ rank 1   cf-landscape-api   cf-constraints   cf-modelreg   cf-testkit │
 rank 2   ┌──┴────────┴────┬───────┴──────┬───────┘  └── cf-ingest  │ │
          │                │              │                  │      │ │
      cf-epistasis     cf-burden   cf-biophys-structure       │      │ │
-         │                │        cf-biophys-kinetics       │      │ │
          │                │        cf-biophys-lm             │      │ │
+         │                │              │                   │      │ │
+rank 3   ├── cf-biophys-kinetics         │                   │      │ │
          │                │              │                   │      │ │
          └────────────────┴──────────────┘                   │      │ │
                 (registered at runtime, NOT imported)        │      │ │
@@ -46,7 +47,7 @@ Solid edges are compile-time/import-time dependencies. The line marked *register
 | `cf-epistasis` | 2 | `cf-types`, `cf-landscape-api` |
 | `cf-burden` | 2 | `cf-types`, `cf-landscape-api` |
 | `cf-biophys-structure` | 2 | `cf-types`, `cf-landscape-api` |
-| `cf-biophys-kinetics` | 2 | `cf-types`, `cf-landscape-api`, `cf-epistasis` |
+| `cf-biophys-kinetics` | 3 | `cf-types`, `cf-landscape-api`, `cf-epistasis` |
 | `cf-biophys-lm` | 2 | `cf-types`, `cf-landscape-api`, `cf-modelreg` |
 | `cf-landscape` | 3 | `cf-types`, `cf-landscape-api`, `cf-modelreg` |
 | `cf-search` | 4 | `cf-types`, `cf-landscape-api`, `cf-constraints`, `cf-metrics` |
