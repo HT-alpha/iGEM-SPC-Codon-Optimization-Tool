@@ -1,0 +1,658 @@
+# This document is written for review, not for code generation: the $refs point
+# at the normative JSON Schemas in planning/02-schemas/, which is where the
+# contracts live during the planning phase. At Phase 1 kickoff the schemas are
+# copied to schemas/v1/ and the refs are repointed there.
+
+openapi: 3.1.0
+
+info:
+  title: CodonForge API
+  version: "1.0.0"
+  summary: Epistasis-aware, systems-level, multi-objective codon optimization.
+  description: |
+    Satisfies BRIEF-2.4-a (external-facing API surface: submit a design job,
+    poll status, retrieve a Pareto front) and BRIEF-2.4-b (active-learning
+    ingestion).
+
+    Three cross-cutting rules apply to every endpoint:
+
+    1. **Errors are RFC 9457 `application/problem+json`**, always carrying a
+       stable machine-readable `code`. Clients branch on `code`, never on
+       prose.
+    2. **Tenancy is derived from the credential, never from the request body.**
+       A caller cannot address another tenant's data by construction, which is
+       the enforcement point for the isolation invariant in ADR-0006.
+    3. **Mutating requests accept `Idempotency-Key`.** Design jobs are
+       expensive and clients retry; a repeated key returns the original job
+       rather than starting a second one.
+  license:
+    name: Apache-2.0
+
+servers:
+  - url: https://api.codonforge.org
+  - url: http://localhost:8080
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: jobs
+    description: Submit, monitor and retrieve design jobs.
+  - name: scoring
+    description: Score existing sequences without running a design.
+  - name: hosts
+    description: Host reference data and per-host capability.
+  - name: models
+    description: Trained artifacts, versions and channels.
+  - name: active-learning
+    description: Wet-lab readout submission and recalibration.
+  - name: meta
+    description: Health and version.
+
+paths:
+
+  /v1/version:
+    get:
+      tags: [meta]
+      operationId: getVersion
+      security: []
+      summary: Package version, git SHA, and supported landscape contract majors.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, git_sha, contract_majors]
+                properties:
+                  version: { type: string }
+                  git_sha: { type: string }
+                  contract_majors:
+                    type: array
+                    items: { type: integer }
+                  schema_versions:
+                    type: object
+                    additionalProperties: { type: string }
+
+  /v1/healthz:
+    get:
+      tags: [meta]
+      operationId: getHealth
+      security: []
+      summary: Liveness and worker-pool readiness.
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { enum: [ok, degraded] }
+                  workers_ready: { type: integer }
+                  gpu_available: { type: boolean }
+                  queue_depth: { type: integer }
+        "503": { $ref: "#/components/responses/Problem" }
+
+  /v1/hosts:
+    get:
+      tags: [hosts]
+      operationId: listHosts
+      summary: List available hosts with their data-completeness tier.
+      description: |
+        The `data_completeness.supported_terms` field is the contract for what a
+        host can actually be optimized for. A UI should drive its objective
+        picker from this list rather than from a hard-coded set, so a user is
+        never offered an objective the host has no data to support.
+      parameters:
+        - { $ref: "#/components/parameters/Cursor" }
+        - { $ref: "#/components/parameters/Limit" }
+        - name: supports_term
+          in: query
+          schema: { type: string }
+          description: Filter to hosts whose supported_terms include this term id.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "../02-schemas/host_profile.schema.json"
+                  next_cursor: { type: [string, "null"] }
+
+  /v1/hosts/{host_id}:
+    get:
+      tags: [hosts]
+      operationId: getHost
+      parameters:
+        - name: host_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/host_profile.schema.json" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /v1/hosts/{host_id}/models:
+    get:
+      tags: [hosts, models]
+      operationId: listHostModels
+      summary: Artifacts resolvable for this host, per term, in resolution order.
+      description: |
+        Answers "which model would be used if I submitted a job right now"
+        without submitting one. Returns the same ladder ADR-0009 describes,
+        annotated with which rung each candidate sits on.
+      parameters:
+        - name: host_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: term_id
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        term_id: { type: string }
+                        candidates:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              artifact_id: { type: string }
+                              digest: { type: string }
+                              rung: { enum: [pin, tenant_channel, host_channel, nearest_host, base, builtin] }
+                              would_be_selected: { type: boolean }
+                              fallback: { type: boolean }
+
+  /v1/jobs:
+    post:
+      tags: [jobs]
+      operationId: createJob
+      summary: Submit a design job.
+      description: |
+        Returns 202 immediately. Model resolution happens synchronously enough
+        that `landscape_lockfile_digest` is available as soon as the job leaves
+        the `queued` state, so a client can inspect exactly which models will be
+        used before the expensive work begins.
+
+        Validation performed before acceptance, each with its own error code:
+        the input translates cleanly and is in frame (`CF-SEQ-*`); every
+        requested term is in the host's `supported_terms` (`CF-HOST-003`); the
+        constraint set passes the five feasibility checks (`CF-FEAS-*`); the
+        requested budget is satisfiable by the available hardware
+        (`CF-BUDGET-002`, downgraded with a warning rather than rejected).
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "../02-schemas/job_request.schema.json" }
+      responses:
+        "202":
+          description: Accepted
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/job_status.schema.json" }
+        "200":
+          description: Idempotent replay of an existing job.
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/job_status.schema.json" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+    get:
+      tags: [jobs]
+      operationId: listJobs
+      parameters:
+        - { $ref: "#/components/parameters/Cursor" }
+        - { $ref: "#/components/parameters/Limit" }
+        - name: state
+          in: query
+          schema: { enum: [queued, resolving, running, succeeded, failed, cancelled, expired] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "../02-schemas/job_status.schema.json" }
+                  next_cursor: { type: [string, "null"] }
+
+  /v1/jobs/{job_id}:
+    get:
+      tags: [jobs]
+      operationId: getJob
+      parameters:
+        - { $ref: "#/components/parameters/JobId" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/job_status.schema.json" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /v1/jobs/{job_id}/front:
+    get:
+      tags: [jobs]
+      operationId: getJobFront
+      summary: Retrieve the Pareto front.
+      description: |
+        `reduction=none` returns the full non-dominated set, which for a
+        five-objective job routinely runs to hundreds of candidates (AMD-008).
+        The default returns the reduced, presentable front.
+      parameters:
+        - { $ref: "#/components/parameters/JobId" }
+        - name: reduction
+          in: query
+          schema:
+            enum: [default, none, knee, clustering, epsilon_grid]
+            default: default
+        - name: max_candidates
+          in: query
+          schema: { type: integer, minimum: 1, default: 20 }
+        - name: format
+          in: query
+          schema:
+            enum: [json, fasta, genbank, csv]
+            default: json
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/pareto_front.schema.json" }
+            text/x-fasta:
+              schema: { type: string }
+            text/csv:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409":
+          description: Job has not produced a front yet.
+          content:
+            application/problem+json:
+              schema: { $ref: "../02-schemas/common.schema.json#/$defs/ProblemDetails" }
+
+  /v1/jobs/{job_id}/lockfile:
+    get:
+      tags: [jobs]
+      operationId: getJobLockfile
+      summary: The exact artifact set, engines, inputs and RNG state used.
+      description: |
+        This is the reproducibility primitive. Feeding the returned digest back
+        as `replay_lockfile_digest` on a new job reproduces the run exactly, or
+        fails loudly if any pinned artifact is no longer available.
+      parameters:
+        - { $ref: "#/components/parameters/JobId" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/landscape_lockfile.schema.json" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /v1/jobs/{job_id}/events:
+    get:
+      tags: [jobs]
+      operationId: streamJobEvents
+      summary: Server-sent events stream of progress and hypervolume history.
+      parameters:
+        - { $ref: "#/components/parameters/JobId" }
+      responses:
+        "200":
+          description: text/event-stream of JobStatus snapshots.
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /v1/jobs/{job_id}/cancel:
+    post:
+      tags: [jobs]
+      operationId: cancelJob
+      description: |
+        Cancellation is cooperative and checkpointed: the search stops at the
+        next generation boundary and the best front found so far is emitted.
+        A cancelled job therefore still has a retrievable, certified front.
+      parameters:
+        - { $ref: "#/components/parameters/JobId" }
+      responses:
+        "202":
+          description: Cancellation accepted.
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/job_status.schema.json" }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /v1/score:
+    post:
+      tags: [scoring]
+      operationId: scoreSequences
+      summary: Score existing sequences against the landscape without designing.
+      description: |
+        Serves three distinct needs with one endpoint: a user asking "how good
+        is my current sequence", the benchmark harness placing a competitor
+        tool's output on CodonForge's axes, and a UI computing the "before"
+        column of a comparison table. All three must use identical scoring, so
+        they share an endpoint rather than three code paths.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [host_id, sequences, terms]
+              properties:
+                host_id: { type: string }
+                condition_id: { type: [string, "null"] }
+                construct_context:
+                  $ref: "../02-schemas/construct_context.schema.json"
+                sequences:
+                  type: array
+                  items: { $ref: "../02-schemas/sequence.schema.json" }
+                terms:
+                  type: array
+                  items: { type: string }
+                budget:
+                  $ref: "../02-schemas/common.schema.json#/$defs/BudgetTier"
+                replay_lockfile_digest: { type: [string, "null"] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lockfile_digest: { type: string }
+                  results:
+                    type: array
+                    items: { $ref: "../02-schemas/landscape_response.schema.json" }
+
+  /v1/feasibility:
+    post:
+      tags: [scoring]
+      operationId: analyseFeasibility
+      summary: Run the five constraint-feasibility checks without submitting a job.
+      description: |
+        Exists so a user can find out that their constraint set is
+        unsatisfiable in milliseconds, and be told which constraint to relax,
+        instead of waiting for a design job to return nothing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [constraint_set]
+              properties:
+                construct_context: { $ref: "../02-schemas/construct_context.schema.json" }
+                sequence: { $ref: "../02-schemas/sequence.schema.json" }
+                constraint_set: { $ref: "../02-schemas/constraint_set.schema.json" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [feasible, checks]
+                properties:
+                  feasible: { type: boolean }
+                  necessary_conditions_only:
+                    type: boolean
+                    description: Always true - the checks are necessary, not sufficient.
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        check: { enum: [locked_span, counting_bound, per_position, automaton_reachability, gc_window] }
+                        passed: { type: boolean }
+                        code: { type: [string, "null"] }
+                        detail: { type: string }
+                        offending_constraint_id: { type: [string, "null"] }
+                        suggested_relaxation: { type: [string, "null"] }
+
+  /v1/seeds:import:
+    post:
+      tags: [scoring]
+      operationId: importSeeds
+      summary: Parse and validate external tool output as seed candidates.
+      description: |
+        ADR-0007. Accepts LinearDesign / CDSfold / CodonTransformer / DNA Chisel
+        output (or plain FASTA) and returns a validated SeedSet with an explicit
+        per-seed acceptance verdict, including a positional protein diff when a
+        seed is rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_protein, translation_table, seeds]
+              properties:
+                target_protein: { type: string }
+                translation_table: { type: integer }
+                host_id: { type: string }
+                constraint_set: { $ref: "../02-schemas/constraint_set.schema.json" }
+                seeds:
+                  type: array
+                  items:
+                    type: object
+                    required: [tool, payload]
+                    properties:
+                      tool: { enum: [lineardesign, cdsfold, codontransformer, codonbert, dnachisel, idt_optimizer, genscript, jcat, manual, previous_job, native] }
+                      version: { type: [string, "null"] }
+                      parameters: { type: object }
+                      payload: { type: string, description: "Raw tool output: FASTA, plain sequence, or the tool's native text format." }
+          text/x-fasta:
+            schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/seed_set.schema.json" }
+        "422": { $ref: "#/components/responses/Problem" }
+
+  /v1/observations:
+    post:
+      tags: [active-learning]
+      operationId: submitObservation
+      summary: Submit a wet-lab readout.
+      description: |
+        Returns 202. The submission is validated synchronously (schema,
+        as-built digest match, control presence, censoring declared) and then
+        queued. **Recalibration never runs inline and never blocks another
+        user's job**: see 03-active-learning-ingestion.md for the full
+        non-blocking argument, which rests on every job pinning a lockfile at
+        submission time.
+      parameters:
+        - { $ref: "#/components/parameters/IdempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "../02-schemas/observation.schema.json" }
+      responses:
+        "202":
+          description: Accepted and queued.
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/observation.schema.json" }
+        "422":
+          description: Validation failed; nothing was queued.
+          content:
+            application/problem+json:
+              schema: { $ref: "../02-schemas/common.schema.json#/$defs/ProblemDetails" }
+
+  /v1/observations/{observation_id}:
+    get:
+      tags: [active-learning]
+      operationId: getObservation
+      parameters:
+        - name: observation_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/observation.schema.json" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+  /v1/recalibrations:
+    get:
+      tags: [active-learning]
+      operationId: listRecalibrations
+      summary: Status of queued and completed recalibration runs for this tenant.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        recalibration_id: { type: string }
+                        state: { enum: [queued, running, gated, promoted, rejected, failed] }
+                        kind: { type: string }
+                        host_id: { type: string }
+                        n_observations: { type: integer }
+                        produced_artifact_id: { type: [string, "null"] }
+                        gate_report:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              gate_id: { type: string }
+                              passed: { type: boolean }
+                              value: { type: [number, string, "null"] }
+                              threshold: { type: [number, string, "null"] }
+                        rejection_reason: { type: [string, "null"] }
+
+  /v1/models:
+    get:
+      tags: [models]
+      operationId: listModels
+      parameters:
+        - { $ref: "#/components/parameters/Cursor" }
+        - { $ref: "#/components/parameters/Limit" }
+        - name: kind
+          in: query
+          schema: { type: string }
+        - name: host_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { enum: [draft, active, deprecated, yanked] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "../02-schemas/model_manifest.schema.json" }
+                  next_cursor: { type: [string, "null"] }
+
+  /v1/models/{artifact_id}:
+    get:
+      tags: [models]
+      operationId: getModel
+      description: |
+        A yanked artifact remains retrievable by id and digest forever, so a
+        published result stays reproducible; it is simply never selected by a
+        channel.
+      parameters:
+        - name: artifact_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "../02-schemas/model_manifest.schema.json" }
+        "404": { $ref: "#/components/responses/Problem" }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        The token carries the tenant. Tenant is never read from a request body,
+        so cross-tenant addressing is not expressible in the API.
+
+  parameters:
+    JobId:
+      name: job_id
+      in: path
+      required: true
+      schema: { type: string }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: [string, "null"] }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, maxLength: 128 }
+
+  responses:
+    Problem:
+      description: RFC 9457 problem detail.
+      content:
+        application/problem+json:
+          schema: { $ref: "../02-schemas/common.schema.json#/$defs/ProblemDetails" }
