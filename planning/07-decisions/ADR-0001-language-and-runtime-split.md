@@ -59,7 +59,7 @@ In-core terms (CAI, GC, k-mer, Potts epistasis, tAI/burden ledger, windowed acce
 
 **Positive**
 
-- The performance budget in [`07-complexity-and-performance-budgets.md`](../03-algorithms/07-complexity-and-performance-budgets.md) becomes achievable on a workstation, which is what ADR-0008 targets.
+- The performance budget in [`08-complexity-and-performance-budgets.md`](../03-algorithms/08-complexity-and-performance-budgets.md) becomes achievable on a workstation, which is what ADR-0008 targets.
 - The rust/python seam coincides with the *train vs. infer* seam, so a contributor who only wants to improve a model never touches Rust.
 - `cargo tree`/`cargo deny` give a machine-checkable answer to "did anyone violate the layering", which is how the anti-cycle rules in [`02-module-dependency-graph.md`](../01-modules/02-module-dependency-graph.md) are enforced.
 
