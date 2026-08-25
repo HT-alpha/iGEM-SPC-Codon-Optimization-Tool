@@ -32,9 +32,9 @@ Model *training* is a different matter and is explicitly not workstation-scoped:
 | Case | Tier | Target | Estimated |
 | --- | --- | --- | --- |
 | Single gene ≤2 kb | `fast` | ≤ 30 s | ~8 s |
-| Single gene ≤2 kb | `standard` | ≤ 600 s (GPU) / ≤ 900 s (CPU) | ~145 s / ~280 s |
+| Single gene ≤2 kb | `standard` | ≤ 600 s (GPU) / ≤ 900 s (CPU) | ~142 s / ~275 s |
 | Multi-cistron ≤15 kb | `fast` | ≤ 120 s | ~50 s |
-| Multi-cistron ≤15 kb | `standard` | ≤ 3 600 s on 8 cores | ~900 s |
+| Multi-cistron ≤15 kb | `standard` | ≤ 3 600 s on 8 cores | ~885 s |
 | Either | `exact` | best effort, no target | 35 min / ~4 h |
 
 `GATE-PERF-001` makes these acceptance criteria for Phase 4, not aspirations, and `TST-PERF-001` fails the nightly build on a >25 % regression.

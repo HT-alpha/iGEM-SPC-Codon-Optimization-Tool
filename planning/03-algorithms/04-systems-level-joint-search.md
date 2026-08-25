@@ -146,7 +146,7 @@ Let `K` = number of cistrons, `L_k` = length of cistron `k`, `L_tot = Σ L_k`, `
 
 | Operation | Cost | Note |
 | --- | --- | --- |
-| Full ledger demand | `O(L_tot · d̄)`, `d̄` ≈ 1.6 pools per codon | ~1 700 flops for a 15 kb construct |
+| Full ledger demand | `O(L_tot · d̄)`, `d̄` ≈ 1.6 pools per codon | ~8 000 flops for a 15 kb construct |
 | Incremental ledger update (1 codon) | `O(1)` (≤3 pools) | This is what makes `burden.*` an L1 term |
 | Inner fixed point | `O(iters · |A|)` ≤ `50 × 40` | 2 000 flops — free |
 | Shadow prices | `O(|A| + L_tot)` | once per outer iteration |

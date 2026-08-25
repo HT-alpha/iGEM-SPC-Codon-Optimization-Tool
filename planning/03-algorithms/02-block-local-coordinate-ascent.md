@@ -201,9 +201,9 @@ Let `L` = editable codons, `S` = mean synonym count (≈2.9 for a typical protei
 | One full sweep (both colours) | `O(L · b · S · W · M)` | `≈ 4.9 × 10⁶` flops |
 | Sweeps to convergence | 5–12 empirically; hard cap 20 | 8 typical |
 | **One tier-2 instance** | `O(sweeps · L · b · S · W · M)` | `≈ 3.9 × 10⁷` flops + 8 L0 evaluations |
-| **Full tier 2** | `× N_pop` | `200 × 3.9 × 10⁷ ≈ 7.8 × 10⁹` flops + 1 600 L0 evaluations |
+| **Full tier 2** | `× N_pop` | `200 × 4.0 × 10⁷ ≈ 7.9 × 10⁹` flops + 1 600 L0 evaluations |
 
-`7.8 × 10⁹` flops of simple integer-indexed float work is roughly 4–8 s single-threaded and well under 1 s on 8 cores. The **1 600 L0 evaluations dominate**: at ~15 ms each for the LM term, that is ~24 s of GPU/worker time, batched. Tier 2's wall time is therefore set by the L0 terms, not by the coordinate ascent — which is why `fast` tier disables them entirely (see [ADR-0008](../07-decisions/ADR-0008-compute-budget-and-scaling.md)).
+`7.9 × 10⁹` flops of simple integer-indexed float work is roughly 3 s single-threaded and ~0.4 s on 8 cores. The **1 600 L0 evaluations dominate**: at ~15 ms each for the LM term that is 24 s serial, or ~1.3 s batched 64-wide on a GPU. Tier 2's wall time is therefore set by the L0 terms, not by the coordinate ascent — which is why `fast` tier disables them entirely (see [ADR-0008](../07-decisions/ADR-0008-compute-budget-and-scaling.md)).
 
 **Memory.** `O(L · S)` for the cached field table (`666 × 6 × 4 B ≈ 16 KB` per individual) plus the shared model artifacts (~164 KB). Tier 2 is not memory-bound at any realistic construct length.
 

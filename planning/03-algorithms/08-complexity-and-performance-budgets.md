@@ -42,7 +42,7 @@ Related: [ADR-0008](../07-decisions/ADR-0008-compute-budget-and-scaling.md) (tar
 | c | NSGA-III normalization + association | `O(M²N + M³ + N·H·M)` | `O(N·M)` | [03](03-nsga-loop-and-operators.md) |
 | c | Hypervolume (WFG) | `O(N^{M/2})` worst | `O(N·M)` | [03](03-nsga-loop-and-operators.md) |
 | c | One generation | `O(N·L·W·(S+M₁)) + E_max · c_L0` | `O(N·L·S)` | [03](03-nsga-loop-and-operators.md) |
-| d | Full ledger | `O(L · d̄)`, `d̄`≈1.6 | `O(\|A\|)` | [04](04-systems-level-joint-search.md) |
+| d | Full ledger | `O(L · d̄)`, `d̄`≈1.6 pools/codon | `O(\|A\|)` | [04](04-systems-level-joint-search.md) |
 | d | Ledger delta (**L1**) | `O(1)` | — | [04](04-systems-level-joint-search.md) |
 | d | Availability fixed point | `O(iters · \|A\|)` | `O(\|A\|)` | [04](04-systems-level-joint-search.md) |
 | d | Joint outer loop | `outer × maxₖ(cistron cost)` | — | [04](04-systems-level-joint-search.md) |
@@ -68,7 +68,7 @@ Global MFE folding inside an evolutionary loop is not affordable, and pretending
 | **Local windowed accessibility (RNAplfold-class), `w = 80`, span 40** | `O(n · w²)` | `1.5 × 10⁷` → **~13 ms** | `9.6 × 10⁷` → **~85 ms** |
 | Local windowed, **incremental** after a 3-nt edit | `O(w³)` (≈`w` windows × `O(w²)` each) | `5 × 10⁵` → **~0.4 ms** | same |
 
-At `N·G = 6.4 × 10⁴` evaluations per job, global MFE costs `6.4 × 10⁴ × 4 s ≈ 71 CPU-hours` for a single 2 kb gene. That is a factor of ~400 outside the budget on an 8-core workstation.
+At `N·G = 6.4 × 10⁴` evaluations per job, global MFE costs `6.4 × 10⁴ × 4 s ≈ 2.6 × 10⁵` CPU-seconds — 71 CPU-hours — for a single 2 kb gene. The `standard`-tier budget is 600 wall-seconds on 8 cores, i.e. 4 800 CPU-seconds, so global MFE alone is a factor of **~53 over the entire job's budget**, before any other objective is evaluated.
 
 **Decision (`AMD-001`): the default structure objective is windowed local accessibility, not global MFE.** Global MFE is available only at `exact` tier and only for final re-ranking of the reduced front (≤20 candidates × 4 s = 80 s, entirely affordable once).
 
@@ -86,15 +86,15 @@ Assumptions: 8 physical cores, ~3 × 10⁹ effective flops/core/s for this workl
 | --- | --- | --- | --- |
 | Ingest, feasibility analysis, model resolution | milliseconds each | 0.5 s | 0.5 s |
 | Tier 1 | `4.9 × 10⁶` flops | < 0.1 s | < 0.1 s |
-| Tier 2 (200 instances) | `7.8 × 10⁹` flops ÷ 8 cores | 0.4 s | 0.4 s |
+| Tier 2 (200 instances) | `7.9 × 10⁹` flops ÷ 8 cores | 0.4 s | 0.4 s |
 | Tier 2, L0 evaluations | 1 600 evals, batched 64 | 1.3 s | 12 s |
-| Tier 3, in-core work | `G · N · L · W · (S+M₁)` ≈ `4.4 × 10¹⁰` ÷ 8 | 1.8 s | 1.8 s |
+| Tier 3, in-core work | `G · N · L · W · (S+M₁)` ≈ `2.9 × 10⁹` ÷ 8 | 0.2 s | 0.2 s |
 | Tier 3, structure | `G · N × 13 ms ÷ 8` | 103 s | 103 s |
 | Tier 3, LM (`E_max`=64) | `G · 64` evals batched | 14 s | 130 s |
 | Tier 3, sorting + indicators | `G × ~40 ms` | 12 s | 12 s |
 | Repair | worst case `G × 1.5 × 10⁸` ÷ 8 | ≤ 2 s | ≤ 2 s |
 | Decision, certification, rationale | 20 candidates, full outputs | 8 s | 15 s |
-| **Total** | | **≈ 145 s** | **≈ 280 s** |
+| **Total** | | **≈ 142 s** | **≈ 275 s** |
 | **Budget** | | **≤ 600 s** | **≤ 900 s** |
 
 Headroom is ~4× against the GPU budget and ~3× against the CPU-only budget. That margin is intentional: the estimates assume clean batching and no cache misses, and real workloads are messier.
@@ -105,17 +105,17 @@ Headroom is ~4× against the GPU budget and ~3× against the CPU-only budget. Th
 | --- | --- | --- |
 | Ingest + feasibility | `O(n · m_max)` | 1 s |
 | Tier 1, per cistron, parallel | `5 × 4.9 × 10⁶` flops | < 0.2 s |
-| Joint outer loop (6 iterations × tier 2, cistrons in parallel) | `6 × 7.8 × 10⁹` ÷ 8 | 20 s |
+| Joint outer loop (6 iterations × tier 2, cistrons in parallel) | `6 × 7.9 × 10⁹` ÷ 8 | 20 s |
 | Joint outer loop, L0 evaluations | `6 × 1 600` evals | 25 s |
-| Joint refinement tier 3, in-core | `G · N · L_tot · W · (S+M₁)` ≈ `3.3 × 10¹¹` ÷ 8 | 14 s |
+| Joint refinement tier 3, in-core | `G · N · L_tot · W · (S+M₁)` ≈ `2.2 × 10¹⁰` ÷ 8 | 1 s |
 | Joint refinement, structure | `G · N × 85 ms ÷ 8` | 676 s |
 | Joint refinement, LM | `G · 64 × 120 ms`, batched | 110 s |
 | Sorting, indicators, repair | scales with `N`, not `L` | 20 s |
 | Decision + certification (incl. optional global MFE on 20 candidates) | `20 × 20 min` if `exact` — **not** run at `standard` | 30 s |
-| **Total** | | **≈ 900 s (15 min)** |
+| **Total** | | **≈ 885 s (15 min)** |
 | **Budget** | | **≤ 7 200 s (2 h)** on 32 cores; ≤ 3 600 s on 8 cores |
 
-The structure term is **75 % of the multi-cistron budget**. Two mitigations are already in the design and are the first things to reach for if the budget is missed: restrict `local_accessibility` to the initiation windows plus a strided sample of the CDS interior (≈5× cheaper), and raise the surrogate's share of structure evaluation so that only `E_max` individuals per generation get an exact fold.
+The structure term is **76 % of the multi-cistron budget**. Two mitigations are already in the design and are the first things to reach for if the budget is missed: restrict `local_accessibility` to the initiation windows plus a strided sample of the CDS interior (≈5× cheaper), and raise the surrogate's share of structure evaluation so that only `E_max` individuals per generation get an exact fold.
 
 ### 4.3 What each tier changes
 
@@ -127,7 +127,7 @@ Full ladder in [ADR-0008](../07-decisions/ADR-0008-compute-budget-and-scaling.md
 | Structure engine | initiation window only | full-CDS windowed | windowed + global MFE re-rank |
 | `N` / `G` | 64 / 80 | 212 / 300 | 320 / 600 |
 | Uncertainty | point estimates | ensemble of 5 | ensemble of 5 + conformal |
-| 2 kb wall time | **~8 s** | ~145 s | ~35 min |
+| 2 kb wall time | **~8 s** | ~142 s | ~35 min |
 | 15 kb wall time | **~50 s** | ~15 min | ~4 h |
 
 ---
@@ -137,13 +137,13 @@ Full ladder in [ADR-0008](../07-decisions/ADR-0008-compute-budget-and-scaling.md
 | Component | Expression | 2 kb | 15 kb |
 | --- | --- | --- | --- |
 | Population genotypes | `N · L` bytes | 141 KB | 1.1 MB |
-| Cached field tables | `N · L · S · 4` B | 16 MB | 25 MB |
+| Cached field tables | `N · L · S_max · 4` B | 3.4 MB | 25 MB |
 | Structure window matrices | `threads · n · w · 8` B | 12 MB | 77 MB |
 | k-mer index | `O(n)` entries | < 1 MB | < 2 MB |
 | Potts artifact | `(64 + 4096·W) · 4` B | 164 KB | 164 KB |
 | LM checkpoint (GPU or CPU) | model-dependent | 100–500 MB | 100–500 MB |
 | Evaluation cache (LRU, capped) | configurable | ≤ 2 GB | ≤ 2 GB |
-| **Working set excluding cache** | | **~0.5 GB** | **~0.7 GB** |
+| **Working set excluding cache** | dominated by the LM checkpoint | **~0.15–0.55 GB** | **~0.2–0.6 GB** |
 
 Comfortably inside the 32 GB target of [ADR-0008](../07-decisions/ADR-0008-compute-budget-and-scaling.md). The only component that could break this is a global MFE fold at 15 kb (`O(n²)` ≈ 3.5 GB), which is a further reason `exact` tier restricts global MFE to the reduced front and runs it one candidate at a time.
 

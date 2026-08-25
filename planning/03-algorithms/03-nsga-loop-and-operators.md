@@ -193,9 +193,9 @@ Termination is on hypervolume stagnation by default because it is the only signa
 
 | Step | Cost | At `M=5, N=212, L=666` |
 | --- | --- | --- |
-| Variation (crossover + mutation) | `O(N · L · W · S)` for `potts_guided` | `≈ 3.6 × 10⁶` flops |
-| Repair | `O(N · V · beam · depth · W)`, `V` = violations per individual (typically 0–2) | `≈ 10⁵–10⁶` flops |
-| Exact L1 evaluation | `O(N · L · W · M₁)` | `≈ 7 × 10⁶` flops |
+| Variation (crossover + mutation) | `O(N · L · W · S)` for `potts_guided` | `≈ 4.1 × 10⁶` flops |
+| Repair | `O(N · V · beam · depth · W)`, `V` = violations per individual (typically 0–2) | `≈ 10⁵–10⁸` flops (typical–worst) |
+| Exact L1 evaluation | `O(N · L · W · M₁)` | `≈ 5.6 × 10⁶` flops |
 | Surrogate L0 prediction | `O(N · d)` , `d` ≈ 200 features | `≈ 4 × 10⁴` flops |
 | Exact L0 evaluation | `E_max` × per-item cost | 64 × ~15 ms = **≈ 1 s** (batched, GPU) |
 | Non-dominated sort | `O(M · N²)` | `≈ 2.2 × 10⁵` comparisons |

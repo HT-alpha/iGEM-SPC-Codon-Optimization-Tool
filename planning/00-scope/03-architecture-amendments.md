@@ -10,7 +10,7 @@ Smaller, local deviations are flagged inline throughout the package as `DEP-*` m
 
 | ID | Severity | One-line summary |
 | --- | --- | --- |
-| `AMD-001` | **Blocking** | Global MFE folding cannot run inside the search loop; it is ~400× over budget. |
+| `AMD-001` | **Blocking** | Global MFE folding cannot run inside the search loop; it alone costs ~53× the whole job's compute budget. |
 | `AMD-002` | **Blocking** | The folding-kinetics layer has no validated predictor and must not ship as a Pareto axis. |
 | `AMD-003` | Significant | "Per-position confidence" is not one number and cannot be defined as one. |
 | `AMD-004` | **Blocking** | The active-learning loop is a closed feedback loop with a known failure mode. |
@@ -31,7 +31,7 @@ Smaller, local deviations are flagged inline throughout the package as `DEP-*` m
 
 **What the architecture implies.** mRNA secondary structure is one of the biophysical objectives, alongside LinearDesign and CDSfold as reference points — both of which optimize a global folding energy.
 
-**Why it is impractical.** Zuker-class MFE folding is `O(n³)` time and `O(n²)` memory. At `n = 2 400` nt that is ~4 s per evaluation; a `standard`-tier job performs ~`6.4 × 10⁴` evaluations, giving **~71 CPU-hours for a single 2 kb gene** — roughly 400× over an 8-core workstation budget. At 15 kb it is ~20 minutes *per evaluation* and ~3.5 GB of memory.
+**Why it is impractical.** Zuker-class MFE folding is `O(n³)` time and `O(n²)` memory. At `n = 2 400` nt that is ~4 s per evaluation; a `standard`-tier job performs ~`6.4 × 10⁴` evaluations, giving **~71 CPU-hours (2.6 × 10⁵ CPU-seconds) for a single 2 kb gene**. The whole job's budget is 600 wall-seconds on 8 cores — 4 800 CPU-seconds — so this one objective is ~53× over the entire budget before anything else is computed. At 15 kb it is ~20 minutes *per evaluation* and ~3.5 GB of memory.
 
 **Proposed amendment.** Make **windowed local accessibility** (RNAplfold-class, `w = 80` nt, `O(n·w²)`, ~13 ms at 2 kb, incrementally updatable in ~0.4 ms per edit) the default structure objective. Reserve global MFE for `exact` tier and for final re-ranking of the ≤20-candidate reduced front, where 20 × 4 s is trivially affordable.
 
