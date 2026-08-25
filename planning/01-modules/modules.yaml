@@ -1,0 +1,408 @@
+# CodonForge module dependency graph (machine-readable).
+#
+# This file is the normative source for §2.1's "dependency graph between modules,
+# called out explicitly so circular dependencies are caught at design time".
+# `planning/tools/validate_planning_package.py` asserts that the `depends_on`
+# relation is a DAG and that every declared dependency names a real module.
+#
+# `layer` is the architectural layer from the CodonForge architecture proposal
+# that the module implements ("support" = engineering scaffolding with no
+# corresponding architectural layer).
+#
+# `runtime` is the implementation language / process the module lives in.
+# See ADR-0001 for the language and runtime split decision.
+#
+# `rank` is the topological tier, maintained by hand and checked by the
+# validator: a module may only depend on modules of strictly lower rank.
+
+schema_version: 1
+
+runtimes:
+  rust-core:
+    description: >-
+      Compiled crates linked into the `codonforge._core` extension module
+      (PyO3/abi3 wheel). Hot loops, no Python objects, no GIL held.
+  python-orchestration:
+    description: >-
+      Pure-Python packages. Model training, I/O, job orchestration, HTTP
+      surface, plotting.
+  python-worker:
+    description: >-
+      Pure-Python packages that run inside the out-of-core batch evaluation
+      worker (`cf-worker` process). May hold GPU state and torch modules.
+
+modules:
+  # ---------------------------------------------------------------- rank 0 --
+  - name: cf-types
+    rank: 0
+    layer: support
+    runtime: rust-core
+    path: crates/cf-types
+    responsibility: >-
+      Canonical codon-indexed sequence representation, genetic-code tables,
+      identifier newtypes (HostId, ArtifactId, JobId, TermId), units, objective
+      vector type, error taxonomy. Contains no biology model and no I/O.
+    depends_on: []
+    public_contract: planning/02-schemas/sequence.schema.json
+    tests:
+      - TST-CORE-001
+      - TST-CORE-002
+
+  - name: cf-metrics
+    rank: 0
+    layer: support
+    runtime: rust-core
+    path: crates/cf-metrics
+    responsibility: >-
+      Pure multi-objective indicator math shared by the search engine and the
+      decision-support layer: non-dominated sorting, crowding distance,
+      Das-Dennis reference directions, WFG hypervolume, IGD+, epsilon
+      indicator. Deliberately a leaf so that `cf-search` and `cf-decision`
+      never need to depend on each other.
+    depends_on: []
+    public_contract: planning/03-algorithms/03-nsga-loop-and-operators.md
+    tests:
+      - TST-METR-001
+      - TST-METR-002
+
+  # ---------------------------------------------------------------- rank 1 --
+  - name: cf-landscape-api
+    rank: 1
+    layer: support
+    runtime: rust-core
+    path: crates/cf-landscape-api
+    responsibility: >-
+      The contract between the search engine and every model that scores a
+      sequence. Defines LandscapeQuery / LandscapeResponse, the predictor
+      capability levels (L0 scalar / L1 delta / L2 gradient), the batch-yield
+      evaluation protocol, and the TermId registry. Contains trait/Protocol
+      definitions and serialization only - never an implementation.
+    depends_on: [cf-types]
+    public_contract: planning/02-schemas/landscape_query.schema.json
+    tests:
+      - TST-LAPI-001
+      - TST-LAPI-002
+
+  - name: cf-constraints
+    rank: 1
+    layer: constraint-repair
+    runtime: rust-core
+    path: crates/cf-constraints
+    responsibility: >-
+      Hard-constraint specification, incremental violation detection, the
+      minimal-change repair operator, the constraint-feasibility analyser, and
+      the tabu ledger that keeps repair from fighting the search loop. Pure
+      function of (sequence, ConstraintSet, optional delta table) - it has no
+      knowledge of populations, generations or objectives.
+    depends_on: [cf-types]
+    public_contract: planning/02-schemas/constraint_set.schema.json
+    tests:
+      - TST-CONS-001
+      - TST-CONS-002
+      - TST-CONS-003
+      - TST-CONS-004
+
+  - name: cf-modelreg
+    rank: 1
+    layer: support
+    runtime: python-orchestration
+    path: python/codonforge/modelreg
+    responsibility: >-
+      Model artifact registry: manifests, semantic versions, content digests,
+      channels, tenant isolation scopes, the query-time resolution algorithm,
+      and landscape lockfile emission/replay.
+    depends_on: [cf-types]
+    public_contract: planning/02-schemas/model_manifest.schema.json
+    tests:
+      - TST-MREG-001
+      - TST-MREG-002
+      - TST-MREG-003
+
+  - name: cf-testkit
+    rank: 1
+    layer: support
+    runtime: python-orchestration
+    path: python/codonforge/testkit
+    responsibility: >-
+      Synthetic hosts, synthetic Potts surfaces, brute-forceable toy design
+      spaces, planted-violation sequence generators, Hypothesis strategies.
+      Depended on only by test targets, never by shipped code paths.
+    depends_on: [cf-types]
+    public_contract: planning/05-testing/03-synthetic-data-suite.md
+    tests:
+      - TST-SYN-001
+
+  # ---------------------------------------------------------------- rank 2 --
+  - name: cf-ingest
+    rank: 2
+    layer: context-ingestion
+    runtime: python-orchestration
+    path: python/codonforge/ingest
+    responsibility: >-
+      FASTA/GenBank parsing to the canonical representation, construct-context
+      assembly (multi-cistron layout, RBS/promoter annotation), host reference
+      data loaders (tRNA gene copy number, codon usage, Ribo-seq tracks), and
+      the external-tool seed importers (LinearDesign / CDSfold /
+      CodonTransformer / DNA Chisel / plain FASTA).
+    depends_on: [cf-types, cf-modelreg]
+    public_contract: planning/02-schemas/construct_context.schema.json
+    tests:
+      - TST-INGE-001
+      - TST-INGE-002
+      - TST-INGE-003
+
+  - name: cf-epistasis
+    rank: 2
+    layer: epistatic-surface
+    runtime: rust-core
+    path: crates/cf-epistasis
+    responsibility: >-
+      Synonymous-restricted Potts context model plus the negative-binomial
+      dwell head. Scoring (L1 delta-capable) lives in Rust; the
+      pseudo-likelihood fitter lives in `codonforge.epistasis.train` and is a
+      separate build target that may import `cf-ingest`.
+    depends_on: [cf-types, cf-landscape-api]
+    public_contract: planning/03-algorithms/01-epistatic-surface-fit.md
+    tests:
+      - TST-EPI-001
+      - TST-EPI-002
+      - TST-EPI-003
+
+  - name: cf-burden
+    rank: 2
+    layer: burden-model
+    runtime: rust-core
+    path: crates/cf-burden
+    responsibility: >-
+      Isoacceptor resource ledger, wobble decoding weights, supply/demand
+      fixed-point solver, shadow-price vector, and the saturating burden
+      penalty. L1 delta-capable.
+    depends_on: [cf-types, cf-landscape-api]
+    public_contract: planning/03-algorithms/05-burden-penalty-and-capacity.md
+    tests:
+      - TST-BURD-001
+      - TST-BURD-002
+      - TST-BURD-003
+
+  - name: cf-biophys-structure
+    rank: 2
+    layer: biophysical-predictors
+    runtime: rust-core
+    path: crates/cf-biophys-structure
+    responsibility: >-
+      mRNA secondary-structure objective. Ships a permissive-licensed
+      windowed-accessibility kernel as the default engine and exposes a
+      `StructureEngine` plugin seam for ViennaRNA / LinearFold back ends that
+      the user installs separately (see RISK-DEP-001).
+    depends_on: [cf-types, cf-landscape-api]
+    public_contract: planning/02-schemas/interfaces/predictors.pyi
+    tests:
+      - TST-STRU-001
+      - TST-STRU-002
+
+  - name: cf-biophys-kinetics
+    rank: 2
+    layer: biophysical-predictors
+    runtime: rust-core
+    path: crates/cf-biophys-kinetics
+    responsibility: >-
+      Co-translational folding-kinetics objective. v1 is the pause-profile /
+      domain-boundary concordance proxy defined in AMD-002.
+    depends_on: [cf-types, cf-landscape-api, cf-epistasis]
+    public_contract: planning/03-algorithms/07-folding-kinetics-objective.md
+    tests:
+      - TST-KIN-001
+      - TST-KIN-002
+
+  - name: cf-biophys-lm
+    rank: 2
+    layer: biophysical-predictors
+    runtime: python-worker
+    path: python/codonforge/biophys_lm
+    responsibility: >-
+      Codon language-model naturalness term (CodonTransformer / CodonBERT
+      class models). L0-only by default, optional L2 gradients w.r.t. relaxed
+      codon logits. Runs in the batch worker because it needs torch and
+      optionally a GPU.
+    depends_on: [cf-types, cf-landscape-api, cf-modelreg]
+    public_contract: planning/02-schemas/interfaces/predictors.pyi
+    tests:
+      - TST-LM-001
+      - TST-LM-002
+
+  # ---------------------------------------------------------------- rank 3 --
+  - name: cf-landscape
+    rank: 3
+    layer: support
+    runtime: rust-core
+    path: crates/cf-landscape
+    responsibility: >-
+      Composition layer. Owns the term registry, the window-keyed evaluation
+      cache, uncertainty fusion, and the batch-yield protocol driver. Resolves
+      concrete predictors through a runtime registry, so it depends on
+      `cf-landscape-api` and NOT on any predictor crate - this is the
+      cycle-breaker that keeps predictors swappable.
+    depends_on: [cf-types, cf-landscape-api, cf-modelreg]
+    public_contract: planning/02-schemas/landscape_response.schema.json
+    tests:
+      - TST-LAND-001
+      - TST-LAND-002
+      - TST-LAND-003
+
+  # ---------------------------------------------------------------- rank 4 --
+  - name: cf-search
+    rank: 4
+    layer: search-engine
+    runtime: rust-core
+    path: crates/cf-search
+    responsibility: >-
+      Three-tier search engine - tier 1 greedy/DP seeding, tier 2 red-black
+      block-local coordinate ascent, tier 3 NSGA-II/III population loop -
+      plus the systems-level joint search driver. Talks only to
+      `cf-landscape-api`; it never names a concrete predictor.
+    depends_on: [cf-types, cf-landscape-api, cf-constraints, cf-metrics]
+    public_contract: planning/03-algorithms/02-block-local-coordinate-ascent.md
+    tests:
+      - TST-SRCH-001
+      - TST-SRCH-002
+      - TST-SRCH-003
+      - TST-SRCH-004
+
+  - name: cf-decision
+    rank: 4
+    layer: decision-support
+    runtime: python-orchestration
+    path: python/codonforge/decision
+    responsibility: >-
+      Pareto front post-processing: probabilistic dominance, robustness
+      scoring, front reduction/knee detection, per-position rationale tagging,
+      and export to the ParetoFront schema.
+    depends_on: [cf-types, cf-metrics, cf-landscape-api]
+    public_contract: planning/02-schemas/pareto_front.schema.json
+    tests:
+      - TST-DEC-001
+      - TST-DEC-002
+      - TST-DEC-003
+
+  # ---------------------------------------------------------------- rank 5 --
+  - name: cf-orchestrator
+    rank: 5
+    layer: support
+    runtime: python-orchestration
+    path: python/codonforge/orchestrator
+    responsibility: >-
+      Job lifecycle, landscape lockfile pinning at submission time, worker
+      pool management, checkpoint/resume, provenance recording, budget tier
+      selection.
+    depends_on:
+      [cf-types, cf-ingest, cf-landscape, cf-search, cf-constraints,
+       cf-decision, cf-modelreg]
+    public_contract: planning/02-schemas/job_request.schema.json
+    tests:
+      - TST-ORCH-001
+      - TST-ORCH-002
+      - TST-ORCH-003
+
+  - name: cf-active
+    rank: 5
+    layer: active-learning
+    runtime: python-orchestration
+    path: python/codonforge/active
+    responsibility: >-
+      Wet-lab observation ingestion, validation, tenant dataset append,
+      scheduled recalibration jobs, acceptance gating, exploration-arm
+      bookkeeping. Communicates with predictors only by writing new artifacts
+      into `cf-modelreg`; it never imports `cf-landscape`.
+    depends_on: [cf-types, cf-ingest, cf-modelreg]
+    public_contract: planning/02-schemas/observation.schema.json
+    tests:
+      - TST-ACT-001
+      - TST-ACT-002
+      - TST-ACT-003
+
+  # ---------------------------------------------------------------- rank 6 --
+  - name: cf-api
+    rank: 6
+    layer: support
+    runtime: python-orchestration
+    path: python/codonforge/api
+    responsibility: >-
+      FastAPI application implementing the REST surface, auth/tenancy
+      middleware, idempotency keys, and the OpenAPI document.
+    depends_on: [cf-types, cf-orchestrator, cf-active, cf-modelreg]
+    public_contract: planning/04-api/openapi.yaml
+    tests:
+      - TST-API-001
+      - TST-API-002
+
+  - name: cf-cli
+    rank: 6
+    layer: support
+    runtime: python-orchestration
+    path: python/codonforge/cli
+    responsibility: >-
+      `codonforge` command-line entry point. A thin argument-parsing shell
+      over `cf-orchestrator`; every CLI verb maps 1:1 to a library call.
+    depends_on: [cf-types, cf-orchestrator, cf-active, cf-modelreg]
+    public_contract: planning/04-api/02-cli-and-library.md
+    tests:
+      - TST-CLI-001
+
+  - name: cf-bench
+    rank: 6
+    layer: support
+    runtime: python-orchestration
+    path: python/codonforge/bench
+    responsibility: >-
+      Benchmark harness: reference datasets, baseline adapters, indicator
+      computation, threshold gates, and the regression-performance suite.
+      Test-only target; never a runtime dependency of the shipped library.
+    depends_on: [cf-types, cf-metrics, cf-orchestrator, cf-testkit, cf-ingest]
+    public_contract: planning/05-testing/04-benchmark-harness.md
+    tests:
+      - TST-BEN-001
+
+# Edges that a naive design would have introduced, and how each is broken.
+# The validator does not check these; they are here for reviewers.
+avoided_cycles:
+  - would_be: cf-constraints -> cf-search
+    why_tempting: >-
+      Repair wants to avoid degrading the objective, which looks like it needs
+      the search engine's objective function.
+    how_broken: >-
+      Repair accepts an optional caller-supplied delta table
+      (`DeltaTable` from cf-landscape-api) as an argument. It reads it; it
+      never constructs one. See planning/03-algorithms/06-constraint-repair.md.
+
+  - would_be: cf-landscape -> cf-epistasis / cf-burden / cf-biophys-*
+    why_tempting: >-
+      The composition layer must actually call the predictors.
+    how_broken: >-
+      Predictors self-register into a runtime `TermRegistry` keyed by TermId at
+      process start (entry-point discovery in Python, inventory-style linker
+      registration in Rust). The composition layer holds trait objects only.
+      This is also what makes layers independently swappable.
+
+  - would_be: cf-active -> cf-epistasis / cf-burden (to retrain them)
+    why_tempting: >-
+      Active learning triggers model recalibration.
+    how_broken: >-
+      `cf-active` enqueues a recalibration job descriptor into the registry.
+      A separate training entry point (a distinct build target per predictor,
+      e.g. `codonforge.epistasis.train`) consumes it. Artifacts are the only
+      shared surface. See planning/04-api/03-active-learning-ingestion.md.
+
+  - would_be: cf-decision <-> cf-search
+    why_tempting: >-
+      The search loop wants hypervolume-based termination; decision support
+      wants the search engine's population.
+    how_broken: >-
+      All indicator math lives in the leaf `cf-metrics`. The search engine
+      emits a serialized front; decision support consumes it.
+
+  - would_be: cf-ingest -> cf-biophys-lm (tokenizers for seed import)
+    why_tempting: >-
+      Seed importers for CodonTransformer outputs may want the LM tokenizer.
+    how_broken: >-
+      Seed import is defined purely at the nucleotide level (parse, translate,
+      compare to target protein). No tokenizer is required. See ADR-0007.

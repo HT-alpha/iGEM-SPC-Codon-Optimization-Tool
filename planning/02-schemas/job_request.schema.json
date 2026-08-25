@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/job_request.schema.json",
+  "title": "DesignJobRequest",
+  "description": "The body of POST /v1/jobs (BRIEF-2.4-a). Also the exact argument object of the library entry point `codonforge.design()`, so REST, CLI and library never diverge.\n\nOBJECTIVES ARE EXPLICIT AND SO ARE CONSTRAINTS. There is no `mode: 'balanced'` shortcut that silently picks an objective set, because a design produced under an unrecorded objective set is not comparable to anything. Presets exist, but a preset expands to an explicit list at submission and the expansion is echoed in the job status.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "idempotency_key": { "type": "string", "maxLength": 128, "description": "Client-generated. Re-POSTing the same key returns the original job rather than creating a duplicate - important because design jobs are expensive and clients retry." },
+    "name": { "type": "string" },
+    "host_id": { "$ref": "common.schema.json#/$defs/HostId" },
+    "condition_id": { "type": ["string", "null"] },
+    "input": {
+      "description": "What to design. Either an annotated construct (required for multi-cistron/joint search) or a bare CDS plus optional flanks.",
+      "oneOf": [
+        {
+          "type": "object",
+          "title": "ConstructInput",
+          "properties": {
+            "kind": { "const": "construct" },
+            "construct_context": { "$ref": "construct_context.schema.json" }
+          },
+          "required": ["kind", "construct_context"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "title": "SingleCdsInput",
+          "properties": {
+            "kind": { "const": "single_cds" },
+            "sequence": { "$ref": "sequence.schema.json" }
+          },
+          "required": ["kind", "sequence"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "title": "ProteinInput",
+          "properties": {
+            "kind": { "const": "protein" },
+            "protein": { "$ref": "common.schema.json#/$defs/ProteinSequence" },
+            "translation_table": { "type": "integer", "minimum": 1, "maximum": 33, "default": 11 },
+            "five_prime_flank": { "$ref": "common.schema.json#/$defs/DnaSequence" },
+            "three_prime_flank": { "$ref": "common.schema.json#/$defs/DnaSequence" }
+          },
+          "required": ["kind", "protein"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The Pareto axes. AMD-008 caps this at 4 by default for a presentable front; a longer list is accepted but the API returns a warning and the decision layer switches to reference-direction representatives.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "term_id": { "$ref": "common.schema.json#/$defs/TermId" },
+          "role": { "enum": ["pareto_axis", "epsilon_constraint", "diagnostic"], "default": "pareto_axis", "description": "`epsilon_constraint` demotes a term from an axis to a bound - the standard remedy for many-objective front explosion." },
+          "bound": { "type": ["number", "null"], "description": "Required when role = epsilon_constraint." },
+          "bound_sense": { "enum": ["at_most", "at_least"], "default": "at_most" }
+        },
+        "required": ["term_id"],
+        "additionalProperties": false
+      }
+    },
+    "objectives_preset": { "enum": ["expression_ecoli_v1", "mrna_therapeutic_v1", "minimal_burden_v1", "structure_only_v1", "none"], "default": "none", "description": "Expanded to an explicit `objectives` list at submission; the expansion is recorded in the job status and the lockfile." },
+    "constraint_set": { "$ref": "constraint_set.schema.json" },
+    "seeds": { "oneOf": [{ "$ref": "seed_set.schema.json" }, { "type": "null" }] },
+    "search": {
+      "type": "object",
+      "properties": {
+        "tiers": { "type": "array", "items": { "enum": ["tier1_seed", "tier2_block_ca", "tier3_moea"] }, "default": ["tier1_seed", "tier2_block_ca", "tier3_moea"] },
+        "population_size": { "type": ["integer", "null"], "minimum": 8 },
+        "max_generations": { "type": ["integer", "null"], "minimum": 1 },
+        "block_size_codons": { "type": ["integer", "null"], "minimum": 4 },
+        "n_restarts": { "type": ["integer", "null"], "minimum": 1 },
+        "joint_search": { "type": "boolean", "default": true, "description": "Ignored for single-cistron inputs. When false on a multi-cistron construct, cistrons are optimized independently and the resource ledger is reported but not shared - useful as an ablation." },
+        "termination": {
+          "type": "object",
+          "properties": {
+            "hypervolume_stagnation_generations": { "type": "integer", "minimum": 1, "default": 30 },
+            "hypervolume_relative_epsilon": { "type": "number", "exclusiveMinimum": 0, "default": 0.001 },
+            "max_wall_seconds": { "type": ["integer", "null"], "minimum": 1 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "tier": { "$ref": "common.schema.json#/$defs/BudgetTier" },
+        "max_wall_seconds": { "type": ["integer", "null"], "minimum": 1 },
+        "max_threads": { "type": ["integer", "null"], "minimum": 1 },
+        "allow_gpu": { "type": "boolean", "default": true }
+      },
+      "required": ["tier"],
+      "additionalProperties": false
+    },
+    "model_pins": {
+      "type": "object",
+      "propertyNames": { "$ref": "common.schema.json#/$defs/TermId" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "artifact_id": { "$ref": "common.schema.json#/$defs/ArtifactId" },
+          "digest": { "type": ["string", "null"] }
+        },
+        "required": ["artifact_id"],
+        "additionalProperties": false
+      },
+      "description": "Optional. Supplying a lockfile digest instead (see `replay_lockfile_digest`) is the preferred way to reproduce a previous run."
+    },
+    "replay_lockfile_digest": { "type": ["string", "null"], "description": "Reproduce a previous job exactly. Mutually exclusive with model_pins; fails loudly if any pinned digest is unavailable." },
+    "allow_host_fallback": { "type": "boolean", "default": false, "description": "Whether resolution may fall below the host_channel rung. Default false: silently scoring an unusual host with another organism's model is the kind of failure a user must opt into." },
+    "output": {
+      "type": "object",
+      "properties": {
+        "max_candidates": { "type": "integer", "minimum": 1, "default": 20 },
+        "reduction_method": { "enum": ["reference_direction_representatives", "knee_selection", "clustering", "epsilon_grid", "none"], "default": "reference_direction_representatives" },
+        "include_per_position_rationale": { "type": "boolean", "default": true },
+        "include_full_front_uri": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    },
+    "seed": { "type": ["integer", "null"], "minimum": 0, "description": "Root RNG seed. Null means server-chosen and recorded in the lockfile; a job is always replayable even when the user did not pick a seed." },
+    "webhook_url": { "type": ["string", "null"] }
+  },
+  "required": ["schema_version", "host_id", "input", "objectives", "constraint_set", "budget"],
+  "additionalProperties": false
+}

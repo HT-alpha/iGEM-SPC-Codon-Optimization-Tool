@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_id": "cf:epistasis_potts:escherichia_coli:562/K-12_MG1655:1.4.0",
+  "kind": "epistasis_potts",
+  "host_id": "escherichia_coli:562/K-12_MG1655",
+  "version": "1.4.0",
+  "contract_major": 1,
+  "provides_terms": ["epistasis.context_naturalness", "epistasis.dwell_deviation"],
+  "capability": {
+    "epistasis.context_naturalness": "L1",
+    "epistasis.dwell_deviation": "L1"
+  },
+  "created_at": "2026-07-14T09:12:00Z",
+  "created_by": "ci@codonforge",
+  "weights": [
+    {
+      "role": "potts_fields",
+      "uri": "s3://codonforge-public/artifacts/ecoli_potts_1.4.0/fields.safetensors",
+      "digest": "sha256:112233445566778f112233445566778f112233445566778f112233445566778f",
+      "bytes": 4224,
+      "format": "safetensors"
+    },
+    {
+      "role": "potts_couplings",
+      "uri": "s3://codonforge-public/artifacts/ecoli_potts_1.4.0/couplings.safetensors",
+      "digest": "sha256:cafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeef",
+      "bytes": 167936,
+      "format": "safetensors"
+    },
+    {
+      "role": "conformal_quantiles",
+      "uri": "s3://codonforge-public/artifacts/ecoli_potts_1.4.0/conformal.json",
+      "digest": "sha256:00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff",
+      "bytes": 8102,
+      "format": "json"
+    }
+  ],
+  "parameters": {
+    "window_codons": 10,
+    "interaction_order": 2,
+    "gauge": "zero_sum",
+    "regularization": { "l2_fields": 0.01, "group_l1_couplings": 0.05 }
+  },
+  "code_version": {
+    "package": "codonforge",
+    "version": "0.4.0",
+    "git_sha": "0123456789abcdef0123456789abcdef01234567",
+    "dirty": false
+  },
+  "training": {
+    "datasets": [
+      { "dataset_id": "ds_ecoli_riboseq_pooled_v3", "digest": "sha256:abcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcd", "accession": "GSE000000", "n_records": 1310000, "license": "CC0" },
+      { "dataset_id": "ds_ecoli_he_cds_v2", "digest": "sha256:00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff", "accession": "NC_000913.3", "n_records": 312, "license": "public-domain" }
+    ],
+    "holdout_datasets": [
+      { "dataset_id": "ds_ecoli_riboseq_holdout_genes", "digest": "sha256:9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba", "n_records": 289 }
+    ],
+    "split_strategy": "by_gene",
+    "hyperparameters": { "optimizer": "lbfgs", "max_iter": 400, "tolerance": 1e-7 },
+    "seed": 20260714,
+    "hardware": "32 vCPU, no GPU",
+    "duration_s": 412.0,
+    "n_parameters": 41024
+  },
+  "parent_artifact": null,
+  "calibration": {
+    "method": "mondrian_conformal",
+    "holdout_dataset_id": "ds_ecoli_riboseq_holdout_genes",
+    "alpha": 0.1,
+    "empirical_coverage": 0.897,
+    "quantile_uri": "s3://codonforge-public/artifacts/ecoli_potts_1.4.0/conformal.json"
+  },
+  "evaluation": {
+    "metrics": {
+      "heldout_spearman_codon_dwell": 0.41,
+      "heldout_spearman_gene_mean": 0.66,
+      "pseudolikelihood_per_codon": -1.372
+    },
+    "baseline_comparison": {
+      "baseline_name": "codon_usage_only",
+      "metric": "heldout_spearman_codon_dwell",
+      "delta": 0.078,
+      "ci_low": 0.061,
+      "ci_high": 0.094,
+      "n_bootstrap": 2000
+    },
+    "gates": [
+      { "gate_id": "GATE-EPI-001", "passed": true, "value": 0.078, "threshold": 0.05 },
+      { "gate_id": "GATE-EPI-002", "passed": true, "value": 0.061, "threshold": 0.0 },
+      { "gate_id": "GATE-UNC-001", "passed": true, "value": 0.897, "threshold": "[0.87, 0.93]" }
+    ],
+    "report_uri": "s3://codonforge-public/artifacts/ecoli_potts_1.4.0/report.html"
+  },
+  "isolation": { "scope": "public", "tenant_id": null, "may_export": true },
+  "lifecycle": { "status": "active", "reason": null, "successor_artifact_id": null, "yanked_at": null },
+  "license": "CC-BY-4.0",
+  "citation": "CodonForge E. coli epistatic surface v1.4.0",
+  "digest": "sha256:5566778899aabbcc5566778899aabbcc5566778899aabbcc5566778899aabbcc"
+}

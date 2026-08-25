@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0.0",
+  "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+  "tenant_id": "t_igem2026lab01",
+  "state": "running",
+  "created_at": "2026-08-25T07:58:00Z",
+  "started_at": "2026-08-25T07:58:04Z",
+  "finished_at": null,
+  "landscape_lockfile_digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978",
+  "resolved_objectives": [
+    { "term_id": "epistasis.dwell_deviation", "role": "pareto_axis", "direction": "minimize", "artifact_id": "cf:epistasis_dwell:escherichia_coli:562/K-12_MG1655:1.4.0", "fallback": false },
+    { "term_id": "structure.local_accessibility", "role": "pareto_axis", "direction": "maximize", "artifact_id": "cf:structure_params:host_agnostic:1.0.0", "fallback": false },
+    { "term_id": "burden.growth_cost", "role": "pareto_axis", "direction": "minimize", "artifact_id": "cf:burden_capacity:escherichia_coli:562/K-12_MG1655:0.9.2", "fallback": false },
+    { "term_id": "usage.cai", "role": "pareto_axis", "direction": "maximize", "artifact_id": "cf:host_profile:escherichia_coli:562/K-12_MG1655:2.1.0", "fallback": false },
+    { "term_id": "lm.naturalness", "role": "epsilon_constraint", "direction": "maximize", "artifact_id": "cf:lm_naturalness:host_agnostic:2.0.1", "fallback": false },
+    { "term_id": "kinetics.pause_concordance", "role": "diagnostic", "direction": "maximize", "artifact_id": "cf:kinetics_domainmap:escherichia_coli:562:0.3.0", "fallback": true }
+  ],
+  "progress": {
+    "current_tier": "tier3_moea",
+    "tiers": [
+      { "tier": "tier1_seed", "state": "done", "fraction": 1.0, "generation": null, "max_generations": null, "wall_seconds": 1.8 },
+      { "tier": "tier2_block_ca", "state": "done", "fraction": 1.0, "generation": null, "max_generations": null, "wall_seconds": 46.2 },
+      { "tier": "tier3_moea", "state": "running", "fraction": 0.43, "generation": 129, "max_generations": 300, "wall_seconds": 214.7 },
+      { "tier": "decision", "state": "pending", "fraction": null, "generation": null, "max_generations": null, "wall_seconds": null }
+    ],
+    "evaluations": 26800,
+    "cache_hit_rate": 0.71,
+    "eta_seconds": 288.0
+  },
+  "current_front_summary": {
+    "hypervolume": 0.3981,
+    "hypervolume_history": [0.0, 0.1421, 0.2610, 0.3204, 0.3588, 0.3799, 0.3902, 0.3981],
+    "n_nondominated": 118,
+    "n_feasible": 194,
+    "best_per_objective": {
+      "epistasis.dwell_deviation": 0.04,
+      "structure.local_accessibility": 0.74,
+      "burden.growth_cost": 0.018,
+      "usage.cai": 0.85
+    }
+  },
+  "warnings": [
+    {
+      "type": "https://codonforge.org/problems/host-fallback",
+      "title": "Model resolved from a related host",
+      "status": 200,
+      "code": "CF-RESOLVE-004",
+      "detail": "No kinetics_domainmap artifact exists for strain K-12 MG1655; used the species-level E. coli artifact and inflated its uncertainty by 1.15x."
+    }
+  ],
+  "problem": null,
+  "links": {
+    "self": "/v1/jobs/job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+    "front": "/v1/jobs/job_01JBQ8Z4K7M2N3P5R6T7V8W9XY/front",
+    "lockfile": "/v1/jobs/job_01JBQ8Z4K7M2N3P5R6T7V8W9XY/lockfile",
+    "events": "/v1/jobs/job_01JBQ8Z4K7M2N3P5R6T7V8W9XY/events",
+    "cancel": "/v1/jobs/job_01JBQ8Z4K7M2N3P5R6T7V8W9XY/cancel"
+  }
+}

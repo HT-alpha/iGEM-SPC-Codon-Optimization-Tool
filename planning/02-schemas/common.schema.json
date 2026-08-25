@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/common.schema.json",
+  "title": "CodonForge shared definitions",
+  "description": "Primitive types and value objects reused across every CodonForge contract. Nothing in this file is a message on its own; it exists so that identifier syntax, provenance and uncertainty are defined exactly once.",
+  "$defs": {
+    "SchemaVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "SemVer of the document schema. Major changes are breaking; see 02-schemas/README.md for the evolution rules."
+    },
+    "ContractMajor": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Major version of the landscape query/response contract. Every model artifact declares which contract major it satisfies; the registry refuses to co-resolve artifacts with differing majors."
+    },
+    "Sha256Digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "description": "Content digest of the canonical serialization (RFC 8785 JCS for JSON documents, raw bytes for binary blobs)."
+    },
+    "Iso8601": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC timestamp, RFC 3339, always with an explicit offset."
+    },
+    "SemVer": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "HostId": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*:[0-9]+(?:/[A-Za-z0-9._-]+)?$",
+      "examples": ["escherichia_coli:562/K-12_MG1655", "saccharomyces_cerevisiae:4932/S288C", "homo_sapiens:9606"],
+      "description": "Stable host identifier: lowercase snake-case binomial, NCBI taxonomy id, optional strain suffix. The taxid is what the nearest-host fallback in ADR-0009 uses for phylogenetic distance."
+    },
+    "TenantId": {
+      "type": "string",
+      "pattern": "^t_[A-Za-z0-9]{8,32}$",
+      "description": "Opaque tenant identifier. Appears in every artifact manifest and every observation; the isolation invariant in ADR-0006 is stated over this field."
+    },
+    "JobId": { "type": "string", "pattern": "^job_[0-9A-HJKMNP-TV-Z]{26}$", "description": "ULID-based, lexicographically sortable by submission time." },
+    "ArtifactId": {
+      "type": "string",
+      "pattern": "^cf:(epistasis_potts|epistasis_dwell|burden_capacity|lm_naturalness|structure_params|kinetics_domainmap|calibrator|host_profile):(?:[a-z0-9_]+:[0-9]+(?:/[A-Za-z0-9._-]+)?|host_agnostic):[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "examples": ["cf:epistasis_potts:escherichia_coli:562/K-12_MG1655:1.4.0", "cf:lm_naturalness:host_agnostic:2.0.1"],
+      "description": "Human-readable artifact coordinate. NEVER sufficient on its own for reproducibility - it must always travel with a Sha256Digest, because a channel may be re-pointed."
+    },
+    "TermId": {
+      "type": "string",
+      "pattern": "^(epistasis|structure|kinetics|lm|burden|usage|constraint|meta)\\.[a-z0-9_]+$",
+      "examples": ["epistasis.dwell_deviation", "structure.local_accessibility", "structure.mfe_global", "kinetics.pause_concordance", "lm.naturalness", "burden.growth_cost", "usage.cai", "usage.gc_content", "constraint.violation_count"],
+      "description": "Namespaced objective/diagnostic term identifier. The namespace is the owning module; adding a term is additive and does not bump ContractMajor."
+    },
+    "ObjectiveDirection": {
+      "enum": ["minimize", "maximize"],
+      "description": "Declared once per term in the response so that the search engine never hard-codes a sign convention."
+    },
+    "DnaSequence": { "type": "string", "pattern": "^[ACGT]*$", "description": "Uppercase DNA. RNA input is transcoded U->T at ingest; the internal representation never carries U." },
+    "CodonString": { "type": "string", "pattern": "^(?:[ACGT]{3})+$", "description": "A DNA string constrained to a whole number of codons. The regex is the frame-safety guarantee at the wire level." },
+    "ProteinSequence": { "type": "string", "pattern": "^[ACDEFGHIKLMNPQRSTVWYUOX]*\\*?$", "description": "One-letter amino acids; U=selenocysteine, O=pyrrolysine, X=unknown; optional single trailing stop." },
+    "Codon": { "type": "string", "pattern": "^[ACGT]{3}$" },
+    "Anticodon": { "type": "string", "pattern": "^[ACGTIU]{3}$", "description": "tRNA anticodon, 5'->3'. I denotes inosine at the wobble position, which the wobble table treats explicitly." },
+    "CodonSpan": {
+      "type": "object",
+      "description": "Half-open interval over CODON indices [start, end). All spans in CodonForge are codon-indexed; nucleotide indices appear only in ingest-facing schemas and are always named *_nt.",
+      "properties": {
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["start", "end"],
+      "additionalProperties": false
+    },
+    "NtSpan": {
+      "type": "object",
+      "description": "Half-open interval over NUCLEOTIDE indices [start_nt, end_nt) relative to the construct 5' end.",
+      "properties": {
+        "start_nt": { "type": "integer", "minimum": 0 },
+        "end_nt": { "type": "integer", "minimum": 1 },
+        "strand": { "enum": ["+", "-"], "default": "+" }
+      },
+      "required": ["start_nt", "end_nt"],
+      "additionalProperties": false
+    },
+    "Unit": {
+      "type": "string",
+      "examples": ["kcal/mol", "dimensionless", "z_score", "codons/s", "molecules/cell", "relative_growth_rate", "nats/codon", "log2_fold_change"],
+      "description": "Free-form but drawn from a documented vocabulary. Every numeric term in a LandscapeResponse must declare one; a unitless objective vector is not reproducible across model versions."
+    },
+    "Uncertainty": {
+      "type": "object",
+      "description": "Predictive uncertainty for a scalar term. `method` and `calibrated` are mandatory because ADR-0005 makes uncertainty a ranking input, and an uncalibrated sigma silently corrupts probabilistic dominance.",
+      "properties": {
+        "sigma": { "type": "number", "minimum": 0, "description": "Standard deviation of the predictive distribution, in the term's unit." },
+        "interval": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "[lower, upper] predictive interval at `coverage`."
+        },
+        "coverage": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1, "default": 0.9 },
+        "method": {
+          "enum": ["deep_ensemble", "mc_dropout", "bayesian_last_layer", "glm_asymptotic", "parametric_bootstrap", "split_conformal", "mondrian_conformal", "none"],
+          "description": "`none` is legal and means the term is deterministic (e.g. usage.cai); it must not be confused with an unknown uncertainty."
+        },
+        "calibrated": { "type": "boolean", "description": "True only if the interval passed the coverage gate TST-UNC-002 on a held-out set recorded in the artifact manifest." },
+        "n_members": { "type": "integer", "minimum": 1, "description": "Ensemble size, when applicable." }
+      },
+      "required": ["method", "calibrated"],
+      "additionalProperties": false
+    },
+    "Provenance": {
+      "type": "object",
+      "description": "Which artifact produced a value. Recorded per term, not per response, because a single response mixes terms from many artifacts.",
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/ArtifactId" },
+        "digest": { "$ref": "#/$defs/Sha256Digest" },
+        "engine": { "type": "string", "description": "Named compute engine when the term is not model-based, e.g. `native_window`, `viennarna`, `linearfold`." },
+        "engine_version": { "type": "string" },
+        "resolved_by": {
+          "enum": ["pin", "tenant_channel", "host_channel", "nearest_host", "base", "builtin"],
+          "description": "Which rule of the ADR-0009 resolution ladder selected this artifact."
+        },
+        "fallback": { "type": "boolean", "default": false, "description": "True when resolution fell below the host_channel rung; consumers must widen uncertainty and tag the candidate `low_confidence_host`." }
+      },
+      "required": ["resolved_by"],
+      "additionalProperties": false
+    },
+    "DatasetRef": {
+      "type": "object",
+      "properties": {
+        "dataset_id": { "type": "string", "pattern": "^ds_[A-Za-z0-9_.-]{3,64}$" },
+        "digest": { "$ref": "#/$defs/Sha256Digest" },
+        "accession": { "type": "string", "description": "Public accession where one exists (GEO/SRA/ENA/PRIDE)." },
+        "n_records": { "type": "integer", "minimum": 0 },
+        "tenant_id": { "$ref": "#/$defs/TenantId" },
+        "license": { "type": "string" }
+      },
+      "required": ["dataset_id", "digest"],
+      "additionalProperties": false
+    },
+    "GrowthCondition": {
+      "type": "object",
+      "properties": {
+        "condition_id": { "type": "string", "pattern": "^cond_[A-Za-z0-9_.-]{1,48}$" },
+        "temperature_c": { "type": "number", "minimum": -20, "maximum": 120 },
+        "medium": { "type": "string", "examples": ["LB", "M9_glucose", "TB", "YPD", "DMEM_10FBS"] },
+        "growth_phase": { "enum": ["lag", "exponential", "late_exponential", "stationary", "unspecified"], "default": "exponential" },
+        "inducer": { "type": ["string", "null"], "examples": ["IPTG", "arabinose", "aTc", null] },
+        "inducer_concentration": { "type": ["number", "null"], "minimum": 0 },
+        "inducer_unit": { "type": ["string", "null"], "examples": ["mM", "uM", "%w/v", null] },
+        "doubling_time_min": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+      },
+      "required": ["condition_id"],
+      "additionalProperties": false
+    },
+    "BudgetTier": {
+      "enum": ["fast", "standard", "exact"],
+      "description": "Named compute budget. The tier changes which terms are evaluated and with which engine; see ADR-0008 for the full degradation ladder."
+    },
+    "ProblemDetails": {
+      "type": "object",
+      "description": "RFC 9457 problem detail. The single error shape for every REST endpoint and every CLI non-zero exit.",
+      "properties": {
+        "type": { "type": "string", "format": "uri-reference" },
+        "title": { "type": "string" },
+        "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "detail": { "type": "string" },
+        "instance": { "type": "string", "format": "uri-reference" },
+        "code": { "type": "string", "pattern": "^CF-[A-Z]{3,8}-[0-9]{3}$", "examples": ["CF-SEQ-001", "CF-RESOLVE-004", "CF-BUDGET-002"] },
+        "errors": { "type": "array", "items": { "type": "object" } }
+      },
+      "required": ["type", "title", "status", "code"],
+      "additionalProperties": true
+    }
+  }
+}

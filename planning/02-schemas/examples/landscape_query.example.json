@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0.0",
+  "contract_major": 1,
+  "query_id": "q_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+  "target": {
+    "kind": "delta_table",
+    "base_digest": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+    "positions": [1, 2, 3, 4],
+    "cistron_id": "cis_reporter"
+  },
+  "host_context": {
+    "host_id": "escherichia_coli:562/K-12_MG1655",
+    "host_profile_digest": "sha256:a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718",
+    "condition": {
+      "condition_id": "cond_lb_37c_exp",
+      "temperature_c": 37.0,
+      "medium": "LB",
+      "growth_phase": "exponential",
+      "inducer": "IPTG",
+      "inducer_concentration": 0.5,
+      "inducer_unit": "mM",
+      "doubling_time_min": 25.0
+    }
+  },
+  "construct_context": {
+    "kind": "ref",
+    "construct_digest": "sha256:deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234"
+  },
+  "requested_terms": [
+    "epistasis.dwell_deviation",
+    "structure.local_accessibility",
+    "burden.growth_cost",
+    "usage.cai"
+  ],
+  "outputs": {
+    "scalars": true,
+    "per_position": false,
+    "deltas": true,
+    "gradients": false,
+    "uncertainty": false,
+    "violations": true
+  },
+  "budget": {
+    "tier": "standard",
+    "max_latency_ms": 50
+  },
+  "cache_policy": {
+    "read": true,
+    "write": true,
+    "namespace": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978"
+  },
+  "model_pins": {
+    "epistasis.dwell_deviation": {
+      "artifact_id": "cf:epistasis_dwell:escherichia_coli:562/K-12_MG1655:1.4.0",
+      "digest": "sha256:5566778899aabbcc5566778899aabbcc5566778899aabbcc5566778899aabbcc"
+    }
+  },
+  "seed": 20260825
+}

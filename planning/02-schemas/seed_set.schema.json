@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/seed_set.schema.json",
+  "title": "SeedSet",
+  "description": "Externally-produced candidate sequences injected into the initial population (ADR-0007, answering open question 6).\n\nThis interface does double duty, which is why it is worth building in Phase 1 rather than deferring: it is both the migration path for existing LinearDesign/CDSfold/CodonTransformer users AND the mechanism by which the benchmark harness places a competitor's output on CodonForge's own objective axes for the head-to-head comparisons required by BRIEF-2.5.\n\nACCEPTANCE IS STRICT AND EXPLAINED. A seed is admitted only if it translates to exactly the target protein under the target translation table. A seed that fails is reported with a positional diff, never silently dropped - a user who pastes the wrong file must be told which residue disagrees.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "seed_set_id": { "type": "string", "pattern": "^seeds_[A-Za-z0-9_.-]{1,64}$" },
+    "target_protein": { "$ref": "common.schema.json#/$defs/ProteinSequence" },
+    "target_protein_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+    "translation_table": { "type": "integer", "minimum": 1, "maximum": 33 },
+    "host_id": { "$ref": "common.schema.json#/$defs/HostId" },
+    "seeds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "seed_id": { "type": "string" },
+          "cds": { "$ref": "common.schema.json#/$defs/CodonString" },
+          "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+          "source": {
+            "type": "object",
+            "properties": {
+              "tool": { "enum": ["lineardesign", "cdsfold", "codontransformer", "codonbert", "dnachisel", "idt_optimizer", "genscript", "jcat", "manual", "previous_job", "native"] },
+              "version": { "type": ["string", "null"] },
+              "parameters": { "type": "object", "additionalProperties": true, "description": "e.g. LinearDesign's lambda. Recorded because a competitor's point on the MFE/CAI trade-off curve is meaningless without the trade-off parameter that produced it." },
+              "uri": { "type": ["string", "null"] },
+              "imported_at": { "$ref": "common.schema.json#/$defs/Iso8601" }
+            },
+            "required": ["tool"],
+            "additionalProperties": false
+          },
+          "reported_metrics": {
+            "type": "object",
+            "additionalProperties": { "type": "number" },
+            "description": "Metrics as reported by the originating tool (e.g. its own CAI and MFE). Kept separately from CodonForge's own recomputation so that a discrepancy is visible rather than hidden - different tools use different CAI reference sets."
+          },
+          "acceptance": {
+            "type": "object",
+            "properties": {
+              "accepted": { "type": "boolean" },
+              "reason": { "enum": ["ok", "protein_mismatch", "length_mismatch", "invalid_alphabet", "not_whole_codons", "internal_stop", "duplicate", "locked_span_conflict"] },
+              "protein_diff": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "position": { "type": "integer", "minimum": 0 },
+                    "expected": { "type": "string", "maxLength": 1 },
+                    "found": { "type": "string", "maxLength": 1 }
+                  },
+                  "required": ["position", "expected", "found"],
+                  "additionalProperties": false
+                },
+                "default": []
+              },
+              "repaired": { "type": "boolean", "default": false, "description": "Whether constraint repair was applied before injection. A seed from a tool that does not know about the user's assembly standard will usually need it." },
+              "n_repair_edits": { "type": "integer", "minimum": 0, "default": 0 }
+            },
+            "required": ["accepted", "reason"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["seed_id", "cds", "digest", "source", "acceptance"],
+        "additionalProperties": false
+      }
+    },
+    "injection_policy": {
+      "type": "object",
+      "properties": {
+        "max_fraction_of_population": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.2, "description": "Capped because a population dominated by near-identical seeds from one tool collapses diversity in the first few generations and the search never explores." },
+        "deduplicate": { "type": "boolean", "default": true },
+        "repair_before_inject": { "type": "boolean", "default": true },
+        "also_inject_mutated_copies": { "type": "boolean", "default": true, "description": "Injecting a seed plus a few perturbed copies gives the crossover operator material to work with immediately." },
+        "protect_for_generations": { "type": "integer", "minimum": 0, "default": 0, "description": "Elitism grace period for seeds. Default 0: a seed that cannot survive on merit should not be protected." }
+      },
+      "additionalProperties": false
+    },
+    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+  },
+  "required": ["schema_version", "seed_set_id", "target_protein", "target_protein_digest", "translation_table", "seeds", "digest"],
+  "additionalProperties": false
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "construct_id": "cons_demo_bicistron",
+  "name": "Demo bicistronic reporter + chaperone",
+  "host_id": "escherichia_coli:562/K-12_MG1655",
+  "topology": "circular",
+  "full_sequence": "AAAGAGGAGAAAGATCTATGAAACGTATTCTGTAAGGATCTAAAGAGGAGAAATACTAGATGGCAGAACTGAAATAACCAGGCATCAAATAAAACGAAAGGCTCAGTCGAAAGACTGGGCC",
+  "vector": {
+    "backbone_id": "pSB1C3",
+    "copy_number": 100.0,
+    "origin": "pMB1",
+    "selection_marker": "CmR"
+  },
+  "elements": [
+    { "element_id": "el_rbs1", "kind": "rbs", "span": { "start_nt": 0, "end_nt": 17, "strand": "+" }, "editable": false, "name": "B0034-like RBS",
+      "metadata": { "part_registry_id": "BBa_B0034", "strength_class": "strong", "spacer_length_nt": 7 } },
+    { "element_id": "el_cds1", "kind": "cds", "span": { "start_nt": 17, "end_nt": 35, "strand": "+" }, "editable": true, "name": "reporter" },
+    { "element_id": "el_spacer1", "kind": "spacer", "span": { "start_nt": 35, "end_nt": 41, "strand": "+" }, "editable": false, "name": "intergenic" },
+    { "element_id": "el_rbs2", "kind": "rbs", "span": { "start_nt": 41, "end_nt": 62, "strand": "+" }, "editable": false, "name": "weak RBS",
+      "metadata": { "strength_class": "weak", "spacer_length_nt": 8 } },
+    { "element_id": "el_cds2", "kind": "cds", "span": { "start_nt": 62, "end_nt": 83, "strand": "+" }, "editable": true, "name": "chaperone" },
+    { "element_id": "el_term", "kind": "terminator", "span": { "start_nt": 83, "end_nt": 120, "strand": "+" }, "editable": false, "name": "B0015-like terminator" }
+  ],
+  "cistrons": [
+    {
+      "cistron_id": "cis_reporter",
+      "cds_element_id": "el_cds1",
+      "rbs_element_id": "el_rbs1",
+      "is_design_target": true,
+      "expected_relative_expression": 1.0,
+      "expression_prior_source": "rbs_strength_model",
+      "priority_weight": 1.0,
+      "operon_group": "op_main"
+    },
+    {
+      "cistron_id": "cis_chaperone",
+      "cds_element_id": "el_cds2",
+      "rbs_element_id": "el_rbs2",
+      "is_design_target": true,
+      "expected_relative_expression": 0.25,
+      "expression_prior_source": "rbs_strength_model",
+      "priority_weight": 0.5,
+      "operon_group": "op_main"
+    }
+  ],
+  "assembly": {
+    "standard": "golden_gate_bsai",
+    "forbidden_enzymes": ["BsaI", "BsmBI"],
+    "vendor_profile": "twist"
+  },
+  "digest": "sha256:deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234"
+}

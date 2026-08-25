@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "sequence_id": "seq_dsba_signal_demo",
+  "alphabet": "DNA",
+  "translation_table": 11,
+  "cds": "ATGAAACGTATTCTGTAA",
+  "codon_count": 6,
+  "protein": "MKRIL*",
+  "includes_stop": true,
+  "five_prime_flank": "AAAGAGGAGAAAGATCT",
+  "three_prime_flank": "CCAGGCATCAAATAAAACGAAAGGCTCAGTCGAAAGACTGGGCCTTTCGTTTTATCTGTTGTTTGTCGGTGAACGCTCTCTACTAGAGTCACACTGGCTCACCTTCGGGTGGGCCTTTCTGCGTTTATA",
+  "locked_codons": [
+    { "span": { "start": 0, "end": 1 }, "reason": "start_codon" },
+    { "span": { "start": 5, "end": 6 }, "reason": "stop_codon" }
+  ],
+  "source": {
+    "kind": "genbank",
+    "uri": "file://inputs/demo_insert.gb",
+    "record_id": "DEMO_CDS_1",
+    "file_digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "digest": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"
+}

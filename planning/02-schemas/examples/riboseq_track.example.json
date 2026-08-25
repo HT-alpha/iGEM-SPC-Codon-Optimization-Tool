@@ -1,0 +1,58 @@
+{
+  "schema_version": "1.0.0",
+  "dataset_id": "ds_ecoli_riboseq_pooled_v3",
+  "host_id": "escherichia_coli:562/K-12_MG1655",
+  "accession": "GSE000000",
+  "tenant_id": "t_publicbaseline",
+  "condition_id": "cond_lb_37c_exp",
+  "assay": "riboseq",
+  "replicates": [
+    { "replicate_id": "rep1", "kind": "biological", "run_accession": "SRR0000001", "mapped_reads": 24100000 },
+    { "replicate_id": "rep2", "kind": "biological", "run_accession": "SRR0000002", "mapped_reads": 19800000 }
+  ],
+  "processing": {
+    "adapter": "CTGTAGGCACCATCAAT",
+    "trimmer": "cutadapt 4.6",
+    "aligner": "bowtie2",
+    "aligner_version": "2.5.3",
+    "reference_annotation": "NC_000913.3 RefSeq",
+    "dedup": "umi",
+    "a_site_offset_method": "per_read_length",
+    "offsets_by_read_length": { "24": 12, "25": 12, "26": 13, "27": 13, "28": 14, "29": 15, "30": 15 },
+    "read_length_range": [24, 30],
+    "excluded_regions": { "first_codons": 15, "last_codons": 5, "overlapping_orfs": true },
+    "drug": null
+  },
+  "normalization": {
+    "method": "gene_normalized",
+    "pseudocount": 0.5,
+    "min_gene_reads": 64,
+    "min_gene_codons": 100
+  },
+  "storage": {
+    "kind": "parquet",
+    "uri": "s3://codonforge-public/riboseq/ds_ecoli_riboseq_pooled_v3.parquet",
+    "digest": "sha256:abcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcd",
+    "bytes": 41287344,
+    "columns": [
+      { "name": "gene_id", "dtype": "string", "nullable": false },
+      { "name": "cds_digest", "dtype": "string", "nullable": false },
+      { "name": "codon_index", "dtype": "int32", "nullable": false },
+      { "name": "codon", "dtype": "string", "nullable": false },
+      { "name": "count", "dtype": "float32", "nullable": false },
+      { "name": "replicate_id", "dtype": "string", "nullable": false }
+    ],
+    "n_rows": 2620000
+  },
+  "qc": {
+    "triplet_periodicity": 0.78,
+    "frac_cds_assigned": 0.91,
+    "n_genes_passing": 2890,
+    "median_codon_depth": 4.1,
+    "total_assigned_codons": 1310000,
+    "replicate_spearman": 0.93,
+    "flags": []
+  },
+  "sharing": "public",
+  "digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978"
+}

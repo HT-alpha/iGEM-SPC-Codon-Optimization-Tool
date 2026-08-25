@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/pareto_front.schema.json",
+  "title": "ParetoFront",
+  "description": "The design job's deliverable (BRIEF-2.2-c): per-candidate objective vector plus per-position rationale tags.\n\nTHREE THINGS THIS SCHEMA REFUSES TO OMIT, each because omitting it makes the result unreproducible or unusable:\n  1. `landscape_lockfile_digest` - without the exact artifact set, an objective vector is a number without a meaning.\n  2. `reference_point` and `indicator_versions` - hypervolume is not comparable across different reference points, and 'our hypervolume beat theirs' is otherwise unfalsifiable.\n  3. `robustness` - ADR-0005 makes uncertainty a ranking input, so the probability that a candidate stays non-dominated under resampling is part of the answer, not a footnote.\n\nFRONT SIZE. With 5 objectives almost everything is non-dominated, so the raw front can contain thousands of candidates. `candidates` therefore holds the REDUCED front (see AMD-008 and cf-decision), and `reduction` records exactly how it was reduced so a user can ask for the full set.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "front_id": { "type": "string", "pattern": "^front_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "job_id": { "$ref": "common.schema.json#/$defs/JobId" },
+    "created_at": { "$ref": "common.schema.json#/$defs/Iso8601" },
+    "landscape_lockfile_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+    "objective_order": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/TermId" }, "minItems": 1 },
+    "objective_sense": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ObjectiveDirection" } },
+    "reference_point": { "type": "array", "items": { "type": "number" }, "description": "Nadir-based reference point used for every hypervolume figure in this document, in `objective_order`. Derived from each term's `reference_range` so it is host-dependent but candidate-independent." },
+    "ideal_point": { "type": "array", "items": { "type": "number" } },
+    "input_sequence": {
+      "type": "object",
+      "description": "The user's starting sequence, scored with the same lockfile. Present so every improvement claim has a baseline in the same document.",
+      "properties": {
+        "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+        "objective_vector": { "type": "array", "items": { "type": ["number", "null"] } },
+        "feasible": { "type": "boolean" }
+      },
+      "required": ["digest", "objective_vector"],
+      "additionalProperties": false
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "candidate_id": { "type": "string", "pattern": "^cand_[A-Za-z0-9]{8,32}$" },
+          "cistron_id": { "type": ["string", "null"], "description": "Null for single-CDS jobs. For a joint multi-cistron job a candidate is a full assignment across all cistrons and this stays null; per-cistron sequences live in `sequences`." },
+          "sequences": {
+            "type": "array",
+            "minItems": 1,
+            "description": "One entry per designed cistron. A joint design is a single candidate with several sequences - splitting them would destroy the shared-ledger semantics.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "cistron_id": { "type": ["string", "null"] },
+                "cds": { "$ref": "common.schema.json#/$defs/CodonString" },
+                "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+              },
+              "required": ["cds", "digest"],
+              "additionalProperties": false
+            }
+          },
+          "nondomination_rank": { "type": "integer", "minimum": 0, "description": "0 = non-dominated under deterministic comparison." },
+          "objective_vector": { "type": "array", "items": { "type": ["number", "null"] } },
+          "objective_detail": {
+            "type": "object",
+            "propertyNames": { "$ref": "common.schema.json#/$defs/TermId" },
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "value": { "type": "number" },
+                "unit": { "$ref": "common.schema.json#/$defs/Unit" },
+                "uncertainty": { "$ref": "common.schema.json#/$defs/Uncertainty" },
+                "percentile_vs_native": { "type": ["number", "null"], "minimum": 0, "maximum": 100, "description": "Where this value sits in the host's native highly-expressed distribution. The single most interpretable number in the whole document for a bench scientist." }
+              },
+              "required": ["value", "unit"],
+              "additionalProperties": false
+            }
+          },
+          "robustness": {
+            "type": "object",
+            "description": "ADR-0005 output. p_nondominated is estimated by Monte Carlo over the joint predictive distribution of all terms.",
+            "properties": {
+              "p_nondominated": { "type": "number", "minimum": 0, "maximum": 1 },
+              "n_samples": { "type": "integer", "minimum": 1 },
+              "method": { "enum": ["mc_joint", "mc_independent", "none"] },
+              "expected_hypervolume_contribution": { "type": ["number", "null"] }
+            },
+            "required": ["p_nondominated", "method"],
+            "additionalProperties": false
+          },
+          "crowding_distance": { "type": ["number", "null"] },
+          "reference_direction_index": { "type": ["integer", "null"], "description": "Which NSGA-III reference direction this candidate is associated with; makes front coverage auditable." },
+          "constraint_report": {
+            "type": "object",
+            "properties": {
+              "feasible": { "type": "boolean" },
+              "n_blocking_violations": { "type": "integer", "minimum": 0 },
+              "violations": { "type": "array", "items": { "type": "object", "properties": { "constraint_id": { "type": "string" }, "span": { "$ref": "common.schema.json#/$defs/CodonSpan" }, "detail": { "type": "string" } }, "required": ["constraint_id", "detail"], "additionalProperties": false } }
+            },
+            "required": ["feasible", "n_blocking_violations"],
+            "additionalProperties": false
+          },
+          "provenance": {
+            "type": "object",
+            "properties": {
+              "origin": { "enum": ["input", "random_init", "usage_sampled_init", "seed_import", "tier1_dp", "tier2_block_ca", "mutation", "crossover", "repair", "joint_reconciliation"] },
+              "seed_source": { "type": ["string", "null"], "examples": ["lineardesign", "cdsfold", "codontransformer", "dnachisel", null] },
+              "generation_found": { "type": ["integer", "null"], "minimum": 0 },
+              "parents": { "type": "array", "items": { "type": "string" }, "default": [] }
+            },
+            "required": ["origin"],
+            "additionalProperties": false
+          },
+          "diff_vs_input": {
+            "type": "object",
+            "properties": {
+              "n_codons_changed": { "type": "integer", "minimum": 0 },
+              "fraction_changed": { "type": "number", "minimum": 0, "maximum": 1 },
+              "changed_positions": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+            },
+            "required": ["n_codons_changed", "fraction_changed"],
+            "additionalProperties": false
+          },
+          "rationale": {
+            "type": "object",
+            "properties": {
+              "candidate_tags": { "type": "array", "items": { "type": "string" }, "description": "Tags with scope=candidate from rationale_tags.json." },
+              "annotations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "tag": { "type": "string" },
+                    "span": { "$ref": "common.schema.json#/$defs/CodonSpan" },
+                    "term_id": { "$ref": "common.schema.json#/$defs/TermId" },
+                    "magnitude": { "type": ["number", "null"], "description": "Signed contribution of this span to the tagged term, in the term's unit." },
+                    "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+                    "text": { "type": "string", "description": "Rendered from the tag template. Stored so the front is readable without the vocabulary file." }
+                  },
+                  "required": ["tag", "span", "text"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["candidate_tags", "annotations"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["candidate_id", "sequences", "nondomination_rank", "objective_vector", "constraint_report", "provenance"],
+        "additionalProperties": false
+      }
+    },
+    "reduction": {
+      "type": "object",
+      "description": "How the presented front was reduced from the raw non-dominated set. Required by AMD-008.",
+      "properties": {
+        "raw_nondominated_count": { "type": "integer", "minimum": 0 },
+        "presented_count": { "type": "integer", "minimum": 0 },
+        "method": { "enum": ["none", "reference_direction_representatives", "knee_selection", "clustering", "epsilon_grid", "user_preference"] },
+        "parameters": { "type": "object", "additionalProperties": true },
+        "full_front_uri": { "type": ["string", "null"] }
+      },
+      "required": ["raw_nondominated_count", "presented_count", "method"],
+      "additionalProperties": false
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "hypervolume": { "type": ["number", "null"] },
+        "hypervolume_normalized": { "type": ["number", "null"], "description": "Divided by the hypervolume of the ideal point w.r.t. the reference point, giving a 0-1 figure comparable across jobs." },
+        "n_feasible": { "type": "integer", "minimum": 0 },
+        "n_evaluations": { "type": "integer", "minimum": 0 },
+        "wall_seconds": { "type": "number", "minimum": 0 },
+        "budget_tier": { "$ref": "common.schema.json#/$defs/BudgetTier" },
+        "converged": { "type": "boolean" },
+        "termination_reason": { "enum": ["hypervolume_stagnation", "generation_limit", "time_limit", "user_cancel", "no_feasible_solution", "error"] },
+        "indicator_versions": { "type": "object", "additionalProperties": { "type": "string" }, "description": "e.g. {\"hypervolume\": \"wfg-1.2\", \"igd_plus\": \"1.0\"}" }
+      },
+      "required": ["n_feasible", "termination_reason"],
+      "additionalProperties": false
+    },
+    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+  },
+  "required": ["schema_version", "front_id", "job_id", "created_at", "landscape_lockfile_digest", "objective_order", "objective_sense", "candidates", "reduction", "summary", "digest"],
+  "additionalProperties": false
+}

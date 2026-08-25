@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "observation_id": "obs_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+  "submitted_at": "2026-09-30T16:20:00Z",
+  "tenant_id": "t_igem2026lab01",
+  "submitter": "bench@igem2026lab01",
+  "batch_id": "plate_2026_09_28_A",
+  "subject": {
+    "kind": "design",
+    "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+    "candidate_id": "cand_a1b2c3d4",
+    "as_built_digest": "sha256:00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff"
+  },
+  "host_id": "escherichia_coli:562/K-12_MG1655",
+  "condition": {
+    "condition_id": "cond_lb_37c_iptg05",
+    "temperature_c": 37.0,
+    "medium": "LB",
+    "growth_phase": "late_exponential",
+    "inducer": "IPTG",
+    "inducer_concentration": 0.5,
+    "inducer_unit": "mM",
+    "doubling_time_min": 31.0
+  },
+  "readouts": [
+    {
+      "readout_id": "ro_gfp",
+      "assay": "fluorescence",
+      "measures": "protein_abundance",
+      "value": 41250.0,
+      "unit": "RFU/OD600",
+      "sd": 3820.0,
+      "n_replicates": 4,
+      "replicate_values": [38900.0, 40100.0, 43800.0, 42200.0],
+      "normalization": { "method": "od_normalized", "control_id": "ctl_empty" },
+      "dynamic_range": { "lower_limit": 120.0, "upper_limit": 65000.0, "censoring": "none" },
+      "qc_flags": []
+    },
+    {
+      "readout_id": "ro_growth",
+      "assay": "growth_rate",
+      "measures": "host_fitness",
+      "value": 1.16,
+      "unit": "1/h",
+      "sd": 0.04,
+      "n_replicates": 4,
+      "replicate_values": [1.12, 1.15, 1.19, 1.18],
+      "normalization": { "method": "reference_construct", "control_id": "ctl_wt" },
+      "dynamic_range": { "lower_limit": 0.0, "upper_limit": null, "censoring": "none" },
+      "qc_flags": []
+    }
+  ],
+  "controls": [
+    { "control_id": "ctl_empty", "role": "empty_vector", "cds_digest": null, "value": 310.0, "unit": "RFU/OD600" },
+    { "control_id": "ctl_wt", "role": "wild_type", "cds_digest": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210", "value": 1.38, "unit": "1/h" }
+  ],
+  "exploration": {
+    "is_exploration_arm": false,
+    "arm_id": null,
+    "selection_rule": "top_ranked",
+    "assignment_seed": 20260825
+  },
+  "protocol": {
+    "uri_or_doi": "https://protocols.io/view/demo-fluorescence-assay",
+    "instrument": "BioTek Synergy H1",
+    "measured_on": "2026-09-28T14:05:00Z",
+    "notes": "Measured 6 h post-induction; blanked against medium."
+  },
+  "sharing": {
+    "scope": "private",
+    "license": null,
+    "consent_recorded_at": null,
+    "consent_actor": null
+  },
+  "ingest_status": {
+    "state": "queued_for_recalibration",
+    "validation_errors": [],
+    "incorporated_into": []
+  },
+  "digest": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+}

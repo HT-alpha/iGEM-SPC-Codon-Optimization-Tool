@@ -1,0 +1,81 @@
+{
+  "schema_version": "1.0.0",
+  "lockfile_id": "lock_01JBQ8Z4K7M2N3P5R6T7V8W9XZ",
+  "created_at": "2026-08-25T07:58:00Z",
+  "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+  "tenant_id": "t_igem2026lab01",
+  "contract_major": 1,
+  "resolution": [
+    {
+      "term_id": "epistasis.dwell_deviation",
+      "artifact_id": "cf:epistasis_dwell:escherichia_coli:562/K-12_MG1655:1.4.0",
+      "digest": "sha256:5566778899aabbcc5566778899aabbcc5566778899aabbcc5566778899aabbcc",
+      "resolved_by": "host_channel",
+      "channel": "stable",
+      "fallback": false,
+      "host_distance": null
+    },
+    {
+      "term_id": "burden.growth_cost",
+      "artifact_id": "cf:burden_capacity:escherichia_coli:562/K-12_MG1655:0.9.2",
+      "digest": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "resolved_by": "host_channel",
+      "channel": "stable",
+      "fallback": false,
+      "host_distance": null
+    },
+    {
+      "term_id": "lm.naturalness",
+      "artifact_id": "cf:lm_naturalness:host_agnostic:2.0.1",
+      "digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978",
+      "resolved_by": "base",
+      "channel": "stable",
+      "fallback": false,
+      "host_distance": null
+    },
+    {
+      "term_id": "kinetics.pause_concordance",
+      "artifact_id": "cf:kinetics_domainmap:escherichia_coli:562:0.3.0",
+      "digest": "sha256:112233445566778f112233445566778f112233445566778f112233445566778f",
+      "resolved_by": "nearest_host",
+      "channel": "stable",
+      "fallback": true,
+      "host_distance": {
+        "substitute_host_id": "escherichia_coli:562",
+        "taxonomic_rank_of_lca": "species",
+        "codon_usage_cosine": 0.998,
+        "trna_pool_cosine": 0.996,
+        "uncertainty_inflation_factor": 1.15
+      }
+    }
+  ],
+  "engines": [
+    { "role": "structure", "name": "native_window", "version": "0.3.0", "digest": null, "parameters": { "window_nt": 80, "span_nt": 40, "temperature_c": 37.0 } },
+    { "role": "hypervolume", "name": "wfg", "version": "1.2", "digest": null, "parameters": {} }
+  ],
+  "host_profile": {
+    "host_id": "escherichia_coli:562/K-12_MG1655",
+    "version": "2.1.0",
+    "digest": "sha256:a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718"
+  },
+  "inputs": {
+    "construct_digest": "sha256:deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234",
+    "constraint_set_digest": "sha256:5566778899aabbcc5566778899aabbcc5566778899aabbcc5566778899aabbcc",
+    "seed_set_digest": null,
+    "input_sequence_digests": ["sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"]
+  },
+  "rng": {
+    "algorithm": "pcg64",
+    "root_seed": 20260825,
+    "stream_assignment": "per_individual_index",
+    "deterministic_reduction": true
+  },
+  "environment": {
+    "codonforge_version": "0.4.0",
+    "git_sha": "0123456789abcdef0123456789abcdef01234567",
+    "platform": "linux-x86_64-cpython3.12",
+    "thread_count": 8,
+    "budget_tier": "standard"
+  },
+  "digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978"
+}
