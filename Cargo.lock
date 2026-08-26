@@ -80,6 +80,7 @@ version = "0.1.0"
 dependencies = [
  "cf-constraints",
  "cf-landscape-api",
+ "cf-search",
  "cf-types",
  "pyo3",
  "serde_json",

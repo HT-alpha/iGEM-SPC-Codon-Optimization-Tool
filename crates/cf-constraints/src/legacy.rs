@@ -221,6 +221,58 @@ pub fn legacy_is_feasible(cds: &str, scenario: &LegacyScenario) -> bool {
     legacy_violations(cds, scenario).is_empty()
 }
 
+/// The prototype's *incremental* acceptance test for one prefix extension.
+///
+/// Ticket P1-27b. `legacy_is_feasible` above answers the whole-sequence
+/// question; the backtracker asks a narrower one after appending each codon,
+/// and it asks it over a window rather than the whole prefix:
+///
+/// ```text
+/// check_tail  = test_seq[max(0, len - motif_len - 2):]     # motif check
+/// check_start = max(0, len - (k + 2))                      # k-mer check
+/// ```
+///
+/// The `+ 2` slack is the prototype's, not a rounding of it. A codon is three
+/// nucleotides, so an occurrence created by the append can begin at most two
+/// positions before the window a bare `motif_len` suffix would cover; the
+/// prototype's constant is what makes its incremental check equivalent to the
+/// whole-sequence one, and reproducing it is the difference between a port and
+/// a paraphrase.
+///
+/// The k-mer count is still taken over the *whole* prefix
+/// (`count_overlapping(test_seq, kmer)`), not the window — only the set of
+/// k-mers examined is windowed. That asymmetry is in the prototype and is
+/// preserved.
+pub fn prefix_is_acceptable(prefix: &[u8], scenario: &LegacyScenario) -> bool {
+    for motif in &scenario.motifs {
+        let motif_len = motif.len();
+        if prefix.len() < motif_len {
+            continue;
+        }
+        let from = prefix.len().saturating_sub(motif_len + 2);
+        let tail = &prefix[from..];
+        if tail
+            .windows(motif_len)
+            .any(|window| window == motif.as_bytes())
+        {
+            return false;
+        }
+    }
+
+    if prefix.len() >= scenario.k {
+        let start = prefix.len().saturating_sub(scenario.k + 2);
+        for j in start..=prefix.len() - scenario.k {
+            let kmer = &prefix[j..j + scenario.k];
+            let key = std::str::from_utf8(kmer).unwrap_or("");
+            let backbone = *scenario.backbone_counts.get(key).unwrap_or(&0);
+            if backbone + count_overlapping(prefix, kmer) > scenario.max_allowed_repeats {
+                return false;
+            }
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

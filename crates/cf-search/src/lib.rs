@@ -31,13 +31,18 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod baseline;
 pub mod context;
+pub mod generation;
 pub mod genotype;
 pub mod operators;
 pub mod population;
 pub mod rng;
+pub mod tier1;
 
+pub use baseline::{baseline_backtracking, BaselineBudget, BaselineOutcome, BaselineReport};
 pub use context::{CodonWeights, ContextModel};
+pub use generation::{run_generations, GenerationConfig, GenerationRecord, GenerationReport};
 pub use genotype::{Genotype, Move, MoveKind};
 pub use operators::{
     BlockGibbs, BlockUniform, CrossoverOperator, MutationContext, MutationOperator, OnePoint,
@@ -45,3 +50,4 @@ pub use operators::{
 };
 pub use population::{Offspring, Population, SeedReport};
 pub use rng::SearchRng;
+pub use tier1::{tier1_seed, Tier1Config, Tier1Report};

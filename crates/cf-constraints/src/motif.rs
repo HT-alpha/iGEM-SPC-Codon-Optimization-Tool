@@ -259,6 +259,21 @@ impl MotifAutomaton {
         !self.nodes[state].outputs.is_empty()
     }
 
+    /// Indices into [`MotifAutomaton::patterns`] of every pattern ending here.
+    ///
+    /// [`MotifAutomaton::is_accepting`] answers "did *something* match", which
+    /// is all a violation report needs. A product DP needs more: it may prune a
+    /// state only when the matched pattern belongs to a constraint that forbids
+    /// every occurrence. A rule with `max_occurrences > 0` would need an
+    /// occurrence counter carried in the DP state, which is the state-space
+    /// multiplication tier 1 declines to pay for k-mers, so those patterns are
+    /// left to the post-check instead — and telling the two apart requires
+    /// knowing which pattern matched.
+    #[inline]
+    pub fn outputs(&self, state: usize) -> &[usize] {
+        &self.nodes[state].outputs
+    }
+
     pub fn state_count(&self) -> usize {
         self.nodes.len()
     }

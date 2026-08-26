@@ -97,6 +97,9 @@ codes! {
     SRCH_NO_OPERATOR       => ("CF-SRCH-002", 500, "No registered mutation operator applies", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
     SRCH_INCOMPATIBLE_PARENTS => ("CF-SRCH-003", 500, "Crossover parents have different lengths", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
     SRCH_SEED_POLICY       => ("CF-SRCH-004", 422, "Seed injection policy is malformed", "planning/07-decisions/ADR-0007-external-tool-seed-import.md"),
+    SRCH_TIER1_CONFIG      => ("CF-SRCH-005", 422, "Tier 1 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
+    SRCH_TIER1_INFEASIBLE  => ("CF-SRCH-006", 422, "Tier 1 found no feasible assignment", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
+    SRCH_TABU_CLOCK        => ("CF-SRCH-007", 500, "Generation clock and tabu ledger disagree", "planning/03-algorithms/06-constraint-repair.md"),
 
     // ---- CF-JOINT ----------------------------------------------------------
     JOINT_NO_CONVERGENCE   => ("CF-JOINT-001", 200, "Price decomposition failed to converge; fell back to fully joint search", "planning/03-algorithms/04-systems-level-joint-search.md"),

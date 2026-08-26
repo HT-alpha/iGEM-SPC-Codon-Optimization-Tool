@@ -18,8 +18,10 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+use cf_constraints::legacy::{self, LegacyScenario};
 use cf_constraints::{ConstraintChecker, ConstraintSet, ConstructView, KmerMasking};
 use cf_landscape_api::{LandscapeQuery, LandscapeResponse};
+use cf_search::{BaselineBudget, CodonWeights, Genotype, SearchRng};
 use cf_types::{canonicalize, CodonSequence, Digest, GeneticCode};
 
 fn to_py_err(err: cf_types::CfError) -> PyErr {
@@ -147,6 +149,69 @@ fn landscape_response_round_trip(document_json: &str) -> PyResult<String> {
     response.to_canonical_json().map_err(to_py_err)
 }
 
+/// The legacy incremental prefix predicate.
+///
+/// `P1-27b`. Exposed so `python/tests/test_p1_27b_baseline_fidelity.py` can
+/// compare it against the block inside `codon_6.0.py`'s solver loop, prefix by
+/// prefix. That comparison is where a transcription error would actually
+/// live — the two windowed checks and their `+ 2` slack are easy to paraphrase
+/// into something that agrees on most inputs.
+#[pyfunction]
+fn legacy_prefix_accepts(
+    prefix: &str,
+    motifs: Vec<String>,
+    k: usize,
+    max_allowed_repeats: u32,
+    backbone_counts: std::collections::HashMap<String, u32>,
+) -> bool {
+    let scenario = LegacyScenario {
+        motifs: motifs.into_iter().collect(),
+        k,
+        max_allowed_repeats,
+        backbone_counts,
+    };
+    legacy::prefix_is_acceptable(prefix.as_bytes(), &scenario)
+}
+
+/// Run the ported backtracker over a coding sequence.
+///
+/// Returns the solved coding sequence, or `None` when every restart exhausted
+/// its backtrack budget — which is a timeout, not a proof that no solution
+/// exists.
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn baseline_backtracking(
+    cds: &str,
+    translation_table: u8,
+    motifs: Vec<String>,
+    k: usize,
+    max_allowed_repeats: u32,
+    backbone_counts: std::collections::HashMap<String, u32>,
+    seed: u64,
+) -> PyResult<Option<String>> {
+    let sequence = CodonSequence::from_cds(cds, translation_table).map_err(to_py_err)?;
+    let genotype = Genotype::new(sequence);
+    let scenario = LegacyScenario {
+        motifs: motifs.into_iter().collect(),
+        k,
+        max_allowed_repeats,
+        backbone_counts,
+    };
+    let mut rng = SearchRng::new(seed);
+    let report = cf_search::baseline_backtracking(
+        &genotype,
+        &scenario,
+        &CodonWeights::uniform(),
+        // The prototype's own constants.
+        BaselineBudget::from_prototype(1_000, 2_000),
+        &mut rng,
+    )
+    .map_err(to_py_err)?;
+    Ok(report
+        .solution
+        .map(|g| g.codons().iter().map(|c| c.to_string_upper()).collect()))
+}
+
 fn parse_masking(masking: &str) -> PyResult<KmerMasking> {
     match masking {
         "assembled" => Ok(KmerMasking::Assembled),
@@ -239,5 +304,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(constraint_violations, m)?)?;
     m.add_function(wrap_pyfunction!(landscape_query_round_trip, m)?)?;
     m.add_function(wrap_pyfunction!(landscape_response_round_trip, m)?)?;
+    m.add_function(wrap_pyfunction!(legacy_prefix_accepts, m)?)?;
+    m.add_function(wrap_pyfunction!(baseline_backtracking, m)?)?;
     Ok(())
 }

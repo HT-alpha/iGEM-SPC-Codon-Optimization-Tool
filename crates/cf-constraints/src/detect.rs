@@ -302,6 +302,41 @@ impl ConstraintChecker {
             .any(|v| v.class == ConstraintClass::Blocking && v.actionable)
     }
 
+    /// The compiled motif automata: construct-scope first, then CDS-scope.
+    ///
+    /// Exposed for tier 1's product DP (`P1-24`), which carries the automaton
+    /// state alongside the codon assignment so a violating state is never
+    /// generated. Returning the compiled automata rather than the specs is
+    /// deliberate: rebuilding them in `cf-search` would mean a second copy of
+    /// the IUPAC expansion, the strand handling and the scope split, free to
+    /// drift from the one the checker uses.
+    pub fn motif_automata(&self) -> [&MotifAutomaton; 2] {
+        [&self.construct_motifs, &self.cds_motifs]
+    }
+
+    /// Whether a matched pattern belongs to a constraint that forbids every
+    /// occurrence.
+    ///
+    /// Only such a pattern may be pruned in a product DP: a rule allowing `n`
+    /// occurrences is satisfied by a state that has seen fewer, and the DP does
+    /// not carry a counter.
+    pub fn pattern_is_zero_tolerance(&self, automaton: &MotifAutomaton, pattern: usize) -> bool {
+        let Some(entry) = automaton.patterns().get(pattern) else {
+            return false;
+        };
+        match &self.constraint(entry.constraint).rule {
+            Rule::ForbiddenMotif {
+                max_occurrences, ..
+            }
+            | Rule::RestrictionSite {
+                max_occurrences, ..
+            } => *max_occurrences == 0,
+            // A codon ban is compiled in as a literal with no allowance.
+            Rule::CodonBan { .. } => true,
+            _ => false,
+        }
+    }
+
     /// How far beyond a changed span a violation can be created or destroyed.
     ///
     /// `None` means unbounded, which happens exactly when a k-mer repeat rule
