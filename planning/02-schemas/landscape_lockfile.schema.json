@@ -19,8 +19,14 @@
         "type": "object",
         "properties": {
           "term_id": { "$ref": "common.schema.json#/$defs/TermId" },
-          "artifact_id": { "$ref": "common.schema.json#/$defs/ArtifactId" },
-          "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+          "artifact_id": {
+            "description": "The artifact coordinate, or - for a term computed by shipped code rather than by a model - a builtin coordinate `builtin:<term_id>:<engine_version>`.\n\nThe builtin form was added during P1-28. The rung vocabulary below has always admitted `builtin`, but this field required an ArtifactId, whose grammar begins `cf:<kind>:` and has no spelling for a term that has no artifact. So a lockfile recording a CAI resolution could not be written. The alternative fixes were both worse: allowing null loses the engine version, which is the only thing identifying what computed the number, and stretching ArtifactId itself would let a builtin coordinate appear in `model_pins`, where it means nothing.",
+            "oneOf": [
+              { "$ref": "common.schema.json#/$defs/ArtifactId" },
+              { "type": "string", "pattern": "^builtin:(epistasis|structure|kinetics|lm|burden|usage|constraint|meta)\\.[a-z0-9_]+:[0-9]+\\.[0-9]+\\.[0-9]+$", "examples": ["builtin:usage.cai:0.1.0", "builtin:constraint.violation_count:0.1.0"] }
+            ]
+          },
+          "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest", "description": "For an artifact, its content digest. For a builtin, the digest of the engine descriptor `{engine, term_id, version}` - a real hash of a real document, so that changing the engine version changes the lockfile, rather than a sentinel that merely looks like a digest." },
           "resolved_by": { "enum": ["pin", "tenant_channel", "host_channel", "nearest_host", "base", "builtin"] },
           "channel": { "type": ["string", "null"], "examples": ["stable", "candidate", "nightly", null] },
           "fallback": { "type": "boolean", "default": false },

@@ -148,7 +148,9 @@ Two audit findings, one an architecture defect and one an acceptance gap.
 
 The non-blocking-recalibration guarantee is testable now despite channels being deferred, because the guarantee is a property of the *lockfile*, not of the promotion machinery: a job that sealed a digest reads that digest for its whole life regardless of what else enters the store. `P3-15` adds the ability for a promotion to occur; `P1-28` establishes that a sealed job would not see one.
 
-The hazard specific to a partial ladder is silent fall-through — a request for a deferred rung quietly resolving one rung lower and returning a plausible artifact. Every deferred rung therefore raises `CF-RESOLVE-007` naming the ticket that will implement it, rather than falling through.
+The hazard specific to a partial ladder is silent fall-through — a request for a deferred rung quietly resolving one rung lower and returning a plausible artifact. Every deferred rung therefore raises `CF-RESOLVE-007` naming the ticket that will implement it, rather than falling through. The error also names the artifact it *would* have selected and points at the pin that reaches it today, so the refusal is informative rather than merely correct.
+
+Implementation surfaced one schema defect. `resolution[].resolved_by` has always admitted `builtin`, but `resolution[].artifact_id` required an `ArtifactId`, whose grammar begins `cf:<kind>:` and has no spelling for a term with no artifact — so a lockfile recording a `usage.cai` resolution was unwriteable. Fixed as `DEP-VER-002`. The built-in's `digest` is the hash of its engine descriptor rather than a sentinel: it has real work to do there, since a change to a built-in's engine version can change the numbers and the lockfile has to say so.
 
 ---
 
