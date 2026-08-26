@@ -558,6 +558,74 @@ fn tst_land_005_a_diagnostic_term_is_reported_and_never_ranked() {
     );
 }
 
+/// The folding-kinetics case specifically, since that is the term `AMD-002` is
+/// about.
+///
+/// The fixture is deliberately loud: the diagnostic term reports a value far
+/// outside every other term's range and declares `Minimize`, so if it reached
+/// the objective vector it would not merely perturb the ranking, it would
+/// dominate it. The composed vector is byte-identical with and without it.
+///
+/// `EXP-06` is what would promote this term to an axis. Until it runs, the
+/// promotion is not a configuration change: the provider caps itself, so
+/// registering it as an axis fails.
+#[test]
+fn tst_land_005_folding_kinetics_is_inert_until_exp_06() {
+    let mut registry = local_registry();
+    registry
+        .register_default(Box::new(support_provider::LoudDiagnostic::new(
+            "kinetics.pause_concordance",
+        )))
+        .unwrap();
+    assert_eq!(
+        registry.role_of(&term("kinetics.pause_concordance")),
+        Some(TermRole::Diagnostic),
+        "the provider caps itself; nothing in a job configuration can raise it"
+    );
+
+    let mut composer = Composer::new(registry, LOCKFILE_A);
+    let axes_only = ["usage.cai", "constraint.violation_count"];
+    let with_kinetics = [
+        "usage.cai",
+        "kinetics.pause_concordance",
+        "constraint.violation_count",
+    ];
+
+    let before = composer
+        .evaluate(&full_query("q_01ARZ3NDEKTSV4RRFFQ69G5FAV", &axes_only))
+        .unwrap();
+    let after = composer
+        .evaluate(&full_query("q_01ARZ3NDEKTSV4RRFFQ69G5FAV", &with_kinetics))
+        .unwrap();
+
+    let reported = after.get(&term("kinetics.pause_concordance")).unwrap();
+    assert_eq!(
+        reported.value, -1.0e6,
+        "the diagnostic value is still reported"
+    );
+
+    let a = before.objective_vector.as_ref().unwrap();
+    let b = after.objective_vector.as_ref().unwrap();
+    assert_eq!(a.order(), b.order());
+    assert_eq!(a.values(), b.values());
+    assert_eq!(a.sense(), b.sense());
+
+    // And a second registry that tries to rank on it cannot be built at all.
+    let mut refusing = TermRegistry::new();
+    assert_eq!(
+        refusing
+            .register(
+                Box::new(support_provider::LoudDiagnostic::new(
+                    "kinetics.pause_concordance"
+                )),
+                TermRole::ParetoAxis,
+            )
+            .unwrap_err()
+            .code,
+        "CF-LAND-004"
+    );
+}
+
 /// The type gate, independent of any composer.
 #[test]
 fn tst_land_005_a_diagnostic_provider_cannot_be_registered_as_an_axis() {
@@ -581,8 +649,51 @@ fn tst_land_005_an_unregistered_term_fails_loudly() {
 }
 
 mod support_provider {
-    use cf_landscape_api::{Capability, EvalContext, Provenance, TermProvider};
+    use cf_landscape_api::{Capability, EvalContext, Provenance, TermProvider, TermRole};
     use cf_types::{code, CfError, Direction, Result, TermId, Unit};
+
+    /// A diagnostic-capped provider with a value that would dominate any
+    /// ranking it entered.
+    ///
+    /// The magnitude is the test: a diagnostic term whose value sat inside the
+    /// other terms' range could leak into the objective vector and change
+    /// nothing detectable, and the assertion would pass on a broken gate.
+    #[derive(Debug)]
+    pub struct LoudDiagnostic {
+        term: TermId,
+    }
+
+    impl LoudDiagnostic {
+        pub fn new(term: &str) -> Self {
+            Self {
+                term: TermId::new(term).unwrap(),
+            }
+        }
+    }
+
+    impl TermProvider for LoudDiagnostic {
+        fn term_id(&self) -> &TermId {
+            &self.term
+        }
+        fn unit(&self) -> Unit {
+            Unit::new(Unit::DIMENSIONLESS)
+        }
+        fn direction(&self) -> Direction {
+            Direction::Minimize
+        }
+        fn capability(&self) -> Capability {
+            Capability::L0
+        }
+        fn max_role(&self) -> TermRole {
+            TermRole::Diagnostic
+        }
+        fn provenance(&self) -> Provenance {
+            Provenance::builtin("test_loud_diagnostic", "0.1.0")
+        }
+        fn score(&self, _ctx: &EvalContext<'_>) -> Result<f64> {
+            Ok(-1.0e6)
+        }
+    }
 
     /// A provider that always misses its budget.
     ///
