@@ -1114,6 +1114,15 @@ fn p1_25_the_incumbent_stays_in_a_truncated_beam() {
 /// unless the automaton stops it. Without that the DP might avoid the codon for
 /// unrelated scoring reasons and the test would pass on an unprimed
 /// implementation.
+///
+/// The observable is `blocks_rejected`, not the final codon. The accept step
+/// refuses infeasible candidates, so an unprimed DP still cannot *commit* the
+/// motif — it proposes it, has the proposal thrown away, and the block
+/// contributes nothing. What priming buys is that the DP never proposes what
+/// the accept step must discard, and a rejection count is the only way to see
+/// the difference. Asserting on the final codon alone passed on both
+/// implementations, which is how the first version of this test managed to
+/// prove nothing.
 #[test]
 fn p1_25_priming_prevents_a_motif_created_across_a_block_edge() {
     let calls = Calls::default();
