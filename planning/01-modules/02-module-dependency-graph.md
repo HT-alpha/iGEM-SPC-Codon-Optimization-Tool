@@ -49,7 +49,7 @@ Solid edges are compile-time/import-time dependencies. The line marked *register
 | `cf-biophys-structure` | 2 | `cf-types`, `cf-landscape-api` |
 | `cf-biophys-kinetics` | 3 | `cf-types`, `cf-landscape-api`, `cf-epistasis` |
 | `cf-biophys-lm` | 2 | `cf-types`, `cf-landscape-api`, `cf-modelreg` |
-| `cf-landscape` | 3 | `cf-types`, `cf-landscape-api` |
+| `cf-landscape` | 3 | `cf-types`, `cf-landscape-api`, `cf-constraints` |
 | `cf-search` | 4 | `cf-types`, `cf-landscape-api`, `cf-constraints`, `cf-metrics` |
 | `cf-decision` | 4 | `cf-types`, `cf-metrics`, `cf-landscape-api` |
 | `cf-orchestrator` | 5 | `cf-types`, `cf-ingest`, `cf-landscape`, `cf-search`, `cf-constraints`, `cf-decision`, `cf-modelreg` |

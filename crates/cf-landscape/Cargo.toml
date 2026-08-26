@@ -4,5 +4,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "Composition layer: term registry resolution, the evaluation cache, and the built-in terms."
 
 [dependencies]
+cf-types = { path = "../cf-types" }
+cf-landscape-api = { path = "../cf-landscape-api" }
+# Permitted, and checked by TST-LAND-003: cf-constraints is a first-party core
+# layer, not a swappable predictor. No predictor crate may appear here.
+cf-constraints = { path = "../cf-constraints" }
+serde_json = { workspace = true }

@@ -229,6 +229,11 @@ impl MotifAutomaton {
         }
     }
 
+    /// Longest compiled pattern, in nucleotides. Zero when empty.
+    pub fn max_pattern_len(&self) -> usize {
+        self.max_len
+    }
+
     pub fn patterns(&self) -> &[MotifPattern] {
         &self.patterns
     }

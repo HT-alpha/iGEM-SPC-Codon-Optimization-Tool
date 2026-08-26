@@ -167,14 +167,24 @@ pub fn verify_capability(provider: &dyn TermProvider, ctx: &EvalContext<'_>) -> 
         // An L0 provider must actually refuse. One that quietly answers delta
         // queries is understating itself, which is harmless for correctness and
         // expensive for the budget, so it is still reported.
-        if provider.delta(ctx, &[]).is_ok() {
-            return Err(CfError::new(
-                code::LAND_CAPABILITY,
-                format!(
-                    "{} declares L0 but answers delta queries; declare L1",
-                    provider.term_id()
-                ),
-            ));
+        //
+        // The probe must be a real move. An empty edit list is a no-op whose
+        // answer is zero, and a provider that special-cases it — which is the
+        // sensible thing to do — would be accused of a capability it does not
+        // claim.
+        if let Some((index, alternative)) = first_move(ctx.sequence) {
+            if provider
+                .delta(ctx, &[Edit::new(index, alternative)])
+                .is_ok()
+            {
+                return Err(CfError::new(
+                    code::LAND_CAPABILITY,
+                    format!(
+                        "{} declares L0 but answers delta queries; declare L1",
+                        provider.term_id()
+                    ),
+                ));
+            }
         }
         return Ok(());
     }

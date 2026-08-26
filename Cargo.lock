@@ -54,6 +54,12 @@ version = "0.1.0"
 [[package]]
 name = "cf-landscape"
 version = "0.1.0"
+dependencies = [
+ "cf-constraints",
+ "cf-landscape-api",
+ "cf-types",
+ "serde_json",
+]
 
 [[package]]
 name = "cf-landscape-api"

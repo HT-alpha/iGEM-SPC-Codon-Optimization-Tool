@@ -49,6 +49,16 @@ pub struct ConstructView<'a> {
     /// Half-open nucleotide spans of the coding regions.
     pub cds_spans: Vec<(usize, usize)>,
     pub kmer_masking: KmerMasking,
+    /// Position of `construct[0]` within the enclosing molecule.
+    ///
+    /// Non-zero only when the view is a window onto a larger construct, which
+    /// [`ConstraintChecker::check_region`] uses to bound its work. Every
+    /// reported coordinate — in the span *and* in the human-readable detail —
+    /// is offset by it, so a windowed check and a whole-construct check produce
+    /// violations that compare equal. Offsetting the span alone would leave a
+    /// detail string quoting window-local coordinates, which is the kind of
+    /// discrepancy that survives review because both numbers look plausible.
+    pub origin_nt: usize,
 }
 
 impl<'a> ConstructView<'a> {
@@ -57,11 +67,17 @@ impl<'a> ConstructView<'a> {
             construct,
             cds_spans,
             kmer_masking: KmerMasking::default(),
+            origin_nt: 0,
         }
     }
 
     pub fn with_masking(mut self, masking: KmerMasking) -> Self {
         self.kmer_masking = masking;
+        self
+    }
+
+    pub fn with_origin(mut self, origin_nt: usize) -> Self {
+        self.origin_nt = origin_nt;
         self
     }
 
@@ -286,6 +302,96 @@ impl ConstraintChecker {
             .any(|v| v.class == ConstraintClass::Blocking && v.actionable)
     }
 
+    /// How far beyond a changed span a violation can be created or destroyed.
+    ///
+    /// `None` means unbounded, which happens exactly when a k-mer repeat rule
+    /// is compiled in: that rule counts occurrences over the whole construct,
+    /// so editing three nucleotides here can push a k-mer somewhere else across
+    /// its threshold. Every other Phase 1 rule has a bounded reach — a motif
+    /// cannot be longer than its pattern, a GC window cannot be wider than
+    /// `window_nt`, and a homopolymer run is bounded by finding its own ends.
+    ///
+    /// Callers use this to decide whether they can compute an exact local
+    /// delta or must rescore. Returning `None` rather than a large number is
+    /// the point: a caller that treated "unbounded" as "big" would produce
+    /// deltas that are usually right, which is the worst of the three
+    /// outcomes.
+    pub fn influence_radius_nt(&self) -> Option<usize> {
+        if !self.kmer_rules.is_empty() {
+            return None;
+        }
+        let motifs = self
+            .cds_motifs
+            .max_pattern_len()
+            .max(self.construct_motifs.max_pattern_len());
+        let windows = self.gc_rules.iter().map(|r| r.window_nt).max().unwrap_or(0);
+        Some(motifs.max(windows))
+    }
+
+    /// Violations intersecting `[start_nt, end_nt)`, computed over a bounded
+    /// neighbourhood rather than the whole construct.
+    ///
+    /// Exact, not approximate: the neighbourhood is widened until every rule's
+    /// reach is contained in it, so a violation this misses is one that could
+    /// not have intersected the region. Returns `None` when
+    /// [`ConstraintChecker::influence_radius_nt`] is `None`, because there is
+    /// no such neighbourhood.
+    ///
+    /// The homopolymer case is why the neighbourhood is grown rather than
+    /// simply offset by the radius. A run has no length bound, so a run
+    /// intersecting the region can extend arbitrarily far past any fixed
+    /// margin; truncating it would split one violation into two or hide it
+    /// entirely. The window is therefore extended to the run's own ends, which
+    /// costs the length of the run and nothing more.
+    pub fn check_region(
+        &self,
+        view: &ConstructView,
+        start_nt: usize,
+        end_nt: usize,
+    ) -> Option<Vec<Violation>> {
+        let radius = self.influence_radius_nt()?;
+        let len = view.construct.len();
+        let start = start_nt.min(len);
+        let end = end_nt.clamp(start, len);
+
+        let mut lo = start.saturating_sub(radius);
+        let mut hi = (end + radius).min(len);
+        if !self.homopolymer_rules.is_empty() {
+            while lo > 0 && view.construct[lo - 1] == view.construct[lo] {
+                lo -= 1;
+            }
+            while hi < len && view.construct[hi - 1] == view.construct[hi] {
+                hi += 1;
+            }
+        }
+
+        let slice = &view.construct[lo..hi];
+        let spans: Vec<(usize, usize)> = view
+            .cds_spans
+            .iter()
+            .filter(|&&(s, e)| s < hi && lo < e)
+            .map(|&(s, e)| (s.max(lo) - lo, e.min(hi) - lo))
+            .collect();
+        let sub = ConstructView::new(slice, spans)
+            .with_masking(view.kmer_masking)
+            .with_origin(view.origin_nt + lo);
+
+        let mut local = Vec::new();
+        self.check_motifs(&sub, &mut local);
+        self.check_homopolymers(&sub, &mut local);
+        self.check_gc(&sub, &mut local);
+
+        let origin = view.origin_nt;
+        let mut out: Vec<Violation> = local
+            .into_iter()
+            .filter(|v| v.start_nt < origin + end && origin + start < v.end_nt)
+            .collect();
+        out.sort_by(|a, b| {
+            (a.start_nt, a.end_nt, &a.constraint_id).cmp(&(b.start_nt, b.end_nt, &b.constraint_id))
+        });
+        Some(out)
+    }
+
     /// Blocking violations that lie entirely in immutable sequence.
     pub fn unfixable(&self, view: &ConstructView) -> Vec<Violation> {
         self.check(view)
@@ -346,17 +452,18 @@ impl ConstraintChecker {
             occurrences.sort_by_key(|hit| (hit.start, hit.end));
             for hit in occurrences.iter().skip(allowed) {
                 let pattern = &automaton.patterns()[hit.pattern];
+                let (start, end) = (view.origin_nt + hit.start, view.origin_nt + hit.end);
                 out.push(Violation {
                     constraint_id: constraint.id.clone(),
                     class: constraint.class,
-                    start_nt: hit.start,
-                    end_nt: hit.end,
+                    start_nt: start,
+                    end_nt: end,
                     actionable: view.touches_editable(hit.start, hit.end),
                     detail: format!(
                         "{} occurs at {}..{} ({} strand); at most {allowed} permitted",
                         pattern.literal,
-                        hit.start,
-                        hit.end,
+                        start,
+                        end,
                         if pattern.reverse {
                             "antisense"
                         } else {
@@ -434,18 +541,19 @@ impl ConstraintChecker {
         for rule in &self.homopolymer_rules {
             let constraint = self.constraint(rule.index);
             for run in find_runs(view.construct, rule.max_run + 1, rule.base) {
+                let (start, end) = (view.origin_nt + run.start, view.origin_nt + run.end);
                 out.push(Violation {
                     constraint_id: constraint.id.clone(),
                     class: constraint.class,
-                    start_nt: run.start,
-                    end_nt: run.end,
+                    start_nt: start,
+                    end_nt: end,
                     actionable: view.touches_editable(run.start, run.end),
                     detail: format!(
                         "run of {} {}s at {}..{} exceeds the limit of {}",
                         run.len(),
                         run.base as char,
-                        run.start,
-                        run.end,
+                        start,
+                        end,
                         rule.max_run
                     ),
                 });
@@ -462,15 +570,16 @@ impl ConstraintChecker {
             let constraint = self.constraint(rule.index);
             for (start, end, fraction) in index.windows_outside(rule.window_nt, rule.min, rule.max)
             {
+                let (global_start, global_end) = (view.origin_nt + start, view.origin_nt + end);
                 out.push(Violation {
                     constraint_id: constraint.id.clone(),
                     class: constraint.class,
-                    start_nt: start,
-                    end_nt: end,
+                    start_nt: global_start,
+                    end_nt: global_end,
                     actionable: view.touches_editable(start, end),
                     detail: format!(
-                        "GC {:.3} in {start}..{end} is outside [{:.2}, {:.2}]",
-                        fraction, rule.min, rule.max
+                        "GC {fraction:.3} in {global_start}..{global_end} is outside [{:.2}, {:.2}]",
+                        rule.min, rule.max
                     ),
                 });
             }

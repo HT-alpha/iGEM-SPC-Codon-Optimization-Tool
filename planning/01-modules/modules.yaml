@@ -250,7 +250,14 @@ modules:
       evaluation cache crosses the boundary as a value, supplied by the
       orchestrator, because a `rust-core` crate cannot depend on a
       `python-orchestration` package. See DEP-LAND-001.
-    depends_on: [cf-types, cf-landscape-api]
+
+      It does depend on `cf-constraints`, because `constraint.violation_count`
+      is a built-in term and counting violations is that crate's job.
+      `cf-constraints` is a first-party core layer rather than a swappable
+      predictor, so this edge does not weaken the property the previous
+      paragraph protects; `TST-LAND-003` states that property as "no predictor
+      crate" and names them.
+    depends_on: [cf-types, cf-landscape-api, cf-constraints]
     public_contract: planning/02-schemas/landscape_response.schema.json
     tests:
       - TST-LAND-001
