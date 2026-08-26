@@ -169,21 +169,74 @@ def check_sequence_invariants(rep: Report) -> None:
     """Invariants I1-I4 from sequence.schema.json, checked on the example."""
     rep.section("sequence-invariants")
     codon_table = {
-        "TTT": "F", "TTC": "F", "TTA": "L", "TTG": "L", "CTT": "L", "CTC": "L",
-        "CTA": "L", "CTG": "L", "ATT": "I", "ATC": "I", "ATA": "I", "ATG": "M",
-        "GTT": "V", "GTC": "V", "GTA": "V", "GTG": "V", "TCT": "S", "TCC": "S",
-        "TCA": "S", "TCG": "S", "CCT": "P", "CCC": "P", "CCA": "P", "CCG": "P",
-        "ACT": "T", "ACC": "T", "ACA": "T", "ACG": "T", "GCT": "A", "GCC": "A",
-        "GCA": "A", "GCG": "A", "TAT": "Y", "TAC": "Y", "TAA": "*", "TAG": "*",
-        "CAT": "H", "CAC": "H", "CAA": "Q", "CAG": "Q", "AAT": "N", "AAC": "N",
-        "AAA": "K", "AAG": "K", "GAT": "D", "GAC": "D", "GAA": "E", "GAG": "E",
-        "TGT": "C", "TGC": "C", "TGA": "*", "TGG": "W", "CGT": "R", "CGC": "R",
-        "CGA": "R", "CGG": "R", "AGT": "S", "AGC": "S", "AGA": "R", "AGG": "R",
-        "GGT": "G", "GGC": "G", "GGA": "G", "GGG": "G",
+        "TTT": "F",
+        "TTC": "F",
+        "TTA": "L",
+        "TTG": "L",
+        "CTT": "L",
+        "CTC": "L",
+        "CTA": "L",
+        "CTG": "L",
+        "ATT": "I",
+        "ATC": "I",
+        "ATA": "I",
+        "ATG": "M",
+        "GTT": "V",
+        "GTC": "V",
+        "GTA": "V",
+        "GTG": "V",
+        "TCT": "S",
+        "TCC": "S",
+        "TCA": "S",
+        "TCG": "S",
+        "CCT": "P",
+        "CCC": "P",
+        "CCA": "P",
+        "CCG": "P",
+        "ACT": "T",
+        "ACC": "T",
+        "ACA": "T",
+        "ACG": "T",
+        "GCT": "A",
+        "GCC": "A",
+        "GCA": "A",
+        "GCG": "A",
+        "TAT": "Y",
+        "TAC": "Y",
+        "TAA": "*",
+        "TAG": "*",
+        "CAT": "H",
+        "CAC": "H",
+        "CAA": "Q",
+        "CAG": "Q",
+        "AAT": "N",
+        "AAC": "N",
+        "AAA": "K",
+        "AAG": "K",
+        "GAT": "D",
+        "GAC": "D",
+        "GAA": "E",
+        "GAG": "E",
+        "TGT": "C",
+        "TGC": "C",
+        "TGA": "*",
+        "TGG": "W",
+        "CGT": "R",
+        "CGC": "R",
+        "CGA": "R",
+        "CGG": "R",
+        "AGT": "S",
+        "AGC": "S",
+        "AGA": "R",
+        "AGG": "R",
+        "GGT": "G",
+        "GGC": "G",
+        "GGA": "G",
+        "GGG": "G",
     }
 
     def translate(cds: str) -> str:
-        return "".join(codon_table[cds[i:i + 3]] for i in range(0, len(cds), 3))
+        return "".join(codon_table[cds[i : i + 3]] for i in range(0, len(cds), 3))
 
     example = PLANNING / "02-schemas" / "examples" / "sequence.example.json"
     doc = load_json(example)
@@ -279,9 +332,14 @@ def check_deps(rep: Report) -> None:
 
     # every layer of the architecture has exactly one owning module
     expected_layers = {
-        "context-ingestion", "epistatic-surface", "biophysical-predictors",
-        "burden-model", "search-engine", "constraint-repair",
-        "decision-support", "active-learning",
+        "context-ingestion",
+        "epistatic-surface",
+        "biophysical-predictors",
+        "burden-model",
+        "search-engine",
+        "constraint-repair",
+        "decision-support",
+        "active-learning",
     }
     present = {m["layer"] for m in modules.values()}
     missing = expected_layers - present
@@ -319,8 +377,10 @@ def check_refs(rep: Report) -> None:
     joined = "\n".join(corpus.values())
 
     # ADRs: an ADR-XXXX cited anywhere must exist as a file.
-    adr_files = {p.name.split("-")[0] + "-" + p.name.split("-")[1]
-                 for p in (PLANNING / "07-decisions").glob("ADR-*.md")}
+    adr_files = {
+        p.name.split("-")[0] + "-" + p.name.split("-")[1]
+        for p in (PLANNING / "07-decisions").glob("ADR-*.md")
+    }
     for cited in sorted(_collect_ids(r"\bADR-(\d{4})\b", joined)):
         if f"ADR-{cited}" in adr_files:
             rep.ok(f"ADR-{cited} exists")
@@ -481,9 +541,21 @@ def check_trace(rep: Report) -> None:
 
     # Every section of the brief must be represented.
     required_prefixes = [
-        "BRIEF-2.1", "BRIEF-2.2", "BRIEF-2.3", "BRIEF-2.4", "BRIEF-2.5",
-        "BRIEF-2.6", "BRIEF-3.1", "BRIEF-3.2", "BRIEF-3.3", "BRIEF-3.4",
-        "BRIEF-3.5", "BRIEF-3.6", "BRIEF-3.7", "BRIEF-4", "BRIEF-5",
+        "BRIEF-2.1",
+        "BRIEF-2.2",
+        "BRIEF-2.3",
+        "BRIEF-2.4",
+        "BRIEF-2.5",
+        "BRIEF-2.6",
+        "BRIEF-3.1",
+        "BRIEF-3.2",
+        "BRIEF-3.3",
+        "BRIEF-3.4",
+        "BRIEF-3.5",
+        "BRIEF-3.6",
+        "BRIEF-3.7",
+        "BRIEF-4",
+        "BRIEF-5",
     ]
     for prefix in required_prefixes:
         if any(rid.startswith(prefix) for rid in seen_ids):
@@ -505,7 +577,9 @@ def check_tags(rep: Report) -> None:
             if tag not in known:
                 rep.fail(f"{cand['candidate_id']}: unknown candidate tag {tag!r}")
             elif scopes[tag] != "candidate":
-                rep.fail(f"{cand['candidate_id']}: tag {tag!r} has scope {scopes[tag]}, not candidate")
+                rep.fail(
+                    f"{cand['candidate_id']}: tag {tag!r} has scope {scopes[tag]}, not candidate"
+                )
             else:
                 rep.ok(f"{cand['candidate_id']}: candidate tag {tag!r} valid")
         for ann in cand["rationale"]["annotations"]:
@@ -513,7 +587,9 @@ def check_tags(rep: Report) -> None:
             if tag not in known:
                 rep.fail(f"{cand['candidate_id']}: unknown annotation tag {tag!r}")
             elif scopes[tag] == "candidate":
-                rep.fail(f"{cand['candidate_id']}: candidate-scope tag {tag!r} used as an annotation")
+                rep.fail(
+                    f"{cand['candidate_id']}: candidate-scope tag {tag!r} used as an annotation"
+                )
             else:
                 rep.ok(f"{cand['candidate_id']}: annotation tag {tag!r} valid")
 

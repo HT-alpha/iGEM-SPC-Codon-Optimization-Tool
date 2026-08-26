@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/construct_context.schema.json",
+  "title": "ConstructContext",
+  "description": "Multi-cistron construct layout and regulatory metadata (BRIEF-2.2-c).\n\nWHY THIS IS A FIRST-CLASS SCHEMA RATHER THAN A FASTA HEADER. The systems-level joint search optimizes several CDSs against one shared resource ledger, so it needs to know which CDSs share a cell, what their expected relative expression is, and which of them the user actually cares about. None of that survives a FASTA round-trip. It is also what lets the k-mer/repeat constraints be evaluated over the WHOLE construct - including the immutable backbone - which is exactly what the existing `codon_6.0.py` prototype does by masking CDSs out of the insert before counting.\n\nELEMENT SPANS ARE NUCLEOTIDE-BASED; everything downstream of ingest is codon-based. The conversion happens once, at ingest, and is the only place in the system where a frame error is possible.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "construct_id": { "type": "string", "pattern": "^cons_[A-Za-z0-9_.-]{1,64}$" },
+    "name": { "type": "string" },
+    "host_id": { "$ref": "common.schema.json#/$defs/HostId" },
+    "topology": { "enum": ["linear", "circular"], "default": "circular", "description": "Circular topology matters for repeat counting: a k-mer spanning the origin is a real repeat in the physical plasmid." },
+    "full_sequence": { "$ref": "common.schema.json#/$defs/DnaSequence", "description": "The complete construct as assembled, including backbone. Element spans index into this string." },
+    "vector": {
+      "type": "object",
+      "properties": {
+        "backbone_id": { "type": ["string", "null"] },
+        "copy_number": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Plasmid copies per cell. Multiplies every cistron's demand in the resource ledger; a high-copy vector is often the dominant burden term." },
+        "origin": { "type": ["string", "null"], "examples": ["pMB1", "p15A", "pSC101", "ColE1", null] },
+        "selection_marker": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "elements": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered annotation of the construct. Non-CDS elements are immutable but still participate in structure, repeat and motif objectives.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "element_id": { "type": "string", "pattern": "^el_[A-Za-z0-9_.-]{1,48}$" },
+          "kind": { "enum": ["promoter", "operator", "rbs", "utr5", "cds", "utr3", "terminator", "spacer", "linker", "affinity_tag", "cleavage_site", "insulator", "origin", "marker", "homology_arm", "other"] },
+          "span": { "$ref": "common.schema.json#/$defs/NtSpan" },
+          "editable": { "type": "boolean", "default": false, "description": "Only CDS elements may be editable, and only by synonymous substitution." },
+          "name": { "type": "string" },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "part_registry_id": { "type": "string", "examples": ["BBa_B0034", "BBa_J23100"] },
+              "strength_class": { "enum": ["very_weak", "weak", "medium", "strong", "very_strong", "unknown"] },
+              "measured_strength": { "type": ["number", "null"] },
+              "strength_unit": { "type": ["string", "null"] },
+              "inducible_by": { "type": ["string", "null"] },
+              "spacer_length_nt": { "type": ["integer", "null"], "minimum": 0, "description": "For RBS elements: distance from Shine-Dalgarno to start codon. Enters the initiation-region structure constraint." },
+              "notes": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": ["element_id", "kind", "span"],
+        "additionalProperties": false
+      }
+    },
+    "cistrons": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Translational units. The joint search allocates one resource-ledger contribution per cistron.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "cistron_id": { "type": "string", "pattern": "^cis_[A-Za-z0-9_.-]{1,48}$" },
+          "cds_element_id": { "type": "string" },
+          "rbs_element_id": { "type": ["string", "null"] },
+          "is_design_target": { "type": "boolean", "default": true, "description": "False for cistrons that are present and consume resources but must not be redesigned (e.g. a fixed selection marker)." },
+          "expected_relative_expression": { "type": "number", "minimum": 0, "description": "Prior on this cistron's protein output relative to the others in the construct, on any consistent scale. Drives the demand weighting f_k in the resource ledger. Defaults to equal weighting with an explicit uncertainty flag." },
+          "expression_prior_source": { "enum": ["user", "rbs_strength_model", "measured", "equal_default"], "default": "equal_default" },
+          "priority_weight": { "type": "number", "minimum": 0, "default": 1.0, "description": "How much the user cares about this cistron's own objectives when they conflict with another's. Used only in the joint-search scalarization tie-break, never inside the Pareto comparison." },
+          "operon_group": { "type": ["string", "null"], "description": "Cistrons in one operon share a transcript, so a structure change in one can affect a neighbour's initiation." }
+        },
+        "required": ["cistron_id", "cds_element_id"],
+        "additionalProperties": false
+      }
+    },
+    "assembly": {
+      "type": "object",
+      "description": "Assembly method. This is what auto-populates the forbidden restriction-site constraint set, mirroring `auto_detect_forbidden_motifs` in the existing prototype but driven by declared intent rather than by inference from the input sequence.",
+      "properties": {
+        "standard": { "enum": ["golden_gate_bsai", "golden_gate_bsmbi", "moclo", "biobrick_rfc10", "gibson", "restriction_ligation", "gene_synthesis_only", "none"] },
+        "forbidden_enzymes": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "vendor_profile": { "type": ["string", "null"], "examples": ["twist", "idt_gblock", "genscript", null], "description": "Selects vendor synthesis-complexity limits (GC windows, repeat length, homopolymer runs)." }
+      },
+      "required": ["standard"],
+      "additionalProperties": false
+    },
+    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+  },
+  "required": ["schema_version", "construct_id", "host_id", "full_sequence", "elements", "cistrons", "assembly", "digest"],
+  "additionalProperties": false
+}

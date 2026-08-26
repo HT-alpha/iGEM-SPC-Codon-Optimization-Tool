@@ -1,0 +1,38 @@
+[package]
+name = "cf-pyext"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "PyO3 glue producing the codonforge._core extension module."
+
+# The ONLY crate permitted to depend on pyo3.
+#
+# ADR-0001 requires that no call cross the Rust/Python boundary more than once
+# per generation. That is a property of the shape of the binding surface, so it
+# is enforced structurally: confining pyo3 to one crate means the complete set
+# of boundary-crossing entry points is reviewable in one file, and a hot-path
+# crate cannot acquire a Python callback without first acquiring a pyo3
+# dependency — which `tools/check_module_layering.py --check` rejects.
+
+[lib]
+name = "cf_pyext"
+crate-type = ["cdylib", "rlib"]
+# No Rust test harness for this crate, deliberately.
+#
+# `extension-module` leaves Python's symbols to be resolved by the interpreter
+# at load time, which is what makes a wheel installable without a libpython
+# development package. A `cargo test` binary for this crate would instead have
+# to link libpython directly, so enabling the harness would add a system
+# dependency to `cargo test --workspace` purely to run zero tests.
+#
+# The binding surface is not untested: it is exercised from Python by
+# `python/tests/test_contract_sequence_schema.py`, which is where it is used
+# and where a conversion bug would actually show up.
+test = false
+doctest = false
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["abi3-py311", "extension-module"] }
+serde_json = { workspace = true }
+cf-types = { path = "../cf-types" }

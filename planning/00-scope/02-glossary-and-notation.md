@@ -33,7 +33,7 @@
 | `L` | Editable codons in the design | 666 (2 kb) / 5 000 (15 kb) |
 | `n` | Construct length in nucleotides | ~2 400 / ~15 000 |
 | `S` | Mean synonymous-family size at the designed positions | ≈2.9 |
-| `Syn(a)` | Synonymous codon set of amino acid `a` | 1–6 codons |
+| `Syn(a)` | Synonymous codon set of amino acid `a` | 1–8 codons (max 6 in tables 1 and 11; 8 in table 14) |
 | `W` | Epistasis window half-width, in codons | 10 (default) |
 | `B` | Tier-2 block size, in codons; must satisfy `B ≥ W` | 30 |
 | `b` | Beam width | 64 |

@@ -47,7 +47,7 @@ Two supporting units the architecture implies but does not name, added here beca
 | Id | Tier | Assertion |
 | --- | --- | --- |
 | `TST-CORE-001` | property | Sequence invariants I1–I5: length/codon-count agreement, translation matches the declared protein, protein invariance under every exposed operation, locked spans in range, digest stability. |
-| `TST-CORE-002` | unit | Codon-index bijection (`16·b₀+4·b₁+b₂`) round-trips for all 64 codons, and all 33 NCBI translation tables match a vendored reference. |
+| `TST-CORE-002` | unit | Codon-index bijection (`16·b₀+4·b₁+b₂`) round-trips for all 64 codons, and the 27 defined NCBI translation tables match a vendored reference (ids 7, 8, 17-20 are retired and must be rejected, not defaulted). |
 | `TST-CORE-003` | unit | Canonical JSON (RFC 8785) serialization is stable across key insertion order, float formatting and platform. A digest that changes with map iteration order silently breaks every cache and every lockfile. |
 
 ### `cf-metrics`

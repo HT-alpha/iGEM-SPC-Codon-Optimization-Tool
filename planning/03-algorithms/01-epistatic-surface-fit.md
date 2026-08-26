@@ -30,7 +30,7 @@ Splitting them is a departure from the brief's single "epistatic surface" and th
 
 ### 2.1 Parameterization
 
-Let a gene `g` have codons `c₁ … c_L` and amino acids `a₁ … a_L`. Let `Syn(a)` be the synonymous codon set of amino acid `a` (size 1–6). Let `W` be the window half-width in codons.
+Let a gene `g` have codons `c₁ … c_L` and amino acids `a₁ … a_L`. Let `Syn(a)` be the synonymous codon set of amino acid `a` (size 1–8; 1–6 in the standard and bacterial tables, but table 14 has an 8-member serine family, so nothing may assume a bound of 6 — see the implementation note in `crates/cf-types/src/tables.rs`). Let `W` be the window half-width in codons.
 
 The conditional distribution of the codon at position `i` given everything else:
 

@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/constraint_set.schema.json",
+  "title": "ConstraintSet",
+  "description": "Hard and advisory sequence constraints, plus the repair policy.\n\nTWO CLASSES, AND THE DISTINCTION IS OPERATIONAL. A `blocking` constraint makes the construct unbuildable (a BsaI site in a Golden Gate assembly; a 20-mer repeat a synthesis vendor will refuse). An `advisory` constraint is a preference that participates in the objective vector instead (GC drifting toward 65%). The search engine treats them completely differently: blocking constraints drive constraint-domination and repair; advisory ones are just terms. Conflating them is the classic failure that makes a codon optimizer return nothing.\n\nThe repair policy lives here, not in the search config, because repair budget is a property of how tight the constraints are.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "constraint_set_id": { "type": "string", "pattern": "^cst_[A-Za-z0-9_.-]{1,64}$" },
+    "name": { "type": "string" },
+    "derived_from": {
+      "type": "array",
+      "items": { "enum": ["assembly_standard", "vendor_profile", "user", "auto_detected", "host_default"] },
+      "description": "Provenance of the constraint list. `auto_detected` mirrors the prototype's motif scan and MUST be reported to the user, because a constraint the user did not ask for changing the answer is otherwise inexplicable."
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^c_[A-Za-z0-9_.-]{1,48}$" },
+          "class": { "enum": ["blocking", "advisory"] },
+          "scope": { "enum": ["cds", "construct", "cistron"], "default": "construct", "description": "`construct` counts occurrences across the whole assembled sequence including immutable backbone, which is the only correct scope for repeat constraints." },
+          "cistron_id": { "type": ["string", "null"] },
+          "weight": { "type": "number", "minimum": 0, "default": 1.0, "description": "Only meaningful for advisory constraints." },
+          "enabled": { "type": "boolean", "default": true },
+          "rule": {
+            "oneOf": [
+              {
+                "type": "object",
+                "title": "ForbiddenMotif",
+                "properties": {
+                  "kind": { "const": "forbidden_motif" },
+                  "motif": { "type": "string", "pattern": "^[ACGTRYSWKMBDHVN]+$", "description": "IUPAC-extended. Expanded to a DFA at load time so detection is O(n) over the sequence." },
+                  "strand": { "enum": ["sense", "both"], "default": "both" },
+                  "max_occurrences": { "type": "integer", "minimum": 0, "default": 0 }
+                },
+                "required": ["kind", "motif"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "RestrictionSite",
+                "properties": {
+                  "kind": { "const": "restriction_site" },
+                  "enzyme": { "type": "string", "examples": ["BsaI", "BsmBI", "EcoRI", "BamHI", "HindIII", "NotI"] },
+                  "site": { "type": "string", "pattern": "^[ACGTRYSWKMBDHVN]+$" },
+                  "strand": { "enum": ["sense", "both"], "default": "both" },
+                  "max_occurrences": { "type": "integer", "minimum": 0, "default": 0 }
+                },
+                "required": ["kind", "enzyme", "site"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "Homopolymer",
+                "properties": {
+                  "kind": { "const": "homopolymer" },
+                  "base": { "enum": ["A", "C", "G", "T", "any"], "default": "any" },
+                  "max_run": { "type": "integer", "minimum": 2 }
+                },
+                "required": ["kind", "max_run"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "KmerRepeat",
+                "properties": {
+                  "kind": { "const": "kmer_repeat" },
+                  "k": { "type": "integer", "minimum": 4, "maximum": 40 },
+                  "max_occurrences": { "type": "integer", "minimum": 1 },
+                  "count_overlapping": { "type": "boolean", "default": true, "description": "True reproduces the prototype's count_overlapping() semantics. Naive str.count() undercounts tandem repeats, which is exactly the case a synthesis vendor rejects." },
+                  "canonical_strand": { "type": "boolean", "default": false, "description": "When true, a k-mer and its reverse complement are counted as one, which is the right model for synthesis-complexity scoring." }
+                },
+                "required": ["kind", "k", "max_occurrences"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "GcWindow",
+                "properties": {
+                  "kind": { "const": "gc_window" },
+                  "window_nt": { "type": "integer", "minimum": 10 },
+                  "min": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "max": { "type": "number", "minimum": 0, "maximum": 1 }
+                },
+                "required": ["kind", "window_nt", "min", "max"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "LocalStructure",
+                "properties": {
+                  "kind": { "const": "local_structure" },
+                  "region": { "enum": ["initiation_window", "cds_5p_ramp", "custom"] },
+                  "span": { "$ref": "common.schema.json#/$defs/NtSpan" },
+                  "metric": { "enum": ["min_free_energy", "mean_unpaired_probability"] },
+                  "min": { "type": ["number", "null"] },
+                  "max": { "type": ["number", "null"] },
+                  "engine": { "type": ["string", "null"], "description": "Pinning the engine matters: a dG threshold from ViennaRNA is not the same number as one from the native window kernel." }
+                },
+                "required": ["kind", "region", "metric"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "CodonBan",
+                "properties": {
+                  "kind": { "const": "codon_ban" },
+                  "codons": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Codon" }, "minItems": 1 },
+                  "reason": { "type": "string", "examples": ["arginine_rare_CGA", "readthrough_prone_stop_context"] }
+                },
+                "required": ["kind", "codons"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "MinCodonFrequency",
+                "properties": {
+                  "kind": { "const": "min_codon_frequency" },
+                  "min_relative_adaptiveness": { "type": "number", "minimum": 0, "maximum": 1, "description": "Excludes codons below this w_i. The blunt classic 'ban rare codons' rule; kept because users ask for it, marked advisory by default because AMD-007 argues it is usually counterproductive." }
+                },
+                "required": ["kind", "min_relative_adaptiveness"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "title": "CustomRegex",
+                "properties": {
+                  "kind": { "const": "custom_regex" },
+                  "pattern": { "type": "string" },
+                  "max_occurrences": { "type": "integer", "minimum": 0, "default": 0 },
+                  "flags": { "type": "array", "items": { "enum": ["case_insensitive", "both_strands"] }, "default": [] }
+                },
+                "required": ["kind", "pattern"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": ["id", "class", "rule"],
+        "additionalProperties": false
+      }
+    },
+    "repair_policy": {
+      "type": "object",
+      "description": "Bounds on the repair operator. Every bound is finite by construction: an unbounded repair search is the mechanism by which a repair operator starves the evolutionary loop.",
+      "properties": {
+        "max_window_codons": { "type": "integer", "minimum": 1, "default": 12, "description": "Initial half-width of the codon window searched around a violation." },
+        "max_escalations": { "type": "integer", "minimum": 0, "default": 2, "description": "Window doublings before giving up and marking the individual infeasible." },
+        "max_depth": { "type": "integer", "minimum": 1, "default": 3, "description": "Maximum number of simultaneous codon substitutions considered." },
+        "beam_width": { "type": "integer", "minimum": 1, "default": 32 },
+        "tabu_tenure_generations": { "type": "integer", "minimum": 0, "default": 5, "description": "How long a (position, codon) pair reverted by repair is discouraged in the mutation operator. This is the concrete anti-thrashing mechanism required by BRIEF-2.3-f." },
+        "objective_aware": { "type": "boolean", "default": true, "description": "When true, repair breaks ties by least objective degradation using a caller-supplied exact delta table." },
+        "stochastic_tie_break": { "type": "boolean", "default": true, "description": "Randomized tie-breaking preserves population diversity; deterministic repair collapses the population onto one point on the feasible manifold." },
+        "lamarckian": { "type": "boolean", "default": true, "description": "Repaired genotype replaces the original. See 06-constraint-repair.md for why, and for the Baldwinian alternative." }
+      },
+      "additionalProperties": false
+    },
+    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+  },
+  "required": ["schema_version", "constraint_set_id", "constraints", "repair_policy", "digest"],
+  "additionalProperties": false
+}

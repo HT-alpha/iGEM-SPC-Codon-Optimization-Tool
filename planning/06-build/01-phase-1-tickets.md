@@ -27,7 +27,7 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |
-| `P1-05` | Codon indexing and genetic codes | `cf-types` | `index = 16b₀+4b₁+b₂` codec; all 33 NCBI translation tables vendored as JSON; forward and reverse (synonymous-family) tables | `TST-CORE-002` | `P1-01` | S |
+| `P1-05` | Codon indexing and genetic codes | `cf-types` | `index = 16b₀+4b₁+b₂` codec; the 27 NCBI translation tables defined in the id range 1..33 vendored as JSON (7, 8, 17-20 are retired); forward and reverse (synonymous-family) tables | `TST-CORE-002` | `P1-01` | S |
 | `P1-06` | `CodonSequence` | `cf-types` | The type, its five invariants enforced at construction, `substitute()` with a synonymy precondition, flank handling, locked spans | `TST-CORE-001` | `P1-05` | M |
 | `P1-07` | Canonical serialization and digests | `cf-types` | RFC 8785 canonical JSON; sha256 digests; stable across key order, float formatting and platform | `TST-CORE-003` | `P1-06` | S |
 | `P1-08` | Identifiers and units | `cf-types` | `HostId`, `TenantId`, `JobId` (ULID), `ArtifactId`, `TermId` newtypes with the schema's regex validation; unit vocabulary; objective vector type | `contract_*` for `common.schema.json` | `P1-05` | S |
@@ -77,9 +77,11 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 | `P1-24` | Tier 1 constrained beam DP | `cf-search` | Beam DP on the product with the motif automaton; diversity-capped beam selection | `TST-SRCH-002` (tier-1 portion) | `P1-14`, `P1-23` | L |
 | `P1-25` | Tier 2 red-black block CA | `cf-search` | The partition (`B ≥ W` assertion); parallel same-colour block updates; incumbent-seeded beam for monotonicity; 1-opt polish; right-boundary correction | `TST-SRCH-001`, `TST-SRCH-002` | `P1-24` | XL |
 | `P1-26` | Seam reconciliation fallback | `cf-search` | Overlapping-block path with the exact 3-state chain DP and seam polish | `TST-SRCH-003` | `P1-25` | M |
-| `P1-27` | Baseline backtracking solver | `cf-search` | Port of the existing `codon_6.0.py` stack-based backtracker as `baseline_backtracking`, kept as a reference implementation and a differential-test oracle for the constraint layer | Differential test: for inputs the prototype solves, the new constraint checker agrees on feasibility for 10⁴ sequences | `P1-17` | M |
+| `P1-27` | Baseline backtracking solver | `cf-search` | Port of the existing `codon_6.0.py` stack-based backtracker as `baseline_backtracking`, kept as a reference implementation and a differential-test oracle for the constraint layer | Differential test: for inputs the prototype solves, the new constraint checker agrees on feasibility for 10⁴ sequences | `P1-14`–`P1-16` | M |
 
 `P1-27` is worth doing rather than discarding the prototype: it is an independently-written implementation of the same constraint semantics, which makes it a genuine oracle for `P1-14`–`P1-16`. It also gives a documented answer to "does the new tool still do what the old script did".
+
+> **Sequencing correction (implementation, 2026-08).** `P1-27` originally declared `P1-17` (the repair operator) as its dependency. That was over-stated: the acceptance criterion exercises only the constraint *checker*, and the legacy `count_overlapping` semantics it exists to pin down are implemented in `P1-15`. The dependency is therefore `P1-14`–`P1-16`, and `P1-27` is scheduled **immediately after `P1-16`, before `P1-17`** — a differential oracle that lands after the code it is meant to check has already been built on top of cannot catch drift at the point the drift would be introduced.
 
 ---
 

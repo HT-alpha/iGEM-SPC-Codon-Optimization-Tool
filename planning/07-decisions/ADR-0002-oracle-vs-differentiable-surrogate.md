@@ -24,7 +24,7 @@ The search engine **requires** L0 and **exploits** L1. It never requires L2.
 
 ## Why gradients are the wrong tool here
 
-The design space is discrete. A codon is a categorical choice among 1–6 synonyms; there is no continuous path between `CGT` and `AGA`. A gradient therefore only exists with respect to a continuous relaxation, and once you have committed to a relaxation you are optimizing a different problem and must round back at the end.
+The design space is discrete. A codon is a categorical choice among 1–8 synonyms; there is no continuous path between `CGT` and `AGA`. A gradient therefore only exists with respect to a continuous relaxation, and once you have committed to a relaxation you are optimizing a different problem and must round back at the end.
 
 For a decomposable term, the **exact** finite change is available for the same asymptotic cost as a directional derivative — and it is exact rather than a linearization. There is no regime in which the gradient is better information.
 

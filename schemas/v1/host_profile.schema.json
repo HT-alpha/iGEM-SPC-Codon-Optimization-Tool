@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/host_profile.schema.json",
+  "title": "HostProfile",
+  "description": "Host reference data (BRIEF-2.2-c): tRNA gene copy number and abundance, codon usage, tAI weights, ribosome pool parameters, and the estimated translational capacity.\n\nTHE `data_completeness` BLOCK IS LOAD-BEARING. It is not documentation - it is the input to the model-tiering decision rules in ADR-0003 (which epistasis window/order to fit) and ADR-0004 (which capacity estimator tier to use). A host with no Ribo-seq and no proteomics is a legal, supported, first-class case that degrades to a documented reduced-capability configuration; see AMD-006.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "host_id": { "$ref": "common.schema.json#/$defs/HostId" },
+    "display_name": { "type": "string" },
+    "taxid": { "type": "integer", "minimum": 1 },
+    "lineage_taxids": { "type": "array", "items": { "type": "integer" }, "description": "Root-to-leaf NCBI taxonomy path. Used verbatim by the nearest-host fallback distance in ADR-0009." },
+    "strain": { "type": ["string", "null"] },
+    "genome_accession": { "type": ["string", "null"] },
+    "translation_table": { "type": "integer", "minimum": 1, "maximum": 33 },
+    "version": { "$ref": "common.schema.json#/$defs/SemVer" },
+    "codon_usage": {
+      "type": "object",
+      "description": "Genome-wide or highly-expressed-subset codon usage. `subset` matters: CAI is defined against a highly-expressed reference set, and using the genome-wide table by mistake is a classic silent error.",
+      "properties": {
+        "subset": { "enum": ["genome_wide", "highly_expressed", "user_supplied"] },
+        "n_cds": { "type": "integer", "minimum": 1 },
+        "source": { "$ref": "common.schema.json#/$defs/DatasetRef" },
+        "table": {
+          "type": "object",
+          "propertyNames": { "$ref": "common.schema.json#/$defs/Codon" },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "aa": { "type": "string", "minLength": 1, "maxLength": 1 },
+              "count": { "type": "integer", "minimum": 0 },
+              "fraction": { "type": "number", "minimum": 0, "maximum": 1, "description": "Share of this codon within its synonymous family." },
+              "per_thousand": { "type": "number", "minimum": 0 },
+              "relative_adaptiveness": { "type": "number", "minimum": 0, "maximum": 1, "description": "w_i for CAI: fraction normalized by the family maximum." }
+            },
+            "required": ["aa", "fraction"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["subset", "table", "source"],
+      "additionalProperties": false
+    },
+    "trna": {
+      "type": "object",
+      "properties": {
+        "gene_copy_number": {
+          "type": "object",
+          "description": "Anticodon -> genomic gene copies. Always available (it is derivable from any annotated genome with tRNAscan-SE), which is why the tier-3 capacity estimator depends only on this.",
+          "propertyNames": { "$ref": "common.schema.json#/$defs/Anticodon" },
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "abundance": {
+          "type": "array",
+          "description": "Measured tRNA abundance where available. Optional; absence pushes capacity estimation down a tier rather than failing.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "anticodon": { "$ref": "common.schema.json#/$defs/Anticodon" },
+              "value": { "type": "number", "minimum": 0 },
+              "unit": { "enum": ["molecules_per_cell", "relative", "tpm", "fraction_of_total_trna"] },
+              "condition_id": { "type": "string" },
+              "source": { "$ref": "common.schema.json#/$defs/DatasetRef" },
+              "charged_fraction": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+            },
+            "required": ["anticodon", "value", "unit", "source"],
+            "additionalProperties": false
+          },
+          "default": []
+        },
+        "wobble_rules_id": { "type": "string", "default": "crick_wobble_v1", "description": "Named codon->anticodon decoding table with efficiency weights, including inosine wobble. Versioned separately because updating it changes every tAI weight and every ledger demand." }
+      },
+      "required": ["gene_copy_number"],
+      "additionalProperties": false
+    },
+    "tai": {
+      "type": "object",
+      "description": "Derived tRNA adaptation index weights. Stored rather than recomputed so that a published result can be reproduced even if the derivation code changes.",
+      "properties": {
+        "s_values": { "type": "object", "additionalProperties": { "type": "number" }, "description": "Wobble penalty parameters, keyed by pairing type (e.g. 'G:U', 'I:C')." },
+        "weights": { "type": "object", "propertyNames": { "$ref": "common.schema.json#/$defs/Codon" }, "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } },
+        "derived_from": { "enum": ["gene_copy_number", "abundance", "abundance_charged"] },
+        "optimized_against": { "type": ["string", "null"], "description": "Dataset id if s-values were fit to expression data rather than taken from the literature defaults." }
+      },
+      "required": ["weights", "derived_from"],
+      "additionalProperties": false
+    },
+    "ribosome": {
+      "type": "object",
+      "properties": {
+        "elongation_rate_codons_per_s": { "type": "number", "exclusiveMinimum": 0 },
+        "ribosomes_per_cell": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "active_fraction": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.85 },
+        "footprint_codons": { "type": "integer", "minimum": 1, "default": 10, "description": "Ribosome footprint in codons (~28-30 nt in bacteria). This is the biophysical anchor for the default epistasis window in ADR-0003." },
+        "source": { "$ref": "common.schema.json#/$defs/DatasetRef" }
+      },
+      "required": ["elongation_rate_codons_per_s"],
+      "additionalProperties": false
+    },
+    "growth_conditions": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/GrowthCondition" }, "default": [] },
+    "riboseq_tracks": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/DatasetRef" }, "default": [] },
+    "proteome_reference": {
+      "type": ["object", "null"],
+      "description": "Absolute proteome abundance, when available. Its presence is the difference between capacity tier 1 and tier 2 in ADR-0004.",
+      "properties": {
+        "source": { "$ref": "common.schema.json#/$defs/DatasetRef" },
+        "unit": { "enum": ["molecules_per_cell", "ppm", "mass_fraction"] },
+        "n_proteins": { "type": "integer", "minimum": 1 },
+        "condition_id": { "type": "string" }
+      },
+      "required": ["source", "unit"],
+      "additionalProperties": false
+    },
+    "capacity": {
+      "type": "object",
+      "description": "Estimated translational capacity, i.e. the threshold theta of the saturating burden penalty.",
+      "properties": {
+        "estimator_tier": { "type": "integer", "minimum": 1, "maximum": 3, "description": "1 = fit to measured burden-expression curves; 2 = derived from ribosome count x elongation rate; 3 = relative-to-native-demand normalization. See ADR-0004." },
+        "theta": { "type": "number", "exclusiveMinimum": 0 },
+        "theta_unit": { "enum": ["fraction_of_native_demand", "aa_per_cell_per_s", "ribosome_occupancy_fraction"] },
+        "sharpness_kappa": { "type": "number", "exclusiveMinimum": 0, "default": 8 },
+        "hill_n": { "type": "number", "exclusiveMinimum": 0, "default": 2 },
+        "g_max": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.6, "description": "Asymptotic relative growth-rate cost. Bounded because growth rate cannot go below zero; this is what makes the penalty saturating." },
+        "uncertainty": { "$ref": "common.schema.json#/$defs/Uncertainty" },
+        "fit_source": { "type": ["string", "null"] }
+      },
+      "required": ["estimator_tier", "theta", "theta_unit"],
+      "additionalProperties": false
+    },
+    "data_completeness": {
+      "type": "object",
+      "description": "Machine-readable capability gate. cf-orchestrator reads this to decide which terms are even offerable for this host, and the API surfaces it so a user is never silently given a fabricated objective.",
+      "properties": {
+        "has_codon_usage": { "type": "boolean" },
+        "has_trna_gene_copies": { "type": "boolean" },
+        "has_trna_abundance": { "type": "boolean" },
+        "has_proteomics": { "type": "boolean" },
+        "riboseq_mapped_codons": { "type": "integer", "minimum": 0, "description": "Total in-frame A-site assigned codon observations across all tracks. The ADR-0003 tiering thresholds are stated in this unit." },
+        "riboseq_genes_passing_qc": { "type": "integer", "minimum": 0 },
+        "supported_terms": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/TermId" }, "description": "Terms this host has enough data to serve. A job requesting a term outside this list is rejected at submission with CF-HOST-003, not silently degraded." }
+      },
+      "required": ["has_codon_usage", "has_trna_gene_copies", "riboseq_mapped_codons", "supported_terms"],
+      "additionalProperties": false
+    },
+    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+  },
+  "required": ["schema_version", "host_id", "taxid", "translation_table", "version", "codon_usage", "trna", "ribosome", "capacity", "data_completeness", "digest"],
+  "additionalProperties": false
+}

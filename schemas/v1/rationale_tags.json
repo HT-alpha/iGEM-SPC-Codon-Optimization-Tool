@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/rationale_tags.json",
+  "title": "RationaleTagVocabulary",
+  "description": "The CLOSED vocabulary of per-position and per-candidate rationale tags used by the Pareto decision-support layer (BRIEF-2.2-c: 'per-position rationale tags').\n\nWhy closed: an open-ended free-text explanation cannot be tested, cannot be translated, and cannot be aggregated across candidates. Every tag here has (a) a machine-checkable trigger condition stated in terms of LandscapeResponse fields, and (b) a user-facing template. Adding a tag is a minor schema version bump; changing a trigger is a major one, because a downstream user may have filtered on it.\n\nThis document is data, not a schema. It is validated against `rationale_tags_meta.schema.json`.",
+  "version": "1.0.0",
+  "tags": [
+    {
+      "tag": "slow_ramp_5p",
+      "scope": "span",
+      "term_id": "epistasis.dwell_deviation",
+      "trigger": "mean predicted dwell over codons [0,30) is in the upper tercile of the host's native highly-expressed distribution",
+      "direction": "intentional",
+      "template": "Codons {span} were kept translationally slow to preserve the 5' initiation ramp."
+    },
+    {
+      "tag": "ramp_removed",
+      "scope": "span",
+      "term_id": "epistasis.dwell_deviation",
+      "trigger": "the input had a 5' slow ramp and the candidate does not",
+      "direction": "warning",
+      "template": "The natural slow ramp at codons {span} was removed; this raises predicted initiation rate but is associated with aggregation risk."
+    },
+    {
+      "tag": "structure_relaxed_initiation",
+      "scope": "span",
+      "term_id": "structure.local_accessibility",
+      "trigger": "mean unpaired probability over the initiation window increased by >= 0.10 versus input",
+      "direction": "intentional",
+      "template": "Secondary structure over the ribosome binding region was reduced, increasing predicted initiation."
+    },
+    {
+      "tag": "structure_penalty_accepted",
+      "scope": "span",
+      "term_id": "structure.local_accessibility",
+      "trigger": "local accessibility worsened by >= 0.10 while another objective improved by >= 1 reference-range unit",
+      "direction": "trade_off",
+      "template": "Local structure at {span} was allowed to worsen in exchange for a gain in {other_term}."
+    },
+    {
+      "tag": "pause_preserved_at_domain_boundary",
+      "scope": "span",
+      "term_id": "kinetics.pause_concordance",
+      "trigger": "a predicted pause site within 10 codons of an annotated or predicted domain boundary was retained",
+      "direction": "intentional",
+      "template": "A translational pause near the {domain} boundary was preserved to support co-translational folding."
+    },
+    {
+      "tag": "rare_codon_retained",
+      "scope": "position",
+      "term_id": "usage.cai",
+      "trigger": "codon relative adaptiveness < 0.2 and the epistasis or kinetics delta of replacing it is unfavourable",
+      "direction": "intentional",
+      "template": "The rare codon at position {pos} was retained deliberately; replacing it degrades {term}."
+    },
+    {
+      "tag": "rare_codon_replaced",
+      "scope": "position",
+      "term_id": "usage.cai",
+      "trigger": "input codon w_i < 0.2, candidate codon w_i >= 0.5",
+      "direction": "intentional",
+      "template": "A rare codon at position {pos} was replaced with a more abundant synonym."
+    },
+    {
+      "tag": "burden_relief",
+      "scope": "candidate",
+      "term_id": "burden.growth_cost",
+      "trigger": "predicted growth cost reduced by >= 0.02 relative growth-rate units versus input",
+      "direction": "intentional",
+      "template": "Predicted host burden fell by {delta:.1%} relative growth rate, mainly by shifting demand off the {anticodon} pool."
+    },
+    {
+      "tag": "burden_shifted_between_cistrons",
+      "scope": "candidate",
+      "term_id": "burden.growth_cost",
+      "trigger": "joint search moved >= 15% of an isoacceptor's demand from one cistron to another",
+      "direction": "trade_off",
+      "template": "Demand on {anticodon} was shifted from {cistron_a} to {cistron_b} to relieve contention."
+    },
+    {
+      "tag": "epistasis_favourable_context",
+      "scope": "span",
+      "term_id": "epistasis.dwell_deviation",
+      "trigger": "sum of pairwise coupling terms over the span improved by >= 1 SD of the host's native distribution",
+      "direction": "intentional",
+      "template": "Codon pairs across {span} were chosen for favourable context effects, not just individual codon frequency."
+    },
+    {
+      "tag": "repeat_avoided",
+      "scope": "span",
+      "term_id": "constraint.violation_count",
+      "trigger": "a k-mer repeat violation present in the input is absent in the candidate",
+      "direction": "constraint",
+      "template": "A {k}-mer repeat at {span} was broken to meet synthesis constraints."
+    },
+    {
+      "tag": "restriction_site_removed",
+      "scope": "position",
+      "term_id": "constraint.violation_count",
+      "trigger": "a forbidden enzyme site present in the input is absent in the candidate",
+      "direction": "constraint",
+      "template": "The {enzyme} site at position {pos} was removed for {assembly_standard} assembly."
+    },
+    {
+      "tag": "repair_forced",
+      "scope": "span",
+      "term_id": "constraint.violation_count",
+      "trigger": "the repair operator changed this span after variation, and the change degraded the objective vector",
+      "direction": "constraint",
+      "template": "Positions {span} were changed by constraint repair rather than by optimization; the objective cost was {delta}."
+    },
+    {
+      "tag": "low_confidence_region",
+      "scope": "span",
+      "term_id": "meta.confidence",
+      "trigger": "per-position calibrated confidence < 0.5 over >= 5 consecutive codons",
+      "direction": "warning",
+      "template": "Predictions over {span} are low-confidence; consider including this variant in a wet-lab test set."
+    },
+    {
+      "tag": "low_confidence_host",
+      "scope": "candidate",
+      "term_id": "meta.confidence",
+      "trigger": "any term resolved with provenance.fallback = true",
+      "direction": "warning",
+      "template": "No host-specific model exists for {host}; {n_terms} objective(s) used a fallback model and their uncertainty was widened."
+    },
+    {
+      "tag": "extrapolation_warning",
+      "scope": "candidate",
+      "term_id": "meta.confidence",
+      "trigger": "candidate lies outside the convex hull of the training distribution on the model's feature summary (Mahalanobis distance > 3)",
+      "direction": "warning",
+      "template": "This candidate is unlike the sequences the model was trained on; treat its scores as extrapolation."
+    },
+    {
+      "tag": "seed_derived",
+      "scope": "candidate",
+      "term_id": "meta.provenance",
+      "trigger": "candidate's ancestry includes an imported seed",
+      "direction": "informational",
+      "template": "Derived from a {tool} seed after {n_generations} generations."
+    },
+    {
+      "tag": "input_preserved",
+      "scope": "candidate",
+      "term_id": "meta.provenance",
+      "trigger": "fewer than 5% of editable codons differ from the input",
+      "direction": "informational",
+      "template": "Only {n} codons differ from your input sequence."
+    }
+  ]
+}

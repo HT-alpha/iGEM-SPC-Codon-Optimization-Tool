@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/landscape_response.schema.json",
+  "title": "LandscapeResponse",
+  "description": "What a landscape query returns (BRIEF-2.2-b): scalar terms, exact deltas where the provider is decomposable, optional gradients, per-position tracks, and per-term uncertainty with provenance.\n\nDESIGN NOTE ON GRADIENTS. The design space is discrete - a codon is a categorical choice among synonyms - so a gradient only exists with respect to a continuous relaxation. CodonForge fixes that relaxation once, here: the parameterization is a per-position simplex over the synonymous set (`relaxed_codon_logits`), and a gradient is d(term)/d(logit). Any other reading of `gradient` is rejected at review. For decomposable terms, exact deltas are strictly more useful than gradients, since they are the true finite change rather than a linearization; see ADR-0002.\n\nDESIGN NOTE ON PARTIAL RESULTS. `status: partial` is a first-class outcome, not an error. A provider that misses its latency budget returns what it has. The search engine treats absent terms as `unknown`, which the NSGA-III constraint-domination rule handles by deferring the candidate rather than by imputing a value - imputing would silently bias the front.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "contract_major": { "$ref": "common.schema.json#/$defs/ContractMajor" },
+    "query_id": { "type": "string", "pattern": "^q_[0-9A-HJKMNP-TV-Z]{26}$" },
+    "status": { "enum": ["ok", "partial", "error"] },
+    "problem": { "$ref": "common.schema.json#/$defs/ProblemDetails", "description": "Present iff status=error." },
+    "terms": {
+      "type": "object",
+      "description": "Scalar value per requested term. A term absent from this map when status=partial means 'not computed', which is semantically distinct from a null value.",
+      "propertyNames": { "$ref": "common.schema.json#/$defs/TermId" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "value": { "type": "number" },
+          "unit": { "$ref": "common.schema.json#/$defs/Unit" },
+          "direction": { "$ref": "common.schema.json#/$defs/ObjectiveDirection" },
+          "reference_range": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "[p05, p95] of this term across the host's native highly-expressed CDS set. Gives the decision-support layer a scale for 'is this value unusual' without hard-coding units, and gives hypervolume a principled reference point."
+          },
+          "uncertainty": { "$ref": "common.schema.json#/$defs/Uncertainty" },
+          "provenance": { "$ref": "common.schema.json#/$defs/Provenance" },
+          "capability": { "enum": ["L0", "L1", "L2"], "description": "Highest capability this provider offers for this term. The engine uses it to plan tier 2." },
+          "tier_used": { "$ref": "common.schema.json#/$defs/BudgetTier" }
+        },
+        "required": ["value", "unit", "direction", "provenance"],
+        "additionalProperties": false
+      }
+    },
+    "objective_vector": {
+      "type": "object",
+      "description": "The scalarization-free objective vector handed to NSGA-III, with its ordering stated explicitly. Never infer the order from `terms` key iteration.",
+      "properties": {
+        "order": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/TermId" }, "minItems": 1 },
+        "values": { "type": "array", "items": { "type": ["number", "null"] } },
+        "sense": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/ObjectiveDirection" } }
+      },
+      "required": ["order", "values", "sense"],
+      "additionalProperties": false
+    },
+    "per_position": {
+      "type": "object",
+      "description": "Per-codon diagnostic tracks, length == codon_count. These are what the rationale tagger in cf-decision turns into user-facing explanations.",
+      "propertyNames": { "type": "string", "pattern": "^[a-z0-9_.]+$" },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "values": { "type": "array", "items": { "type": ["number", "null"] } },
+          "unit": { "$ref": "common.schema.json#/$defs/Unit" },
+          "term_id": { "$ref": "common.schema.json#/$defs/TermId" },
+          "index_basis": { "enum": ["codon", "nucleotide"], "default": "codon" },
+          "confidence": { "type": "array", "items": { "type": ["number", "null"] }, "description": "Per-position confidence in [0,1], produced by the Mondrian-conformal procedure in ADR-0005. Null where the method does not support per-position calibration." }
+        },
+        "required": ["values", "unit", "term_id"],
+        "additionalProperties": false
+      }
+    },
+    "deltas": {
+      "type": "object",
+      "description": "Exact change in each decomposable term for each synonymous alternative. Populated only for a delta_table target. Missing terms in an entry mean the provider is L0 for that term.",
+      "properties": {
+        "base_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+        "exact": { "type": "boolean", "description": "True when deltas are computed in closed form; false when they are finite-difference or surrogate estimates. The repair operator requires exact=true to guarantee its minimality property." },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "codon_index": { "type": "integer", "minimum": 0 },
+              "alternatives": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "codon": { "$ref": "common.schema.json#/$defs/Codon" },
+                    "delta": {
+                      "type": "object",
+                      "propertyNames": { "$ref": "common.schema.json#/$defs/TermId" },
+                      "additionalProperties": { "type": "number" }
+                    }
+                  },
+                  "required": ["codon", "delta"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": ["codon_index", "alternatives"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["base_digest", "exact", "entries"],
+      "additionalProperties": false
+    },
+    "gradients": {
+      "type": "array",
+      "description": "L2 capability only.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "term_id": { "$ref": "common.schema.json#/$defs/TermId" },
+          "parameterization": { "const": "relaxed_codon_logits", "description": "Fixed by contract. shape = [codon_count, max_synonyms]; entries beyond a position's synonym count are null." },
+          "shape": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 2, "maxItems": 2 },
+          "values": { "type": "array", "items": { "type": "array", "items": { "type": ["number", "null"] } } },
+          "temperature": { "type": "number", "exclusiveMinimum": 0, "default": 1.0, "description": "Softmax temperature of the relaxation. Reported because the gradient scale is meaningless without it." }
+        },
+        "required": ["term_id", "parameterization", "shape", "values"],
+        "additionalProperties": false
+      }
+    },
+    "violations": {
+      "type": "array",
+      "description": "Hard-constraint violations detected during scoring. Reported here as well as by cf-constraints so that an out-of-core provider (e.g. a structure engine that finds a hairpin over the RBS) can raise one.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "constraint_id": { "type": "string" },
+          "class": { "enum": ["blocking", "advisory"] },
+          "span": { "$ref": "common.schema.json#/$defs/CodonSpan" },
+          "detail": { "type": "string" },
+          "repairable": { "type": "boolean" }
+        },
+        "required": ["constraint_id", "class", "detail"],
+        "additionalProperties": false
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "properties": {
+        "wall_ms": { "type": "number", "minimum": 0 },
+        "cache_hits": { "type": "integer", "minimum": 0 },
+        "cache_misses": { "type": "integer", "minimum": 0 },
+        "evaluations": { "type": "integer", "minimum": 0 },
+        "terms_deferred": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/TermId" } },
+        "engine_notes": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["schema_version", "contract_major", "query_id", "status"],
+  "additionalProperties": false
+}

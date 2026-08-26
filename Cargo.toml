@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+rust-version = "1.75"
+repository = "https://github.com/HT-alpha/iGEM-Codon-Optimization-Tool"
+
+# Dependency policy (see planning/00-scope/03-architecture-amendments.md AMD-009
+# and RISK-DEP-001/002): every dependency must be redistributable under
+# Apache-2.0. ViennaRNA, LinearFold and LinearDesign are excluded from the
+# dependency tree entirely - not as an optional feature, not behind a flag.
+# Structure prediction goes through the StructureEngine seam against the
+# permissive native kernel.
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+regex = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+
+# The search engine is unusable at `dev` optimization levels, and the
+# property tests in cf-types/cf-constraints run 10^4-10^6 iterations.
+[profile.dev]
+opt-level = 1
+
+[profile.test]
+opt-level = 1

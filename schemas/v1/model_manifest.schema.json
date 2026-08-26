@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/model_manifest.schema.json",
+  "title": "ModelManifest",
+  "description": "Versioning scheme for host-specific trained model artifacts (BRIEF-2.2-d): epistatic surface weights, burden-model parameters, fine-tuned LM checkpoints.\n\nVERSION SEMANTICS (see ADR-0009 for the full rules):\n  artifact_id = cf:<kind>:<host_id | host_agnostic>:<MAJOR.MINOR.PATCH>\n    MAJOR - the artifact's OUTPUT changes meaning: new term id, changed unit, changed sign convention, or a bumped contract_major. Not auto-upgradable.\n    MINOR - retrained on new or additional data, or a changed architecture, with the same output meaning. Auto-upgradable on a channel; changes results.\n    PATCH - identical training data and architecture; a bug fix, a recalibration, or a re-export. Auto-upgradable; may change results only within the calibration tolerance.\n\nThe artifact_id is a COORDINATE, not an identity. Identity is `weights[].digest`. A channel can be re-pointed and a MINOR can be rebuilt, so anything claiming reproducibility must cite the digest. This is why LandscapeLockfile records both.\n\nTENANT ISOLATION IS DECLARED HERE AND ENFORCED BY TST-ACT-002: for an artifact with isolation.scope = public, every entry in training.datasets must have no tenant_id. There is no code path that trains a public artifact on tenant data.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "artifact_id": { "$ref": "common.schema.json#/$defs/ArtifactId" },
+    "kind": { "enum": ["epistasis_potts", "epistasis_dwell", "burden_capacity", "lm_naturalness", "structure_params", "kinetics_domainmap", "calibrator", "host_profile"] },
+    "host_id": { "oneOf": [{ "$ref": "common.schema.json#/$defs/HostId" }, { "const": "host_agnostic" }] },
+    "version": { "$ref": "common.schema.json#/$defs/SemVer" },
+    "contract_major": { "$ref": "common.schema.json#/$defs/ContractMajor" },
+    "provides_terms": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/TermId" }, "minItems": 1 },
+    "capability": {
+      "type": "object",
+      "description": "Which capability levels this artifact's provider supports per term. The search planner reads this before choosing a tier-2 strategy.",
+      "propertyNames": { "$ref": "common.schema.json#/$defs/TermId" },
+      "additionalProperties": { "enum": ["L0", "L1", "L2"] }
+    },
+    "created_at": { "$ref": "common.schema.json#/$defs/Iso8601" },
+    "created_by": { "type": "string" },
+    "weights": {
+      "type": "array",
+      "minItems": 0,
+      "description": "Content-addressed blobs. Empty for artifacts that are pure parameter sets carried in `parameters`.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": { "type": "string", "examples": ["potts_fields", "potts_couplings", "dwell_glm", "lm_adapter", "conformal_quantiles"] },
+          "uri": { "type": "string" },
+          "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "format": { "enum": ["safetensors", "npz", "json", "parquet", "onnx"] }
+        },
+        "required": ["role", "uri", "digest", "format"],
+        "additionalProperties": false
+      }
+    },
+    "parameters": { "type": "object", "additionalProperties": true, "description": "Small inline parameter sets (e.g. burden capacity theta/kappa/n). Anything above ~64 KB belongs in `weights`." },
+    "code_version": {
+      "type": "object",
+      "properties": {
+        "package": { "type": "string" },
+        "version": { "$ref": "common.schema.json#/$defs/SemVer" },
+        "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "dirty": { "type": "boolean", "default": false, "description": "True if the working tree had uncommitted changes. A dirty artifact may never be promoted to a public channel." }
+      },
+      "required": ["package", "version", "git_sha"],
+      "additionalProperties": false
+    },
+    "training": {
+      "type": "object",
+      "properties": {
+        "datasets": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/DatasetRef" }, "minItems": 0 },
+        "holdout_datasets": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/DatasetRef" }, "default": [] },
+        "split_strategy": { "enum": ["by_gene", "by_dataset", "by_organism", "random_codon", "none"], "description": "`random_codon` is almost always wrong for Ribo-seq: adjacent codons within a gene are not independent, so a random-codon split leaks and inflates held-out performance. Recorded so this mistake is visible in review." },
+        "hyperparameters": { "type": "object", "additionalProperties": true },
+        "seed": { "type": "integer" },
+        "hardware": { "type": "string" },
+        "duration_s": { "type": "number", "minimum": 0 },
+        "n_parameters": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["datasets", "split_strategy"],
+      "additionalProperties": false
+    },
+    "parent_artifact": {
+      "type": ["object", "null"],
+      "description": "Fine-tune / adapter lineage. A tenant adapter's parent is the public base model; the adapter itself never contains base weights.",
+      "properties": {
+        "artifact_id": { "$ref": "common.schema.json#/$defs/ArtifactId" },
+        "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+        "relationship": { "enum": ["finetune", "adapter", "recalibration", "reexport", "distillation"] }
+      },
+      "required": ["artifact_id", "digest", "relationship"],
+      "additionalProperties": false
+    },
+    "calibration": {
+      "type": ["object", "null"],
+      "properties": {
+        "method": { "enum": ["split_conformal", "mondrian_conformal", "temperature_scaling", "isotonic", "none"] },
+        "holdout_dataset_id": { "type": "string" },
+        "alpha": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "empirical_coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+        "quantile_uri": { "type": ["string", "null"] }
+      },
+      "required": ["method"],
+      "additionalProperties": false
+    },
+    "evaluation": {
+      "type": "object",
+      "description": "Gate results at promotion time. `gates` names entries from 05-testing/02-acceptance-thresholds.md; the registry refuses to promote an artifact to a channel unless every required gate has passed = true.",
+      "properties": {
+        "metrics": { "type": "object", "additionalProperties": { "type": ["number", "string", "null"] } },
+        "baseline_comparison": {
+          "type": "object",
+          "description": "Named baseline and the measured margin. Absolute metric values are not sufficient evidence for promotion; see 05-testing/02-acceptance-thresholds.md on why gates are relative.",
+          "properties": {
+            "baseline_name": { "type": "string", "examples": ["codon_usage_only", "cai_greedy", "lineardesign", "cdsfold", "previous_minor"] },
+            "metric": { "type": "string" },
+            "delta": { "type": "number" },
+            "ci_low": { "type": "number" },
+            "ci_high": { "type": "number" },
+            "n_bootstrap": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["baseline_name", "metric", "delta"],
+          "additionalProperties": false
+        },
+        "gates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "gate_id": { "type": "string", "pattern": "^GATE-[A-Z]{3,6}-[0-9]{3}$" },
+              "passed": { "type": "boolean" },
+              "value": { "type": ["number", "string", "null"] },
+              "threshold": { "type": ["number", "string", "null"] }
+            },
+            "required": ["gate_id", "passed"],
+            "additionalProperties": false
+          }
+        },
+        "report_uri": { "type": ["string", "null"] }
+      },
+      "required": ["metrics", "gates"],
+      "additionalProperties": false
+    },
+    "isolation": {
+      "type": "object",
+      "properties": {
+        "scope": { "enum": ["public", "tenant"] },
+        "tenant_id": { "type": ["string", "null"], "description": "Required and non-null iff scope = tenant." },
+        "may_export": { "type": "boolean", "default": false, "description": "Whether the tenant has consented to this artifact being used to seed a community-pooled model. Default false; ADR-0006 requires an explicit opt-in." }
+      },
+      "required": ["scope"],
+      "additionalProperties": false
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["draft", "active", "deprecated", "yanked"] },
+        "reason": { "type": ["string", "null"] },
+        "successor_artifact_id": { "type": ["string", "null"] },
+        "yanked_at": { "type": ["string", "null"], "description": "A yanked artifact stays resolvable by digest forever - a published paper must remain reproducible - but is never selected by a channel." }
+      },
+      "required": ["status"],
+      "additionalProperties": false
+    },
+    "license": { "type": "string" },
+    "citation": { "type": ["string", "null"] },
+    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+  },
+  "required": ["schema_version", "artifact_id", "kind", "host_id", "version", "contract_major", "provides_terms", "created_at", "code_version", "training", "evaluation", "isolation", "lifecycle", "digest"],
+  "additionalProperties": false
+}

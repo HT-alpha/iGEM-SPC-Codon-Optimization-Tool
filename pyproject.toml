@@ -1,0 +1,55 @@
+[build-system]
+requires = ["maturin>=1.5,<2"]
+build-backend = "maturin"
+
+[project]
+name = "codonforge"
+version = "0.1.0"
+description = "Epistasis-aware, systems-level, multi-objective codon optimization"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "License :: OSI Approved :: Apache Software License",
+]
+dependencies = [
+  "biopython>=1.83",
+  "jsonschema>=4.18",
+  "pyyaml>=6",
+]
+
+# Dependency policy (AMD-009, RISK-DEP-001/002): every dependency must be
+# redistributable under Apache-2.0. There is deliberately NO `nonfree` extra.
+# ViennaRNA and LinearFold forbid redistribution for a fee, and LinearDesign is
+# patent-encumbered; an extra that installed them would make this wheel
+# non-redistributable. Alternative structure engines are detected at runtime if
+# the user has installed them themselves, behind the StructureEngine seam.
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "maturin>=1.5,<2",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+codonforge = "codonforge.cli.main:main"
+
+[tool.maturin]
+manifest-path = "crates/cf-pyext/Cargo.toml"
+module-name = "codonforge._core"
+python-source = "python"
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+pythonpath = ["python"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["python", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

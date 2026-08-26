@@ -1,0 +1,65 @@
+name: wheels
+
+# Phase 1 exit criterion: "Wheels build on all three platforms with no Rust
+# toolchain required at install time." abi3-py311 means one wheel per platform
+# serves every supported CPython, so the matrix stays small.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+  schedule:
+    # Weekly, so a platform breakage is found before a release rather than
+    # during one.
+    - cron: "0 4 * * 1"
+
+jobs:
+  build:
+    name: ${{ matrix.platform.os }} ${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { os: ubuntu-latest, target: x86_64, manylinux: auto }
+          - { os: ubuntu-latest, target: aarch64, manylinux: auto }
+          - { os: macos-latest, target: x86_64 }
+          - { os: macos-latest, target: aarch64 }
+          - { os: windows-latest, target: x64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist
+          manylinux: ${{ matrix.platform.manylinux }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.platform.os }}-${{ matrix.platform.target }}
+          path: dist
+
+  verify-no-toolchain-needed:
+    name: install the wheel without a Rust toolchain
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-ubuntu-latest-x86_64
+          path: dist
+      # Deliberately no rust-toolchain step: the point of this job is that a
+      # user installing a released wheel never needs cargo.
+      - run: pip install dist/*.whl
+      - run: |
+          python -c "
+          import codonforge
+          assert codonforge.core_available(), 'wheel did not ship the compiled core'
+          print('core', codonforge.core_version())
+          "

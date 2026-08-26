@@ -1,0 +1,18 @@
+[package]
+name = "cf-types"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Canonical sequence representation, genetic codes, identifiers and the CF-* error registry."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+regex = { workspace = true }
+
+[dev-dependencies]
+# none: the crate's tests are deliberately dependency-free so that `cf-types`
+# can be tested in an isolated workspace slice (see planning/01-modules/
+# 01-repository-layout.md section 4).
