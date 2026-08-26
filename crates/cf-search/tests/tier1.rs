@@ -18,7 +18,8 @@ use cf_constraints::spec::{
 };
 use cf_constraints::{ConstraintChecker, ConstructView};
 use cf_landscape_api::{
-    Capability, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRegistry,
+    Capability, EvalContext, InteractionRadius, PositionDeltas, Provenance, Rebased, TermProvider,
+    TermRegistry,
 };
 use cf_search::baseline::{baseline_backtracking, BaselineBudget, BaselineOutcome};
 use cf_search::tier1::{enumerate_feasible, surrogate_of, Tier1Request};
@@ -179,6 +180,9 @@ impl TermProvider for CountingTerm {
     }
     fn capability(&self) -> Capability {
         Capability::L1
+    }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
     }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("test_counting", "0.1.0")
@@ -342,6 +346,9 @@ fn tst_srch_011_an_l0_term_is_refused_up_front() {
         }
         fn capability(&self) -> Capability {
             Capability::L0
+        }
+        fn interaction_radius(&self) -> InteractionRadius {
+            InteractionRadius::Positionwise
         }
         fn provenance(&self) -> Provenance {
             Provenance::builtin("test_l0", "0.1.0")

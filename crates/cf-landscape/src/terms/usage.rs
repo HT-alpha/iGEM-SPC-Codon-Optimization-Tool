@@ -4,7 +4,8 @@
 //! exact change for a substitution is `O(1)` and needs no rescore.
 
 use cf_landscape_api::{
-    Capability, Edit, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
+    Capability, Edit, EvalContext, InteractionRadius, PositionDeltas, Provenance, Rebased,
+    TermProvider, TermRole,
 };
 use cf_types::{code, CfError, Codon, CodonSequence, Direction, Result, TermId, Unit, CODON_COUNT};
 use serde_json::Value;
@@ -308,6 +309,11 @@ impl TermProvider for CaiTerm {
     fn capability(&self) -> Capability {
         Capability::L1
     }
+    /// CAI is a geometric mean over independent per-codon weights, so choosing
+    /// a codon at one position changes nothing at any other.
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
+    }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("cai_native", crate::ENGINE_VERSION)
     }
@@ -420,6 +426,10 @@ impl TermProvider for GcContentTerm {
     }
     fn max_role(&self) -> TermRole {
         TermRole::Diagnostic
+    }
+    /// A fraction of independent per-base counts.
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
     }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("gc_native", crate::ENGINE_VERSION)

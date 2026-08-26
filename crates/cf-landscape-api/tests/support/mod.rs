@@ -9,8 +9,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use cf_landscape_api::{
-    Capability, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
-    Uncertainty, UncertaintyMethod,
+    Capability, EvalContext, InteractionRadius, PositionDeltas, Provenance, Rebased, TermProvider,
+    TermRole, Uncertainty, UncertaintyMethod,
 };
 use cf_types::{code, CfError, Direction, Result, TermId, Unit};
 
@@ -62,6 +62,9 @@ impl TermProvider for AdditiveTerm {
     }
     fn capability(&self) -> Capability {
         Capability::L1
+    }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
     }
     fn max_role(&self) -> TermRole {
         self.role_cap
@@ -142,6 +145,9 @@ impl TermProvider for ScoreOnlyTerm {
     fn capability(&self) -> Capability {
         Capability::L0
     }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
+    }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("test_score_only", "0.1.0")
     }
@@ -181,6 +187,9 @@ impl TermProvider for LyingL1Term {
     }
     fn capability(&self) -> Capability {
         Capability::L1
+    }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
     }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("test_lying", "0.1.0")
@@ -249,6 +258,9 @@ impl TermProvider for MissingTableTerm {
     fn capability(&self) -> Capability {
         Capability::L1
     }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
+    }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("test_missing_table", "0.1.0")
     }
@@ -306,6 +318,9 @@ impl TermProvider for SampledTerm {
     }
     fn capability(&self) -> Capability {
         Capability::L0
+    }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
     }
     fn uncertainty_method(&self) -> UncertaintyMethod {
         UncertaintyMethod::McDropout
@@ -365,6 +380,9 @@ impl TermProvider for OrderSensitiveTerm {
     fn capability(&self) -> Capability {
         Capability::L0
     }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
+    }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("test_order_sensitive", "0.1.0")
     }
@@ -399,6 +417,9 @@ impl TermProvider for FailingTerm {
     }
     fn capability(&self) -> Capability {
         Capability::L0
+    }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
     }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("test_failing", "0.1.0")

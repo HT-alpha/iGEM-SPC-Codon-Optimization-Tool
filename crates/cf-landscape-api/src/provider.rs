@@ -28,7 +28,7 @@ use std::collections::HashMap;
 
 use cf_types::{code, CfError, Codon, CodonSequence, Direction, Result, TermId, Unit};
 
-use crate::capability::Capability;
+use crate::capability::{Capability, InteractionRadius};
 use crate::query::{Budget, Edit, HostContext};
 use crate::response::{Provenance, Uncertainty, UncertaintyMethod};
 use crate::role::TermRole;
@@ -139,6 +139,18 @@ pub trait TermProvider: Send + Sync {
     fn direction(&self) -> Direction;
     fn capability(&self) -> Capability;
     fn provenance(&self) -> Provenance;
+
+    /// How far this term's contribution at one position reaches.
+    ///
+    /// Required rather than defaulted, unlike every other optional method on
+    /// this trait. Those defaults are all *safe* — they refuse, or claim the
+    /// weakest thing. There is no safe default here: `Positionwise` claims
+    /// block-locality the provider never asserted, and `Unbounded` would make
+    /// tier 2 refuse every term including the ones that are genuinely local.
+    /// A compile error is the loudest available failure, and this is a property
+    /// whose absence has no symptom — tier 2 would score coupled blocks as
+    /// independent and return a plausible answer.
+    fn interaction_radius(&self) -> InteractionRadius;
 
     /// The strongest role this term is *permitted* to hold, whatever a job
     /// requests.

@@ -45,7 +45,7 @@ pub mod query;
 pub mod response;
 pub mod role;
 
-pub use capability::Capability;
+pub use capability::{Capability, InteractionRadius};
 pub use json::ConstructRef;
 pub use provider::{
     verify_capability, EvalContext, PositionDeltas, Rebased, Registration, TermProvider,

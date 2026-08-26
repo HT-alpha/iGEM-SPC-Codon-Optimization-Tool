@@ -773,7 +773,8 @@ mod support_provider {
     use std::sync::Arc;
 
     use cf_landscape_api::{
-        Capability, Edit, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
+        Capability, Edit, EvalContext, InteractionRadius, PositionDeltas, Provenance, Rebased,
+        TermProvider, TermRole,
     };
     use cf_types::{code, CfError, Direction, Result, TermId, Unit};
 
@@ -840,6 +841,9 @@ mod support_provider {
         }
         fn capability(&self) -> Capability {
             Capability::L1
+        }
+        fn interaction_radius(&self) -> InteractionRadius {
+            InteractionRadius::Positionwise
         }
         fn provenance(&self) -> Provenance {
             Provenance::builtin("test_counting", "0.1.0")
@@ -924,6 +928,9 @@ mod support_provider {
         fn capability(&self) -> Capability {
             Capability::L0
         }
+        fn interaction_radius(&self) -> InteractionRadius {
+            InteractionRadius::Positionwise
+        }
         fn max_role(&self) -> TermRole {
             TermRole::Diagnostic
         }
@@ -965,6 +972,9 @@ mod support_provider {
         }
         fn capability(&self) -> Capability {
             Capability::L0
+        }
+        fn interaction_radius(&self) -> InteractionRadius {
+            InteractionRadius::Positionwise
         }
         fn provenance(&self) -> Provenance {
             Provenance::builtin("test_over_budget", "0.1.0")

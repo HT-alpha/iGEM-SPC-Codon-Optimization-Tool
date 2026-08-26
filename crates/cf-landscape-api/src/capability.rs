@@ -73,6 +73,66 @@ impl std::fmt::Display for Capability {
     }
 }
 
+/// How far a term's contribution at one position reaches.
+///
+/// Tier 2's red-black partition rests on same-colour blocks being
+/// conditionally independent, which holds when the block size is at least the
+/// largest interaction radius among the scored terms — not merely at least the
+/// epistatic window `W`. `02-block-local-coordinate-ascent.md` §4 says as much
+/// by keeping a fallback for "a term with an effective interaction radius
+/// larger than `B`", so a radius above `W` is contemplated, not hypothetical.
+///
+/// Declared per provider and required, rather than defaulted. A default would
+/// be a claim the provider never made, and the consequence of getting it wrong
+/// is invisible: blocks scored as independent while genuinely coupled produce
+/// a plausible answer that is not the coordinate-ascent step it reports being.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub enum InteractionRadius {
+    /// The contribution decomposes by position: choosing a codon at `i` changes
+    /// nothing at any other position. CAI and GC content are both this.
+    Positionwise,
+    /// Coupling reaches at most this many codons either side.
+    Codons(usize),
+    /// No bound. Long-range RNA base pairing is the real instance — two codons
+    /// 400 nt apart can pair — and it is why §4's overlapping-block fallback
+    /// exists at all.
+    Unbounded,
+}
+
+impl InteractionRadius {
+    /// The radius in codons, or `None` when unbounded.
+    pub fn codons(self) -> Option<usize> {
+        match self {
+            InteractionRadius::Positionwise => Some(0),
+            InteractionRadius::Codons(n) => Some(n),
+            InteractionRadius::Unbounded => None,
+        }
+    }
+
+    /// Whether a block of `block_size` codons isolates this term.
+    pub fn fits_block(self, block_size: usize) -> bool {
+        self.codons().is_some_and(|radius| radius <= block_size)
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            InteractionRadius::Positionwise => "positionwise",
+            InteractionRadius::Codons(_) => "bounded",
+            InteractionRadius::Unbounded => "unbounded",
+        }
+    }
+}
+
+impl std::fmt::Display for InteractionRadius {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InteractionRadius::Positionwise => f.write_str("positionwise"),
+            InteractionRadius::Codons(n) => write!(f, "{n} codons"),
+            InteractionRadius::Unbounded => f.write_str("unbounded"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

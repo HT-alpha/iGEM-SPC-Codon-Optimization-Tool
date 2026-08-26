@@ -33,7 +33,8 @@
 
 use cf_constraints::{ConstraintChecker, ConstructView, KmerMasking};
 use cf_landscape_api::{
-    Capability, Edit, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
+    Capability, Edit, EvalContext, InteractionRadius, PositionDeltas, Provenance, Rebased,
+    TermProvider, TermRole,
 };
 use cf_types::{code, CfError, CodonSequence, Direction, Result, TermId, Unit};
 
@@ -180,6 +181,19 @@ impl TermProvider for ViolationCountTerm {
     }
     fn max_role(&self) -> TermRole {
         TermRole::ParetoAxis
+    }
+    /// The same reach the checker reports, converted to codons.
+    ///
+    /// `None` from the checker means a k-mer repeat rule is compiled in, whose
+    /// occurrence count spans the whole construct — so the term genuinely
+    /// couples every position to every other, and saying `Unbounded` is the
+    /// only honest answer. Tier 2 will refuse to treat blocks as independent
+    /// under it, which is correct: they are not.
+    fn interaction_radius(&self) -> InteractionRadius {
+        match self.checker.influence_radius_nt() {
+            Some(nt) => InteractionRadius::Codons(nt.div_ceil(3)),
+            None => InteractionRadius::Unbounded,
+        }
     }
     fn provenance(&self) -> Provenance {
         Provenance::builtin("constraint_native", crate::ENGINE_VERSION)

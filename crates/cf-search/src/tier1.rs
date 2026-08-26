@@ -196,6 +196,10 @@ pub fn tier1_seed(request: &Tier1Request<'_>, rng: &mut SearchRng) -> Result<Tie
     let mut beam = vec![prime(base, &automata)];
     let mut states_generated = 0u64;
     let mut states_pruned = 0u64;
+    // Distance back to the nearest byte the search can change. Undefined
+    // through the 5' flank and through leading locked codons, so a motif lying
+    // wholly in immutable sequence is never pruned.
+    let mut distance = Distance::none();
 
     for (index, increment) in increments.iter().enumerate() {
         let current = base.codons()[index];
@@ -213,7 +217,14 @@ pub fn tier1_seed(request: &Tier1Request<'_>, rng: &mut SearchRng) -> Result<Tie
         for state in &beam {
             for codon in &options {
                 states_generated += 1;
-                let Some(dfa) = step_cds(&automata, checker, state.dfa, &codon.to_bytes()) else {
+                let Some(dfa) = step_editable(
+                    &automata,
+                    checker,
+                    state.dfa,
+                    &codon.to_bytes(),
+                    !locked,
+                    distance,
+                ) else {
                     states_pruned += 1;
                     continue;
                 };
@@ -226,6 +237,8 @@ pub fn tier1_seed(request: &Tier1Request<'_>, rng: &mut SearchRng) -> Result<Tie
                 });
             }
         }
+
+        distance = distance.after_codon(!locked);
 
         if next.is_empty() {
             return Err(CfError::new(
@@ -242,12 +255,15 @@ pub fn tier1_seed(request: &Tier1Request<'_>, rng: &mut SearchRng) -> Result<Tie
 
     // Walk the 3' flank so a motif straddling that junction is pruned here
     // rather than found by the post-check. DEP-SRCH-006.
+    let tail = distance;
     beam.retain(|state| {
-        walk_suffix(
+        step_editable(
             &automata,
             checker,
             state.dfa,
             base.sequence().three_prime_flank(),
+            false,
+            tail,
         )
         .is_some()
     });
@@ -434,53 +450,32 @@ fn walk(automata: &[&MotifAutomaton; 2], from: [usize; 2], bytes: &[u8]) -> [usi
     state
 }
 
-/// Advance over bytes the candidate is responsible for, pruning on a match.
+/// Advance over bytes, pruning only on an *actionable* match.
 ///
-/// Every match ending inside the coding region necessarily covers a codon the
-/// DP chose, so all of them are actionable.
-fn step_cds(
+/// `reach_nt` counts nucleotides since the last position the search could
+/// change. A pattern of length `m` completing here began `m - 1` bytes earlier,
+/// so it overlaps something editable exactly when `m >= reach_nt` after this
+/// byte is counted.
+///
+/// The obvious rule — prune on any match ending inside the coding region — is
+/// what tier 1 shipped with, and it is wrong for the same reason the 3' flank
+/// walk was wrong. A locked span inside the CDS is immutable, so a motif lying
+/// entirely within one is non-actionable (`DEP-CONS-002`): under the old rule
+/// every beam state hit it, the beam emptied, and tier 1 reported
+/// `CF-SRCH-006` for a violation no candidate could fix. Fourth time this
+/// boundary has produced a bug, each time from a different direction.
+fn step_editable(
     automata: &[&MotifAutomaton; 2],
     checker: &ConstraintChecker,
     from: [usize; 2],
     bytes: &[u8],
+    editable: bool,
+    distance: Distance,
 ) -> Option<[usize; 2]> {
     let mut state = from;
+    let mut distance = distance;
     for byte in bytes {
-        for (slot, automaton) in automata.iter().enumerate() {
-            if automaton.is_empty() {
-                continue;
-            }
-            let next = automaton
-                .transition(state[slot], *byte)
-                .unwrap_or_else(|| automaton.start_state());
-            if automaton
-                .outputs(next)
-                .iter()
-                .any(|pattern| checker.pattern_is_zero_tolerance(automaton, *pattern))
-            {
-                return None;
-            }
-            state[slot] = next;
-        }
-    }
-    Some(state)
-}
-
-/// Advance through the 3' flank, pruning only on a match that reaches back into
-/// the coding region.
-///
-/// A pattern of length `m` completing `offset` bytes into the flank started
-/// `m - 1` bytes earlier, so it touches the last codon only when
-/// `m > offset + 1`. A shorter match lies wholly in the backbone and belongs to
-/// the analyser, not to the search.
-fn walk_suffix(
-    automata: &[&MotifAutomaton; 2],
-    checker: &ConstraintChecker,
-    from: [usize; 2],
-    flank: &[u8],
-) -> Option<[usize; 2]> {
-    let mut state = from;
-    for (offset, byte) in flank.iter().enumerate() {
+        distance = distance.advance(editable);
         for (slot, automaton) in automata.iter().enumerate() {
             if automaton.is_empty() {
                 continue;
@@ -492,8 +487,7 @@ fn walk_suffix(
                 if !checker.pattern_is_zero_tolerance(automaton, *pattern) {
                     continue;
                 }
-                let length = automaton.patterns()[*pattern].len;
-                if length > offset + 1 {
+                if distance.covers(automaton.patterns()[*pattern].len) {
                     return None;
                 }
             }
@@ -501,6 +495,44 @@ fn walk_suffix(
         }
     }
     Some(state)
+}
+
+/// Nucleotides from the current byte back to the nearest editable one.
+///
+/// `None` means no editable byte has been seen yet, so nothing can reach one.
+#[derive(Clone, Copy, Debug)]
+struct Distance(Option<usize>);
+
+impl Distance {
+    /// Nothing editable seen yet.
+    fn none() -> Self {
+        Self(None)
+    }
+
+    /// Consume one byte.
+    fn advance(self, editable: bool) -> Self {
+        if editable {
+            Self(Some(0))
+        } else {
+            Self(self.0.map(|d| d + 1))
+        }
+    }
+
+    /// Consume a whole codon, without checking anything.
+    fn after_codon(self, editable: bool) -> Self {
+        if editable {
+            Self(Some(0))
+        } else {
+            Self(self.0.map(|d| d + 3))
+        }
+    }
+
+    /// Whether a pattern of `length` ending at the current byte covers an
+    /// editable one. It spans the last `length` bytes, so it reaches back to
+    /// distance `length - 1`.
+    fn covers(self, length: usize) -> bool {
+        self.0.is_some_and(|d| length > d)
+    }
 }
 
 /// `TOP_B_BY_SCORE_WITH_DIVERSITY`.

@@ -49,6 +49,25 @@ pub struct ConstructView<'a> {
     /// Half-open nucleotide spans of the coding regions.
     pub cds_spans: Vec<(usize, usize)>,
     pub kmer_masking: KmerMasking,
+    /// Nucleotide spans that are genuinely editable — the coding regions with
+    /// locked codons removed.
+    ///
+    /// `None` means "not supplied", and `touches_editable` then falls back to
+    /// the coding spans. That fallback is what every caller did before this
+    /// field existed, and it is exactly right for a construct with no locks —
+    /// which is every construct the legacy prototype ever handled, so the
+    /// `P1-27a` differential is unaffected.
+    ///
+    /// Supplying it closes a gap `P1-25`'s audit found. `Violation::actionable`
+    /// is documented as "whether any editable position is involved, and
+    /// therefore whether the search engine could do anything about it", but it
+    /// was computed against the whole coding region. A forbidden motif lying
+    /// entirely inside a *locked* span is therefore reported as actionable,
+    /// which makes every candidate infeasible for something no candidate can
+    /// change — and the feasibility analyser's check 1, which exists to report
+    /// exactly that case once at submission, uses the same predicate and so
+    /// stayed silent too. The case fell through both.
+    pub editable_spans: Option<Vec<(usize, usize)>>,
     /// Position of `construct[0]` within the enclosing molecule.
     ///
     /// Non-zero only when the view is a window onto a larger construct, which
@@ -67,8 +86,19 @@ impl<'a> ConstructView<'a> {
             construct,
             cds_spans,
             kmer_masking: KmerMasking::default(),
+            editable_spans: None,
             origin_nt: 0,
         }
+    }
+
+    /// Declare which nucleotides are genuinely editable.
+    ///
+    /// Spans are in the same coordinate frame as `cds_spans`. Anything not
+    /// covered is immutable, so a violation confined to it is reported but not
+    /// actionable.
+    pub fn with_editable_spans(mut self, spans: Vec<(usize, usize)>) -> Self {
+        self.editable_spans = Some(spans);
+        self
     }
 
     pub fn with_masking(mut self, masking: KmerMasking) -> Self {
@@ -82,10 +112,13 @@ impl<'a> ConstructView<'a> {
     }
 
     /// Whether a nucleotide span touches any editable region.
+    ///
+    /// Falls back to the coding spans when no lock information was supplied,
+    /// which is the behaviour every caller had before `editable_spans` existed
+    /// and is correct for a construct with no locks.
     fn touches_editable(&self, start: usize, end: usize) -> bool {
-        self.cds_spans
-            .iter()
-            .any(|&(lo, hi)| start < hi && lo < end)
+        let spans = self.editable_spans.as_deref().unwrap_or(&self.cds_spans);
+        spans.iter().any(|&(lo, hi)| start < hi && lo < end)
     }
 
     /// Segments a k-mer rule counts over, given the masking policy.
@@ -407,9 +440,18 @@ impl ConstraintChecker {
             .filter(|&&(s, e)| s < hi && lo < e)
             .map(|&(s, e)| (s.max(lo) - lo, e.min(hi) - lo))
             .collect();
-        let sub = ConstructView::new(slice, spans)
+        let mut sub = ConstructView::new(slice, spans)
             .with_masking(view.kmer_masking)
             .with_origin(view.origin_nt + lo);
+        if let Some(editable) = &view.editable_spans {
+            sub = sub.with_editable_spans(
+                editable
+                    .iter()
+                    .filter(|&&(s, e)| s < hi && lo < e)
+                    .map(|&(s, e)| (s.max(lo) - lo, e.min(hi) - lo))
+                    .collect(),
+            );
+        }
 
         let mut local = Vec::new();
         self.check_motifs(&sub, &mut local);

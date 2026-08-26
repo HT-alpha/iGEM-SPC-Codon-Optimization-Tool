@@ -168,7 +168,9 @@ impl RepairTarget {
     }
 
     pub fn view(&self, masking: KmerMasking) -> ConstructView<'_> {
-        ConstructView::new(&self.construct, self.cds_spans()).with_masking(masking)
+        ConstructView::new(&self.construct, self.cds_spans())
+            .with_masking(masking)
+            .with_editable_spans(editable_spans(&self.regions))
     }
 
     /// The only way to change anything.
@@ -327,6 +329,27 @@ impl RepairRng {
     pub fn next_f64(&mut self) -> f64 {
         (self.next_u64() >> 11) as f64 / (1u64 << 53) as f64
     }
+}
+
+/// Editable nucleotide spans for a set of `(offset, sequence)` regions.
+///
+/// A locked codon is immutable, so it is excluded. Contiguous runs are merged
+/// so the span list stays short on a sequence with few locks.
+pub fn editable_spans(regions: &[(usize, CodonSequence)]) -> Vec<(usize, usize)> {
+    let mut spans: Vec<(usize, usize)> = Vec::new();
+    for (offset, sequence) in regions {
+        for index in 0..sequence.codon_count() {
+            if sequence.is_locked(index) {
+                continue;
+            }
+            let start = offset + index * 3;
+            match spans.last_mut() {
+                Some(last) if last.1 == start => last.1 = start + 3,
+                _ => spans.push((start, start + 3)),
+            }
+        }
+    }
+    spans
 }
 
 /// Repair the actionable violations of `target`, in place.

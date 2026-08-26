@@ -146,7 +146,15 @@ impl<'a> DesignSpace<'a> {
     }
 
     fn view(&self, masking: KmerMasking) -> ConstructView<'a> {
-        ConstructView::new(self.construct, self.cds_spans()).with_masking(masking)
+        ConstructView::new(self.construct, self.cds_spans())
+            .with_masking(masking)
+            .with_editable_spans(crate::repair::editable_spans(
+                &self
+                    .regions
+                    .iter()
+                    .map(|(offset, sequence)| (*offset, (*sequence).clone()))
+                    .collect::<Vec<_>>(),
+            ))
     }
 
     /// Alternatives at a nucleotide offset, or `None` if it is not the start of
