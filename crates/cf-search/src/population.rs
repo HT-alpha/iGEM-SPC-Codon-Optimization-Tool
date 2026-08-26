@@ -20,10 +20,18 @@ use crate::rng::SearchRng;
 /// A set of individuals with no exact duplicates.
 ///
 /// Indexed by the genotype's incremental hash, with a full codon comparison to
-/// confirm. The hash is a filter and never a decision: a collision costs one
-/// regeneration, where trusting it would silently discard a distinct
-/// individual — a loss that shows up as poor diversity and gets blamed on the
-/// operators.
+/// confirm. The confirmation makes "a distinct individual is never discarded"
+/// unconditional rather than probabilistic, and it costs one slice comparison
+/// on a bucket that almost always holds one entry.
+///
+/// It is worth being precise about what it does *not* buy, because the comment
+/// this replaces overstated it. Removing the confirmation changes no observable
+/// behaviour for any input a test can construct: an exhaustive search over
+/// every two-position difference in the 14×64 space finds no collision in
+/// `Genotype`'s hash, so the branch is unreachable. What it defends against is
+/// a future weaker hash or a second mutation path leaving one stale — and the
+/// property that actually catches a stale hash is
+/// `Genotype::hash_is_consistent`, which `TST-SRCH-006` asserts.
 #[derive(Debug, Default)]
 pub struct Population {
     members: Vec<Genotype>,
