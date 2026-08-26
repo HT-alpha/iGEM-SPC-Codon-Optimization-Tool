@@ -435,7 +435,7 @@ fn prime(base: &Genotype, automata: &[&MotifAutomaton; 2]) -> BeamState {
 /// Pruning on one here would make tier 1 report every candidate as infeasible
 /// for something no candidate can change, which is the failure mode the
 /// feasibility analyser exists to report once instead.
-fn walk(automata: &[&MotifAutomaton; 2], from: [usize; 2], bytes: &[u8]) -> [usize; 2] {
+pub(crate) fn walk(automata: &[&MotifAutomaton; 2], from: [usize; 2], bytes: &[u8]) -> [usize; 2] {
     let mut state = from;
     for byte in bytes {
         for (slot, automaton) in automata.iter().enumerate() {
@@ -464,7 +464,7 @@ fn walk(automata: &[&MotifAutomaton; 2], from: [usize; 2], bytes: &[u8]) -> [usi
 /// every beam state hit it, the beam emptied, and tier 1 reported
 /// `CF-SRCH-006` for a violation no candidate could fix. Fourth time this
 /// boundary has produced a bug, each time from a different direction.
-fn step_editable(
+pub(crate) fn step_editable(
     automata: &[&MotifAutomaton; 2],
     checker: &ConstraintChecker,
     from: [usize; 2],
@@ -501,16 +501,16 @@ fn step_editable(
 ///
 /// `None` means no editable byte has been seen yet, so nothing can reach one.
 #[derive(Clone, Copy, Debug)]
-struct Distance(Option<usize>);
+pub(crate) struct Distance(Option<usize>);
 
 impl Distance {
     /// Nothing editable seen yet.
-    fn none() -> Self {
+    pub(crate) fn none() -> Self {
         Self(None)
     }
 
     /// Consume one byte.
-    fn advance(self, editable: bool) -> Self {
+    pub(crate) fn advance(self, editable: bool) -> Self {
         if editable {
             Self(Some(0))
         } else {
@@ -519,7 +519,7 @@ impl Distance {
     }
 
     /// Consume a whole codon, without checking anything.
-    fn after_codon(self, editable: bool) -> Self {
+    pub(crate) fn after_codon(self, editable: bool) -> Self {
         if editable {
             Self(Some(0))
         } else {
@@ -530,7 +530,7 @@ impl Distance {
     /// Whether a pattern of `length` ending at the current byte covers an
     /// editable one. It spans the last `length` bytes, so it reaches back to
     /// distance `length - 1`.
-    fn covers(self, length: usize) -> bool {
+    pub(crate) fn covers(self, length: usize) -> bool {
         self.0.is_some_and(|d| length > d)
     }
 }

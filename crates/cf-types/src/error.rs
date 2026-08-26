@@ -100,6 +100,9 @@ codes! {
     SRCH_TIER1_CONFIG      => ("CF-SRCH-005", 422, "Tier 1 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
     SRCH_TIER1_INFEASIBLE  => ("CF-SRCH-006", 422, "Tier 1 found no feasible assignment", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
     SRCH_TABU_CLOCK        => ("CF-SRCH-007", 500, "Generation clock and tabu ledger disagree", "planning/03-algorithms/06-constraint-repair.md"),
+    SRCH_TIER2_UNBOUNDED_TERM => ("CF-SRCH-008", 422, "A term couples positions more widely than the tier 2 block size", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
+    SRCH_TIER2_CONFIG      => ("CF-SRCH-009", 422, "Tier 2 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
+    SRCH_TIER2_TERM_DROPPED => ("CF-SRCH-010", 200, "A term was dropped from tier 2 because it cannot be scored incrementally", "planning/04-api/04-model-resolution.md"),
 
     // ---- CF-JOINT ----------------------------------------------------------
     JOINT_NO_CONVERGENCE   => ("CF-JOINT-001", 200, "Price decomposition failed to converge; fell back to fully joint search", "planning/03-algorithms/04-systems-level-joint-search.md"),

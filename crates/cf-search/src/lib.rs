@@ -39,6 +39,7 @@ pub mod operators;
 pub mod population;
 pub mod rng;
 pub mod tier1;
+pub mod tier2;
 
 pub use baseline::{baseline_backtracking, BaselineBudget, BaselineOutcome, BaselineReport};
 pub use context::{CodonWeights, ContextModel};
@@ -51,3 +52,6 @@ pub use operators::{
 pub use population::{Offspring, Population, SeedReport};
 pub use rng::SearchRng;
 pub use tier1::{tier1_seed, Tier1Config, Tier1Report};
+pub use tier2::{
+    partition, tier2_block_ca, Block, Colour, Tier2Config, Tier2Plan, Tier2Report, Tier2Request,
+};
