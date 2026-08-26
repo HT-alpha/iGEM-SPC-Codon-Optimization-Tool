@@ -58,6 +58,11 @@ version = "0.1.0"
 [[package]]
 name = "cf-landscape-api"
 version = "0.1.0"
+dependencies = [
+ "cf-types",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "cf-metrics"
@@ -68,6 +73,7 @@ name = "cf-pyext"
 version = "0.1.0"
 dependencies = [
  "cf-constraints",
+ "cf-landscape-api",
  "cf-types",
  "pyo3",
  "serde_json",

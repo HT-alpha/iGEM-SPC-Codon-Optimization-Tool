@@ -89,6 +89,7 @@ codes! {
     LAND_ROLE_NOT_AXIS     => ("CF-LAND-004", 422, "A diagnostic term cannot be used as a Pareto axis", "planning/03-algorithms/07-folding-kinetics-objective.md"),
     LAND_TERM_DUPLICATE    => ("CF-LAND-005", 422, "A term id is registered more than once", "planning/02-schemas/landscape_query.schema.json"),
     LAND_SEED_REQUIRED     => ("CF-LAND-006", 422, "A sampled uncertainty request requires an explicit seed", "planning/02-schemas/landscape_query.schema.json"),
+    LAND_DOCUMENT_INVALID  => ("CF-LAND-007", 422, "Landscape query or response document is malformed", "planning/02-schemas/landscape_query.schema.json"),
     LAND_BASE_EVICTED      => ("CF-LAND-010", 409, "Delta query base sequence is no longer cached; resend as a full query", "planning/02-schemas/landscape_query.schema.json"),
 
     // ---- CF-JOINT ----------------------------------------------------------

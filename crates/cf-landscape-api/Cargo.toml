@@ -4,5 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "The landscape query/response contract and the provider seam. Types only: no predictor, no composition."
 
 [dependencies]
+cf-types = { path = "../cf-types" }
+serde = { workspace = true }
+serde_json = { workspace = true }

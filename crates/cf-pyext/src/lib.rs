@@ -19,6 +19,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use cf_constraints::{ConstraintChecker, ConstraintSet, ConstructView, KmerMasking};
+use cf_landscape_api::{LandscapeQuery, LandscapeResponse};
 use cf_types::{canonicalize, CodonSequence, Digest, GeneticCode};
 
 fn to_py_err(err: cf_types::CfError) -> PyErr {
@@ -123,6 +124,29 @@ fn synonyms(codon: &str, translation_table: u8) -> PyResult<Vec<String>> {
         .collect())
 }
 
+/// Re-parse a `landscape_query.schema.json` document and re-emit it.
+///
+/// `TST-LAPI-001`. Every field the contract models survives; a field the
+/// contract does not model is the interesting case, and the Python test asserts
+/// on which ones are preserved verbatim (`construct_context`) and which are
+/// refused (`outputs.gradients`).
+#[pyfunction]
+fn landscape_query_round_trip(document_json: &str) -> PyResult<String> {
+    let value: serde_json::Value =
+        serde_json::from_str(document_json).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let query = LandscapeQuery::from_json(&value).map_err(to_py_err)?;
+    query.to_canonical_json().map_err(to_py_err)
+}
+
+/// Re-parse a `landscape_response.schema.json` document and re-emit it.
+#[pyfunction]
+fn landscape_response_round_trip(document_json: &str) -> PyResult<String> {
+    let value: serde_json::Value =
+        serde_json::from_str(document_json).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let response = LandscapeResponse::from_json(&value).map_err(to_py_err)?;
+    response.to_canonical_json().map_err(to_py_err)
+}
+
 fn parse_masking(masking: &str) -> PyResult<KmerMasking> {
     match masking {
         "assembled" => Ok(KmerMasking::Assembled),
@@ -213,5 +237,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(synonyms, m)?)?;
     m.add_function(wrap_pyfunction!(constraint_feasible_batch, m)?)?;
     m.add_function(wrap_pyfunction!(constraint_violations, m)?)?;
+    m.add_function(wrap_pyfunction!(landscape_query_round_trip, m)?)?;
+    m.add_function(wrap_pyfunction!(landscape_response_round_trip, m)?)?;
     Ok(())
 }
