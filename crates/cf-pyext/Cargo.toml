@@ -36,3 +36,4 @@ doctest = false
 pyo3 = { version = "0.22", features = ["abi3-py311", "extension-module"] }
 serde_json = { workspace = true }
 cf-types = { path = "../cf-types" }
+cf-constraints = { path = "../cf-constraints" }

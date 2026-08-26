@@ -4,5 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+description = "Hard-constraint specification, incremental violation detection, repair and feasibility analysis."
 
 [dependencies]
+cf-types = { path = "../cf-types" }
+serde = { workspace = true }
+serde_json = { workspace = true }

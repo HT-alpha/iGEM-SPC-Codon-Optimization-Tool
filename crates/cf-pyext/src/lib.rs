@@ -18,6 +18,7 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+use cf_constraints::{ConstraintChecker, ConstraintSet, ConstructView, KmerMasking};
 use cf_types::{canonicalize, CodonSequence, Digest, GeneticCode};
 
 fn to_py_err(err: cf_types::CfError) -> PyErr {
@@ -122,6 +123,83 @@ fn synonyms(codon: &str, translation_table: u8) -> PyResult<Vec<String>> {
         .collect())
 }
 
+fn parse_masking(masking: &str) -> PyResult<KmerMasking> {
+    match masking {
+        "assembled" => Ok(KmerMasking::Assembled),
+        "segmented_by_region" => Ok(KmerMasking::SegmentedByRegion),
+        other => Err(PyValueError::new_err(format!(
+            "unknown k-mer masking {other:?}; expected assembled or segmented_by_region"
+        ))),
+    }
+}
+
+/// Feasibility of many constructs against one constraint set.
+///
+/// Batched on purpose. Compiling the constraint set builds an Aho-Corasick
+/// automaton, and doing that once per sequence would dominate the measurement;
+/// batching also keeps this entry point shaped like the batch-yield protocol
+/// the search engine uses, rather than inviting a per-move call.
+#[pyfunction]
+#[pyo3(signature = (constraint_set_json, constructs, cds_spans, masking="assembled"))]
+fn constraint_feasible_batch(
+    constraint_set_json: &str,
+    constructs: Vec<String>,
+    cds_spans: Vec<(usize, usize)>,
+    masking: &str,
+) -> PyResult<Vec<bool>> {
+    let value: serde_json::Value = serde_json::from_str(constraint_set_json)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let set = ConstraintSet::from_json(&value).map_err(to_py_err)?;
+    let checker = ConstraintChecker::compile(&set).map_err(to_py_err)?;
+    let masking = parse_masking(masking)?;
+
+    Ok(constructs
+        .iter()
+        .map(|construct| {
+            let view =
+                ConstructView::new(construct.as_bytes(), cds_spans.clone()).with_masking(masking);
+            checker.is_feasible(&view)
+        })
+        .collect())
+}
+
+/// Full violation report for one construct, as JSON.
+#[pyfunction]
+#[pyo3(signature = (constraint_set_json, construct, cds_spans, masking="assembled"))]
+fn constraint_violations(
+    constraint_set_json: &str,
+    construct: &str,
+    cds_spans: Vec<(usize, usize)>,
+    masking: &str,
+) -> PyResult<String> {
+    let value: serde_json::Value = serde_json::from_str(constraint_set_json)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let set = ConstraintSet::from_json(&value).map_err(to_py_err)?;
+    let checker = ConstraintChecker::compile(&set).map_err(to_py_err)?;
+    let view =
+        ConstructView::new(construct.as_bytes(), cds_spans).with_masking(parse_masking(masking)?);
+
+    let report: Vec<serde_json::Value> = checker
+        .check(&view)
+        .into_iter()
+        .map(|v| {
+            serde_json::json!({
+                "constraint_id": v.constraint_id,
+                "class": format!("{:?}", v.class).to_lowercase(),
+                "start_nt": v.start_nt,
+                "end_nt": v.end_nt,
+                "detail": v.detail,
+                "actionable": v.actionable,
+            })
+        })
+        .collect();
+    Ok(serde_json::json!({
+        "violations": report,
+        "undetectable": checker.undetectable(),
+    })
+    .to_string())
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__doc__", "CodonForge compiled core (cf-pyext).")?;
@@ -133,5 +211,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(canonical_json, m)?)?;
     m.add_function(wrap_pyfunction!(digest_json, m)?)?;
     m.add_function(wrap_pyfunction!(synonyms, m)?)?;
+    m.add_function(wrap_pyfunction!(constraint_feasible_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(constraint_violations, m)?)?;
     Ok(())
 }

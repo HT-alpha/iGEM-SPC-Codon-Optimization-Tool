@@ -41,6 +41,11 @@ version = "0.1.0"
 [[package]]
 name = "cf-constraints"
 version = "0.1.0"
+dependencies = [
+ "cf-types",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "cf-epistasis"
@@ -62,6 +67,7 @@ version = "0.1.0"
 name = "cf-pyext"
 version = "0.1.0"
 dependencies = [
+ "cf-constraints",
  "cf-types",
  "pyo3",
  "serde_json",

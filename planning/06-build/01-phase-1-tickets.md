@@ -82,6 +82,15 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 `P1-27` is worth doing rather than discarding the prototype: it is an independently-written implementation of the same constraint semantics, which makes it a genuine oracle for `P1-14`–`P1-16`. It also gives a documented answer to "does the new tool still do what the old script did".
 
 > **Sequencing correction (implementation, 2026-08).** `P1-27` originally declared `P1-17` (the repair operator) as its dependency. That was over-stated: the acceptance criterion exercises only the constraint *checker*, and the legacy `count_overlapping` semantics it exists to pin down are implemented in `P1-15`. The dependency is therefore `P1-14`–`P1-16`, and `P1-27` is scheduled **immediately after `P1-16`, before `P1-17`** — a differential oracle that lands after the code it is meant to check has already been built on top of cannot catch drift at the point the drift would be introduced.
+>
+> **Split (implementation, 2026-08).** `P1-27` bundled two deliverables with one acceptance criterion: a differential oracle for the constraint checker, and a port of the prototype's backtracking *solver* as `baseline_backtracking`. Only the first is covered by the stated criterion, and the second belongs to `cf-search`, which does not exist until `P1-23`. Split accordingly:
+>
+> | Id | Deliverable | Module | Deps | Status |
+> | --- | --- | --- | --- | --- |
+> | `P1-27a` | Legacy feasibility oracle and the 10⁴-sequence differential (`TST-CONS-007`) | `cf-constraints` | `P1-14`–`P1-16` | done |
+> | `P1-27b` | `baseline_backtracking` solver port, kept as a reference implementation | `cf-search` | `P1-23`, `P1-24` | scheduled with `P1-24` |
+>
+> Findings from `P1-27a` are recorded in `docs/legacy-parity.md`; two of them ask for a decision before Phase 1 exit.
 
 ---
 

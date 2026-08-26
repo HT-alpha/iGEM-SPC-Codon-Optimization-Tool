@@ -19,6 +19,14 @@ A naive repair operator degrades a multi-objective search in four specific, sepa
 
 The give-up path is not a failure mode, it is the design: an individual that cannot be cheaply repaired stays in the population as **infeasible**, where NSGA-III's constraint-domination rule ([`03-nsga-loop-and-operators.md`](03-nsga-loop-and-operators.md) §4) already handles it correctly. Infeasible individuals are useful — they are stepping stones across constraint barriers. Forcing feasibility on every individual destroys them.
 
+### 1.1 A fifth failure the implementation surfaced: counting what cannot be fixed
+
+A blocking violation confined to **immutable sequence** — a repeat between two backbone regions, a restriction site in the vector, a GC excursion in a fixed terminator — is real, but no candidate can do anything about it. Counting it against every candidate reports every design as infeasible, collapses constraint-domination to a constant, and leaves the search with nothing to optimize toward. It is the same pathology as repair thrashing, arriving from the opposite direction.
+
+Every violation therefore carries an **`actionable`** flag: true when the violation involves at least one editable position. Per-candidate feasibility considers only actionable blocking violations. Non-actionable ones are still reported, and they are what §5's feasibility analyser surfaces once at submission with the constraint to relax (`CF-FEAS-001`).
+
+`DEP-CONS-002` — The architecture proposal treats a constraint violation as a property of a sequence. This plan distinguishes violations a candidate can fix from those inherited from immutable context, because the second kind must not participate in candidate ranking. Surfaced by the `P1-27` differential against `codon_6.0.py`, which had the distinction implicitly and was right to; see `docs/legacy-parity.md` §3.
+
 ---
 
 ## 2. Incremental violation detection

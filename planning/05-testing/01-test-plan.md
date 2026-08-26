@@ -75,6 +75,8 @@ Two supporting units the architecture implies but does not name, added here beca
 | `TST-CONS-004` | property | Repair never changes the translated protein and never touches a locked codon (10⁶ cases). |
 | `TST-CONS-005` | integration | Anti-thrashing: a scripted mutation/repair cycle designed to thrash is broken within `tabu_tenure` generations. |
 | `TST-CONS-006` | unit | Each of the five feasibility checks fires on a purpose-built infeasible input and stays silent on a feasible one. |
+| `TST-CONS-007` | integration | **Legacy differential (`P1-27`).** The checker agrees with `codon_6.0.py` on feasibility for 10⁴ synonymous variants, with the comparison configured to the legacy semantics. The oracle is the prototype itself, loaded and called — not a transcription, which could share a bug with the checker and agree for the wrong reason. Requires both outcomes to be well represented, so a checker that called everything feasible would fail. |
+| `TST-CONS-008` | unit | A blocking violation confined to immutable sequence is reported but marked non-actionable, and does not make a candidate infeasible. See `docs/legacy-parity.md` §3. |
 
 ### `cf-modelreg`
 
