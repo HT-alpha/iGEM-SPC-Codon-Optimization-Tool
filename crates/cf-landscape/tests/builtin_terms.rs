@@ -190,6 +190,76 @@ fn p1_21_cai_tolerates_an_individual_zero_weight() {
     assert_deltas_are_exact(&term, &with_zero);
 }
 
+/// The pinned state is load-bearing, not decorative.
+///
+/// Correctness alone cannot show this: an implementation that ignores the pin
+/// and recomputes returns the same numbers and differs only in costing `O(L)`
+/// per alternative instead of `O(1)` — the `DEP-LAND-003` defect. So the pin is
+/// poisoned instead. A `Rebased` built from a *different* sequence is invalid
+/// input, and composition is the only thing that constructs one, but it makes
+/// the question observable: an implementation that consults the pin produces
+/// deltas consistent with the wrong base, and one that recomputes produces
+/// correct deltas and thereby convicts itself.
+#[test]
+fn p1_21_cai_uses_its_pinned_state_rather_than_recomputing() {
+    let term = CaiTerm::new(usage_table("highly_expressed")).unwrap();
+    let host = host();
+
+    let here = sequence();
+    let elsewhere = here
+        .substituted(4, Codon::parse("GGT").unwrap())
+        .unwrap()
+        .substituted(5, Codon::parse("GTA").unwrap())
+        .unwrap()
+        .substituted(6, Codon::parse("GCT").unwrap())
+        .unwrap();
+
+    let pin_here = term.rebase(&ctx(&here, &host)).unwrap();
+    let pin_elsewhere = term.rebase(&ctx(&elsewhere, &host)).unwrap();
+    assert_ne!(
+        pin_here.value().to_bits(),
+        pin_elsewhere.value().to_bits(),
+        "the two pins must differ or the assertion below proves nothing"
+    );
+
+    let honest = term
+        .delta_table(&ctx(&here, &host), &pin_here, &[1, 2])
+        .unwrap();
+    let poisoned = term
+        .delta_table(&ctx(&here, &host), &pin_elsewhere, &[1, 2])
+        .unwrap();
+    assert_ne!(
+        honest, poisoned,
+        "delta_table ignored its pinned state and recomputed the base"
+    );
+
+    let honest_single = term
+        .delta(
+            &ctx(&here, &host),
+            &pin_here,
+            &[Edit::new(1, Codon::parse("CTC").unwrap())],
+        )
+        .unwrap();
+    let poisoned_single = term
+        .delta(
+            &ctx(&here, &host),
+            &pin_elsewhere,
+            &[Edit::new(1, Codon::parse("CTC").unwrap())],
+        )
+        .unwrap();
+    assert_ne!(
+        honest_single.to_bits(),
+        poisoned_single.to_bits(),
+        "delta ignored its pinned state and recomputed the base"
+    );
+
+    // And the honest path is still the correct one.
+    let baseline = term.score(&ctx(&here, &host)).unwrap();
+    let mutated = here.substituted(1, Codon::parse("CTC").unwrap()).unwrap();
+    let truth = term.score(&ctx(&mutated, &host)).unwrap() - baseline;
+    assert!((honest_single - truth).abs() < 1e-12);
+}
+
 #[test]
 fn p1_21_cai_subset_is_carried() {
     assert_eq!(
