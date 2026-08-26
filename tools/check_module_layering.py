@@ -19,7 +19,14 @@ Checks performed by --check:
                       than once per generation; the only way to guarantee that
                       structurally is to keep the binding surface in one crate)
   6. no-py-in-core   no rust-core crate contains a Python callback construct
-  7. layer-coverage  every architectural layer still has an owning module
+  7. runtime-compat  no rust-core module declares a dependency on a python
+                     module. Such an edge cannot compile - a Cargo crate has no
+                     way to depend on a Python package - so it is a declaration
+                     that can never be satisfied, and the `edges` check will not
+                     notice because it only looks for edges the tree has that
+                     modules.yaml lacks, never the reverse. Anything a rust-core
+                     module needs from a python module must cross as a value.
+  8. layer-coverage  every architectural layer still has an owning module
 
 Exit code 0 iff every selected check passes.
 """
@@ -290,6 +297,20 @@ def check(mods: dict, rep: Report) -> None:
                     offenders += 1
     if not offenders:
         rep.ok("no rust-core crate references pyo3 or holds the GIL")
+
+    rep.section("runtime-compat")
+    impossible = 0
+    for name, mod in sorted(rust_modules(mods).items()):
+        for dep in sorted(mod["depends_on"]):
+            if dep in mods and mods[dep]["runtime"].startswith("python"):
+                rep.fail(
+                    f"{name} ({mod['runtime']}) -> {dep} ({mods[dep]['runtime']}): "
+                    "a Cargo crate cannot depend on a Python package. Invert it — "
+                    "pass what the crate needs across the boundary as a value."
+                )
+                impossible += 1
+    if not impossible:
+        rep.ok("no rust-core module declares a dependency on a python module")
 
     rep.section("layer-coverage")
     expected = {

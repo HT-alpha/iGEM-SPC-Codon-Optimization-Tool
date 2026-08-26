@@ -75,6 +75,7 @@ codes! {
     RESOLVE_FALLBACK_USED  => ("CF-RESOLVE-004", 200, "Model resolved from a related host", "planning/04-api/04-model-resolution.md"),
     RESOLVE_DEPRECATED     => ("CF-RESOLVE-005", 200, "Resolved artifact is deprecated", "planning/04-api/04-model-resolution.md"),
     RESOLVE_DIGEST_MISSING => ("CF-RESOLVE-006", 409, "A pinned artifact digest is unavailable; replay cannot proceed", "planning/04-api/04-model-resolution.md"),
+    RESOLVE_RUNG_DEFERRED  => ("CF-RESOLVE-007", 501, "Resolution rung is not implemented in this phase", "planning/04-api/04-model-resolution.md"),
 
     // ---- CF-BUDGET ---------------------------------------------------------
     BUDGET_UNSATISFIABLE   => ("CF-BUDGET-001", 422, "Requested budget cannot be satisfied", "planning/07-decisions/ADR-0008-compute-budget-and-scaling.md"),
@@ -85,6 +86,9 @@ codes! {
     LAND_TERM_UNKNOWN      => ("CF-LAND-001", 422, "No provider is registered for a requested term", "planning/02-schemas/landscape_query.schema.json"),
     LAND_CAPABILITY        => ("CF-LAND-002", 422, "Provider does not offer the capability the request needs", "planning/07-decisions/ADR-0002-oracle-vs-differentiable-surrogate.md"),
     LAND_DELTA_INEXACT     => ("CF-LAND-003", 500, "An exact delta was required but the provider returned an estimate", "planning/07-decisions/ADR-0002-oracle-vs-differentiable-surrogate.md"),
+    LAND_ROLE_NOT_AXIS     => ("CF-LAND-004", 422, "A diagnostic term cannot be used as a Pareto axis", "planning/03-algorithms/07-folding-kinetics-objective.md"),
+    LAND_TERM_DUPLICATE    => ("CF-LAND-005", 422, "A term id is registered more than once", "planning/02-schemas/landscape_query.schema.json"),
+    LAND_SEED_REQUIRED     => ("CF-LAND-006", 422, "A sampled uncertainty request requires an explicit seed", "planning/02-schemas/landscape_query.schema.json"),
     LAND_BASE_EVICTED      => ("CF-LAND-010", 409, "Delta query base sequence is no longer cached; resend as a full query", "planning/02-schemas/landscape_query.schema.json"),
 
     // ---- CF-JOINT ----------------------------------------------------------

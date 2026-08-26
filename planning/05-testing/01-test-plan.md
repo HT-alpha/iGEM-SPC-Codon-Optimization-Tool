@@ -64,6 +64,7 @@ Two supporting units the architecture implies but does not name, added here beca
 | --- | --- | --- |
 | `TST-LAPI-001` | contract | Every golden query/response document round-trips Rust → JSON → Python → JSON byte-identically. Catches the type-duplication drift that [ADR-0001](../07-decisions/ADR-0001-language-and-runtime-split.md) accepts as a cost. |
 | `TST-LAPI-002` | contract | A predictor's declared `capability` matches its actual method surface: an L1 claim without a working `delta_table` fails. |
+| `TST-LAPI-003` | property | The three contract invariants composition depends on. (a) *Ordering*: `objective_vector.order` equals the caller's requested axis order and is independent of registry insertion order, so the response never leaves the order to be inferred from `terms` key iteration. (b) *Seed determinism*: two evaluations of the same query with the same `seed` agree bit-for-bit, which is what makes `TST-LAND-001`'s "a cache hit returns exactly what a cold evaluation returns" a meaningful claim rather than a vacuous one. (c) *Term independence*: evaluating a set of terms in any permutation yields identical per-term values, so composition may not be order-sensitive. Added during the `P1-20` sequencing audit — `TST-LAPI-001`/`002` check the shape of the contract, and none of these three is a shape property. |
 
 ### `cf-constraints`
 
@@ -152,6 +153,8 @@ Two supporting units the architecture implies but does not name, added here beca
 | `TST-LAND-001` | property | Cache correctness: a cache hit returns exactly what a cold evaluation returns; the cache key includes the lockfile digest so cross-version contamination is impossible. |
 | `TST-LAND-002` | unit | `status: partial` propagates as `UNKNOWN` and is never imputed; the deferred term appears in `diagnostics.terms_deferred`. |
 | `TST-LAND-003` | unit | `cargo tree -p cf-landscape` contains no predictor crate. The mechanical enforcement of the swappable-layer property. |
+| `TST-LAND-004` | unit | Mixed-capability composition degrades per term, not per query. In a registry where some terms are L1 and at least one is L0-only, a delta query returns exact deltas for every L1 term and falls back to full rescoring for the L0 term *alone*; the number of full rescores equals the number of L0-only terms requested. Guards the no-gradients binding decision from the other side: the cheap path must not be abandoned wholesale because one term cannot take it. Added during the `P1-22` sequencing audit — `TST-LAND-001`/`002`/`003` all pass under a composition that degrades globally. |
+| `TST-LAND-005` | unit | A term whose role is `diagnostic` is evaluated and reported but never enters `objective_vector`, and toggling it cannot change a ranking. Enforces `AMD-002` structurally for folding kinetics ahead of `EXP-06`. |
 
 ### `cf-search`
 

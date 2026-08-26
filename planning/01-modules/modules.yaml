@@ -245,8 +245,12 @@ modules:
       cache, uncertainty fusion, and the batch-yield protocol driver. Resolves
       concrete predictors through a runtime registry, so it depends on
       `cf-landscape-api` and NOT on any predictor crate - this is the
-      cycle-breaker that keeps predictors swappable.
-    depends_on: [cf-types, cf-landscape-api, cf-modelreg]
+      cycle-breaker that keeps predictors swappable. It does not depend on
+      `cf-modelreg` either: the resolved lockfile digest that namespaces the
+      evaluation cache crosses the boundary as a value, supplied by the
+      orchestrator, because a `rust-core` crate cannot depend on a
+      `python-orchestration` package. See DEP-LAND-001.
+    depends_on: [cf-types, cf-landscape-api]
     public_contract: planning/02-schemas/landscape_response.schema.json
     tests:
       - TST-LAND-001

@@ -70,9 +70,27 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |
-| `P1-20` | Landscape contract types | `cf-landscape-api` | `LandscapeQuery`/`Response` in Rust and Python; the three target shapes; the L0/L1/L2 capability model; `TermRegistry` | `TST-LAPI-001`, `TST-LAPI-002` | `P1-08` | M |
+| `P1-20` | Landscape contract types | `cf-landscape-api` | `LandscapeQuery`/`Response` in Rust and Python; the three target shapes; the L0/L1/L2 capability model; `TermRole`; `TermRegistry` | `TST-LAPI-001`, `TST-LAPI-002`, `TST-LAPI-003` | `P1-08` | M |
 | `P1-21` | Built-in terms | `cf-landscape` | `usage.cai`, `usage.gc_content`, `constraint.violation_count` — all L1 with exact deltas | `TST-EPI-002`-style delta test applied to built-ins | `P1-20` | M |
-| `P1-22` | Composition and cache | `cf-landscape` | Term registry resolution; window-keyed evaluation cache namespaced by lockfile digest; `partial`/`UNKNOWN` propagation | `TST-LAND-001`, `TST-LAND-002`, `TST-LAND-003` | `P1-21` | M |
+| `P1-22` | Composition and cache | `cf-landscape` | Term registry resolution; window-keyed evaluation cache namespaced by lockfile digest; `partial`/`UNKNOWN` propagation; per-term capability degradation; role-gated objective vector | `TST-LAND-001`, `TST-LAND-002`, `TST-LAND-003`, `TST-LAND-004`, `TST-LAND-005` | `P1-21` | M |
+
+### `P1-20` — the three invariants that are not shape properties
+
+`TST-LAPI-001` and `TST-LAPI-002` both check the *shape* of the contract: that documents round-trip byte-identically, and that a capability claim matches a method surface. Composition in `P1-22` additionally relies on three *behavioural* properties of the same contract, and the sequencing audit found none of them exercised:
+
+1. **Objective-vector ordering.** [`landscape_response.schema.json`](../02-schemas/landscape_response.schema.json) states that `order` is explicit and must never be inferred from `terms` key iteration. That is an obligation on whoever builds the vector, which is `P1-22`. A composition that built the vector from registry iteration order would satisfy both declared tests while making two runs of the same job produce differently-ordered vectors — and a Pareto front whose axes are permuted between runs is not comparable to itself.
+2. **Seed determinism.** `TST-LAND-001` asserts that a cache hit returns exactly what a cold evaluation returns. That claim is vacuous unless a cold evaluation is reproducible, which rests on the query's `seed` field.
+3. **Term independence.** Composition evaluates terms in whatever order the registry yields. If a provider could observe or perturb another provider's evaluation, composition would be order-sensitive and the cache would be unsound.
+
+These are properties of the contract, so they belong to `P1-20` rather than to its consumers. No resequencing is needed — `P1-20` already precedes `P1-21`/`P1-22` — but the acceptance criteria gain `TST-LAPI-003`. This is the `P1-17`/`P1-19` pattern again: declared tests that pass without the guarantee the ticket actually owes its consumers.
+
+### `P1-22` — what "black-box oracle" costs the composition layer
+
+Two audit findings, one an architecture defect and one an acceptance gap.
+
+**The `cf-modelreg` edge could never have compiled.** [`modules.yaml`](../01-modules/modules.yaml) declared `cf-landscape` (runtime `rust-core`) as depending on `cf-modelreg` (runtime `python-orchestration`). A Cargo crate cannot depend on a Python package, so this was a declaration no implementation could satisfy. The layering lint did not catch it because its `edges` check looks only for edges present in the tree but absent from `modules.yaml`, never the reverse; a declared-but-impossible edge is invisible to it. What `cf-landscape` genuinely needs from the registry is the resolved lockfile digest that namespaces the evaluation cache, and a digest is a value. The edge is removed and the digest is supplied by the orchestrator at construction. See `DEP-LAND-001`, and check 7 (`runtime-compat`) in `tools/check_module_layering.py`, which now makes this class of edge a lint failure. A side effect is that the apparent `P1-22` → `P1-28` ordering constraint dissolves: the two tickets are genuinely independent.
+
+**Mixed-capability composition is untested by the declared criteria.** `TST-LAND-001` (cache), `TST-LAND-002` (`partial`/`UNKNOWN`) and `TST-LAND-003` (dependency tree) all pass under a composition that responds to a single L0-only term by rescoring *every* term in full. That is the failure mode the binding decision on exact deltas exists to prevent — the measured advantage is ~640x at 2 kb and ~4800x at 15 kb, and it is forfeited entirely if one L0 term can drag the whole query onto the slow path. `TST-LAND-004` pins degradation to the individual term. `TST-LAND-005` covers the role gate that keeps a diagnostic term out of the objective vector.
 
 ---
 
@@ -109,6 +127,28 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 | `P1-29` | Job lifecycle | `cf-orchestrator` | In-process job execution; lockfile sealed **before** any search work; RNG plan; checkpoint/resume; cooperative cancel | `TST-ORCH-001`, `TST-ORCH-002` | `P1-25`, `P1-28` | L |
 | `P1-30` | CLI and library | `cf-cli` | `design`, `score`, `feasibility`, `seeds import`, `front`, `replay`, `explain`, `hosts list`; `cf.design()` with an identical argument object | `TST-CLI-001`, `TST-CLI-002`, `TST-ORCH-003` | `P1-29` | L |
 | `P1-31` | Output writers | `cf-cli` | FASTA, GenBank, CSV and JSON emitters; the aligned `explain` rendering | Round-trip test: emitted GenBank re-ingests to the same digest | `P1-30` | S |
+
+### `P1-28` — what "minimal" defers, precisely
+
+`P1-28` is not a parallel mechanism alongside the versioning scheme in [ADR-0009](../07-decisions/ADR-0009-artifact-versioning-and-resolution.md) and [`04-model-resolution.md`](../04-api/04-model-resolution.md); it is that scheme's Phase 1 subset. The split, stated so that no later ticket assumes a deferred rung already works:
+
+| Capability | Phase 1 (`P1-28`) | Deferred to |
+| --- | --- | --- |
+| Manifest identity: coordinate, content digest, `contract_major`, `provides_terms` | owned | — |
+| Content-addressed local artifact store | owned | — |
+| `pin` rung — resolve by exact digest | owned | — |
+| `base` rung — the host-agnostic fallback artifact | owned | — |
+| `builtin` rung — terms with no artifact at all | owned | — |
+| Lockfile sealing, replay, and `CF-RESOLVE-006` on a missing digest | owned | — |
+| Non-blocking recalibration *as observed by a sealed job* | owned | — |
+| `tenant_channel` and `host_channel` rungs | **deferred** | `P3-15` |
+| Channel promotion, `yanked`, staged rollout | **deferred** | `P3-15` |
+| `nearest_host` rung and the host-distance metric | **deferred** | `P3-16` |
+| Fallback admissibility, `sigma` inflation, `calibrated: false` | **deferred** | `P3-16` |
+
+The non-blocking-recalibration guarantee is testable now despite channels being deferred, because the guarantee is a property of the *lockfile*, not of the promotion machinery: a job that sealed a digest reads that digest for its whole life regardless of what else enters the store. `P3-15` adds the ability for a promotion to occur; `P1-28` establishes that a sealed job would not see one.
+
+The hazard specific to a partial ladder is silent fall-through — a request for a deferred rung quietly resolving one rung lower and returning a plausible artifact. Every deferred rung therefore raises `CF-RESOLVE-007` naming the ticket that will implement it, rather than falling through.
 
 ---
 
