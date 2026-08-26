@@ -432,6 +432,15 @@ pub fn tier2_block_ca_with_order(
                 if candidate.same_codons_as(&incumbent) {
                     continue;
                 }
+                // Never commit an infeasible incumbent. The block DP prunes
+                // within its own reach and the right-context walk covers its
+                // trailing edge, so this should never fire — which is exactly
+                // why it is here rather than assumed: the accept step compares
+                // objectives, and an infeasible candidate can score well.
+                if !block_is_feasible(&incumbent, &block, &assignment, checker) {
+                    blocks_rejected += 1;
+                    continue;
+                }
                 // Accept on the truth (§3.2 step 2), not on the linearization
                 // the DP maximized.
                 let candidate_objective = evaluate(&candidate, registry, plan, host)?;
@@ -647,10 +656,19 @@ fn update_block(
                 .total_cmp(&next[*a].score)
                 .then_with(|| jitter[*a].cmp(&jitter[*b]))
         });
+        // The incumbent path is kept *in addition* to the best `b`, not in
+        // competition with them. §3.3 writes the union before the truncation,
+        // which reads as the incumbent being eligible for truncation — and then
+        // "block updates are made non-worsening by seeding the beam with the
+        // incumbent" is not a guarantee, only a tendency. Keeping it as a
+        // `b + 1`th state makes it one.
+        //
+        // Displacing the best state instead, which is the other way to read it,
+        // is worse still: at `b = 1` the beam would then always *be* the
+        // incumbent and the block could never improve.
         order.truncate(config.beam.max(1));
         if !order.iter().any(|i| next[*i].on_incumbent) {
             if let Some(position) = next.iter().position(|s| s.on_incumbent) {
-                order.pop();
                 order.push(position);
             }
         }
@@ -661,6 +679,63 @@ fn update_block(
         }
         beam = kept;
     }
+
+    // Walk the fixed context to the right of the block before choosing.
+    //
+    // The DP prunes matches that end inside the block; it cannot see one that
+    // *starts* inside and completes in the next block. Those codons are fixed
+    // for this half-sweep, so walking them is cheap and exact — and without it
+    // a block update can create a motif across its right edge, which nothing
+    // downstream would catch: the accept step compares objectives, not
+    // feasibility. Structurally the same gap as tier 1's 3' junction, one
+    // boundary further in.
+    let right_reach = automata[0]
+        .max_pattern_len()
+        .max(automata[1].max_pattern_len());
+    let right_end = (block.end + right_reach.div_ceil(3)).min(sequence.codon_count());
+    let survivors: Vec<State> = beam
+        .iter()
+        .filter(|st| {
+            let mut dfa = st.dfa;
+            let mut d = distance;
+            for index in block.end..right_end {
+                match crate::tier1::step_editable(
+                    &automata,
+                    checker,
+                    dfa,
+                    &sequence.codons()[index].to_bytes(),
+                    false,
+                    d,
+                ) {
+                    Some(next) => dfa = next,
+                    None => return false,
+                }
+                d = d.after_codon(false);
+            }
+            if right_end == sequence.codon_count() {
+                return crate::tier1::step_editable(
+                    &automata,
+                    checker,
+                    dfa,
+                    sequence.three_prime_flank(),
+                    false,
+                    d,
+                )
+                .is_some();
+            }
+            true
+        })
+        .cloned()
+        .collect();
+
+    // If every path dies against the right context — which happens when the
+    // incumbent itself is already violating, so its own path is pruned too —
+    // doing nothing is still available and is the right answer.
+    let beam = if survivors.is_empty() {
+        beam
+    } else {
+        survivors
+    };
 
     let best = beam
         .into_iter()

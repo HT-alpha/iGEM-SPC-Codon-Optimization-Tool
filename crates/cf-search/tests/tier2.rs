@@ -86,6 +86,20 @@ fn motif_rules(motifs: &[&str]) -> ConstraintSet {
     }
 }
 
+/// Whether a genotype satisfies the checker, with locks honoured.
+fn seed_is_feasible(g: &Genotype, checker: &ConstraintChecker) -> bool {
+    let construct = assemble(g);
+    let view = ConstructView::new(
+        &construct,
+        vec![(g.cds_offset_nt(), g.cds_offset_nt() + g.len() * 3)],
+    )
+    .with_editable_spans(cf_constraints::repair::editable_spans(&[(
+        g.cds_offset_nt(),
+        g.sequence().clone(),
+    )]));
+    checker.is_feasible(&view)
+}
+
 fn assemble(g: &Genotype) -> Vec<u8> {
     let sequence = g.sequence();
     let mut out = sequence.five_prime_flank().to_vec();
@@ -155,6 +169,20 @@ impl Additive {
     fn score_only(mut self) -> Self {
         self.capability = Capability::L0;
         self
+    }
+
+    /// Explicit weights for named codons; everything else is zero.
+    ///
+    /// So a test can build a scoring landscape with a known shape rather than
+    /// hoping pseudo-random weights happen to produce one.
+    fn with_weights(term: &str, calls: Calls, pairs: &[(&str, f64)]) -> Self {
+        let mut this = Self::new(term, calls, 0);
+        this.weight = [0.0; 64];
+        for (codon, weight) in pairs {
+            let codon = cf_types::Codon::parse(codon).unwrap();
+            this.weight[codon.index_usize()] = *weight;
+        }
+        this
     }
 
     /// A term that wants one specific codon above everything else.
@@ -704,9 +732,15 @@ fn p1_25_a_term_wider_than_the_block_is_refused() {
 #[test]
 fn tst_srch_001_the_objective_never_decreases_across_a_half_sweep() {
     let calls = Calls::default();
-    let checker = ConstraintChecker::compile(&motif_rules(&["GGATCC", "CTGCGT"])).unwrap();
+    // Both motifs are absent from the base: `GGATCC` occurs only in the
+    // backbone, where it is non-actionable, and `CGCAGC` is creatable but not
+    // present. A motif already in the seed would make the seed infeasible, and
+    // tier 2 is not repair — the run would then be measuring rejection rather
+    // than monotonicity.
+    let checker = ConstraintChecker::compile(&motif_rules(&["GGATCC", "CGCAGC"])).unwrap();
     let host = host();
     let base = base();
+    assert!(seed_is_feasible(&base, &checker));
 
     let mut improved_at_all = 0usize;
     for seed in 0..500u64 {
@@ -868,24 +902,35 @@ fn p1_25_a_locked_span_across_a_block_edge_is_respected() {
     }
 }
 
-/// A motif whose occurrence would straddle a block edge is still prevented.
+/// A motif created across a block's *right* edge is prevented.
 ///
-/// The block DP primes from everything to its left, so the codons just across
-/// the edge are context rather than a fresh start. Tier 1's bug was a
-/// fresh-start automaton at a construct junction; this is the same risk at a
-/// block edge.
+/// The complement of the priming test. The block DP prunes matches ending
+/// inside its own range; one that starts inside and completes in the next block
+/// is invisible to it, and nothing downstream would catch it either — the
+/// accept step compares objectives, not feasibility. Tier 1's bug was a
+/// fresh-start automaton at a construct junction; this is the same gap one
+/// boundary further in, and it was live until the right-context walk was added.
+///
+/// `CTCCGT` spans codon 1 (block 0's last) and codon 2 (block 1's first, fixed
+/// while red blocks update). It is absent from the base, and the term is rigged
+/// to want `CTC`, so the DP will try to create it.
 #[test]
-fn p1_25_a_motif_across_a_block_edge_is_prevented() {
+fn p1_25_a_motif_across_a_block_right_edge_is_prevented() {
     let calls = Calls::default();
-    // `CTGCGTAGC` spans codons 1-3, so with a block size of 2 it crosses the
-    // edge between block 0 (codons 0-1) and block 1 (codons 2-3).
-    let checker = ConstraintChecker::compile(&motif_rules(&["GGCGTGGCG"])).unwrap();
+    let checker = ConstraintChecker::compile(&motif_rules(&["CTCCGT"])).unwrap();
     let host = host();
     let base = base();
-    let config = Tier2Config::from_planning(2);
+    assert_eq!(base.codons()[1].to_string_upper(), "CTG");
+    assert_eq!(base.codons()[2].to_string_upper(), "CGT");
+    assert!(seed_is_feasible(&base, &checker));
 
-    for seed in 0..80u64 {
-        let registry = registry_with(vec![Box::new(Additive::new("usage.cai", calls.clone(), 0))]);
+    let config = Tier2Config::from_planning(2);
+    for seed in 0..60u64 {
+        let registry = registry_with(vec![Box::new(Additive::preferring(
+            "usage.cai",
+            calls.clone(),
+            "CTC",
+        ))]);
         let plan = Tier2Plan::check(&registry, &terms(&["usage.cai"]), &[1.0], &config).unwrap();
         let report = tier2_block_ca(
             &Tier2Request {
@@ -900,17 +945,14 @@ fn p1_25_a_motif_across_a_block_edge_is_prevented() {
         )
         .unwrap();
 
-        let construct = assemble(&report.incumbent);
-        let view = ConstructView::new(
-            &construct,
-            vec![(
-                report.incumbent.cds_offset_nt(),
-                report.incumbent.cds_offset_nt() + report.incumbent.len() * 3,
-            )],
+        assert!(
+            !(report.incumbent.codons()[1].to_string_upper() == "CTC"
+                && report.incumbent.codons()[2].to_string_upper() == "CGT"),
+            "seed {seed}: the DP created CTCCGT across the block's right edge"
         );
         assert!(
-            checker.is_feasible(&view),
-            "seed {seed}: tier 2 produced an infeasible incumbent"
+            seed_is_feasible(&report.incumbent, &checker),
+            "seed {seed}: tier 2 committed an infeasible incumbent"
         );
     }
 }
@@ -1141,4 +1183,68 @@ fn p1_25_priming_prevents_a_motif_created_across_a_block_edge() {
             "seed {seed}: infeasible incumbent"
         );
     }
+}
+
+/// The incumbent survives truncation, so a block update cannot end up worse.
+///
+/// Separable scoring cannot show this: greedy is optimal there, so a beam of
+/// any width finds the block optimum and the incumbent is never needed. The
+/// gap only opens when an early choice that looks best *closes off* a better
+/// continuation, which is what motif pruning does.
+///
+/// The fixture is built to do exactly that. `CGC` at codon 2 scores `+1.0`
+/// against the incumbent, but `CGCAGC` is forbidden, so taking it costs `AGC`
+/// at codon 3 — worth `−2.0`. A width-1 beam that dropped the incumbent would
+/// commit to `CGC` and finish at `−1.0`, worse than doing nothing; with the
+/// incumbent kept as an extra state, the `0.0` path survives and wins.
+#[test]
+fn p1_25_the_incumbent_survives_truncation_and_prevents_a_worsening_update() {
+    let calls = Calls::default();
+    let checker = ConstraintChecker::compile(&motif_rules(&["CGCAGC"])).unwrap();
+    let host = host();
+    let base = base();
+    assert_eq!(base.codons()[2].to_string_upper(), "CGT");
+    assert_eq!(base.codons()[3].to_string_upper(), "AGC");
+
+    let mut config = Tier2Config::from_planning(2);
+    config.beam = 1;
+    // Polish would otherwise paper over a truncation loss, and the point here
+    // is what the DP itself returns.
+    config.max_polish_passes = 0;
+
+    let mut committed = 0u64;
+    for seed in 0..40u64 {
+        let registry = registry_with(vec![Box::new(Additive::with_weights(
+            "usage.cai",
+            calls.clone(),
+            &[("CGC", 1.5), ("CGT", 0.5), ("AGC", 2.0)],
+        ))]);
+        let plan = Tier2Plan::check(&registry, &terms(&["usage.cai"]), &[1.0], &config).unwrap();
+        let report = tier2_block_ca(
+            &Tier2Request {
+                seed: &base,
+                registry: &registry,
+                host: &host,
+                checker: &checker,
+                config: &config,
+            },
+            &plan,
+            seed,
+        )
+        .unwrap();
+
+        assert_eq!(
+            report.blocks_rejected, 0,
+            "seed {seed}: a block update returned something worse than the incumbent, \
+             so the incumbent did not survive truncation"
+        );
+        // The trap was actually laid: the incumbent's own codons are still there.
+        assert_eq!(report.incumbent.codons()[3].to_string_upper(), "AGC");
+        committed += report.blocks_committed;
+    }
+    assert!(
+        committed > 0,
+        "nothing was committed anywhere, so the run is degenerate and the assertion \
+         above is vacuous"
+    );
 }
