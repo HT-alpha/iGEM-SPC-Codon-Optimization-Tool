@@ -100,7 +100,19 @@ Two audit findings, one an architecture defect and one an acceptance gap.
 
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |
-| `P1-23` | Genotype and operators | `cf-search` | `Vec<u8>` genotype with cached hash; the four mutation operators; block-uniform crossover; duplicate suppression; seed injection | `TST-SRCH-006` | `P1-20` | M |
+| `P1-23` | Genotype and operators | `cf-search` | Genotype with an incrementally maintained hash; the four mutation operators, two of them against the `ContextModel` seam; block-uniform crossover; duplicate suppression; seed injection | `TST-SRCH-006`, `TST-SRCH-010` | `P1-20` | M |
+
+### `P1-23` — what ships, what waits, and why the operator mix is smaller than §5.1
+
+**Two of the four mutation operators have no model to sample from.** `potts_guided` and `block_gibbs` both draw from the Potts conditional ([`03-nsga-loop-and-operators.md`](../03-algorithms/03-nsga-loop-and-operators.md) §5.1), which is `cf-epistasis` and arrives in `P3-05`. `cf-search` is also specified as talking only to `cf-landscape-api`, so even in Phase 3 the conditional must arrive through a seam rather than a direct call. Both operators are implemented against `ContextModel` and are registered only when a model is supplied; without one, `OperatorMix::without_context_model` renormalizes the remaining weights and reports the absent operators as `CF-SRCH-001` warnings. See `DEP-SRCH-005`.
+
+Backing them with host codon usage instead would have been the tempting move and the wrong one: `potts_guided` over a context-free distribution *is* `uniform_synonymous` with different weights, so the mix would have looked complete while exploring differently, and the change in behaviour would have been attributed to anything but the operator that caused it.
+
+The renormalization is a real behavioural change — 0.35/0.35/0.20/0.10 over four operators becomes 0.35/0.10 over two — so it is surfaced rather than absorbed. `OperatorMix::warnings()` returns the `CF-SRCH-001` problems; **`P1-29` must put them into `job_status.warnings`**, because nothing in `P1-23` has a job to warn from.
+
+**`P1-18b` is not needed, and the boundary is exact.** `P1-18a` shipped `TabuLedger::is_tabu` and `should_suppress` as pure queries, so the mutation operators consult the ledger now and `TST-CONS-005`'s consultation half is tested against a hand-advanced ledger. What waits for `P1-18b` is the clock: `TABU_TICK` belongs to the generation loop, which does not exist until `P1-23` is in place, and `TST-CONS-005` scripts a mutation/repair cycle *across* generations.
+
+**A defect worth carrying forward to `P1-33`.** `SearchRng::new` initially used `seed | 1` to avoid xorshift's absorbing zero state, which maps every even seed onto its odd successor: seeds `2026` and `2027` produced byte-identical runs. Since the root seed comes from the lockfile, two jobs a user seeded deliberately differently would have agreed and looked like a reproducibility success. Replaced with the splitmix64 finalizer, which is a bijection. `cf-constraints`' `RepairRng` had the same construction and the same fix. `GATE-DET-001` and `P1-33` rest on this layer being right.
 | `P1-24` | Tier 1 constrained beam DP | `cf-search` | Beam DP on the product with the motif automaton; diversity-capped beam selection | `TST-SRCH-002` (tier-1 portion) | `P1-14`, `P1-23` | L |
 | `P1-25` | Tier 2 red-black block CA | `cf-search` | The partition (`B ≥ W` assertion); parallel same-colour block updates; incumbent-seeded beam for monotonicity; 1-opt polish; right-boundary correction; the tier-2 capability precheck below | `TST-SRCH-001`, `TST-SRCH-002` | `P1-24` | XL |
 

@@ -1,11 +1,47 @@
-//! `cf-search` — search-engine layer.
+//! `cf-search` — three-tier search engine.
 //!
-//! Three-tier search engine - tier 1 greedy/DP seeding, tier 2 red-black
-//! block-local coordinate ascent, tier 3 NSGA-II/III population loop - plus
-//! the systems-level joint search driver. Talks only to `cf-landscape-api`;
-//! it never names a concrete predictor.
+//! Ticket P1-23 delivers the genotype and the variation operators; tiers 1–3
+//! and the joint-search driver follow in `P1-24` … `P1-26`.
 //!
-//! Declared dependencies: cf-types, cf-landscape-api, cf-constraints, cf-metrics.
-//! Contract: `planning/03-algorithms/02-block-local-coordinate-ascent.md`.
+//! Talks only to `cf-landscape-api`. It never depends on `cf-landscape`, on a
+//! predictor crate, or on `cf-epistasis` — the epistatic conditional two of the
+//! mutation operators need arrives through [`context::ContextModel`], which is
+//! what lets a predictor be swapped without the search engine noticing.
+//!
+//! ## The two properties this crate is built around
+//!
+//! **Every operator produces a valid individual.** The genotype is a product
+//! space over synonymous choices, so a codon-boundary operator cannot violate
+//! the protein constraint — the constraint that matters most, and the one most
+//! sequence-design MOEAs spend their complexity budget on. `cf-search` gets it
+//! for free by never exposing a mutable view of a genotype's codons: the single
+//! mutation path is [`genotype::Genotype::apply`], which delegates to
+//! `CodonSequence::substitute` and inherits both the synonymy check
+//! (`CF-SEQ-004`) and the locked-span check (`CF-SEQ-006`) from `P1-06`.
+//!
+//! **Every operator move is a landscape delta query.** [`genotype::Move`]
+//! carries `cf_landscape_api::Edit` values, the same type `Target::Delta`
+//! holds, so a move reaches the exact-delta path by being handed over rather
+//! than by being reconstructed from a diff. Reconstructing would cost `O(L)`
+//! per move and would put the query back on the expensive path by construction.
+//!
+//! Declared dependencies: cf-types, cf-landscape-api, cf-constraints,
+//! cf-metrics.
 
 #![forbid(unsafe_code)]
+#![warn(missing_debug_implementations)]
+
+pub mod context;
+pub mod genotype;
+pub mod operators;
+pub mod population;
+pub mod rng;
+
+pub use context::{CodonWeights, ContextModel};
+pub use genotype::{Genotype, Move, MoveKind};
+pub use operators::{
+    BlockGibbs, BlockUniform, CrossoverOperator, MutationContext, MutationOperator, OnePoint,
+    OperatorMix, PottsGuided, TwoPoint, UnavailableOperator, UniformSynonymous, ViolationDirected,
+};
+pub use population::{Offspring, Population, SeedReport};
+pub use rng::SearchRng;

@@ -302,8 +302,19 @@ pub fn declared_bound(policy: &RepairPolicy, violations: usize, max_family: usiz
 pub struct RepairRng(u64);
 
 impl RepairRng {
+    /// Seed the stream.
+    ///
+    /// Not `seed | 1`: that keeps xorshift out of its absorbing zero state but
+    /// maps every even seed onto its odd successor, so half of all consecutive
+    /// seed pairs produce identical tie-breaking. The splitmix64 finalizer is a
+    /// bijection, which keeps distinct seeds distinct. Same fix as
+    /// `cf_search::SearchRng::new`, where the aliasing was found.
     pub fn new(seed: u64) -> Self {
-        Self(seed | 1)
+        let mut z = seed ^ 0x9E37_79B9_7F4A_7C15;
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        z ^= z >> 31;
+        Self(if z == 0 { 0x2545_F491_4F6C_DD1D } else { z })
     }
 
     fn next_u64(&mut self) -> u64 {

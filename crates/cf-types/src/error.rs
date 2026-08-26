@@ -92,6 +92,12 @@ codes! {
     LAND_DOCUMENT_INVALID  => ("CF-LAND-007", 422, "Landscape query or response document is malformed", "planning/02-schemas/landscape_query.schema.json"),
     LAND_BASE_EVICTED      => ("CF-LAND-010", 409, "Delta query base sequence is no longer cached; resend as a full query", "planning/02-schemas/landscape_query.schema.json"),
 
+    // ---- CF-SRCH: search engine --------------------------------------------
+    SRCH_OPERATOR_UNAVAILABLE => ("CF-SRCH-001", 200, "A specified variation operator is unavailable and the mix was renormalized", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+    SRCH_NO_OPERATOR       => ("CF-SRCH-002", 500, "No registered mutation operator applies", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+    SRCH_INCOMPATIBLE_PARENTS => ("CF-SRCH-003", 500, "Crossover parents have different lengths", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+    SRCH_SEED_POLICY       => ("CF-SRCH-004", 422, "Seed injection policy is malformed", "planning/07-decisions/ADR-0007-external-tool-seed-import.md"),
+
     // ---- CF-JOINT ----------------------------------------------------------
     JOINT_NO_CONVERGENCE   => ("CF-JOINT-001", 200, "Price decomposition failed to converge; fell back to fully joint search", "planning/03-algorithms/04-systems-level-joint-search.md"),
 

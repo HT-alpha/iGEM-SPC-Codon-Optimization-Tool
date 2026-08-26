@@ -88,6 +88,11 @@ dependencies = [
 [[package]]
 name = "cf-search"
 version = "0.1.0"
+dependencies = [
+ "cf-constraints",
+ "cf-landscape-api",
+ "cf-types",
+]
 
 [[package]]
 name = "cf-types"
