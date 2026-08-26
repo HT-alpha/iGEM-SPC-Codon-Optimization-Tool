@@ -1179,17 +1179,17 @@ fn p1_25_priming_prevents_a_motif_created_across_a_block_edge() {
             "CGC",
             "seed {seed}: the DP chose the codon that completes CTGCGC across the block edge"
         );
-        let construct = assemble(&report.incumbent);
-        let view = ConstructView::new(
-            &construct,
-            vec![(
-                report.incumbent.cds_offset_nt(),
-                report.incumbent.cds_offset_nt() + report.incumbent.len() * 3,
-            )],
-        );
         assert!(
-            checker.is_feasible(&view),
+            seed_is_feasible(&report.incumbent, &checker),
             "seed {seed}: infeasible incumbent"
+        );
+        // The observable that distinguishes a primed DP from an unprimed one.
+        // Both refuse to *commit* the motif, because the accept step rejects an
+        // infeasible candidate; only the primed one refuses to *propose* it.
+        assert_eq!(
+            report.blocks_rejected, 0,
+            "seed {seed}: a block proposal was thrown away as infeasible, which means \
+             the DP proposed something its own automaton should have pruned"
         );
     }
 }
