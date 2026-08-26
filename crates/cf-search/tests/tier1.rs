@@ -563,31 +563,48 @@ fn p1_24_seeds_preserve_protein_and_locks_and_are_feasible() {
 /// A motif that only exists across the 5' junction is pruned, not post-checked.
 ///
 /// `DEP-SRCH-006`. §2's pseudocode starts the automaton at `A.start`, which is
-/// right for a bare CDS and wrong inside a construct. The fixture's 5' flank
-/// ends in `TGGA`; a first codon of `TCC` would complete `GGATCC` across the
-/// junction, and only a primed automaton can see that while extending.
+/// right for a bare CDS and wrong inside a construct.
+///
+/// The observable has to be chosen carefully. Asserting that no seed starts
+/// with `TCC` proves nothing: without priming the DP emits that candidate and
+/// the post-check removes it, so the seeds are identical either way and only
+/// the *cost* differs — the same shape of blindness as scoring per step. So the
+/// fixture asks for more seeds than the space contains, which forces every
+/// candidate to be examined, and asserts on `post_check_rejected`: zero when
+/// the junction is structural, one when it is discovered after the fact.
 #[test]
 fn p1_24_the_flanks_prime_the_automaton() {
     let calls = Calls::default();
     let registry = registry_with(&calls, &["usage.cai"]);
-    let checker = ConstraintChecker::compile(&motif_rules(&["GGATCC"])).unwrap();
+    // `GATGTCC` spans the last flank byte, the start codon and a serine of
+    // `TCC` — so it exists only across the junction and only for one choice.
+    let checker = ConstraintChecker::compile(&motif_rules(&["GATGTCC"])).unwrap();
 
-    // 5' flank ends ...TGGA; CDS starts with a serine, whose synonyms include
-    // TCC — so TGGA|TCC contains GGATCC straddling the junction.
-    let sequence = CodonSequence::from_cds("AGCCTGCGTTAA", 1)
+    // Met, one serine, stop. The serine is at codon 1 rather than codon 0
+    // because `CodonSequence` locks the start and stop codons, so a
+    // junction-sensitive choice at codon 0 would never be offered to the DP —
+    // which is how the first version of this fixture managed to assert nothing.
+    let sequence = CodonSequence::from_cds("ATGAGCTAA", 1)
         .unwrap()
-        .with_five_prime_flank("TTGACAATTAATCATCGGCTCGTATAATGTGTGGA")
+        .with_five_prime_flank("TTGACAATTAATCATCGGCTCGTATAATGTGTG")
         .unwrap();
     let base = Genotype::new(sequence);
-    assert_eq!(
-        &base.sequence().five_prime_flank()[31..],
-        b"TGGA",
-        "fixture no longer ends in TGGA, so the junction case is not exercised"
+    assert!(
+        base.sequence().five_prime_flank().ends_with(b"G"),
+        "the flank must supply the leading G of GATGTCC"
     );
+    assert_eq!(
+        base.mutable_positions(),
+        vec![1],
+        "only the serine may move; the start and stop codons are locked"
+    );
+    assert_eq!(base.sequence().synonyms_at(1).len(), 6);
     let host = host();
 
     for seed in 0..40u64 {
-        let config = Tier1Config::default().with_beam(64).with_seeds(8);
+        // More seeds than the space holds, so every candidate is examined and
+        // the post-check counter is meaningful.
+        let config = Tier1Config::default().with_beam(64).with_seeds(16);
         let mut rng = SearchRng::new(seed);
         let report = tier1_seed(
             &Tier1Request {
@@ -602,18 +619,23 @@ fn p1_24_the_flanks_prime_the_automaton() {
             &mut rng,
         )
         .unwrap();
-        for candidate in &report.seeds {
-            assert_ne!(
-                candidate.codons()[0].to_string_upper(),
-                "TCC",
-                "a candidate completing GGATCC across the 5' junction survived"
-            );
-        }
-        // And nothing reached the post-check: pruning happened in the DP.
+
         assert_eq!(
             report.post_check_rejected, 0,
-            "the junction motif was caught after the fact, not by construction"
+            "seed {seed}: the junction motif was caught after the fact, not by construction"
         );
+        assert!(
+            report.states_pruned >= 1,
+            "seed {seed}: nothing was pruned, so the assertion above is vacuous"
+        );
+        assert_eq!(
+            report.seeds.len(),
+            5,
+            "seed {seed}: five of the six serine codons are admissible"
+        );
+        for candidate in &report.seeds {
+            assert_ne!(candidate.codons()[1].to_string_upper(), "TCC");
+        }
     }
 }
 
