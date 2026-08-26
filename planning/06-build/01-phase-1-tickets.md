@@ -53,9 +53,16 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 | `P1-14` | Motif automaton | `cf-constraints` | Aho–Corasick over IUPAC-expanded patterns, both strands; incremental rescan of an `m_max+3` nt window after a substitution | `TST-CONS-001` (motif classes) | `P1-13` | M |
 | `P1-15` | k-mer index | `cf-constraints` | Hash map with **overlapping** counts, matching the prototype's `count_overlapping` semantics; `O(k)` incremental update; optional canonical-strand mode | `TST-CONS-001` (k-mer) | `P1-13` | M |
 | `P1-16` | Homopolymer and GC detectors | `cf-constraints` | Run-length index; GC prefix sums with `O(1)` per-window queries | `TST-CONS-001` (remaining classes) | `P1-13` | S |
-| `P1-17` | Repair operator | `cf-constraints` | Depth-1 exhaustive search; depth-`d` beam; the `(edits, objective cost, random)` ordering key; escalation; bounded give-up | `TST-CONS-002`, `TST-CONS-003`, `TST-CONS-004` | `P1-14`–`P1-16` | L |
-| `P1-18` | Tabu ledger | `cf-constraints` | Per-run `(position, codon)` ledger with generation-clock decay and the deliberate 10 % leak | `TST-CONS-005` | `P1-17` | S |
 | `P1-19` | Feasibility analyser | `cf-constraints` | All five checks, each reporting a constraint to relax and by how much | `TST-CONS-006` | `P1-14`–`P1-16` | M |
+| `P1-17` | Repair operator | `cf-constraints` | Depth-1 exhaustive search; depth-`d` beam; the `(edits, objective cost, random)` ordering key; escalation; bounded give-up distinguishing "provably no fix" from "budget exhausted" | `TST-CONS-002`, `TST-CONS-003`, `TST-CONS-004` | `P1-14`–`P1-16`, **`P1-19`** | L |
+| `P1-18a` | Tabu ledger | `cf-constraints` | Per-run `(position, codon)` ledger, `record`, generation-clock `tick`, and the 10 % leak decision | unit tests | `P1-14`–`P1-16` | S |
+| `P1-18b` | Tabu wiring | `cf-search` | `TABU_TICK` in the generation loop; the leak consulted by the mutation operator | `TST-CONS-005` | `P1-18a`, `P1-23` | S |
+
+> **Sequencing correction (implementation, 2026-08).** Two corrections here, found by the pre-work audit.
+>
+> **`P1-19` now precedes `P1-17`.** `P1-17`'s three declared tests do not need the analyser, so the original ordering was defensible on the letter of the ticket. But repair's termination condition is only *principled* in combination with it: a bounded budget makes each call terminate while still allowing repair to spend that budget on every candidate forever when a constraint is unsatisfiable in principle. See [`../03-algorithms/06-constraint-repair.md`](../03-algorithms/06-constraint-repair.md) §5.1.
+>
+> **`P1-18` split.** Repair's signature takes the tabu ledger, so the ledger type must land with `P1-17` — but `TST-CONS-005` scripts a mutation/repair cycle over generations, which needs `P1-23`'s mutation operator and a generation clock. `P1-18a` (the ledger, unit-testable in isolation) lands now; `P1-18b` (wiring and `TST-CONS-005`) is scheduled with `P1-23`. Same shape as the `P1-27a`/`P1-27b` split.
 
 ---
 
@@ -116,8 +123,27 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 
 ---
 
+## Phase 1 exit decisions
+
+Behaviour questions that implementation surfaced and that need an explicit
+answer before Phase 1 closes. Each currently ships on the **legacy-parity**
+setting, so deciding is a configuration change rather than a code change, and
+not deciding is a decision to keep the legacy behaviour.
+
+| Id | Decision | Currently | Evidence |
+| --- | --- | --- | --- |
+| `EXIT-001` | Should motif and restriction-site constraints default to `scope: construct`, catching a site that straddles the coding-region boundary? The prototype scopes them to the CDS and misses it. | legacy parity (`scope: cds` where the differential requires it; `spec::expand` already emits `construct` for assembly standards) | `docs/legacy-parity.md` §1 |
+| `EXIT-002` | Should k-mer counting default to `KmerMasking::Assembled`, catching a repeat that straddles a region boundary? The prototype's masked backbone counting misses it. | legacy parity available; `Assembled` is the code default and the differential runs in `SegmentedByRegion` | `docs/legacy-parity.md` §2 |
+| `EXIT-003` | `EXP-05`: Lamarckian vs Baldwinian repair. Gated on `P1-34`, which needs `P1-17` (done) and `P1-32`. | Lamarckian | `planning/08-experiments/experiment-register.md` |
+
+`EXIT-001` and `EXIT-002` change which designs are called feasible relative to
+the tool this repository already ships, so a construct the prototype accepted
+may be rejected. That is the intended improvement, but it is a user-visible
+behaviour change and should be decided rather than absorbed.
+
 ## Phase 1 exit checklist
 
+- [ ] `EXIT-001`, `EXIT-002`, `EXIT-003` decided
 - [ ] `TST-CORE-*`, `TST-CONS-*`, `TST-SYN-*`, `TST-INGE-*`, `TST-LAPI-*`, `TST-LAND-*`, `TST-CLI-*`, `TST-ORCH-*` green
 - [ ] `TST-SRCH-001`, `-002`, `-003`, `-004`, `-006` green
 - [ ] `GATE-DET-001` (bit-identical across thread counts) green

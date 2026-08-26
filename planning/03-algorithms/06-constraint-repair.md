@@ -196,10 +196,13 @@ ANALYSE_FEASIBILITY(protein, flanks, C) -> FeasibilityReport
      unavoidable violation given the immutable context?
      -> CF-FEAS-003, naming the position.
 
-  4. AUTOMATON REACHABILITY
-     Run tier-1 beam DP with regular constraints only and no objective. If the
-     beam empties at position i, the motif constraints alone are jointly
-     unsatisfiable from that prefix.
+  4. AUTOMATON REACHABILITY  (exact; see the correction below)
+     Exact forward reachability over the product of the codon positions and the
+     motif automaton's states. From the DFA state induced by the 5' flank,
+     propagate the set of reachable (position, dfa_state) pairs, taking a codon
+     as three DFA steps and discarding any transition that passes through an
+     accepting state. If the reachable set is empty at position i, NO assignment
+     of synonymous codons avoids the motif constraints.
      -> CF-FEAS-004, naming position i and the patterns that closed off every
         continuation.
 
@@ -210,9 +213,26 @@ ANALYSE_FEASIBILITY(protein, flanks, C) -> FeasibilityReport
      -> CF-FEAS-005, reporting the attainable band.
 ```
 
-Every check reports a **constraint to relax and by how much**, not just a failure. Steps 2 and 5 are exact; steps 1, 3 and 4 are necessary-condition checks, so passing all five does not guarantee feasibility — the report says so.
+Every check reports a **constraint to relax and by how much**, not just a failure. Steps 2, 4 and 5 are exact; steps 1 and 3 are necessary-condition checks, so passing all five does not guarantee feasibility — the report says so.
 
 `DEP-CONS-001` — The architecture proposal does not mention feasibility analysis. It is added here because a hard-constraint layer without one produces unexplainable empty results, which is the most common way a codon optimizer becomes unusable in practice.
+
+`DEP-CONS-003` — Check 4 is exact product-automaton reachability, not the beam DP originally specified. A beam truncates, so an empty beam proves the heuristic lost the surviving paths rather than that none exist; reporting that as infeasible is a false positive, and for a gate that refuses jobs a false positive is far worse than a false negative. Exact reachability is also cheaper than the alternative and removes an undeclared dependency on `cf-search`.
+
+> **Correction (implementation, 2026-08).** Check 4 was specified as "run tier-1 beam DP … if the beam empties, the constraints are jointly unsatisfiable". That is unsound for the reason in `DEP-CONS-003`, and it made `P1-19` depend on `P1-24` (tier-1 beam DP, in `cf-search`) while declaring `P1-14`–`P1-16`. The exact formulation has state `(codon position, DFA state)`, costs `O(L · |Q| · S)` — about `6 × 10⁵` operations for a 666-codon CDS against a few-hundred-state automaton — and needs only the automaton `P1-14` already builds.
+>
+> The exact form is also *stronger* than planned: it is a sufficient condition for motif-only infeasibility, not merely a necessary one, so a `CF-FEAS-004` finding is a proof rather than a suspicion. Homopolymer limits are compiled into the same automaton, since a `max_run` bound is a regular language.
+
+### 5.1 Why the analyser must run before repair, not alongside it
+
+`P1-17`'s bounded budget makes each repair *call* terminate. It does not stop repair from spending its full budget on every candidate in every generation when a constraint is unsatisfiable in principle — a GC band outside the attainable range, a position with no admissible synonym. That is bounded per call and unbounded in aggregate, which is the legacy `Exceeded max restarts` failure mode in a different costume: the prototype terminated too, it just terminated uselessly 1 000 times.
+
+Repair's termination condition is only principled in combination with this analyser:
+
+1. **Within a call**, depth-1 search is *exhaustive* over the candidate window, so "no depth-1 fix exists" is a proof about that window rather than a timeout, and the escalation ladder is finite. Repair reports which of the two it hit.
+2. **Across calls**, the analyser runs once at submission and rejects constraint sets no assignment can satisfy, so repair is never asked to solve an impossible problem repeatedly.
+
+Neither half is sufficient alone. This is why `P1-19` is sequenced before `P1-17`.
 
 ---
 

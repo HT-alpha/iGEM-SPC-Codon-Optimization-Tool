@@ -233,6 +233,31 @@ impl MotifAutomaton {
         &self.patterns
     }
 
+    /// Start state, for callers driving the automaton themselves.
+    pub fn start_state(&self) -> usize {
+        ROOT
+    }
+
+    /// Transition on one base. `None` for a character that is not a base.
+    ///
+    /// Exposed so the feasibility analyser can do exact reachability over
+    /// `(position, state)` pairs (`DEP-CONS-003`) without a second automaton.
+    #[inline]
+    pub fn transition(&self, state: usize, byte: u8) -> Option<usize> {
+        let base = base_index(byte)?;
+        Some(self.nodes[state].goto[base as usize])
+    }
+
+    /// Whether a pattern ends in this state.
+    #[inline]
+    pub fn is_accepting(&self, state: usize) -> bool {
+        !self.nodes[state].outputs.is_empty()
+    }
+
+    pub fn state_count(&self) -> usize {
+        self.nodes.len()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.patterns.is_empty()
     }
