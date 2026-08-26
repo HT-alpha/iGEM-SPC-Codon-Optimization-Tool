@@ -286,6 +286,72 @@ fn tst_cons_003_give_up_reason_distinguishes_proof_from_budget() {
     );
 }
 
+/// The other half of the give-up classification: a truncated beam is not a
+/// proof, and must not be reported as one.
+///
+/// Added after a negative control showed the test above only exercised the
+/// `ProvablyNoFixInWindow` branch — it used `max_depth: 1`, so the beam was
+/// never entered and removing the truncation flag changed nothing.
+#[test]
+fn tst_cons_003_truncated_beam_reports_budget_not_proof() {
+    // Depth 3 with a beam of 1: depth-1 finds nothing, depth-2 generates far
+    // more candidates than the beam holds, so truncation is certain.
+    let policy = RepairPolicy {
+        max_depth: 3,
+        beam_width: 1,
+        max_escalations: 0,
+        ..RepairPolicy::default()
+    };
+    let cds = CodonSequence::from_cds("ATGAAGCTTATTCTGTAA", 11).unwrap();
+    let construct = format!("TTTTTT{}TTTTTT", cds.cds_string());
+    let set = set_with(
+        vec![
+            ("c_hindiii", site("HindIII", "AAGCTT")),
+            (
+                "c_ban_all_leu",
+                Rule::CodonBan {
+                    codons: ["TTA", "TTG", "CTT", "CTC", "CTA", "CTG"]
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    reason: None,
+                },
+            ),
+            (
+                "c_ban_all_lys",
+                Rule::CodonBan {
+                    codons: ["AAA", "AAG"].iter().map(|s| s.to_string()).collect(),
+                    reason: None,
+                },
+            ),
+        ],
+        policy,
+    );
+    let checker = ConstraintChecker::compile(&set).unwrap();
+    let mut target = RepairTarget::new(construct.into_bytes(), vec![(6, cds)]).unwrap();
+    let outcome = repair(
+        &mut target,
+        &checker,
+        KmerMasking::Assembled,
+        &NoObjective,
+        &mut TabuLedger::default(),
+        &mut RepairRng::new(17),
+    )
+    .unwrap();
+
+    assert!(!outcome.gave_up.is_empty());
+    assert!(
+        outcome
+            .gave_up
+            .iter()
+            .all(|g| g.reason == GiveUpReason::BudgetExhausted),
+        "a truncated beam did not establish that no fix exists, so the give-up \
+         must not claim a proof: {:?}",
+        outcome.gave_up
+    );
+    assert!(outcome.work.within_bound());
+}
+
 /// `TST-CONS-004`: protein and lock invariance.
 ///
 /// The 10^6 cases are substitution attempts through `RepairTarget::substitute`,

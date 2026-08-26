@@ -473,6 +473,56 @@ fn check_automaton_reachability(
     Ok(())
 }
 
+/// Number of reachable automaton states at each codon of each region.
+///
+/// Exposed so that the *exactness* of check 4 is observable rather than merely
+/// asserted. A truncating implementation — the beam DP `DEP-CONS-003` replaced
+/// — would report 1 everywhere; exact reachability reports the true branching.
+/// `TST-CONS-006`'s exactness test reads this, because a scenario-based test
+/// cannot reliably distinguish the two: whether a width-1 beam survives depends
+/// on which state it happens to keep, so such a test passes or fails by luck.
+pub fn reachable_state_counts(
+    space: &DesignSpace,
+    checker: &ConstraintChecker,
+) -> Result<Vec<Vec<usize>>> {
+    let Some(automaton) = regular_automaton(checker)? else {
+        return Ok(vec![Vec::new(); space.regions.len()]);
+    };
+    let mut out = Vec::with_capacity(space.regions.len());
+    for (offset, seq) in &space.regions {
+        let mut state = automaton.start();
+        for &byte in &space.construct[..*offset] {
+            state = automaton
+                .step(state, byte)
+                .unwrap_or_else(|| automaton.start());
+        }
+        let mut reachable: BTreeSet<u32> = BTreeSet::from([state]);
+        let mut counts = Vec::with_capacity(seq.codon_count());
+        for index in 0..seq.codon_count() {
+            let alternatives: Vec<Codon> = if seq.is_locked(index) {
+                vec![seq.codons()[index]]
+            } else {
+                seq.synonyms_at(index).to_vec()
+            };
+            let mut next: BTreeSet<u32> = BTreeSet::new();
+            for &from in &reachable {
+                for alternative in &alternatives {
+                    if let Some(to) = automaton.step_codon(from, alternative.to_bytes()) {
+                        next.insert(to);
+                    }
+                }
+            }
+            counts.push(next.len());
+            if next.is_empty() {
+                break;
+            }
+            reachable = next;
+        }
+        out.push(counts);
+    }
+    Ok(out)
+}
+
 /// Compile the regular (finite-automaton-expressible) blocking constraints.
 ///
 /// Homopolymer limits are included: `max_run = n` is the regular language "no

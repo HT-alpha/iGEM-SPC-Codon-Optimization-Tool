@@ -347,6 +347,37 @@ fn tst_cons_006_check_5_gc_attainability() {
     );
 }
 
+/// Check 4 keeps *every* reachable state, which is what makes it exact.
+///
+/// A scenario-based test cannot reliably tell exact reachability from a
+/// width-1 beam: whether the beam survives depends on which state it happens to
+/// keep, so it passes or fails by luck. The observable property is the size of
+/// the reachable set — a truncating implementation reports 1 everywhere. This
+/// test was added after a negative control showed the scenario-based version
+/// did not discriminate.
+#[test]
+fn tst_cons_006_check_4_is_exact_not_truncated() {
+    // Several arginines and leucines give real branching, with one forbidden
+    // motif pruning some paths but not all.
+    let cds = CodonSequence::from_cds("ATGCGTCTGCGTCTGCGTCTGTAA", 11).unwrap();
+    let construct = cds.cds_string();
+    let set = set_with(vec![("c_m", motif("CGATT"))]);
+    let checker = ConstraintChecker::compile(&set).unwrap();
+    let space = DesignSpace::new(construct.as_bytes(), vec![(0, &cds)]);
+
+    let counts = cf_constraints::feasibility::reachable_state_counts(&space, &checker).unwrap();
+    assert_eq!(counts.len(), 1);
+    let peak = *counts[0].iter().max().unwrap();
+    assert!(
+        peak > 1,
+        "exact reachability must track every reachable state; a truncating \
+         implementation would report 1 at every position. Got {:?}",
+        counts[0]
+    );
+    // And no position collapses to zero, so the region is reachable.
+    assert!(counts[0].iter().all(|&c| c > 0), "{:?}", counts[0]);
+}
+
 /// The test that catches an analyser which reports everything as infeasible.
 #[test]
 fn tst_cons_006_feasible_set_produces_no_finding() {
@@ -398,6 +429,52 @@ fn tst_cons_006_feasible_set_produces_no_finding() {
     assert!(
         report.necessary_conditions_only,
         "the report must state that passing is not a guarantee"
+    );
+}
+
+/// An *actionable* violation is repair's problem, not a feasibility finding.
+///
+/// This is the case that separates "the constraint set is unsatisfiable" from
+/// "this particular candidate happens to violate something", and it is the one
+/// an analyser gets wrong when it escalates everything. Added after a negative
+/// control showed the all-clean fixture above could not tell the difference:
+/// with no violations present at all, an analyser that reported every violation
+/// still reported nothing.
+#[test]
+fn tst_cons_006_actionable_violation_is_not_a_feasibility_finding() {
+    // A HindIII site inside the coding region: a candidate-level problem that a
+    // synonymous edit can fix.
+    let cds = CodonSequence::from_cds("ATGAAGCTTATTCTGTAA", 11).unwrap();
+    let construct = format!("TTTTTT{}TTTTTT", cds.cds_string());
+    let set = set_with(vec![(
+        "c_hindiii",
+        Rule::RestrictionSite {
+            enzyme: "HindIII".into(),
+            site: "AAGCTT".into(),
+            strand: Strand::Both,
+            max_occurrences: 0,
+        },
+    )]);
+    let checker = ConstraintChecker::compile(&set).unwrap();
+
+    // The checker does see it, and calls it actionable.
+    let view = cf_constraints::ConstructView::new(construct.as_bytes(), vec![(6, 24)]);
+    let violations = checker.check(&view);
+    assert_eq!(violations.len(), 1, "{violations:?}");
+    assert!(violations[0].actionable);
+
+    // The analyser must stay silent: nothing here is unsatisfiable.
+    let report = analyse_one(&construct, &[(6, &cds)], &set);
+    assert_eq!(
+        report.findings_for(CheckId::LockedSpan).count(),
+        0,
+        "an actionable violation belongs to repair, not to the analyser: {:?}",
+        report.findings
+    );
+    assert!(
+        report.feasible,
+        "a repairable candidate must not be reported as infeasible: {:?}",
+        report.findings
     );
 }
 
