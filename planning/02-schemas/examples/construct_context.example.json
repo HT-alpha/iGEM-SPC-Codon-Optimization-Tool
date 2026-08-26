@@ -12,14 +12,81 @@
     "selection_marker": "CmR"
   },
   "elements": [
-    { "element_id": "el_rbs1", "kind": "rbs", "span": { "start_nt": 0, "end_nt": 17, "strand": "+" }, "editable": false, "name": "B0034-like RBS",
-      "metadata": { "part_registry_id": "BBa_B0034", "strength_class": "strong", "spacer_length_nt": 7 } },
-    { "element_id": "el_cds1", "kind": "cds", "span": { "start_nt": 17, "end_nt": 35, "strand": "+" }, "editable": true, "name": "reporter" },
-    { "element_id": "el_spacer1", "kind": "spacer", "span": { "start_nt": 35, "end_nt": 41, "strand": "+" }, "editable": false, "name": "intergenic" },
-    { "element_id": "el_rbs2", "kind": "rbs", "span": { "start_nt": 41, "end_nt": 62, "strand": "+" }, "editable": false, "name": "weak RBS",
-      "metadata": { "strength_class": "weak", "spacer_length_nt": 8 } },
-    { "element_id": "el_cds2", "kind": "cds", "span": { "start_nt": 62, "end_nt": 83, "strand": "+" }, "editable": true, "name": "chaperone" },
-    { "element_id": "el_term", "kind": "terminator", "span": { "start_nt": 83, "end_nt": 120, "strand": "+" }, "editable": false, "name": "B0015-like terminator" }
+    {
+      "element_id": "el_rbs1",
+      "kind": "rbs",
+      "span": {
+        "start_nt": 0,
+        "end_nt": 17,
+        "strand": "+"
+      },
+      "editable": false,
+      "name": "B0034-like RBS",
+      "metadata": {
+        "part_registry_id": "BBa_B0034",
+        "strength_class": "strong",
+        "spacer_length_nt": 7
+      }
+    },
+    {
+      "element_id": "el_cds1",
+      "kind": "cds",
+      "span": {
+        "start_nt": 17,
+        "end_nt": 35,
+        "strand": "+"
+      },
+      "editable": true,
+      "name": "reporter"
+    },
+    {
+      "element_id": "el_spacer1",
+      "kind": "spacer",
+      "span": {
+        "start_nt": 35,
+        "end_nt": 41,
+        "strand": "+"
+      },
+      "editable": false,
+      "name": "intergenic"
+    },
+    {
+      "element_id": "el_rbs2",
+      "kind": "rbs",
+      "span": {
+        "start_nt": 41,
+        "end_nt": 62,
+        "strand": "+"
+      },
+      "editable": false,
+      "name": "weak RBS",
+      "metadata": {
+        "strength_class": "weak",
+        "spacer_length_nt": 8
+      }
+    },
+    {
+      "element_id": "el_cds2",
+      "kind": "cds",
+      "span": {
+        "start_nt": 62,
+        "end_nt": 83,
+        "strand": "+"
+      },
+      "editable": true,
+      "name": "chaperone"
+    },
+    {
+      "element_id": "el_term",
+      "kind": "terminator",
+      "span": {
+        "start_nt": 83,
+        "end_nt": 120,
+        "strand": "+"
+      },
+      "editable": false,
+      "name": "B0015-like terminator"
+    }
   ],
   "cistrons": [
     {
@@ -45,8 +112,11 @@
   ],
   "assembly": {
     "standard": "golden_gate_bsai",
-    "forbidden_enzymes": ["BsaI", "BsmBI"],
+    "forbidden_enzymes": [
+      "BsaI",
+      "BsmBI"
+    ],
     "vendor_profile": "twist"
   },
-  "digest": "sha256:deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234"
+  "digest": "sha256:c72798a582784347e2c685a805c31eb14e2157ec52d409080960a80822961eed"
 }

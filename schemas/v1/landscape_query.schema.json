@@ -27,7 +27,7 @@
           "title": "DeltaTarget",
           "properties": {
             "kind": { "const": "delta" },
-            "base_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest", "description": "Digest of a sequence the provider has already seen in this session. If the cache has evicted it, the provider returns status=`error` with code CF-LAND-010 and the caller resends a `full` query." },
+            "base_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest", "description": "Digest of the CodonSequence DOCUMENT the provider has already seen in this session — over the document, so two sequences with identical coding regions but different flanks are distinct cache entries, which they must be because flanks change every structure term. If the cache has evicted it, the provider returns status=`error` with code CF-LAND-010 and the caller resends a `full` query." },
             "edits": {
               "type": "array",
               "minItems": 1,

@@ -6,22 +6,86 @@
   "created_at": "2026-08-25T07:58:00Z",
   "started_at": "2026-08-25T07:58:04Z",
   "finished_at": null,
-  "landscape_lockfile_digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978",
+  "landscape_lockfile_digest": "sha256:d504fae73004c6e5c6cae029015612d6d52aa5ec15602711580051d136787c0a",
   "resolved_objectives": [
-    { "term_id": "epistasis.dwell_deviation", "role": "pareto_axis", "direction": "minimize", "artifact_id": "cf:epistasis_dwell:escherichia_coli:562/K-12_MG1655:1.4.0", "fallback": false },
-    { "term_id": "structure.local_accessibility", "role": "pareto_axis", "direction": "maximize", "artifact_id": "cf:structure_params:host_agnostic:1.0.0", "fallback": false },
-    { "term_id": "burden.growth_cost", "role": "pareto_axis", "direction": "minimize", "artifact_id": "cf:burden_capacity:escherichia_coli:562/K-12_MG1655:0.9.2", "fallback": false },
-    { "term_id": "usage.cai", "role": "pareto_axis", "direction": "maximize", "artifact_id": "cf:host_profile:escherichia_coli:562/K-12_MG1655:2.1.0", "fallback": false },
-    { "term_id": "lm.naturalness", "role": "epsilon_constraint", "direction": "maximize", "artifact_id": "cf:lm_naturalness:host_agnostic:2.0.1", "fallback": false },
-    { "term_id": "kinetics.pause_concordance", "role": "diagnostic", "direction": "maximize", "artifact_id": "cf:kinetics_domainmap:escherichia_coli:562:0.3.0", "fallback": true }
+    {
+      "term_id": "epistasis.dwell_deviation",
+      "role": "pareto_axis",
+      "direction": "minimize",
+      "artifact_id": "cf:epistasis_dwell:escherichia_coli:562/K-12_MG1655:1.4.0",
+      "fallback": false
+    },
+    {
+      "term_id": "structure.local_accessibility",
+      "role": "pareto_axis",
+      "direction": "maximize",
+      "artifact_id": "cf:structure_params:host_agnostic:1.0.0",
+      "fallback": false
+    },
+    {
+      "term_id": "burden.growth_cost",
+      "role": "pareto_axis",
+      "direction": "minimize",
+      "artifact_id": "cf:burden_capacity:escherichia_coli:562/K-12_MG1655:0.9.2",
+      "fallback": false
+    },
+    {
+      "term_id": "usage.cai",
+      "role": "pareto_axis",
+      "direction": "maximize",
+      "artifact_id": "cf:host_profile:escherichia_coli:562/K-12_MG1655:2.1.0",
+      "fallback": false
+    },
+    {
+      "term_id": "lm.naturalness",
+      "role": "epsilon_constraint",
+      "direction": "maximize",
+      "artifact_id": "cf:lm_naturalness:host_agnostic:2.0.1",
+      "fallback": false
+    },
+    {
+      "term_id": "kinetics.pause_concordance",
+      "role": "diagnostic",
+      "direction": "maximize",
+      "artifact_id": "cf:kinetics_domainmap:escherichia_coli:562:0.3.0",
+      "fallback": true
+    }
   ],
   "progress": {
     "current_tier": "tier3_moea",
     "tiers": [
-      { "tier": "tier1_seed", "state": "done", "fraction": 1.0, "generation": null, "max_generations": null, "wall_seconds": 1.8 },
-      { "tier": "tier2_block_ca", "state": "done", "fraction": 1.0, "generation": null, "max_generations": null, "wall_seconds": 46.2 },
-      { "tier": "tier3_moea", "state": "running", "fraction": 0.43, "generation": 129, "max_generations": 300, "wall_seconds": 214.7 },
-      { "tier": "decision", "state": "pending", "fraction": null, "generation": null, "max_generations": null, "wall_seconds": null }
+      {
+        "tier": "tier1_seed",
+        "state": "done",
+        "fraction": 1.0,
+        "generation": null,
+        "max_generations": null,
+        "wall_seconds": 1.8
+      },
+      {
+        "tier": "tier2_block_ca",
+        "state": "done",
+        "fraction": 1.0,
+        "generation": null,
+        "max_generations": null,
+        "wall_seconds": 46.2
+      },
+      {
+        "tier": "tier3_moea",
+        "state": "running",
+        "fraction": 0.43,
+        "generation": 129,
+        "max_generations": 300,
+        "wall_seconds": 214.7
+      },
+      {
+        "tier": "decision",
+        "state": "pending",
+        "fraction": null,
+        "generation": null,
+        "max_generations": null,
+        "wall_seconds": null
+      }
     ],
     "evaluations": 26800,
     "cache_hit_rate": 0.71,
@@ -29,7 +93,16 @@
   },
   "current_front_summary": {
     "hypervolume": 0.3981,
-    "hypervolume_history": [0.0, 0.1421, 0.2610, 0.3204, 0.3588, 0.3799, 0.3902, 0.3981],
+    "hypervolume_history": [
+      0.0,
+      0.1421,
+      0.261,
+      0.3204,
+      0.3588,
+      0.3799,
+      0.3902,
+      0.3981
+    ],
     "n_nondominated": 118,
     "n_feasible": 194,
     "best_per_objective": {

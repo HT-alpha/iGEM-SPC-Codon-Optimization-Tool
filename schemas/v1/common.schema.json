@@ -129,9 +129,10 @@
     },
     "DatasetRef": {
       "type": "object",
+      "description": "A reference to a dataset by id and content digest. Two references carrying the same `dataset_id` MUST carry the same `digest`: the pair is the dataset's identity, and disagreeing digests for one id means two different datasets are wearing one name.",
       "properties": {
         "dataset_id": { "type": "string", "pattern": "^ds_[A-Za-z0-9_.-]{3,64}$" },
-        "digest": { "$ref": "#/$defs/Sha256Digest" },
+        "digest": { "$ref": "#/$defs/Sha256Digest", "description": "Digest of the dataset's descriptor document where one exists (e.g. riboseq_track.schema.json), otherwise of the external blob it names." },
         "accession": { "type": "string", "description": "Public accession where one exists (GEO/SRA/ENA/PRIDE)." },
         "n_records": { "type": "integer", "minimum": 0 },
         "tenant_id": { "$ref": "#/$defs/TenantId" },

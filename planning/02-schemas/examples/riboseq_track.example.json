@@ -7,8 +7,18 @@
   "condition_id": "cond_lb_37c_exp",
   "assay": "riboseq",
   "replicates": [
-    { "replicate_id": "rep1", "kind": "biological", "run_accession": "SRR0000001", "mapped_reads": 24100000 },
-    { "replicate_id": "rep2", "kind": "biological", "run_accession": "SRR0000002", "mapped_reads": 19800000 }
+    {
+      "replicate_id": "rep1",
+      "kind": "biological",
+      "run_accession": "SRR0000001",
+      "mapped_reads": 24100000
+    },
+    {
+      "replicate_id": "rep2",
+      "kind": "biological",
+      "run_accession": "SRR0000002",
+      "mapped_reads": 19800000
+    }
   ],
   "processing": {
     "adapter": "CTGTAGGCACCATCAAT",
@@ -18,9 +28,24 @@
     "reference_annotation": "NC_000913.3 RefSeq",
     "dedup": "umi",
     "a_site_offset_method": "per_read_length",
-    "offsets_by_read_length": { "24": 12, "25": 12, "26": 13, "27": 13, "28": 14, "29": 15, "30": 15 },
-    "read_length_range": [24, 30],
-    "excluded_regions": { "first_codons": 15, "last_codons": 5, "overlapping_orfs": true },
+    "offsets_by_read_length": {
+      "24": 12,
+      "25": 12,
+      "26": 13,
+      "27": 13,
+      "28": 14,
+      "29": 15,
+      "30": 15
+    },
+    "read_length_range": [
+      24,
+      30
+    ],
+    "excluded_regions": {
+      "first_codons": 15,
+      "last_codons": 5,
+      "overlapping_orfs": true
+    },
     "drug": null
   },
   "normalization": {
@@ -35,12 +60,36 @@
     "digest": "sha256:abcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcd",
     "bytes": 41287344,
     "columns": [
-      { "name": "gene_id", "dtype": "string", "nullable": false },
-      { "name": "cds_digest", "dtype": "string", "nullable": false },
-      { "name": "codon_index", "dtype": "int32", "nullable": false },
-      { "name": "codon", "dtype": "string", "nullable": false },
-      { "name": "count", "dtype": "float32", "nullable": false },
-      { "name": "replicate_id", "dtype": "string", "nullable": false }
+      {
+        "name": "gene_id",
+        "dtype": "string",
+        "nullable": false
+      },
+      {
+        "name": "cds_digest",
+        "dtype": "string",
+        "nullable": false
+      },
+      {
+        "name": "codon_index",
+        "dtype": "int32",
+        "nullable": false
+      },
+      {
+        "name": "codon",
+        "dtype": "string",
+        "nullable": false
+      },
+      {
+        "name": "count",
+        "dtype": "float32",
+        "nullable": false
+      },
+      {
+        "name": "replicate_id",
+        "dtype": "string",
+        "nullable": false
+      }
     ],
     "n_rows": 2620000
   },
@@ -54,5 +103,5 @@
     "flags": []
   },
   "sharing": "public",
-  "digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978"
+  "digest": "sha256:f223bc6238b6e01f99005517f54ebb34ce3e2546844b740db4db5b428fd7b605"
 }

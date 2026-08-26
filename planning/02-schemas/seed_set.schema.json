@@ -8,7 +8,10 @@
     "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
     "seed_set_id": { "type": "string", "pattern": "^seeds_[A-Za-z0-9_.-]{1,64}$" },
     "target_protein": { "$ref": "common.schema.json#/$defs/ProteinSequence" },
-    "target_protein_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+    "target_protein_digest": {
+      "allOf": [{ "$ref": "common.schema.json#/$defs/Sha256Digest" }],
+      "description": "sha256 over the UTF-8 bytes of `target_protein`. A bare residue string rather than a document, so this is the one digest in the schemas taken over raw bytes; every other digest is over an RFC 8785 canonical document."
+    },
     "translation_table": { "type": "integer", "minimum": 1, "maximum": 33 },
     "host_id": { "$ref": "common.schema.json#/$defs/HostId" },
     "seeds": {
@@ -18,7 +21,10 @@
         "properties": {
           "seed_id": { "type": "string" },
           "cds": { "$ref": "common.schema.json#/$defs/CodonString" },
-          "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+          "digest": {
+            "allOf": [{ "$ref": "common.schema.json#/$defs/Sha256Digest" }],
+            "description": "Digest of the CodonSequence DOCUMENT for this seed (sequence.schema.json), not of the `cds` string. Seeds are quoted without flanks, so the document is the one built from `cds` under `translation_table` with no flanking context. Using the document digest is what makes a seed comparable with a Pareto-front candidate and with `observation.as_built_digest`."
+          },
           "source": {
             "type": "object",
             "properties": {

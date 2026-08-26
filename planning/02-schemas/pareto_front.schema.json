@@ -41,7 +41,10 @@
               "properties": {
                 "cistron_id": { "type": ["string", "null"] },
                 "cds": { "$ref": "common.schema.json#/$defs/CodonString" },
-                "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+                "digest": {
+                  "allOf": [{ "$ref": "common.schema.json#/$defs/Sha256Digest" }],
+                  "description": "Digest of the CodonSequence DOCUMENT for this candidate (sequence.schema.json), not of the `cds` string. This is the value `observation.subject.as_built_digest` is checked against by CF-OBS-002, so the two must use the same convention; taking it over the bare nucleotide string would make a candidate with flanks indistinguishable from one without."
+                }
               },
               "required": ["cds", "digest"],
               "additionalProperties": false

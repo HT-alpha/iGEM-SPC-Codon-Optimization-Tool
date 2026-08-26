@@ -1,0 +1,192 @@
+# Classification of every digest in the worked examples.
+#
+# The examples originally carried twelve hand-written placeholder strings spread
+# across ~50 occurrences, five of which meant two or three unrelated things at
+# once (one string was simultaneously the self digest of `constraint_set`, the
+# self digest of `model_manifest`, and three different artifact references).
+# They were therefore usable as schema-shape fixtures but not as digest
+# fixtures.
+#
+# This file assigns every occurrence a meaning. `planning/tools/
+# refresh_example_digests.py` computes and threads them; the `digests` check
+# group in `validate_planning_package.py` verifies them, and — importantly —
+# FAILS ON ANY DIGEST NOT COVERED HERE. That is what stops a newly-added
+# placeholder from quietly reintroducing the problem.
+#
+# Paths are RFC 6901 JSON Pointers, so a map key containing a dot (a TermId) is
+# unambiguous.
+#
+# Three classes:
+#   computed   the payload is present in the repository; the digest is derived
+#   reference  must equal a digest computed elsewhere
+#   external   the payload is NOT in the repository; unverifiable by
+#              construction, and each entry must say why
+
+schema_version: 1
+
+# --------------------------------------------------------------------------
+# computed — derived from a payload in the repository
+# --------------------------------------------------------------------------
+computed:
+  # rule: self_document
+  #   payload = the object containing this `digest` field, minus `digest`.
+  #   This is the definition every schema's `digest` field carries.
+  - { file: sequence.example.json,           at: /digest, rule: self_document }
+  - { file: construct_context.example.json,  at: /digest, rule: self_document }
+  - { file: constraint_set.example.json,     at: /digest, rule: self_document }
+  - { file: host_profile.example.json,       at: /digest, rule: self_document }
+  - { file: riboseq_track.example.json,      at: /digest, rule: self_document }
+  - { file: model_manifest.example.json,     at: /digest, rule: self_document }
+  - { file: seed_set.example.json,           at: /digest, rule: self_document }
+  - { file: landscape_lockfile.example.json, at: /digest, rule: self_document }
+  - { file: pareto_front.example.json,       at: /digest, rule: self_document }
+  - { file: observation.example.json,        at: /digest, rule: self_document }
+
+  # Embedded documents. A job request carries whole ConstructContext and
+  # ConstraintSet documents, each of which carries its own digest over its own
+  # payload — so the rule is the same, just not at the root.
+  - { file: job_request.example.json, at: /input/construct_context/digest, rule: self_document }
+  - { file: job_request.example.json, at: /constraint_set/digest,          rule: self_document }
+
+  # rule: codon_sequence_document
+  #   payload = the canonical CodonSequence document built from the sibling
+  #   coding sequence and the document's translation table. Settled in
+  #   sequence.schema.json: a sequence digest is over the DOCUMENT, not over the
+  #   bare nucleotide string, so that `observation.as_built_digest` is
+  #   comparable with the candidate digest it is checked against.
+  - { file: seed_set.example.json, at: /seeds/0/digest, rule: codon_sequence_document,
+      cds: /seeds/0/cds, table: /translation_table }
+  - { file: seed_set.example.json, at: /seeds/1/digest, rule: codon_sequence_document,
+      cds: /seeds/1/cds, table: /translation_table }
+  - { file: seed_set.example.json, at: /seeds/2/digest, rule: codon_sequence_document,
+      cds: /seeds/2/cds, table: /translation_table }
+  - { file: pareto_front.example.json, at: /candidates/0/sequences/0/digest,
+      rule: codon_sequence_document, cds: /candidates/0/sequences/0/cds, table_const: 11 }
+  - { file: pareto_front.example.json, at: /candidates/0/sequences/1/digest,
+      rule: codon_sequence_document, cds: /candidates/0/sequences/1/cds, table_const: 11 }
+  - { file: pareto_front.example.json, at: /candidates/1/sequences/0/digest,
+      rule: codon_sequence_document, cds: /candidates/1/sequences/0/cds, table_const: 11 }
+  - { file: pareto_front.example.json, at: /candidates/1/sequences/1/digest,
+      rule: codon_sequence_document, cds: /candidates/1/sequences/1/cds, table_const: 11 }
+
+  # rule: raw_bytes
+  #   payload = the UTF-8 bytes of a sibling string. Used for the target
+  #   protein, which is a bare residue string rather than a document.
+  - { file: seed_set.example.json, at: /target_protein_digest, rule: raw_bytes,
+      source: /target_protein }
+
+# --------------------------------------------------------------------------
+# reference — must equal a digest computed elsewhere
+# --------------------------------------------------------------------------
+reference:
+  # The lockfile pins the job's inputs.
+  - { file: landscape_lockfile.example.json, at: /host_profile/digest,
+      same_as: "host_profile.example.json#/digest" }
+  - { file: landscape_lockfile.example.json, at: /inputs/construct_digest,
+      same_as: "construct_context.example.json#/digest" }
+  - { file: landscape_lockfile.example.json, at: /inputs/constraint_set_digest,
+      same_as: "constraint_set.example.json#/digest" }
+  - { file: landscape_lockfile.example.json, at: /inputs/input_sequence_digests/0,
+      same_as: "sequence.example.json#/digest" }
+
+  # A query names the sequence, host and construct it is scoring, and namespaces
+  # its cache by the lockfile digest so two model versions cannot collide.
+  - { file: landscape_query.example.json, at: /target/base_digest,
+      same_as: "sequence.example.json#/digest" }
+  - { file: landscape_query.example.json, at: /host_context/host_profile_digest,
+      same_as: "host_profile.example.json#/digest" }
+  - { file: landscape_query.example.json, at: /construct_context/construct_digest,
+      same_as: "construct_context.example.json#/digest" }
+  - { file: landscape_query.example.json, at: /cache_policy/namespace,
+      same_as: "landscape_lockfile.example.json#/digest" }
+
+  - { file: landscape_response.example.json, at: /deltas/base_digest,
+      same_as: "sequence.example.json#/digest" }
+
+  # The front, the status and the observation all belong to the same job as the
+  # lockfile, so they must pin the same one.
+  - { file: pareto_front.example.json, at: /landscape_lockfile_digest,
+      same_as: "landscape_lockfile.example.json#/digest" }
+  - { file: pareto_front.example.json, at: /input_sequence/digest,
+      same_as: "sequence.example.json#/digest" }
+  - { file: job_status.example.json, at: /landscape_lockfile_digest,
+      same_as: "landscape_lockfile.example.json#/digest" }
+
+  # An observation's as-built digest is checked against the candidate it cites;
+  # this is the check CF-OBS-002 performs, so the example must satisfy it.
+  - { file: observation.example.json, at: /subject/as_built_digest,
+      same_as: "pareto_front.example.json#/candidates/0/sequences/0/digest" }
+  - { file: observation.example.json, at: /controls/1/cds_digest,
+      same_as: "sequence.example.json#/digest" }
+
+  # A DatasetRef identifies the dataset document, so every reference to
+  # ds_ecoli_riboseq_pooled_v3 resolves to the Ribo-seq track's own digest.
+  - { file: host_profile.example.json, at: /riboseq_tracks/0/digest,
+      same_as: "riboseq_track.example.json#/digest" }
+  - { file: model_manifest.example.json, at: /training/datasets/0/digest,
+      same_as: "riboseq_track.example.json#/digest" }
+
+# --------------------------------------------------------------------------
+# external — payload is not in the repository
+# --------------------------------------------------------------------------
+# These cannot be verified, and that is a property of the data rather than a
+# shortcut. Each one is listed so that an UNlisted digest is a failure: the
+# checker walks every sha256 string in every example and rejects anything this
+# file does not account for.
+external:
+  - { file: sequence.example.json, at: /source/file_digest,
+      reason: "digest of the input GenBank file, which is not in the repository" }
+
+  - { file: riboseq_track.example.json, at: /storage/digest,
+      reason: "digest of the external Parquet blob holding ~2.6M count rows" }
+
+  - { file: host_profile.example.json, at: /codon_usage/source/digest,
+      reason: "DatasetRef for ds_ecoli_he_cds_v2, an external dataset" }
+  - { file: host_profile.example.json, at: /trna/abundance/0/source/digest,
+      reason: "DatasetRef for ds_ecoli_trna_abund_v1, an external dataset" }
+  - { file: host_profile.example.json, at: /ribosome/source/digest,
+      reason: "DatasetRef for ds_ecoli_growth_laws_v1, an external dataset" }
+  - { file: host_profile.example.json, at: /proteome_reference/source/digest,
+      reason: "DatasetRef for ds_ecoli_proteome_v1, an external dataset" }
+
+  - { file: model_manifest.example.json, at: /weights/0/digest,
+      reason: "content digest of an external safetensors blob (potts fields)" }
+  - { file: model_manifest.example.json, at: /weights/1/digest,
+      reason: "content digest of an external safetensors blob (potts couplings)" }
+  - { file: model_manifest.example.json, at: /weights/2/digest,
+      reason: "content digest of an external JSON blob (conformal quantiles)" }
+  - { file: model_manifest.example.json, at: /training/datasets/1/digest,
+      reason: "DatasetRef for ds_ecoli_he_cds_v2, an external dataset" }
+  - { file: model_manifest.example.json, at: /training/holdout_datasets/0/digest,
+      reason: "DatasetRef for ds_ecoli_riboseq_holdout_genes, an external dataset" }
+
+  # The lockfile resolves four artifacts; only `epistasis_potts` has a worked
+  # manifest in this example set, and it is not among them. Pointing these at
+  # the potts manifest would make the digests verifiable but the artifact ids
+  # wrong, which is a worse example than an honest placeholder.
+  - { file: landscape_lockfile.example.json, at: /resolution/0/digest,
+      reason: "artifact cf:epistasis_dwell:...:1.4.0 has no worked manifest in this example set" }
+  - { file: landscape_lockfile.example.json, at: /resolution/1/digest,
+      reason: "artifact cf:burden_capacity:...:0.9.2 has no worked manifest in this example set" }
+  - { file: landscape_lockfile.example.json, at: /resolution/2/digest,
+      reason: "artifact cf:lm_naturalness:host_agnostic:2.0.1 has no worked manifest in this example set" }
+  - { file: landscape_lockfile.example.json, at: /resolution/3/digest,
+      reason: "artifact cf:kinetics_domainmap:...:0.3.0 has no worked manifest in this example set" }
+
+  - { file: landscape_query.example.json, at: /model_pins/epistasis.dwell_deviation/digest,
+      reason: "pins cf:epistasis_dwell:...:1.4.0, which has no worked manifest in this example set" }
+  - { file: landscape_response.example.json,
+      at: /terms/epistasis.dwell_deviation/provenance/digest,
+      reason: "provenance of cf:epistasis_dwell:...:1.4.0, no worked manifest in this example set" }
+  - { file: landscape_response.example.json, at: /terms/burden.growth_cost/provenance/digest,
+      reason: "provenance of cf:burden_capacity:...:0.9.2, no worked manifest in this example set" }
+
+# --------------------------------------------------------------------------
+# consistency rules applied on top of the classification
+# --------------------------------------------------------------------------
+consistency:
+  # Two references to the same dataset_id must carry the same digest, whether or
+  # not that digest is externally verifiable. This catches the original failure
+  # mode — one placeholder string reused for unrelated things — in the one place
+  # where equality is semantically required.
+  same_dataset_id_same_digest: true

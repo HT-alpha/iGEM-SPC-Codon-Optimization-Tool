@@ -28,6 +28,8 @@ Satisfies `BRIEF-4.a` — "every schema should be given in a concrete serializab
 
 Every schema has a worked example in [`examples/`](examples/sequence.example.json), and the validator fails if one does not: **an unexercised contract is an unreviewed contract.**
 
+**The examples' digests are genuine, not placeholders.** Every digest occurrence is classified in [`examples/digest_map.yaml`](examples/digest_map.yaml) as computed (derived from a payload in the repository), a reference (must equal a digest computed elsewhere), or external (payload not in the repository, with a stated reason). `planning/tools/refresh_example_digests.py` recomputes and threads them in dependency order; the `digests` check group fails on any digest the map does not account for, which is what stops a new placeholder from quietly reappearing.
+
 ---
 
 ## 2. Conventions

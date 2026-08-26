@@ -9,7 +9,7 @@
     "kind": "design",
     "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
     "candidate_id": "cand_a1b2c3d4",
-    "as_built_digest": "sha256:00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff"
+    "as_built_digest": "sha256:4998a834eb7e6ef91987d52c4f8e13e85681fd8d11d8907d194ee16e43acaa35"
   },
   "host_id": "escherichia_coli:562/K-12_MG1655",
   "condition": {
@@ -31,9 +31,21 @@
       "unit": "RFU/OD600",
       "sd": 3820.0,
       "n_replicates": 4,
-      "replicate_values": [38900.0, 40100.0, 43800.0, 42200.0],
-      "normalization": { "method": "od_normalized", "control_id": "ctl_empty" },
-      "dynamic_range": { "lower_limit": 120.0, "upper_limit": 65000.0, "censoring": "none" },
+      "replicate_values": [
+        38900.0,
+        40100.0,
+        43800.0,
+        42200.0
+      ],
+      "normalization": {
+        "method": "od_normalized",
+        "control_id": "ctl_empty"
+      },
+      "dynamic_range": {
+        "lower_limit": 120.0,
+        "upper_limit": 65000.0,
+        "censoring": "none"
+      },
       "qc_flags": []
     },
     {
@@ -44,15 +56,39 @@
       "unit": "1/h",
       "sd": 0.04,
       "n_replicates": 4,
-      "replicate_values": [1.12, 1.15, 1.19, 1.18],
-      "normalization": { "method": "reference_construct", "control_id": "ctl_wt" },
-      "dynamic_range": { "lower_limit": 0.0, "upper_limit": null, "censoring": "none" },
+      "replicate_values": [
+        1.12,
+        1.15,
+        1.19,
+        1.18
+      ],
+      "normalization": {
+        "method": "reference_construct",
+        "control_id": "ctl_wt"
+      },
+      "dynamic_range": {
+        "lower_limit": 0.0,
+        "upper_limit": null,
+        "censoring": "none"
+      },
       "qc_flags": []
     }
   ],
   "controls": [
-    { "control_id": "ctl_empty", "role": "empty_vector", "cds_digest": null, "value": 310.0, "unit": "RFU/OD600" },
-    { "control_id": "ctl_wt", "role": "wild_type", "cds_digest": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210", "value": 1.38, "unit": "1/h" }
+    {
+      "control_id": "ctl_empty",
+      "role": "empty_vector",
+      "cds_digest": null,
+      "value": 310.0,
+      "unit": "RFU/OD600"
+    },
+    {
+      "control_id": "ctl_wt",
+      "role": "wild_type",
+      "cds_digest": "sha256:a6135fac19304a28f6b4645d8fd334e1ef9e16ba271483d6572548087fce8205",
+      "value": 1.38,
+      "unit": "1/h"
+    }
   ],
   "exploration": {
     "is_exploration_arm": false,
@@ -77,5 +113,5 @@
     "validation_errors": [],
     "incorporated_into": []
   },
-  "digest": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+  "digest": "sha256:ecf977d63b2d360fc74af7146c760135c765a38c59eba2c2b03a6b4f0806a818"
 }

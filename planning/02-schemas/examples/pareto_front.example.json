@@ -3,14 +3,39 @@
   "front_id": "front_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
   "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
   "created_at": "2026-08-25T08:11:42Z",
-  "landscape_lockfile_digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978",
-  "objective_order": ["epistasis.dwell_deviation", "structure.local_accessibility", "burden.growth_cost", "usage.cai"],
-  "objective_sense": ["minimize", "maximize", "minimize", "maximize"],
-  "reference_point": [1.3, 0.32, 0.25, 0.28],
-  "ideal_point": [-1.1, 0.78, 0.0, 0.86],
+  "landscape_lockfile_digest": "sha256:d504fae73004c6e5c6cae029015612d6d52aa5ec15602711580051d136787c0a",
+  "objective_order": [
+    "epistasis.dwell_deviation",
+    "structure.local_accessibility",
+    "burden.growth_cost",
+    "usage.cai"
+  ],
+  "objective_sense": [
+    "minimize",
+    "maximize",
+    "minimize",
+    "maximize"
+  ],
+  "reference_point": [
+    1.3,
+    0.32,
+    0.25,
+    0.28
+  ],
+  "ideal_point": [
+    -1.1,
+    0.78,
+    0.0,
+    0.86
+  ],
   "input_sequence": {
-    "digest": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
-    "objective_vector": [0.42, 0.61, 0.037, 0.71],
+    "digest": "sha256:a6135fac19304a28f6b4645d8fd334e1ef9e16ba271483d6572548087fce8205",
+    "objective_vector": [
+      0.42,
+      0.61,
+      0.037,
+      0.71
+    ],
     "feasible": false
   },
   "candidates": [
@@ -18,29 +43,130 @@
       "candidate_id": "cand_a1b2c3d4",
       "cistron_id": null,
       "sequences": [
-        { "cistron_id": "cis_reporter", "cds": "ATGAAACGCATCCTGTAA", "digest": "sha256:00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff" },
-        { "cistron_id": "cis_chaperone", "cds": "ATGGCAGAACTGAAATAA", "digest": "sha256:112233445566778f112233445566778f112233445566778f112233445566778f" }
+        {
+          "cistron_id": "cis_reporter",
+          "cds": "ATGAAACGCATCCTGTAA",
+          "digest": "sha256:4998a834eb7e6ef91987d52c4f8e13e85681fd8d11d8907d194ee16e43acaa35"
+        },
+        {
+          "cistron_id": "cis_chaperone",
+          "cds": "ATGGCAGAACTGAAATAA",
+          "digest": "sha256:96ff2cd6968f054323ddcd477641006fa4dc52f7736da56d4a523fefc89d3ce9"
+        }
       ],
       "nondomination_rank": 0,
-      "objective_vector": [0.11, 0.72, 0.021, 0.79],
+      "objective_vector": [
+        0.11,
+        0.72,
+        0.021,
+        0.79
+      ],
       "objective_detail": {
-        "epistasis.dwell_deviation": { "value": 0.11, "unit": "z_score", "uncertainty": { "sigma": 0.17, "method": "deep_ensemble", "calibrated": true, "n_members": 5 }, "percentile_vs_native": 61.0 },
-        "structure.local_accessibility": { "value": 0.72, "unit": "dimensionless", "percentile_vs_native": 84.0 },
-        "burden.growth_cost": { "value": 0.021, "unit": "relative_growth_rate", "uncertainty": { "sigma": 0.019, "method": "parametric_bootstrap", "calibrated": false }, "percentile_vs_native": 30.0 },
-        "usage.cai": { "value": 0.79, "unit": "dimensionless", "uncertainty": { "method": "none", "calibrated": true }, "percentile_vs_native": 77.0 }
+        "epistasis.dwell_deviation": {
+          "value": 0.11,
+          "unit": "z_score",
+          "uncertainty": {
+            "sigma": 0.17,
+            "method": "deep_ensemble",
+            "calibrated": true,
+            "n_members": 5
+          },
+          "percentile_vs_native": 61.0
+        },
+        "structure.local_accessibility": {
+          "value": 0.72,
+          "unit": "dimensionless",
+          "percentile_vs_native": 84.0
+        },
+        "burden.growth_cost": {
+          "value": 0.021,
+          "unit": "relative_growth_rate",
+          "uncertainty": {
+            "sigma": 0.019,
+            "method": "parametric_bootstrap",
+            "calibrated": false
+          },
+          "percentile_vs_native": 30.0
+        },
+        "usage.cai": {
+          "value": 0.79,
+          "unit": "dimensionless",
+          "uncertainty": {
+            "method": "none",
+            "calibrated": true
+          },
+          "percentile_vs_native": 77.0
+        }
       },
-      "robustness": { "p_nondominated": 0.84, "n_samples": 2000, "method": "mc_joint", "expected_hypervolume_contribution": 0.061 },
+      "robustness": {
+        "p_nondominated": 0.84,
+        "n_samples": 2000,
+        "method": "mc_joint",
+        "expected_hypervolume_contribution": 0.061
+      },
       "crowding_distance": 0.42,
       "reference_direction_index": 7,
-      "constraint_report": { "feasible": true, "n_blocking_violations": 0, "violations": [] },
-      "provenance": { "origin": "seed_import", "seed_source": "lineardesign", "generation_found": 128, "parents": ["cand_9f8e7d6c"] },
-      "diff_vs_input": { "n_codons_changed": 3, "fraction_changed": 0.5, "changed_positions": [2, 3, 4] },
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "provenance": {
+        "origin": "seed_import",
+        "seed_source": "lineardesign",
+        "generation_found": 128,
+        "parents": [
+          "cand_9f8e7d6c"
+        ]
+      },
+      "diff_vs_input": {
+        "n_codons_changed": 3,
+        "fraction_changed": 0.5,
+        "changed_positions": [
+          2,
+          3,
+          4
+        ]
+      },
       "rationale": {
-        "candidate_tags": ["seed_derived", "burden_relief"],
+        "candidate_tags": [
+          "seed_derived",
+          "burden_relief"
+        ],
         "annotations": [
-          { "tag": "structure_relaxed_initiation", "span": { "start": 0, "end": 6 }, "term_id": "structure.local_accessibility", "magnitude": 0.11, "confidence": 0.81, "text": "Secondary structure over the ribosome binding region was reduced, increasing predicted initiation." },
-          { "tag": "rare_codon_replaced", "span": { "start": 2, "end": 3 }, "term_id": "usage.cai", "magnitude": 0.08, "confidence": 0.95, "text": "A rare codon at position 2 was replaced with a more abundant synonym." },
-          { "tag": "restriction_site_removed", "span": { "start": 3, "end": 5 }, "term_id": "constraint.violation_count", "magnitude": null, "confidence": 1.0, "text": "The BsaI site at position 3 was removed for golden_gate_bsai assembly." }
+          {
+            "tag": "structure_relaxed_initiation",
+            "span": {
+              "start": 0,
+              "end": 6
+            },
+            "term_id": "structure.local_accessibility",
+            "magnitude": 0.11,
+            "confidence": 0.81,
+            "text": "Secondary structure over the ribosome binding region was reduced, increasing predicted initiation."
+          },
+          {
+            "tag": "rare_codon_replaced",
+            "span": {
+              "start": 2,
+              "end": 3
+            },
+            "term_id": "usage.cai",
+            "magnitude": 0.08,
+            "confidence": 0.95,
+            "text": "A rare codon at position 2 was replaced with a more abundant synonym."
+          },
+          {
+            "tag": "restriction_site_removed",
+            "span": {
+              "start": 3,
+              "end": 5
+            },
+            "term_id": "constraint.violation_count",
+            "magnitude": null,
+            "confidence": 1.0,
+            "text": "The BsaI site at position 3 was removed for golden_gate_bsai assembly."
+          }
         ]
       }
     },
@@ -48,28 +174,109 @@
       "candidate_id": "cand_e5f60718",
       "cistron_id": null,
       "sequences": [
-        { "cistron_id": "cis_reporter", "cds": "ATGAAACGTATCCTGTAA", "digest": "sha256:cafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeef" },
-        { "cistron_id": "cis_chaperone", "cds": "ATGGCTGAACTGAAATAA", "digest": "sha256:abcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcd" }
+        {
+          "cistron_id": "cis_reporter",
+          "cds": "ATGAAACGTATCCTGTAA",
+          "digest": "sha256:11a011aa7c562afa005a9c789731e5e36b72d59f935426fa5a8eb7ef03c431d3"
+        },
+        {
+          "cistron_id": "cis_chaperone",
+          "cds": "ATGGCTGAACTGAAATAA",
+          "digest": "sha256:0efbe83c021dc58c43560fc610db703facfcc4cf297f74c0a04c70c680682977"
+        }
       ],
       "nondomination_rank": 0,
-      "objective_vector": [0.06, 0.58, 0.048, 0.83],
+      "objective_vector": [
+        0.06,
+        0.58,
+        0.048,
+        0.83
+      ],
       "objective_detail": {
-        "epistasis.dwell_deviation": { "value": 0.06, "unit": "z_score", "uncertainty": { "sigma": 0.22, "method": "deep_ensemble", "calibrated": true, "n_members": 5 }, "percentile_vs_native": 55.0 },
-        "structure.local_accessibility": { "value": 0.58, "unit": "dimensionless", "percentile_vs_native": 52.0 },
-        "burden.growth_cost": { "value": 0.048, "unit": "relative_growth_rate", "percentile_vs_native": 48.0 },
-        "usage.cai": { "value": 0.83, "unit": "dimensionless", "percentile_vs_native": 88.0 }
+        "epistasis.dwell_deviation": {
+          "value": 0.06,
+          "unit": "z_score",
+          "uncertainty": {
+            "sigma": 0.22,
+            "method": "deep_ensemble",
+            "calibrated": true,
+            "n_members": 5
+          },
+          "percentile_vs_native": 55.0
+        },
+        "structure.local_accessibility": {
+          "value": 0.58,
+          "unit": "dimensionless",
+          "percentile_vs_native": 52.0
+        },
+        "burden.growth_cost": {
+          "value": 0.048,
+          "unit": "relative_growth_rate",
+          "percentile_vs_native": 48.0
+        },
+        "usage.cai": {
+          "value": 0.83,
+          "unit": "dimensionless",
+          "percentile_vs_native": 88.0
+        }
       },
-      "robustness": { "p_nondominated": 0.52, "n_samples": 2000, "method": "mc_joint", "expected_hypervolume_contribution": 0.028 },
+      "robustness": {
+        "p_nondominated": 0.52,
+        "n_samples": 2000,
+        "method": "mc_joint",
+        "expected_hypervolume_contribution": 0.028
+      },
       "crowding_distance": 0.31,
       "reference_direction_index": 12,
-      "constraint_report": { "feasible": true, "n_blocking_violations": 0, "violations": [] },
-      "provenance": { "origin": "crossover", "seed_source": null, "generation_found": 201, "parents": ["cand_a1b2c3d4", "cand_11223344"] },
-      "diff_vs_input": { "n_codons_changed": 2, "fraction_changed": 0.333, "changed_positions": [3, 4] },
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "provenance": {
+        "origin": "crossover",
+        "seed_source": null,
+        "generation_found": 201,
+        "parents": [
+          "cand_a1b2c3d4",
+          "cand_11223344"
+        ]
+      },
+      "diff_vs_input": {
+        "n_codons_changed": 2,
+        "fraction_changed": 0.333,
+        "changed_positions": [
+          3,
+          4
+        ]
+      },
       "rationale": {
-        "candidate_tags": ["input_preserved"],
+        "candidate_tags": [
+          "input_preserved"
+        ],
         "annotations": [
-          { "tag": "structure_penalty_accepted", "span": { "start": 0, "end": 6 }, "term_id": "structure.local_accessibility", "magnitude": -0.14, "confidence": 0.74, "text": "Local structure at codons 0-6 was allowed to worsen in exchange for a gain in usage.cai." },
-          { "tag": "low_confidence_region", "span": { "start": 3, "end": 6 }, "term_id": "meta.confidence", "magnitude": null, "confidence": 0.41, "text": "Predictions over codons 3-6 are low-confidence; consider including this variant in a wet-lab test set." }
+          {
+            "tag": "structure_penalty_accepted",
+            "span": {
+              "start": 0,
+              "end": 6
+            },
+            "term_id": "structure.local_accessibility",
+            "magnitude": -0.14,
+            "confidence": 0.74,
+            "text": "Local structure at codons 0-6 was allowed to worsen in exchange for a gain in usage.cai."
+          },
+          {
+            "tag": "low_confidence_region",
+            "span": {
+              "start": 3,
+              "end": 6
+            },
+            "term_id": "meta.confidence",
+            "magnitude": null,
+            "confidence": 0.41,
+            "text": "Predictions over codons 3-6 are low-confidence; consider including this variant in a wet-lab test set."
+          }
         ]
       }
     }
@@ -78,7 +285,10 @@
     "raw_nondominated_count": 137,
     "presented_count": 2,
     "method": "reference_direction_representatives",
-    "parameters": { "n_reference_directions": 20, "tie_break": "max_p_nondominated" },
+    "parameters": {
+      "n_reference_directions": 20,
+      "tie_break": "max_p_nondominated"
+    },
     "full_front_uri": "/v1/jobs/job_01JBQ8Z4K7M2N3P5R6T7V8W9XY/front?reduction=none"
   },
   "summary": {
@@ -90,7 +300,10 @@
     "budget_tier": "standard",
     "converged": true,
     "termination_reason": "hypervolume_stagnation",
-    "indicator_versions": { "hypervolume": "wfg-1.2", "igd_plus": "1.0" }
+    "indicator_versions": {
+      "hypervolume": "wfg-1.2",
+      "igd_plus": "1.0"
+    }
   },
-  "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  "digest": "sha256:1c8cc997e79ed8309e243ed00b9507ca7ebd41890e08e3103fd8e4c224bfcd9a"
 }

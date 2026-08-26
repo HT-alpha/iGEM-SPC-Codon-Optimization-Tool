@@ -2,43 +2,80 @@
   "schema_version": "1.0.0",
   "constraint_set_id": "cst_goldengate_twist_default",
   "name": "Golden Gate (BsaI) + Twist synthesis limits",
-  "derived_from": ["assembly_standard", "vendor_profile", "auto_detected"],
+  "derived_from": [
+    "assembly_standard",
+    "vendor_profile",
+    "auto_detected"
+  ],
   "constraints": [
     {
       "id": "c_bsai",
       "class": "blocking",
       "scope": "construct",
-      "rule": { "kind": "restriction_site", "enzyme": "BsaI", "site": "GGTCTC", "strand": "both", "max_occurrences": 0 }
+      "rule": {
+        "kind": "restriction_site",
+        "enzyme": "BsaI",
+        "site": "GGTCTC",
+        "strand": "both",
+        "max_occurrences": 0
+      }
     },
     {
       "id": "c_bsmbi",
       "class": "blocking",
       "scope": "construct",
-      "rule": { "kind": "restriction_site", "enzyme": "BsmBI", "site": "CGTCTC", "strand": "both", "max_occurrences": 0 }
+      "rule": {
+        "kind": "restriction_site",
+        "enzyme": "BsmBI",
+        "site": "CGTCTC",
+        "strand": "both",
+        "max_occurrences": 0
+      }
     },
     {
       "id": "c_homopolymer",
       "class": "blocking",
       "scope": "construct",
-      "rule": { "kind": "homopolymer", "base": "any", "max_run": 6 }
+      "rule": {
+        "kind": "homopolymer",
+        "base": "any",
+        "max_run": 6
+      }
     },
     {
       "id": "c_kmer8",
       "class": "blocking",
       "scope": "construct",
-      "rule": { "kind": "kmer_repeat", "k": 8, "max_occurrences": 2, "count_overlapping": true, "canonical_strand": false }
+      "rule": {
+        "kind": "kmer_repeat",
+        "k": 8,
+        "max_occurrences": 2,
+        "count_overlapping": true,
+        "canonical_strand": false
+      }
     },
     {
       "id": "c_kmer20_direct",
       "class": "blocking",
       "scope": "construct",
-      "rule": { "kind": "kmer_repeat", "k": 20, "max_occurrences": 1, "count_overlapping": true, "canonical_strand": true }
+      "rule": {
+        "kind": "kmer_repeat",
+        "k": 20,
+        "max_occurrences": 1,
+        "count_overlapping": true,
+        "canonical_strand": true
+      }
     },
     {
       "id": "c_gc_window",
       "class": "blocking",
       "scope": "construct",
-      "rule": { "kind": "gc_window", "window_nt": 50, "min": 0.25, "max": 0.68 }
+      "rule": {
+        "kind": "gc_window",
+        "window_nt": 50,
+        "min": 0.25,
+        "max": 0.68
+      }
     },
     {
       "id": "c_initiation_structure",
@@ -48,7 +85,11 @@
       "rule": {
         "kind": "local_structure",
         "region": "initiation_window",
-        "span": { "start_nt": 0, "end_nt": 50, "strand": "+" },
+        "span": {
+          "start_nt": 0,
+          "end_nt": 50,
+          "strand": "+"
+        },
         "metric": "mean_unpaired_probability",
         "min": 0.35,
         "max": null,
@@ -60,14 +101,27 @@
       "class": "advisory",
       "scope": "cds",
       "weight": 0.5,
-      "rule": { "kind": "codon_ban", "codons": ["AGA", "AGG", "CGA"], "reason": "arginine_rare_ecoli" }
+      "rule": {
+        "kind": "codon_ban",
+        "codons": [
+          "AGA",
+          "AGG",
+          "CGA"
+        ],
+        "reason": "arginine_rare_ecoli"
+      }
     },
     {
       "id": "c_gc_rich_5mer_autodetect",
       "class": "advisory",
       "scope": "construct",
       "weight": 0.25,
-      "rule": { "kind": "forbidden_motif", "motif": "GCGGCG", "strand": "both", "max_occurrences": 3 }
+      "rule": {
+        "kind": "forbidden_motif",
+        "motif": "GCGGCG",
+        "strand": "both",
+        "max_occurrences": 3
+      }
     }
   ],
   "repair_policy": {
@@ -80,5 +134,5 @@
     "stochastic_tie_break": true,
     "lamarckian": true
   },
-  "digest": "sha256:5566778899aabbcc5566778899aabbcc5566778899aabbcc5566778899aabbcc"
+  "digest": "sha256:e6e887e2d917c1779ad59299d5686ab247841b5f979be26a998350e4aa113c21"
 }

@@ -8,10 +8,16 @@
       "value": 0.42,
       "unit": "z_score",
       "direction": "minimize",
-      "reference_range": [-1.1, 1.3],
+      "reference_range": [
+        -1.1,
+        1.3
+      ],
       "uncertainty": {
         "sigma": 0.18,
-        "interval": [0.11, 0.75],
+        "interval": [
+          0.11,
+          0.75
+        ],
         "coverage": 0.9,
         "method": "deep_ensemble",
         "calibrated": true,
@@ -30,7 +36,10 @@
       "value": 0.61,
       "unit": "dimensionless",
       "direction": "maximize",
-      "reference_range": [0.32, 0.78],
+      "reference_range": [
+        0.32,
+        0.78
+      ],
       "provenance": {
         "engine": "native_window",
         "engine_version": "0.3.0",
@@ -43,7 +52,10 @@
       "value": 0.037,
       "unit": "relative_growth_rate",
       "direction": "minimize",
-      "reference_range": [0.0, 0.25],
+      "reference_range": [
+        0.0,
+        0.25
+      ],
       "uncertainty": {
         "sigma": 0.021,
         "method": "parametric_bootstrap",
@@ -62,53 +74,182 @@
       "value": 0.71,
       "unit": "dimensionless",
       "direction": "maximize",
-      "reference_range": [0.28, 0.86],
-      "uncertainty": { "method": "none", "calibrated": true },
-      "provenance": { "engine": "builtin_cai", "engine_version": "1.0.0", "resolved_by": "builtin" },
+      "reference_range": [
+        0.28,
+        0.86
+      ],
+      "uncertainty": {
+        "method": "none",
+        "calibrated": true
+      },
+      "provenance": {
+        "engine": "builtin_cai",
+        "engine_version": "1.0.0",
+        "resolved_by": "builtin"
+      },
       "capability": "L1",
       "tier_used": "fast"
     }
   },
   "objective_vector": {
-    "order": ["epistasis.dwell_deviation", "structure.local_accessibility", "burden.growth_cost", "usage.cai"],
-    "values": [0.42, 0.61, 0.037, 0.71],
-    "sense": ["minimize", "maximize", "minimize", "maximize"]
+    "order": [
+      "epistasis.dwell_deviation",
+      "structure.local_accessibility",
+      "burden.growth_cost",
+      "usage.cai"
+    ],
+    "values": [
+      0.42,
+      0.61,
+      0.037,
+      0.71
+    ],
+    "sense": [
+      "minimize",
+      "maximize",
+      "minimize",
+      "maximize"
+    ]
   },
   "deltas": {
-    "base_digest": "sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+    "base_digest": "sha256:a6135fac19304a28f6b4645d8fd334e1ef9e16ba271483d6572548087fce8205",
     "exact": true,
     "entries": [
       {
         "codon_index": 1,
         "alternatives": [
-          { "codon": "AAG", "delta": { "epistasis.dwell_deviation": 0.08, "usage.cai": -0.031, "burden.growth_cost": 0.0004, "structure.local_accessibility": -0.012 } }
+          {
+            "codon": "AAG",
+            "delta": {
+              "epistasis.dwell_deviation": 0.08,
+              "usage.cai": -0.031,
+              "burden.growth_cost": 0.0004,
+              "structure.local_accessibility": -0.012
+            }
+          }
         ]
       },
       {
         "codon_index": 2,
         "alternatives": [
-          { "codon": "CGC", "delta": { "epistasis.dwell_deviation": -0.11, "usage.cai": 0.004, "burden.growth_cost": -0.0002, "structure.local_accessibility": 0.007 } },
-          { "codon": "CGG", "delta": { "epistasis.dwell_deviation": 0.19, "usage.cai": -0.052, "burden.growth_cost": 0.0011, "structure.local_accessibility": 0.002 } },
-          { "codon": "CGA", "delta": { "epistasis.dwell_deviation": 0.44, "usage.cai": -0.081, "burden.growth_cost": 0.0026, "structure.local_accessibility": -0.004 } },
-          { "codon": "AGA", "delta": { "epistasis.dwell_deviation": 0.51, "usage.cai": -0.083, "burden.growth_cost": 0.0031, "structure.local_accessibility": -0.001 } },
-          { "codon": "AGG", "delta": { "epistasis.dwell_deviation": 0.63, "usage.cai": -0.091, "burden.growth_cost": 0.0038, "structure.local_accessibility": 0.003 } }
+          {
+            "codon": "CGC",
+            "delta": {
+              "epistasis.dwell_deviation": -0.11,
+              "usage.cai": 0.004,
+              "burden.growth_cost": -0.0002,
+              "structure.local_accessibility": 0.007
+            }
+          },
+          {
+            "codon": "CGG",
+            "delta": {
+              "epistasis.dwell_deviation": 0.19,
+              "usage.cai": -0.052,
+              "burden.growth_cost": 0.0011,
+              "structure.local_accessibility": 0.002
+            }
+          },
+          {
+            "codon": "CGA",
+            "delta": {
+              "epistasis.dwell_deviation": 0.44,
+              "usage.cai": -0.081,
+              "burden.growth_cost": 0.0026,
+              "structure.local_accessibility": -0.004
+            }
+          },
+          {
+            "codon": "AGA",
+            "delta": {
+              "epistasis.dwell_deviation": 0.51,
+              "usage.cai": -0.083,
+              "burden.growth_cost": 0.0031,
+              "structure.local_accessibility": -0.001
+            }
+          },
+          {
+            "codon": "AGG",
+            "delta": {
+              "epistasis.dwell_deviation": 0.63,
+              "usage.cai": -0.091,
+              "burden.growth_cost": 0.0038,
+              "structure.local_accessibility": 0.003
+            }
+          }
         ]
       },
       {
         "codon_index": 3,
         "alternatives": [
-          { "codon": "ATC", "delta": { "epistasis.dwell_deviation": -0.05, "usage.cai": 0.012, "burden.growth_cost": -0.0001, "structure.local_accessibility": 0.009 } },
-          { "codon": "ATA", "delta": { "epistasis.dwell_deviation": 0.37, "usage.cai": -0.064, "burden.growth_cost": 0.0019, "structure.local_accessibility": -0.006 } }
+          {
+            "codon": "ATC",
+            "delta": {
+              "epistasis.dwell_deviation": -0.05,
+              "usage.cai": 0.012,
+              "burden.growth_cost": -0.0001,
+              "structure.local_accessibility": 0.009
+            }
+          },
+          {
+            "codon": "ATA",
+            "delta": {
+              "epistasis.dwell_deviation": 0.37,
+              "usage.cai": -0.064,
+              "burden.growth_cost": 0.0019,
+              "structure.local_accessibility": -0.006
+            }
+          }
         ]
       },
       {
         "codon_index": 4,
         "alternatives": [
-          { "codon": "TTA", "delta": { "epistasis.dwell_deviation": 0.29, "usage.cai": -0.071, "burden.growth_cost": 0.0015, "structure.local_accessibility": 0.011 } },
-          { "codon": "TTG", "delta": { "epistasis.dwell_deviation": 0.21, "usage.cai": -0.068, "burden.growth_cost": 0.0013, "structure.local_accessibility": 0.008 } },
-          { "codon": "CTT", "delta": { "epistasis.dwell_deviation": 0.24, "usage.cai": -0.070, "burden.growth_cost": 0.0014, "structure.local_accessibility": 0.005 } },
-          { "codon": "CTC", "delta": { "epistasis.dwell_deviation": 0.26, "usage.cai": -0.072, "burden.growth_cost": 0.0016, "structure.local_accessibility": -0.002 } },
-          { "codon": "CTA", "delta": { "epistasis.dwell_deviation": 0.58, "usage.cai": -0.086, "burden.growth_cost": 0.0034, "structure.local_accessibility": 0.001 } }
+          {
+            "codon": "TTA",
+            "delta": {
+              "epistasis.dwell_deviation": 0.29,
+              "usage.cai": -0.071,
+              "burden.growth_cost": 0.0015,
+              "structure.local_accessibility": 0.011
+            }
+          },
+          {
+            "codon": "TTG",
+            "delta": {
+              "epistasis.dwell_deviation": 0.21,
+              "usage.cai": -0.068,
+              "burden.growth_cost": 0.0013,
+              "structure.local_accessibility": 0.008
+            }
+          },
+          {
+            "codon": "CTT",
+            "delta": {
+              "epistasis.dwell_deviation": 0.24,
+              "usage.cai": -0.07,
+              "burden.growth_cost": 0.0014,
+              "structure.local_accessibility": 0.005
+            }
+          },
+          {
+            "codon": "CTC",
+            "delta": {
+              "epistasis.dwell_deviation": 0.26,
+              "usage.cai": -0.072,
+              "burden.growth_cost": 0.0016,
+              "structure.local_accessibility": -0.002
+            }
+          },
+          {
+            "codon": "CTA",
+            "delta": {
+              "epistasis.dwell_deviation": 0.58,
+              "usage.cai": -0.086,
+              "burden.growth_cost": 0.0034,
+              "structure.local_accessibility": 0.001
+            }
+          }
         ]
       }
     ]
@@ -120,6 +261,8 @@
     "cache_misses": 1,
     "evaluations": 13,
     "terms_deferred": [],
-    "engine_notes": ["structure: 2 of 3 windows reused from incremental cache"]
+    "engine_notes": [
+      "structure: 2 of 3 windows reused from incremental cache"
+    ]
   }
 }

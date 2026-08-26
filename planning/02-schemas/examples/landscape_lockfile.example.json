@@ -50,19 +50,37 @@
     }
   ],
   "engines": [
-    { "role": "structure", "name": "native_window", "version": "0.3.0", "digest": null, "parameters": { "window_nt": 80, "span_nt": 40, "temperature_c": 37.0 } },
-    { "role": "hypervolume", "name": "wfg", "version": "1.2", "digest": null, "parameters": {} }
+    {
+      "role": "structure",
+      "name": "native_window",
+      "version": "0.3.0",
+      "digest": null,
+      "parameters": {
+        "window_nt": 80,
+        "span_nt": 40,
+        "temperature_c": 37.0
+      }
+    },
+    {
+      "role": "hypervolume",
+      "name": "wfg",
+      "version": "1.2",
+      "digest": null,
+      "parameters": {}
+    }
   ],
   "host_profile": {
     "host_id": "escherichia_coli:562/K-12_MG1655",
     "version": "2.1.0",
-    "digest": "sha256:a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718a1b2c3d4e5f60718"
+    "digest": "sha256:1d66c45a97e5b624c8ca328c86aa62f695197f5a15ca649cde1aad60cfb0d401"
   },
   "inputs": {
-    "construct_digest": "sha256:deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234",
-    "constraint_set_digest": "sha256:5566778899aabbcc5566778899aabbcc5566778899aabbcc5566778899aabbcc",
+    "construct_digest": "sha256:c72798a582784347e2c685a805c31eb14e2157ec52d409080960a80822961eed",
+    "constraint_set_digest": "sha256:e6e887e2d917c1779ad59299d5686ab247841b5f979be26a998350e4aa113c21",
     "seed_set_digest": null,
-    "input_sequence_digests": ["sha256:fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"]
+    "input_sequence_digests": [
+      "sha256:a6135fac19304a28f6b4645d8fd334e1ef9e16ba271483d6572548087fce8205"
+    ]
   },
   "rng": {
     "algorithm": "pcg64",
@@ -77,5 +95,5 @@
     "thread_count": 8,
     "budget_tier": "standard"
   },
-  "digest": "sha256:0f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a69780f1e2d3c4b5a6978"
+  "digest": "sha256:d504fae73004c6e5c6cae029015612d6d52aa5ec15602711580051d136787c0a"
 }

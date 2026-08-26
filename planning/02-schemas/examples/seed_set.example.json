@@ -2,48 +2,81 @@
   "schema_version": "1.0.0",
   "seed_set_id": "seeds_demo_reporter",
   "target_protein": "MKRIL*",
-  "target_protein_digest": "sha256:9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba",
+  "target_protein_digest": "sha256:cadb08ff49e21af0a357c59a55ab025f6a4c211c374ac180c0c0b9480038f42b",
   "translation_table": 11,
   "host_id": "escherichia_coli:562/K-12_MG1655",
   "seeds": [
     {
       "seed_id": "sd_lineardesign_lambda0",
       "cds": "ATGAAACGCATCCTGTAA",
-      "digest": "sha256:00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff00ff",
+      "digest": "sha256:4998a834eb7e6ef91987d52c4f8e13e85681fd8d11d8907d194ee16e43acaa35",
       "source": {
         "tool": "lineardesign",
         "version": "1.0",
-        "parameters": { "lambda": 0.0, "beam": 100 },
+        "parameters": {
+          "lambda": 0.0,
+          "beam": 100
+        },
         "uri": "file://seeds/ld_lambda0.fasta",
         "imported_at": "2026-08-25T07:40:00Z"
       },
-      "reported_metrics": { "cai": 0.84, "mfe_kcal_per_mol": -2.1 },
-      "acceptance": { "accepted": true, "reason": "ok", "protein_diff": [], "repaired": false, "n_repair_edits": 0 }
+      "reported_metrics": {
+        "cai": 0.84,
+        "mfe_kcal_per_mol": -2.1
+      },
+      "acceptance": {
+        "accepted": true,
+        "reason": "ok",
+        "protein_diff": [],
+        "repaired": false,
+        "n_repair_edits": 0
+      }
     },
     {
       "seed_id": "sd_codontransformer_default",
       "cds": "ATGAAACGTATTTTGTAA",
-      "digest": "sha256:112233445566778f112233445566778f112233445566778f112233445566778f",
+      "digest": "sha256:838f6e3518a97824f533587659a9f07bf4e93efb129804dd0d4dc5276932de51",
       "source": {
         "tool": "codontransformer",
         "version": "0.2.1",
-        "parameters": { "organism": "Escherichia coli general", "deterministic": true },
+        "parameters": {
+          "organism": "Escherichia coli general",
+          "deterministic": true
+        },
         "uri": null,
         "imported_at": "2026-08-25T07:41:00Z"
       },
       "reported_metrics": {},
-      "acceptance": { "accepted": true, "reason": "ok", "protein_diff": [], "repaired": true, "n_repair_edits": 1 }
+      "acceptance": {
+        "accepted": true,
+        "reason": "ok",
+        "protein_diff": [],
+        "repaired": true,
+        "n_repair_edits": 1
+      }
     },
     {
       "seed_id": "sd_user_paste_wrong_gene",
       "cds": "ATGAAACATATTCTGTAA",
-      "digest": "sha256:cafebabedeadbeefcafebabedeadbeefcafebabedeadbeefcafebabedeadbeef",
-      "source": { "tool": "manual", "version": null, "parameters": {}, "uri": null, "imported_at": "2026-08-25T07:42:00Z" },
+      "digest": "sha256:1b8247ee90349ae2131b29e69b8c0b92a2b3d1af63773b96db8531b974293fcf",
+      "source": {
+        "tool": "manual",
+        "version": null,
+        "parameters": {},
+        "uri": null,
+        "imported_at": "2026-08-25T07:42:00Z"
+      },
       "reported_metrics": {},
       "acceptance": {
         "accepted": false,
         "reason": "protein_mismatch",
-        "protein_diff": [{ "position": 2, "expected": "R", "found": "H" }],
+        "protein_diff": [
+          {
+            "position": 2,
+            "expected": "R",
+            "found": "H"
+          }
+        ],
         "repaired": false,
         "n_repair_edits": 0
       }
@@ -56,5 +89,5 @@
     "also_inject_mutated_copies": true,
     "protect_for_generations": 0
   },
-  "digest": "sha256:abcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcdabcdefabcdefabcd"
+  "digest": "sha256:d5ad41797ce79f8e725a51ac732d68205f8a7d87c96f437df176676622950f70"
 }

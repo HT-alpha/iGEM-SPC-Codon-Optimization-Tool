@@ -8,6 +8,9 @@ reviewer would otherwise have to answer manually:
 
   schemas       Are the JSON Schemas actually valid draft 2020-12, and do the
                 worked examples validate against them?
+  digests       Is every digest in the worked examples genuine — a real
+                canonicalize-then-hash of its own payload, or a correctly
+                threaded reference to one — and is every digest accounted for?
   deps          Is the module dependency graph a DAG, with no dangling edges and
                 no rank inversion?  (BRIEF-2.1-b)
   refs          Does every ADR / AMD / EXP / RISK / GATE / TST identifier cited
@@ -594,8 +597,200 @@ def check_tags(rep: Report) -> None:
                 rep.ok(f"{cand['candidate_id']}: annotation tag {tag!r} valid")
 
 
+def check_digests(rep: Report) -> None:
+    """Every digest in the examples is genuine, threaded, or declared external.
+
+    The worked examples originally carried hand-written placeholders, five of
+    which meant two or three unrelated things at once. That made them usable as
+    schema-shape fixtures but not as digest fixtures, and it is exactly the
+    class of problem that looks fine until something depends on it.
+
+    The load-bearing part of this check is not that the listed digests verify —
+    it is that a digest the map does NOT account for is a failure. Without that,
+    a newly-added placeholder would simply not be checked.
+    """
+    rep.section("digests")
+
+    sys.path.insert(0, str(PLANNING / "tools"))
+    import jcs  # noqa: PLC0415
+    from refresh_example_digests import (  # noqa: PLC0415
+        EXAMPLES,
+        MAP_PATH,
+        pointer_parts,
+        resolve,
+        resolve_parent,
+    )
+
+    spec = yaml.safe_load(MAP_PATH.read_text(encoding="utf-8"))
+    try:
+        tables = jcs.load_genetic_codes(ROOT)
+    except FileNotFoundError as exc:
+        rep.fail(str(exc))
+        return
+
+    docs = {
+        path.name: json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted(EXAMPLES.glob("*.example.json"))
+    }
+
+    # ---- 1. every occurrence is accounted for -----------------------------
+    def walk(node, pointer=""):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                escaped = key.replace("~", "~0").replace("/", "~1")
+                yield from walk(value, f"{pointer}/{escaped}")
+        elif isinstance(node, list):
+            for index, value in enumerate(node):
+                yield from walk(value, f"{pointer}/{index}")
+        elif isinstance(node, str) and node.startswith("sha256:"):
+            yield pointer, node
+
+    declared: dict[tuple[str, str], str] = {}
+    for group in ("computed", "reference", "external"):
+        for entry in spec.get(group) or []:
+            key = (entry["file"], entry["at"])
+            if key in declared:
+                rep.fail(f"{entry['file']}{entry['at']} is classified twice")
+            declared[key] = group
+
+    found = {(name, ptr) for name, doc in docs.items() for ptr, _ in walk(doc)}
+    unaccounted = found - set(declared)
+    for name, ptr in sorted(unaccounted):
+        rep.fail(
+            f"{name}{ptr} holds a digest that digest_map.yaml does not classify; "
+            "add it as computed, reference or external"
+        )
+    stale = set(declared) - found
+    for name, ptr in sorted(stale):
+        rep.fail(f"digest_map.yaml classifies {name}{ptr}, which no longer exists")
+    if not unaccounted and not stale:
+        rep.ok(f"all {len(found)} digest occurrences across {len(docs)} examples are classified")
+
+    # ---- 2. well-formedness ----------------------------------------------
+    malformed = 0
+    for name, doc in docs.items():
+        for ptr, value in walk(doc):
+            hexpart = value.removeprefix("sha256:")
+            if len(hexpart) != 64 or not all(c in "0123456789abcdef" for c in hexpart):
+                rep.fail(f"{name}{ptr}: {value!r} is not sha256 + 64 lower-case hex digits")
+                malformed += 1
+    if not malformed:
+        rep.ok("every digest is well-formed")
+
+    # ---- 3. computed digests actually verify ------------------------------
+    for entry in spec["computed"]:
+        doc = docs.get(entry["file"])
+        if doc is None:
+            rep.fail(f"digest_map.yaml references missing example {entry['file']}")
+            continue
+        rule = entry["rule"]
+        try:
+            if rule == "self_document":
+                parent, _ = resolve_parent(doc, entry["at"])
+                expected = jcs.digest_of_document(parent, "digest")
+                what = "self"
+            elif rule == "codon_sequence_document":
+                cds = resolve(doc, entry["cds"])
+                table = (
+                    entry["table_const"] if "table_const" in entry else resolve(doc, entry["table"])
+                )
+                expected = jcs.codon_sequence_document(cds, int(table), tables)["digest"]
+                what = "codon sequence"
+            elif rule == "raw_bytes":
+                expected = jcs.digest_of_bytes(resolve(doc, entry["source"]).encode("utf-8"))
+                what = "raw bytes"
+            else:
+                rep.fail(f"{entry['file']}{entry['at']}: unknown rule {rule!r}")
+                continue
+            actual = resolve(doc, entry["at"])
+        except (KeyError, IndexError, ValueError) as exc:
+            rep.fail(f"{entry['file']}{entry['at']}: cannot evaluate ({exc})")
+            continue
+        if actual == expected:
+            rep.ok(f"{entry['file']}{entry['at']} ({what}) matches a fresh hash of its payload")
+        else:
+            rep.fail(
+                f"{entry['file']}{entry['at']} ({what}) is stale: "
+                f"stored {actual[:22]}…, recomputed {expected[:22]}…"
+            )
+
+    # ---- 4. references point at the right value ---------------------------
+    for entry in spec["reference"]:
+        target_file, _, target_pointer = entry["same_as"].partition("#")
+        try:
+            expected = resolve(docs[target_file], target_pointer)
+            actual = resolve(docs[entry["file"]], entry["at"])
+        except (KeyError, IndexError, ValueError) as exc:
+            rep.fail(f"{entry['file']}{entry['at']}: cannot resolve reference ({exc})")
+            continue
+        if actual == expected:
+            rep.ok(f"{entry['file']}{entry['at']} -> {entry['same_as']}")
+        else:
+            rep.fail(
+                f"{entry['file']}{entry['at']} should equal {entry['same_as']} "
+                f"({expected[:22]}…) but holds {actual[:22]}…"
+            )
+
+    # ---- 5. externals are declared with a reason --------------------------
+    for entry in spec.get("external") or []:
+        if not entry.get("reason"):
+            rep.fail(f"{entry['file']}{entry['at']}: external digests must state a reason")
+        else:
+            rep.ok(f"{entry['file']}{entry['at']} declared external: {entry['reason'][:60]}")
+
+    # ---- 6. same dataset_id, same digest ----------------------------------
+    if (spec.get("consistency") or {}).get("same_dataset_id_same_digest"):
+        by_dataset: dict[str, set[str]] = defaultdict(set)
+        where: dict[str, list[str]] = defaultdict(list)
+
+        def collect(node, name, pointer=""):
+            if isinstance(node, dict):
+                if isinstance(node.get("dataset_id"), str) and isinstance(node.get("digest"), str):
+                    by_dataset[node["dataset_id"]].add(node["digest"])
+                    where[node["dataset_id"]].append(f"{name}{pointer}")
+                for key, value in node.items():
+                    collect(value, name, f"{pointer}/{key}")
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    collect(value, name, f"{pointer}/{index}")
+
+        for name, doc in docs.items():
+            collect(doc, name)
+        for dataset_id, digests in sorted(by_dataset.items()):
+            if len(digests) > 1:
+                rep.fail(
+                    f"dataset {dataset_id} carries {len(digests)} different digests at "
+                    f"{', '.join(where[dataset_id])}"
+                )
+            else:
+                rep.ok(
+                    f"dataset {dataset_id}: one digest across {len(where[dataset_id])} reference(s)"
+                )
+
+    # ---- 7. no value means two different things ---------------------------
+    # The original failure: one placeholder serving as the self digest of two
+    # unrelated documents. Two self digests colliding now would mean two
+    # documents with identical payloads, which is worth knowing about.
+    self_entries = [e for e in spec["computed"] if e["rule"] == "self_document"]
+    seen: dict[str, str] = {}
+    collision = False
+    for entry in self_entries:
+        try:
+            value = resolve(docs[entry["file"]], entry["at"])
+        except (KeyError, IndexError):
+            continue
+        origin = f"{entry['file']}{entry['at']}"
+        if value in seen and pointer_parts(entry["at"]) == ["digest"]:
+            rep.fail(f"self digest collision: {origin} and {seen[value]} share a value")
+            collision = True
+        seen.setdefault(value, origin)
+    if not collision:
+        rep.ok(f"{len(self_entries)} self digests are distinct where they must be")
+
+
 CHECKS = {
     "schemas": check_schemas,
+    "digests": check_digests,
     "sequence": check_sequence_invariants,
     "deps": check_deps,
     "refs": check_refs,

@@ -10,19 +10,21 @@ drift fails CI rather than surfacing at runtime. That condition is what these
 tests implement:
 
   * a document produced by Rust validates against the schema Python reads;
-  * a digest computed by Rust matches one computed by an independent
-    implementation of RFC 8785 written here, in Python, from the spec.
+  * a digest computed by Rust matches one computed by `planning/tools/jcs.py`,
+    an independent implementation of RFC 8785 written from the spec.
 
 The second one matters more than it looks. A canonicalizer that is
 self-consistent is trivially "correct" against itself; the only way to find out
 whether it implements the *spec* is to compare it against a different
-implementation.
+implementation. `jcs.py` is also what computes the digests stored in the worked
+examples, so this test is what ties those fixtures to the implementation.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -34,6 +36,9 @@ from codonforge import _core
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMAS = ROOT / "schemas" / "v1"
 EXAMPLES = ROOT / "planning" / "02-schemas" / "examples"
+
+sys.path.insert(0, str(ROOT / "planning" / "tools"))
+import jcs  # noqa: E402
 
 DEMO_CDS = "ATGAAACGTATTCTGTAA"
 DEMO_FLANK5 = "AAAGAGGAGAAAGATCT"
@@ -83,29 +88,27 @@ def test_contract_document_round_trips_through_rust():
     assert json.loads(first) == json.loads(second)
 
 
-def test_contract_planning_example_parses(sequence_validator):
-    """The worked example in the planning package is structurally real.
+def test_contract_planning_example_parses_with_its_stored_digest(sequence_validator):
+    """The worked example is accepted whole, digest included.
 
-    The example's `digest` is a hand-written placeholder (as are the digests in
-    every worked example — they exist to show the field's shape, and several of
-    them are cross-referenced between examples, so they cannot all be genuine).
-    It is therefore stripped before the invariant check; everything else — frame,
-    translation, lock ranges, flanks — is checked against the implementation.
+    This previously had to strip `digest` before handing the example to the
+    core, because the examples carried hand-written placeholders. They no longer
+    do (see planning/02-schemas/examples/digest_map.yaml), so the document is
+    passed intact and invariant I5 — the stored digest equals a fresh
+    canonicalize-then-hash of the payload — is checked by the implementation
+    rather than skipped.
+
+    Nothing here strips a digest for any other reason.
     """
     example = json.loads((EXAMPLES / "sequence.example.json").read_text(encoding="utf-8"))
     assert not list(sequence_validator.iter_errors(example)), "example must match its schema"
 
-    without_digest = {k: v for k, v in example.items() if k != "digest"}
-    round_tripped = json.loads(_core.sequence_round_trip(json.dumps(without_digest)))
+    round_tripped = json.loads(_core.sequence_round_trip(json.dumps(example)))
 
-    assert round_tripped["cds"] == example["cds"]
-    assert round_tripped["protein"] == example["protein"]
-    assert round_tripped["codon_count"] == example["codon_count"]
-    assert round_tripped["five_prime_flank"] == example["five_prime_flank"]
-    assert round_tripped["locked_codons"] == example["locked_codons"]
-    # And the recomputed digest is a real one.
-    assert round_tripped["digest"].startswith("sha256:")
-    assert len(round_tripped["digest"]) == len("sha256:") + 64
+    assert round_tripped == example, (
+        "the example must survive Rust parse -> re-emit unchanged; a difference "
+        "means the stored digest or some derived field disagrees with the core"
+    )
 
 
 def test_contract_invariants_are_enforced_across_the_boundary():
@@ -127,97 +130,8 @@ def test_contract_invariants_are_enforced_across_the_boundary():
 
 
 # --------------------------------------------------------------------------- #
-# an independent RFC 8785 implementation, for cross-checking
+# Rust against the from-spec Python reference
 # --------------------------------------------------------------------------- #
-
-
-def _es_number(value: float) -> str:
-    """ECMAScript Number::toString, written from ECMA-262 6.1.6.1.20.
-
-    Deliberately a second implementation rather than a port of the Rust one:
-    the point is to disagree if either is wrong.
-    """
-    if value != value or value in (float("inf"), float("-inf")):
-        raise ValueError("not representable")
-    if value == 0:
-        return "0"
-    if value < 0:
-        return "-" + _es_number(-value)
-
-    mantissa, _, exponent = repr(value).partition("e")
-    if exponent:
-        digits = mantissa.replace(".", "").rstrip("0") or "0"
-        n = int(exponent) + 1
-    else:
-        # repr gives the shortest round-tripping decimal for a Python float.
-        intpart, _, frac = mantissa.partition(".")
-        frac = frac.rstrip("0")
-        if intpart == "0":
-            stripped = frac.lstrip("0")
-            n = -(len(frac) - len(stripped))
-            digits = stripped
-        else:
-            digits = (intpart + frac).rstrip("0") or "0"
-            n = len(intpart)
-    digits = digits.rstrip("0") or "0"
-    k = len(digits)
-
-    if k <= n <= 21:
-        return digits + "0" * (n - k)
-    if 0 < n <= 21:
-        return digits[:n] + "." + digits[n:]
-    if -6 < n <= 0:
-        return "0." + "0" * (-n) + digits
-    e = n - 1
-    sign = "+" if e >= 0 else "-"
-    head = digits if k == 1 else digits[0] + "." + digits[1:]
-    return f"{head}e{sign}{abs(e)}"
-
-
-def _canonicalize(value) -> str:
-    if value is None:
-        return "null"
-    if value is True:
-        return "true"
-    if value is False:
-        return "false"
-    if isinstance(value, int):
-        if abs(value) > 9007199254740991:
-            raise ValueError("outside the IEEE-754 safe integer range")
-        return str(value)
-    if isinstance(value, float):
-        return _es_number(value)
-    if isinstance(value, str):
-        return _escape(value)
-    if isinstance(value, list):
-        return "[" + ",".join(_canonicalize(v) for v in value) + "]"
-    if isinstance(value, dict):
-        keys = sorted(value, key=lambda k: k.encode("utf-16-be"))
-        return "{" + ",".join(f"{_escape(k)}:{_canonicalize(value[k])}" for k in keys) + "}"
-    raise TypeError(type(value))
-
-
-def _escape(text: str) -> str:
-    out = ['"']
-    short = {
-        '"': '\\"',
-        "\\": "\\\\",
-        "\b": "\\b",
-        "\f": "\\f",
-        "\n": "\\n",
-        "\r": "\\r",
-        "\t": "\\t",
-    }
-    for ch in text:
-        if ch in short:
-            out.append(short[ch])
-        elif ord(ch) < 0x20:
-            out.append(f"\\u{ord(ch):04x}")
-        else:
-            out.append(ch)
-    out.append('"')
-    return "".join(out)
-
 
 CANONICAL_CASES = [
     {"b": 1, "a": 2, "c": {"z": 1, "y": 2}},
@@ -235,12 +149,34 @@ def test_contract_tst_core_003_rust_and_python_canonicalize_identically(case):
     """Two independent RFC 8785 implementations must agree, byte for byte."""
     payload = json.dumps(case)
     rust = _core.canonical_json(payload)
-    python = _canonicalize(json.loads(payload))
+    python = jcs.canonicalize(json.loads(payload))
     assert rust == python, f"canonical forms differ:\n  rust  : {rust}\n  python: {python}"
 
-    # And therefore so must the digests.
     expected = "sha256:" + hashlib.sha256(python.encode("utf-8")).hexdigest()
     assert _core.digest_json(payload) == expected
+    assert jcs.digest(json.loads(payload)) == expected
+
+
+def test_contract_codon_sequence_document_agrees_between_runtimes():
+    """The document form used for the example fixtures is the core's own.
+
+    `jcs.codon_sequence_document` is what computes the sequence digests stored
+    in the Pareto-front and seed-set examples. If it drifted from
+    `CodonSequence::from_cds`, those fixtures would be self-consistent and
+    wrong — which is precisely the failure this round set out to remove — so the
+    two constructions are compared field by field rather than only by digest.
+    """
+    tables = jcs.load_genetic_codes(ROOT)
+    for cds, table in [
+        ("ATGAAACGTATTCTGTAA", 11),
+        ("ATGAAACGCATCCTGTAA", 11),
+        ("ATGGCAGAACTGAAATAA", 11),
+        ("ATGAAACGT", 11),  # no terminal stop: only the start codon is locked
+        ("ATGAAACGTATTCTGTAA", 1),
+    ]:
+        python_doc = jcs.codon_sequence_document(cds, table, tables)
+        rust_doc = json.loads(_core.sequence_document(cds, table, None, None, None))
+        assert python_doc == rust_doc, f"construction differs for {cds} under table {table}"
 
 
 def test_contract_digest_omits_the_named_field():

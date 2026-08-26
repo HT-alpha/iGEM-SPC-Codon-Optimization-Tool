@@ -21,7 +21,7 @@
             "kind": { "const": "design" },
             "job_id": { "$ref": "common.schema.json#/$defs/JobId" },
             "candidate_id": { "type": "string" },
-            "as_built_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest", "description": "Digest of what was actually synthesized. Required, and checked against the candidate: silent divergence between designed and built sequence is a common and highly corrupting error." }
+            "as_built_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest", "description": "Digest of the CodonSequence document for what was actually synthesized — the same convention as `pareto_front.candidates[].sequences[].digest`, so the two are directly comparable. Required, and checked against the candidate (CF-OBS-002): silent divergence between designed and built sequence is a common and highly corrupting error." }
           },
           "required": ["kind", "job_id", "candidate_id", "as_built_digest"],
           "additionalProperties": false

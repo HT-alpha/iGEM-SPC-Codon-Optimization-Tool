@@ -13,41 +13,276 @@
       "host_id": "escherichia_coli:562/K-12_MG1655",
       "topology": "circular",
       "full_sequence": "AAAGAGGAGAAAGATCTATGAAACGTATTCTGTAAGGATCTAAAGAGGAGAAATACTAGATGGCAGAACTGAAATAACCAGGCATCAAATAAAACGAAAGGCTCAGTCGAAAGACTGGGCC",
-      "vector": { "backbone_id": "pSB1C3", "copy_number": 100.0, "origin": "pMB1", "selection_marker": "CmR" },
+      "vector": {
+        "backbone_id": "pSB1C3",
+        "copy_number": 100.0,
+        "origin": "pMB1",
+        "selection_marker": "CmR"
+      },
       "elements": [
-        { "element_id": "el_rbs1", "kind": "rbs", "span": { "start_nt": 0, "end_nt": 17, "strand": "+" }, "editable": false, "name": "B0034-like RBS", "metadata": { "part_registry_id": "BBa_B0034", "strength_class": "strong", "spacer_length_nt": 7 } },
-        { "element_id": "el_cds1", "kind": "cds", "span": { "start_nt": 17, "end_nt": 35, "strand": "+" }, "editable": true, "name": "reporter" },
-        { "element_id": "el_spacer1", "kind": "spacer", "span": { "start_nt": 35, "end_nt": 41, "strand": "+" }, "editable": false, "name": "intergenic" },
-        { "element_id": "el_rbs2", "kind": "rbs", "span": { "start_nt": 41, "end_nt": 62, "strand": "+" }, "editable": false, "name": "weak RBS", "metadata": { "strength_class": "weak", "spacer_length_nt": 8 } },
-        { "element_id": "el_cds2", "kind": "cds", "span": { "start_nt": 62, "end_nt": 83, "strand": "+" }, "editable": true, "name": "chaperone" },
-        { "element_id": "el_term", "kind": "terminator", "span": { "start_nt": 83, "end_nt": 120, "strand": "+" }, "editable": false, "name": "B0015-like terminator" }
+        {
+          "element_id": "el_rbs1",
+          "kind": "rbs",
+          "span": {
+            "start_nt": 0,
+            "end_nt": 17,
+            "strand": "+"
+          },
+          "editable": false,
+          "name": "B0034-like RBS",
+          "metadata": {
+            "part_registry_id": "BBa_B0034",
+            "strength_class": "strong",
+            "spacer_length_nt": 7
+          }
+        },
+        {
+          "element_id": "el_cds1",
+          "kind": "cds",
+          "span": {
+            "start_nt": 17,
+            "end_nt": 35,
+            "strand": "+"
+          },
+          "editable": true,
+          "name": "reporter"
+        },
+        {
+          "element_id": "el_spacer1",
+          "kind": "spacer",
+          "span": {
+            "start_nt": 35,
+            "end_nt": 41,
+            "strand": "+"
+          },
+          "editable": false,
+          "name": "intergenic"
+        },
+        {
+          "element_id": "el_rbs2",
+          "kind": "rbs",
+          "span": {
+            "start_nt": 41,
+            "end_nt": 62,
+            "strand": "+"
+          },
+          "editable": false,
+          "name": "weak RBS",
+          "metadata": {
+            "strength_class": "weak",
+            "spacer_length_nt": 8
+          }
+        },
+        {
+          "element_id": "el_cds2",
+          "kind": "cds",
+          "span": {
+            "start_nt": 62,
+            "end_nt": 83,
+            "strand": "+"
+          },
+          "editable": true,
+          "name": "chaperone"
+        },
+        {
+          "element_id": "el_term",
+          "kind": "terminator",
+          "span": {
+            "start_nt": 83,
+            "end_nt": 120,
+            "strand": "+"
+          },
+          "editable": false,
+          "name": "B0015-like terminator"
+        }
       ],
       "cistrons": [
-        { "cistron_id": "cis_reporter", "cds_element_id": "el_cds1", "rbs_element_id": "el_rbs1", "is_design_target": true, "expected_relative_expression": 1.0, "expression_prior_source": "rbs_strength_model", "priority_weight": 1.0, "operon_group": "op_main" },
-        { "cistron_id": "cis_chaperone", "cds_element_id": "el_cds2", "rbs_element_id": "el_rbs2", "is_design_target": true, "expected_relative_expression": 0.25, "expression_prior_source": "rbs_strength_model", "priority_weight": 0.5, "operon_group": "op_main" }
+        {
+          "cistron_id": "cis_reporter",
+          "cds_element_id": "el_cds1",
+          "rbs_element_id": "el_rbs1",
+          "is_design_target": true,
+          "expected_relative_expression": 1.0,
+          "expression_prior_source": "rbs_strength_model",
+          "priority_weight": 1.0,
+          "operon_group": "op_main"
+        },
+        {
+          "cistron_id": "cis_chaperone",
+          "cds_element_id": "el_cds2",
+          "rbs_element_id": "el_rbs2",
+          "is_design_target": true,
+          "expected_relative_expression": 0.25,
+          "expression_prior_source": "rbs_strength_model",
+          "priority_weight": 0.5,
+          "operon_group": "op_main"
+        }
       ],
-      "assembly": { "standard": "golden_gate_bsai", "forbidden_enzymes": ["BsaI", "BsmBI"], "vendor_profile": "twist" },
-      "digest": "sha256:deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234deadbeefcafe1234"
+      "assembly": {
+        "standard": "golden_gate_bsai",
+        "forbidden_enzymes": [
+          "BsaI",
+          "BsmBI"
+        ],
+        "vendor_profile": "twist"
+      },
+      "digest": "sha256:c72798a582784347e2c685a805c31eb14e2157ec52d409080960a80822961eed"
     }
   },
   "objectives": [
-    { "term_id": "epistasis.dwell_deviation", "role": "pareto_axis" },
-    { "term_id": "structure.local_accessibility", "role": "pareto_axis" },
-    { "term_id": "burden.growth_cost", "role": "pareto_axis" },
-    { "term_id": "usage.cai", "role": "pareto_axis" },
-    { "term_id": "lm.naturalness", "role": "epsilon_constraint", "bound": -3.5, "bound_sense": "at_least" },
-    { "term_id": "kinetics.pause_concordance", "role": "diagnostic" }
+    {
+      "term_id": "epistasis.dwell_deviation",
+      "role": "pareto_axis"
+    },
+    {
+      "term_id": "structure.local_accessibility",
+      "role": "pareto_axis"
+    },
+    {
+      "term_id": "burden.growth_cost",
+      "role": "pareto_axis"
+    },
+    {
+      "term_id": "usage.cai",
+      "role": "pareto_axis"
+    },
+    {
+      "term_id": "lm.naturalness",
+      "role": "epsilon_constraint",
+      "bound": -3.5,
+      "bound_sense": "at_least"
+    },
+    {
+      "term_id": "kinetics.pause_concordance",
+      "role": "diagnostic"
+    }
   ],
   "objectives_preset": "none",
   "constraint_set": {
     "schema_version": "1.0.0",
     "constraint_set_id": "cst_goldengate_twist_default",
     "name": "Golden Gate (BsaI) + Twist synthesis limits",
-    "derived_from": ["assembly_standard", "vendor_profile"],
+    "derived_from": [
+      "assembly_standard",
+      "vendor_profile",
+      "auto_detected"
+    ],
     "constraints": [
-      { "id": "c_bsai", "class": "blocking", "scope": "construct", "rule": { "kind": "restriction_site", "enzyme": "BsaI", "site": "GGTCTC", "strand": "both", "max_occurrences": 0 } },
-      { "id": "c_kmer8", "class": "blocking", "scope": "construct", "rule": { "kind": "kmer_repeat", "k": 8, "max_occurrences": 2, "count_overlapping": true, "canonical_strand": false } },
-      { "id": "c_homopolymer", "class": "blocking", "scope": "construct", "rule": { "kind": "homopolymer", "base": "any", "max_run": 6 } }
+      {
+        "id": "c_bsai",
+        "class": "blocking",
+        "scope": "construct",
+        "rule": {
+          "kind": "restriction_site",
+          "enzyme": "BsaI",
+          "site": "GGTCTC",
+          "strand": "both",
+          "max_occurrences": 0
+        }
+      },
+      {
+        "id": "c_bsmbi",
+        "class": "blocking",
+        "scope": "construct",
+        "rule": {
+          "kind": "restriction_site",
+          "enzyme": "BsmBI",
+          "site": "CGTCTC",
+          "strand": "both",
+          "max_occurrences": 0
+        }
+      },
+      {
+        "id": "c_homopolymer",
+        "class": "blocking",
+        "scope": "construct",
+        "rule": {
+          "kind": "homopolymer",
+          "base": "any",
+          "max_run": 6
+        }
+      },
+      {
+        "id": "c_kmer8",
+        "class": "blocking",
+        "scope": "construct",
+        "rule": {
+          "kind": "kmer_repeat",
+          "k": 8,
+          "max_occurrences": 2,
+          "count_overlapping": true,
+          "canonical_strand": false
+        }
+      },
+      {
+        "id": "c_kmer20_direct",
+        "class": "blocking",
+        "scope": "construct",
+        "rule": {
+          "kind": "kmer_repeat",
+          "k": 20,
+          "max_occurrences": 1,
+          "count_overlapping": true,
+          "canonical_strand": true
+        }
+      },
+      {
+        "id": "c_gc_window",
+        "class": "blocking",
+        "scope": "construct",
+        "rule": {
+          "kind": "gc_window",
+          "window_nt": 50,
+          "min": 0.25,
+          "max": 0.68
+        }
+      },
+      {
+        "id": "c_initiation_structure",
+        "class": "blocking",
+        "scope": "cistron",
+        "cistron_id": "cis_reporter",
+        "rule": {
+          "kind": "local_structure",
+          "region": "initiation_window",
+          "span": {
+            "start_nt": 0,
+            "end_nt": 50,
+            "strand": "+"
+          },
+          "metric": "mean_unpaired_probability",
+          "min": 0.35,
+          "max": null,
+          "engine": "native_window"
+        }
+      },
+      {
+        "id": "c_rare_arg",
+        "class": "advisory",
+        "scope": "cds",
+        "weight": 0.5,
+        "rule": {
+          "kind": "codon_ban",
+          "codons": [
+            "AGA",
+            "AGG",
+            "CGA"
+          ],
+          "reason": "arginine_rare_ecoli"
+        }
+      },
+      {
+        "id": "c_gc_rich_5mer_autodetect",
+        "class": "advisory",
+        "scope": "construct",
+        "weight": 0.25,
+        "rule": {
+          "kind": "forbidden_motif",
+          "motif": "GCGGCG",
+          "strand": "both",
+          "max_occurrences": 3
+        }
+      }
     ],
     "repair_policy": {
       "max_window_codons": 12,
@@ -59,11 +294,15 @@
       "stochastic_tie_break": true,
       "lamarckian": true
     },
-    "digest": "sha256:5566778899aabbcc5566778899aabbcc5566778899aabbcc5566778899aabbcc"
+    "digest": "sha256:e6e887e2d917c1779ad59299d5686ab247841b5f979be26a998350e4aa113c21"
   },
   "seeds": null,
   "search": {
-    "tiers": ["tier1_seed", "tier2_block_ca", "tier3_moea"],
+    "tiers": [
+      "tier1_seed",
+      "tier2_block_ca",
+      "tier3_moea"
+    ],
     "population_size": 200,
     "max_generations": 300,
     "block_size_codons": 30,
@@ -75,7 +314,12 @@
       "max_wall_seconds": 900
     }
   },
-  "budget": { "tier": "standard", "max_wall_seconds": 900, "max_threads": 8, "allow_gpu": true },
+  "budget": {
+    "tier": "standard",
+    "max_wall_seconds": 900,
+    "max_threads": 8,
+    "allow_gpu": true
+  },
   "model_pins": {},
   "replay_lockfile_digest": null,
   "allow_host_fallback": true,
