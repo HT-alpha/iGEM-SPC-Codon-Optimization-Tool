@@ -23,6 +23,7 @@
 //! about *correctness*, not about the presence of a method, so verifying the
 //! method exists would verify the wrong thing.
 
+use std::any::Any;
 use std::collections::HashMap;
 
 use cf_types::{code, CfError, Codon, CodonSequence, Direction, Result, TermId, Unit};
@@ -73,6 +74,55 @@ impl<'a> EvalContext<'a> {
     }
 }
 
+/// A provider's state pinned to one base sequence.
+///
+/// Holds the term's value on that base, plus optional provider-private state.
+/// The state is opaque on purpose: composition caches and hands back a
+/// `Rebased` without knowing whether it wraps a log-sum, a field cache or
+/// nothing at all, which is what lets a new predictor bring its own
+/// incremental representation without touching this crate.
+pub struct Rebased {
+    value: f64,
+    state: Option<Box<dyn Any + Send + Sync>>,
+}
+
+impl Rebased {
+    /// For a provider with nothing to pin beyond its score.
+    pub fn value_only(value: f64) -> Self {
+        Self { value, state: None }
+    }
+
+    pub fn with_state<T: Any + Send + Sync>(value: f64, state: T) -> Self {
+        Self {
+            value,
+            state: Some(Box::new(state)),
+        }
+    }
+
+    /// The term's value on the base sequence.
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+
+    /// The pinned state, if this provider pinned any of that type.
+    ///
+    /// Returns `None` rather than panicking on a type mismatch, so a provider
+    /// that meets a `Rebased` it did not create falls back to recomputing
+    /// instead of reading another provider's bytes.
+    pub fn state<T: Any>(&self) -> Option<&T> {
+        self.state.as_ref().and_then(|s| s.downcast_ref::<T>())
+    }
+}
+
+impl std::fmt::Debug for Rebased {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Rebased")
+            .field("value", &self.value)
+            .field("has_state", &self.state.is_some())
+            .finish()
+    }
+}
+
 /// Exact changes for every synonymous alternative at one position.
 #[derive(Clone, PartialEq, Debug)]
 pub struct PositionDeltas {
@@ -110,10 +160,30 @@ pub trait TermProvider: Send + Sync {
     /// L0. Mandatory.
     fn score(&self, ctx: &EvalContext<'_>) -> Result<f64>;
 
-    /// L1. The exact change in this term when `edits` are applied to
-    /// `ctx.sequence`.
-    fn delta(&self, ctx: &EvalContext<'_>, edits: &[Edit]) -> Result<f64> {
-        let _ = (ctx, edits);
+    /// Pin state to one base sequence, paying `O(L)` once.
+    ///
+    /// Every delta against that base then runs from the pinned state, so the
+    /// `O(L)` is amortized over a whole coordinate-ascent sweep rather than
+    /// charged to each move. Without this step a delta costs `O(L) + O(move)`,
+    /// which is the same order as the rescore it is supposed to replace — the
+    /// defect the `P1-23` audit found.
+    ///
+    /// The default pins only the score, which is all an L0 provider has. A
+    /// decomposable provider overrides it: CAI pins its log-sum, and the Potts
+    /// scorer will pin the per-position field cache that its `O(W·S)` delta
+    /// needs and that no scalar could carry (`P3-05`).
+    fn rebase(&self, ctx: &EvalContext<'_>) -> Result<Rebased> {
+        Ok(Rebased::value_only(self.score(ctx)?))
+    }
+
+    /// L1. The exact change in this term when `edits` are applied to the base
+    /// `rebase` pinned.
+    ///
+    /// `ctx.sequence` is that same base. Passing a `Rebased` built from a
+    /// different sequence is a caller error that produces a wrong number
+    /// quietly, which is why composition is the only thing that constructs one.
+    fn delta(&self, ctx: &EvalContext<'_>, base: &Rebased, edits: &[Edit]) -> Result<f64> {
+        let _ = (ctx, base, edits);
         Err(CfError::new(
             code::LAND_CAPABILITY,
             format!("{} is L0: no closed-form delta", self.term_id()),
@@ -124,9 +194,10 @@ pub trait TermProvider: Send + Sync {
     fn delta_table(
         &self,
         ctx: &EvalContext<'_>,
+        base: &Rebased,
         positions: &[usize],
     ) -> Result<Vec<PositionDeltas>> {
-        let _ = (ctx, positions);
+        let _ = (ctx, base, positions);
         Err(CfError::new(
             code::LAND_CAPABILITY,
             format!("{} is L0: no delta table", self.term_id()),
@@ -161,7 +232,20 @@ fn close_enough(a: f64, b: f64) -> bool {
 /// sequence that admits no moves, and saying so is better than passing
 /// vacuously.
 pub fn verify_capability(provider: &dyn TermProvider, ctx: &EvalContext<'_>) -> Result<()> {
-    let base = provider.score(ctx)?;
+    let scored = provider.score(ctx)?;
+    let rebased = provider.rebase(ctx)?;
+    if !close_enough(rebased.value(), scored) {
+        return Err(CfError::new(
+            code::LAND_DELTA_INEXACT,
+            format!(
+                "{} rebases to {} but scores {scored}; a pinned base must agree with a \
+                 fresh evaluation or every delta against it is offset",
+                provider.term_id(),
+                rebased.value()
+            ),
+        ));
+    }
+    let base = scored;
 
     if !provider.capability().offers_exact_delta() {
         // An L0 provider must actually refuse. One that quietly answers delta
@@ -174,7 +258,7 @@ pub fn verify_capability(provider: &dyn TermProvider, ctx: &EvalContext<'_>) -> 
         // claim.
         if let Some((index, alternative)) = first_move(ctx.sequence) {
             if provider
-                .delta(ctx, &[Edit::new(index, alternative)])
+                .delta(ctx, &rebased, &[Edit::new(index, alternative)])
                 .is_ok()
             {
                 return Err(CfError::new(
@@ -202,7 +286,7 @@ pub fn verify_capability(provider: &dyn TermProvider, ctx: &EvalContext<'_>) -> 
     let mutated = ctx.sequence.substituted(index, alternative)?;
     let truth = provider.score(&ctx.with_sequence(&mutated))? - base;
 
-    let claimed = provider.delta(ctx, &[Edit::new(index, alternative)])?;
+    let claimed = provider.delta(ctx, &rebased, &[Edit::new(index, alternative)])?;
     if !close_enough(claimed, truth) {
         return Err(CfError::new(
             code::LAND_DELTA_INEXACT,
@@ -215,7 +299,7 @@ pub fn verify_capability(provider: &dyn TermProvider, ctx: &EvalContext<'_>) -> 
         ));
     }
 
-    let table = provider.delta_table(ctx, &[index])?;
+    let table = provider.delta_table(ctx, &rebased, &[index])?;
     let entry = table
         .iter()
         .find(|e| e.codon_index == index)

@@ -35,7 +35,7 @@ use std::time::Instant;
 
 use cf_landscape_api::{
     Capability, Deltas, Diagnostics, Edit, EvalContext, LandscapeQuery, LandscapeResponse,
-    ObjectiveAxis, ObjectiveVector, Registration, Status, Target, TermRegistry, TermRole,
+    ObjectiveAxis, ObjectiveVector, Rebased, Registration, Status, Target, TermRegistry, TermRole,
     TermValue,
 };
 use cf_types::{code, CfError, CodonSequence, Digest, Result, TermId};
@@ -81,6 +81,10 @@ pub struct Composer {
     bases: std::collections::HashMap<String, CodonSequence>,
     base_capacity: usize,
     base_order: std::collections::VecDeque<String>,
+    /// Provider state pinned per `(base digest, term)`.
+    rebased: std::collections::HashMap<(String, String), Rebased>,
+    rebase_capacity: usize,
+    rebase_order: std::collections::VecDeque<(String, String)>,
 }
 
 impl std::fmt::Debug for Composer {
@@ -132,6 +136,9 @@ impl Composer {
             bases: std::collections::HashMap::new(),
             base_capacity: Self::DEFAULT_BASE_CAPACITY,
             base_order: std::collections::VecDeque::new(),
+            rebased: std::collections::HashMap::new(),
+            rebase_capacity: Self::DEFAULT_BASE_CAPACITY * 8,
+            rebase_order: std::collections::VecDeque::new(),
         }
     }
 
@@ -179,6 +186,16 @@ impl Composer {
     pub fn forget_bases(&mut self) {
         self.bases.clear();
         self.base_order.clear();
+        self.rebased.clear();
+        self.rebase_order.clear();
+    }
+
+    /// How many `(base, term)` pairs are currently pinned.
+    ///
+    /// Exposed so a test can assert that a sweep rebases once rather than once
+    /// per move — the property `DEP-LAND-003` exists to protect.
+    pub fn pinned_bases(&self) -> usize {
+        self.rebased.len()
     }
 
     /// Evaluate a query.
@@ -215,6 +232,31 @@ impl Composer {
         let mut notes: Vec<String> = Vec::new();
         let mut evaluations = 0u64;
         let mut full_rescores = 0u64;
+        let mut rebases = 0u64;
+
+        // Pin each L1 term to the base once, before any delta runs against it.
+        // A separate pass because pinning needs `&mut self` while the
+        // evaluation loop below borrows the registry immutably.
+        //
+        // A delta-table target carries no edits but still needs a pinned base:
+        // that is the shape a coordinate-ascent sweep uses, and it is where
+        // paying the pin per alternative hurts most.
+        let needs_pin = !edits.is_empty() || matches!(query.target, Target::DeltaTable { .. });
+        if needs_pin {
+            let pinnable: Vec<TermId> = self
+                .registry
+                .resolve(&query.requested_terms)?
+                .iter()
+                .zip(&query.requested_terms)
+                .filter(|(r, _)| r.provider.capability().offers_exact_delta())
+                .map(|(_, term)| term.clone())
+                .collect();
+            for term in pinnable {
+                if self.pin_term(&term, &base_digest, &ctx_base)? {
+                    rebases += 1;
+                }
+            }
+        }
 
         // Resolved in the caller's order; the registry never imposes its own.
         let resolved: Vec<&Registration> = self.registry.resolve(&query.requested_terms)?;
@@ -232,7 +274,12 @@ impl Composer {
                     value,
                     route: Route::Cached,
                 }),
-                _ => Self::compute(registration, &ctx_base, &ctx_target, &edits),
+                _ => {
+                    let pinned = self
+                        .rebased
+                        .get(&(base_digest.as_str().to_owned(), term.as_str().to_owned()));
+                    Self::compute(registration, &ctx_base, &ctx_target, pinned, &edits)
+                }
             };
 
             match outcome {
@@ -292,6 +339,7 @@ impl Composer {
                 cache_misses: self.cache.misses() - misses_before,
                 evaluations,
                 full_rescores,
+                rebases,
                 terms_deferred: deferred,
                 engine_notes: notes,
             },
@@ -308,22 +356,35 @@ impl Composer {
         registration: &Registration,
         ctx_base: &EvalContext<'_>,
         ctx_target: &EvalContext<'_>,
+        base: Option<&Rebased>,
         edits: &[Edit],
     ) -> Result<Evaluated> {
         let provider = registration.provider.as_ref();
         if edits.is_empty() {
             return Ok(Evaluated {
-                value: provider.score(ctx_base)?,
+                // A pinned base already holds this term's value on this
+                // sequence, and `verify_capability` checks that it agrees with
+                // a fresh score. Scoring again would be a second `O(L)` pass
+                // for a number already in hand — the same waste as rescoring
+                // the base on a delta query, just on the delta-table path.
+                value: match base {
+                    Some(base) => base.value(),
+                    None => provider.score(ctx_base)?,
+                },
                 route: Route::Scored,
             });
         }
-        if provider.capability().offers_exact_delta() {
-            match provider.delta(ctx_base, edits) {
+        if let Some(base) = base.filter(|_| provider.capability().offers_exact_delta()) {
+            match provider.delta(ctx_base, base, edits) {
                 Ok(delta) => {
                     return Ok(Evaluated {
-                        value: provider.score(ctx_base)? + delta,
+                        // The pinned value, not a fresh score. Rescoring the
+                        // base here cost `O(L)` per delta query and made the
+                        // cheap path the same order as the expensive one,
+                        // while `full_rescores` reported zero — `DEP-LAND-003`.
+                        value: base.value() + delta,
                         route: Route::ExactDelta,
-                    })
+                    });
                 }
                 // A provider may be L1 in general and L0 for this input — the
                 // violation counter is, when the constraint set contains a
@@ -337,6 +398,41 @@ impl Composer {
             value: provider.score(ctx_target)?,
             route: Route::FullRescore,
         })
+    }
+
+    /// The pinned base for one term, computed once per `(base, term)` pair.
+    ///
+    /// Held across queries because that is the entire point: a coordinate
+    /// ascent sweep issues hundreds of delta queries against one incumbent, and
+    /// the `O(L)` rebase is amortized over all of them.
+    fn pin_term(
+        &mut self,
+        term: &TermId,
+        base_digest: &Digest,
+        ctx_base: &EvalContext<'_>,
+    ) -> Result<bool> {
+        let key = (base_digest.as_str().to_owned(), term.as_str().to_owned());
+        if self.rebased.contains_key(&key) {
+            return Ok(false);
+        }
+        let registration = self.registry.get(term).ok_or_else(|| {
+            CfError::new(
+                code::LAND_TERM_UNKNOWN,
+                format!("no provider is registered for term {term}"),
+            )
+        })?;
+        let pinned = registration.provider.rebase(ctx_base)?;
+        while self.rebased.len() >= self.rebase_capacity {
+            match self.rebase_order.pop_front() {
+                Some(oldest) => {
+                    self.rebased.remove(&oldest);
+                }
+                None => break,
+            }
+        }
+        self.rebase_order.push_back(key.clone());
+        self.rebased.insert(key, pinned);
+        Ok(true)
     }
 
     /// The objective vector, built from Pareto axes and nothing else.
@@ -401,7 +497,14 @@ impl Composer {
                 exact = false;
                 continue;
             }
-            let table = match provider.delta_table(ctx_base, positions) {
+            let pinned = self
+                .rebased
+                .get(&(base_digest.as_str().to_owned(), term.as_str().to_owned()));
+            let Some(pinned) = pinned else {
+                exact = false;
+                continue;
+            };
+            let table = match provider.delta_table(ctx_base, pinned, positions) {
                 Ok(table) => table,
                 Err(err) if err.code == code::LAND_CAPABILITY => {
                     exact = false;

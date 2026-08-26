@@ -192,6 +192,7 @@ fn tst_lapi_001_response_documents_round_trip() {
             cache_misses: 3,
             evaluations: 3,
             full_rescores: 1,
+            rebases: 1,
             terms_deferred: terms(&["usage.gc_content"]),
             engine_notes: vec!["deferred by latency budget".into()],
         },

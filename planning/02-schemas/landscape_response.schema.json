@@ -140,6 +140,8 @@
         "cache_hits": { "type": "integer", "minimum": 0 },
         "cache_misses": { "type": "integer", "minimum": 0 },
         "evaluations": { "type": "integer", "minimum": 0 },
+        "full_rescores": { "type": "integer", "minimum": 0, "description": "Terms whose value came from rescoring the mutated sequence in full because the provider could not answer a delta query. Reported because it is the only observable that distinguishes per-term degradation from per-query degradation: a composition that abandoned the exact-delta path for every term because one term lacked it returns identical numbers and differs only here. Zero on a full-sequence query, where there is no delta path to abandon." },
+        "rebases": { "type": "integer", "minimum": 0, "description": "Providers pinned to a base sequence during this query. A coordinate-ascent sweep should rebase once per (base, term) and then issue many delta queries against it; a count that tracks the number of moves means the O(L) pin is being paid per move, which costs the exact-delta path its whole advantage. See DEP-LAND-003." },
         "terms_deferred": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/TermId" } },
         "engine_notes": { "type": "array", "items": { "type": "string" } }
       },

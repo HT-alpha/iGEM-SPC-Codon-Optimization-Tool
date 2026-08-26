@@ -519,6 +519,126 @@ fn tst_land_004_a_delta_table_omits_an_l0_term_rather_than_zeroing_it() {
 }
 
 // --------------------------------------------------------------------------- //
+// TST-LAND-006 — the delta path does not rescore the base
+// --------------------------------------------------------------------------- //
+
+/// An L1 term's `score` is never called on a delta query against a pinned base.
+///
+/// This is the assertion that would have caught `DEP-LAND-003`. Composition
+/// used to compute `score(base) + delta`, which is `O(L) + O(move)` — the same
+/// order as the rescore the delta replaces, and for CAI strictly slower,
+/// because a full rescore pays that `O(L)` pass once and the delta path paid it
+/// twice. Every existing test passed: the numbers were right, `full_rescores`
+/// read zero, and the only symptom was cost.
+///
+/// So the assertion is on the call count rather than on the value.
+#[test]
+fn tst_land_006_a_delta_query_does_not_rescore_the_base() {
+    let counter = support_provider::Calls::default();
+    let mut registry = TermRegistry::new();
+    registry
+        .register_default(Box::new(support_provider::CountingAdditive::new(
+            "usage.cai",
+            counter.clone(),
+        )))
+        .unwrap();
+
+    let mut composer = Composer::new(registry, LOCKFILE_A);
+    let base = composer.remember_base(&flanked_sequence()).unwrap();
+
+    // Warm the base the way a search does: one full evaluation of the incumbent.
+    composer
+        .evaluate(&full_query("q_01ARZ3NDEKTSV4RRFFQ69G5FAV", &["usage.cai"]))
+        .unwrap();
+    let after_warmup = counter.scores();
+    assert_eq!(
+        after_warmup, 1,
+        "the full query scores the base exactly once"
+    );
+
+    // Then a sweep of moves against it.
+    let moves = [
+        Codon::parse("CTC").unwrap(),
+        Codon::parse("CTT").unwrap(),
+        Codon::parse("TTA").unwrap(),
+        Codon::parse("CTA").unwrap(),
+    ];
+    for (n, codon) in moves.iter().enumerate() {
+        let response = composer
+            .evaluate(&delta_query(
+                "q_01ARZ3NDEKTSV4RRFFQ69G5FAW",
+                &base,
+                &["usage.cai"],
+                vec![Edit::new(1, *codon)],
+            ))
+            .unwrap();
+        assert_eq!(response.diagnostics.full_rescores, 0);
+        assert_eq!(
+            response.diagnostics.rebases,
+            u64::from(n == 0),
+            "the base is pinned on the first move and reused after"
+        );
+    }
+
+    assert_eq!(
+        counter.scores(),
+        after_warmup,
+        "an L1 term was rescored during a delta sweep; the delta path is paying O(L) per move"
+    );
+    assert_eq!(counter.deltas(), moves.len() as u64);
+    assert_eq!(composer.pinned_bases(), 1);
+}
+
+/// A delta table pins once for the whole table, not once per alternative.
+///
+/// The same defect at a different scale: `CaiTerm::delta_table` recomputed the
+/// `O(L)` log-sum for every alternative, making a table `O(L·P·S)` where the
+/// capability model promises `O(P·S)`.
+#[test]
+fn tst_land_006_a_delta_table_pins_once_not_once_per_alternative() {
+    let counter = support_provider::Calls::default();
+    let mut registry = TermRegistry::new();
+    registry
+        .register_default(Box::new(support_provider::CountingAdditive::new(
+            "usage.cai",
+            counter.clone(),
+        )))
+        .unwrap();
+
+    let mut composer = Composer::new(registry, LOCKFILE_A);
+    let base = composer.remember_base(&flanked_sequence()).unwrap();
+
+    let query = LandscapeQuery::new(
+        "q_01ARZ3NDEKTSV4RRFFQ69G5FAX",
+        Target::DeltaTable {
+            base_digest: base,
+            positions: vec![1, 2, 3, 4],
+            cistron_id: None,
+        },
+        host(),
+        terms(&["usage.cai"]),
+        Budget::new(BudgetTier::Exact),
+    )
+    .with_outputs(Outputs::default().with_deltas());
+
+    let response = composer.evaluate(&query).unwrap();
+    let entries = &response.deltas.as_ref().unwrap().entries;
+    let alternatives: usize = entries.iter().map(|e| e.alternatives.len()).sum();
+    assert!(
+        alternatives >= 8,
+        "fixture expands only {alternatives} alternatives; the assertion would be weak"
+    );
+
+    assert_eq!(response.diagnostics.rebases, 1);
+    assert_eq!(
+        counter.rebases(),
+        1,
+        "the provider was pinned once for a table of {alternatives} alternatives"
+    );
+    assert_eq!(counter.scores(), 0, "a delta table must not score anything");
+}
+
+// --------------------------------------------------------------------------- //
 // TST-LAND-005 — a diagnostic term cannot change a ranking
 // --------------------------------------------------------------------------- //
 
@@ -649,8 +769,128 @@ fn tst_land_005_an_unregistered_term_fails_loudly() {
 }
 
 mod support_provider {
-    use cf_landscape_api::{Capability, EvalContext, Provenance, TermProvider, TermRole};
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::Arc;
+
+    use cf_landscape_api::{
+        Capability, Edit, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
+    };
     use cf_types::{code, CfError, Direction, Result, TermId, Unit};
+
+    /// Shared call counters, so a test can assert on cost rather than value.
+    #[derive(Clone, Debug, Default)]
+    pub struct Calls(Arc<Counters>);
+
+    #[derive(Debug, Default)]
+    pub struct Counters {
+        scores: AtomicU64,
+        deltas: AtomicU64,
+        rebases: AtomicU64,
+    }
+
+    impl Calls {
+        pub fn scores(&self) -> u64 {
+            self.0.scores.load(Ordering::SeqCst)
+        }
+        pub fn deltas(&self) -> u64 {
+            self.0.deltas.load(Ordering::SeqCst)
+        }
+        pub fn rebases(&self) -> u64 {
+            self.0.rebases.load(Ordering::SeqCst)
+        }
+    }
+
+    /// An honest L1 term over an additive score, counting every entry point.
+    ///
+    /// Additive so the delta is trivially exact, and instrumented so a test can
+    /// see which path composition actually took. The value is irrelevant; the
+    /// counters are the whole point.
+    #[derive(Debug)]
+    pub struct CountingAdditive {
+        term: TermId,
+        calls: Calls,
+    }
+
+    impl CountingAdditive {
+        pub fn new(term: &str, calls: Calls) -> Self {
+            Self {
+                term: TermId::new(term).unwrap(),
+                calls,
+            }
+        }
+
+        fn total(sequence: &cf_types::CodonSequence) -> f64 {
+            sequence
+                .codons()
+                .iter()
+                .map(|c| f64::from(c.index()) / 64.0)
+                .sum()
+        }
+    }
+
+    impl TermProvider for CountingAdditive {
+        fn term_id(&self) -> &TermId {
+            &self.term
+        }
+        fn unit(&self) -> Unit {
+            Unit::new(Unit::DIMENSIONLESS)
+        }
+        fn direction(&self) -> Direction {
+            Direction::Maximize
+        }
+        fn capability(&self) -> Capability {
+            Capability::L1
+        }
+        fn provenance(&self) -> Provenance {
+            Provenance::builtin("test_counting", "0.1.0")
+        }
+        fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
+            self.calls.0.scores.fetch_add(1, Ordering::SeqCst);
+            Ok(Self::total(ctx.sequence))
+        }
+        fn rebase(&self, ctx: &EvalContext<'_>) -> Result<Rebased> {
+            self.calls.0.rebases.fetch_add(1, Ordering::SeqCst);
+            Ok(Rebased::value_only(Self::total(ctx.sequence)))
+        }
+        fn delta(&self, ctx: &EvalContext<'_>, _base: &Rebased, edits: &[Edit]) -> Result<f64> {
+            self.calls.0.deltas.fetch_add(1, Ordering::SeqCst);
+            let codons = ctx.sequence.codons();
+            Ok(edits
+                .iter()
+                .map(|e| {
+                    (f64::from(e.codon.index()) - f64::from(codons[e.codon_index].index())) / 64.0
+                })
+                .sum())
+        }
+        fn delta_table(
+            &self,
+            ctx: &EvalContext<'_>,
+            base: &Rebased,
+            positions: &[usize],
+        ) -> Result<Vec<PositionDeltas>> {
+            positions
+                .iter()
+                .map(|&index| {
+                    let current = ctx.sequence.codons()[index];
+                    let alternatives = ctx
+                        .sequence
+                        .synonyms_at(index)
+                        .iter()
+                        .copied()
+                        .filter(|c| *c != current)
+                        .map(|c| {
+                            self.delta(ctx, base, &[Edit::new(index, c)])
+                                .map(|d| (c, d))
+                        })
+                        .collect::<Result<Vec<_>>>()?;
+                    Ok(PositionDeltas {
+                        codon_index: index,
+                        alternatives,
+                    })
+                })
+                .collect()
+        }
+    }
 
     /// A diagnostic-capped provider with a value that would dominate any
     /// ranking it entered.

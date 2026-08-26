@@ -48,7 +48,8 @@ pub mod role;
 pub use capability::Capability;
 pub use json::ConstructRef;
 pub use provider::{
-    verify_capability, EvalContext, PositionDeltas, Registration, TermProvider, TermRegistry,
+    verify_capability, EvalContext, PositionDeltas, Rebased, Registration, TermProvider,
+    TermRegistry,
 };
 pub use query::{
     Budget, BudgetTier, CachePolicy, Edit, HostContext, LandscapeQuery, ModelPin, Outputs, Target,

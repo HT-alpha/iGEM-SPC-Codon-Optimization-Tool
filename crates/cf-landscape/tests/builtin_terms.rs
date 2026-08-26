@@ -27,7 +27,14 @@ use support::{
 fn assert_deltas_are_exact(provider: &dyn TermProvider, base: &CodonSequence) -> usize {
     let host = host();
     let base_ctx = ctx(base, &host);
+    let pinned = provider.rebase(&base_ctx).unwrap();
     let baseline = provider.score(&base_ctx).unwrap();
+    assert_eq!(
+        pinned.value().to_bits(),
+        baseline.to_bits(),
+        "{}: the pinned base disagrees with a fresh score, so every delta against it is offset",
+        provider.term_id()
+    );
     let mut checked = 0;
 
     for index in base.editable_positions() {
@@ -39,7 +46,7 @@ fn assert_deltas_are_exact(provider: &dyn TermProvider, base: &CodonSequence) ->
             let mutated = base.substituted(index, alternative).unwrap();
             let truth = provider.score(&ctx(&mutated, &host)).unwrap() - baseline;
             let claimed = provider
-                .delta(&base_ctx, &[Edit::new(index, alternative)])
+                .delta(&base_ctx, &pinned, &[Edit::new(index, alternative)])
                 .unwrap();
             assert!(
                 (claimed - truth).abs() <= 1e-12 + 1e-9 * truth.abs().max(claimed.abs()),
@@ -57,14 +64,17 @@ fn assert_deltas_are_exact(provider: &dyn TermProvider, base: &CodonSequence) ->
 fn assert_table_matches_delta(provider: &dyn TermProvider, base: &CodonSequence) {
     let host = host();
     let base_ctx = ctx(base, &host);
+    let pinned = provider.rebase(&base_ctx).unwrap();
     let positions: Vec<usize> = base.editable_positions().collect();
-    let table = provider.delta_table(&base_ctx, &positions).unwrap();
+    let table = provider
+        .delta_table(&base_ctx, &pinned, &positions)
+        .unwrap();
 
     assert_eq!(table.len(), positions.len());
     for entry in table {
         for (codon, delta) in entry.alternatives {
             let single = provider
-                .delta(&base_ctx, &[Edit::new(entry.codon_index, codon)])
+                .delta(&base_ctx, &pinned, &[Edit::new(entry.codon_index, codon)])
                 .unwrap();
             assert_eq!(
                 delta.to_bits(),
@@ -266,9 +276,12 @@ fn p1_21_violation_count_degrades_to_l0_for_a_global_set() {
 
     let base = flanked_sequence();
     let host = host();
+    let base_ctx = ctx(&base, &host);
+    let pinned = term.rebase(&base_ctx).unwrap();
     let err = term
         .delta(
-            &ctx(&base, &host),
+            &base_ctx,
+            &pinned,
             &[Edit::new(1, Codon::parse("CTC").unwrap())],
         )
         .unwrap_err();

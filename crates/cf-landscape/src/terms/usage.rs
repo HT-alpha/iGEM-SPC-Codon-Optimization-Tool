@@ -4,7 +4,7 @@
 //! exact change for a substitution is `O(1)` and needs no rescore.
 
 use cf_landscape_api::{
-    Capability, Edit, EvalContext, PositionDeltas, Provenance, TermProvider, TermRole,
+    Capability, Edit, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
 };
 use cf_types::{code, CfError, Codon, CodonSequence, Direction, Result, TermId, Unit, CODON_COUNT};
 use serde_json::Value;
@@ -257,14 +257,18 @@ impl CaiTerm {
         state
     }
 
-    /// Exact change from applying `edits` to `sequence`.
+    /// Exact change from applying `edits` to `sequence`, given the base state.
     ///
-    /// A synonymous substitution never changes which positions are counted —
+    /// `O(|edits|)`, because `before` is pinned rather than recomputed. A
+    /// synonymous substitution never changes which positions are counted —
     /// synonyms share an amino acid, so family size and stop-ness are
-    /// invariant — which is why the state can be edited in place rather than
-    /// recomputed.
-    fn delta_from(&self, sequence: &CodonSequence, edits: &[Edit]) -> Result<f64> {
-        let before = self.state(sequence);
+    /// invariant — which is what makes the pinned state editable in place.
+    fn delta_from(
+        &self,
+        sequence: &CodonSequence,
+        before: CaiState,
+        edits: &[Edit],
+    ) -> Result<f64> {
         let mut after = before;
         for edit in edits {
             if edit.codon_index >= sequence.codon_count() {
@@ -280,6 +284,14 @@ impl CaiTerm {
             after.add(self.table.weight(edit.codon));
         }
         Ok(after.value() - before.value())
+    }
+
+    /// The pinned state, or a fresh one if the caller handed over someone
+    /// else's `Rebased`.
+    fn base_state(&self, sequence: &CodonSequence, base: &Rebased) -> CaiState {
+        base.state::<CaiState>()
+            .copied()
+            .unwrap_or_else(|| self.state(sequence))
     }
 }
 
@@ -302,14 +314,24 @@ impl TermProvider for CaiTerm {
     fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
         Ok(self.state(ctx.sequence).value())
     }
-    fn delta(&self, ctx: &EvalContext<'_>, edits: &[Edit]) -> Result<f64> {
-        self.delta_from(ctx.sequence, edits)
+    fn rebase(&self, ctx: &EvalContext<'_>) -> Result<Rebased> {
+        let state = self.state(ctx.sequence);
+        Ok(Rebased::with_state(state.value(), state))
+    }
+    fn delta(&self, ctx: &EvalContext<'_>, base: &Rebased, edits: &[Edit]) -> Result<f64> {
+        let state = self.base_state(ctx.sequence, base);
+        self.delta_from(ctx.sequence, state, edits)
     }
     fn delta_table(
         &self,
         ctx: &EvalContext<'_>,
+        base: &Rebased,
         positions: &[usize],
     ) -> Result<Vec<PositionDeltas>> {
+        // Pinned once for the whole table. Recomputing it per alternative was
+        // the `O(L·P·S)` defect the `P1-23` audit found, where the capability
+        // model promises `O(P·S)`.
+        let state = self.base_state(ctx.sequence, base);
         positions
             .iter()
             .map(|&index| {
@@ -321,7 +343,7 @@ impl TermProvider for CaiTerm {
                     .copied()
                     .filter(|c| *c != current)
                     .map(|c| {
-                        self.delta_from(ctx.sequence, &[Edit::new(index, c)])
+                        self.delta_from(ctx.sequence, state, &[Edit::new(index, c)])
                             .map(|d| (c, d))
                     })
                     .collect::<Result<Vec<_>>>()?;
@@ -410,8 +432,11 @@ impl TermProvider for GcContentTerm {
             f64::from(gc) / f64::from(total)
         })
     }
-    fn delta(&self, ctx: &EvalContext<'_>, edits: &[Edit]) -> Result<f64> {
-        let (_, total) = Self::counts(ctx.sequence);
+    fn delta(&self, ctx: &EvalContext<'_>, _base: &Rebased, edits: &[Edit]) -> Result<f64> {
+        // `codon_count * 3`, not a pass over the sequence. Calling `counts()`
+        // here summed GC over every codon purely to obtain a denominator that
+        // is known in `O(1)`.
+        let total = (ctx.sequence.codon_count() * 3) as u32;
         if total == 0 {
             return Ok(0.0);
         }
@@ -438,6 +463,7 @@ impl TermProvider for GcContentTerm {
     fn delta_table(
         &self,
         ctx: &EvalContext<'_>,
+        _base: &Rebased,
         positions: &[usize],
     ) -> Result<Vec<PositionDeltas>> {
         let total = (ctx.sequence.codon_count() * 3) as f64;

@@ -33,7 +33,7 @@
 
 use cf_constraints::{ConstraintChecker, ConstructView, KmerMasking};
 use cf_landscape_api::{
-    Capability, Edit, EvalContext, PositionDeltas, Provenance, TermProvider, TermRole,
+    Capability, Edit, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
 };
 use cf_types::{code, CfError, CodonSequence, Direction, Result, TermId, Unit};
 
@@ -118,14 +118,18 @@ impl ViolationCountTerm {
         Ok((lo, hi))
     }
 
-    fn delta_from(&self, sequence: &CodonSequence, edits: &[Edit]) -> Result<f64> {
+    fn delta_from(
+        &self,
+        sequence: &CodonSequence,
+        base_construct: &[u8],
+        edits: &[Edit],
+    ) -> Result<f64> {
         if edits.is_empty() {
             return Ok(0.0);
         }
         let (start, end) = self.touched_span(edits, sequence.codon_count())?;
 
-        let base = self.layout.assemble(sequence);
-        let Some(before) = self.count_region(&base, start, end) else {
+        let Some(before) = self.count_region(base_construct, start, end) else {
             return Err(CfError::new(
                 code::LAND_CAPABILITY,
                 "constraint.violation_count is L0 for this constraint set: a k-mer repeat \
@@ -134,15 +138,26 @@ impl ViolationCountTerm {
             ));
         };
 
-        let mut mutated = sequence.clone();
+        // The construct is patched rather than reassembled from the sequence:
+        // the edits are synonymous, so they change exactly the nucleotides of
+        // the codons they name and nothing else moves.
+        let mut mutated = base_construct.to_vec();
         for edit in edits {
-            mutated.substitute(edit.codon_index, edit.codon)?;
+            let (lo, _) = self.layout.codon_span_nt(edit.codon_index);
+            mutated[lo..lo + 3].copy_from_slice(&edit.codon.to_bytes());
         }
         let after = self
-            .count_region(&self.layout.assemble(&mutated), start, end)
+            .count_region(&mutated, start, end)
             .expect("locality was already established");
 
         Ok(after as f64 - before as f64)
+    }
+
+    /// The pinned construct, or a freshly assembled one.
+    fn base_construct(&self, sequence: &CodonSequence, base: &Rebased) -> Vec<u8> {
+        base.state::<Vec<u8>>()
+            .cloned()
+            .unwrap_or_else(|| self.layout.assemble(sequence))
     }
 }
 
@@ -172,14 +187,31 @@ impl TermProvider for ViolationCountTerm {
     fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
         Ok(self.count(&self.layout.assemble(ctx.sequence)) as f64)
     }
-    fn delta(&self, ctx: &EvalContext<'_>, edits: &[Edit]) -> Result<f64> {
-        self.delta_from(ctx.sequence, edits)
+    /// Pins the assembled construct.
+    ///
+    /// This removes the automaton walk and the k-mer index build from the
+    /// delta path, leaving one `O(L)` byte copy per delta. That copy is
+    /// several orders of magnitude cheaper than what it replaces but it is not
+    /// `O(W)`, and saying so is more useful than implying otherwise: see the
+    /// note on `DEP-LAND-003`.
+    fn rebase(&self, ctx: &EvalContext<'_>) -> Result<Rebased> {
+        let construct = self.layout.assemble(ctx.sequence);
+        Ok(Rebased::with_state(
+            self.count(&construct) as f64,
+            construct,
+        ))
+    }
+    fn delta(&self, ctx: &EvalContext<'_>, base: &Rebased, edits: &[Edit]) -> Result<f64> {
+        let construct = self.base_construct(ctx.sequence, base);
+        self.delta_from(ctx.sequence, &construct, edits)
     }
     fn delta_table(
         &self,
         ctx: &EvalContext<'_>,
+        base: &Rebased,
         positions: &[usize],
     ) -> Result<Vec<PositionDeltas>> {
+        let construct = self.base_construct(ctx.sequence, base);
         positions
             .iter()
             .map(|&index| {
@@ -191,7 +223,7 @@ impl TermProvider for ViolationCountTerm {
                     .copied()
                     .filter(|c| *c != current)
                     .map(|c| {
-                        self.delta_from(ctx.sequence, &[Edit::new(index, c)])
+                        self.delta_from(ctx.sequence, &construct, &[Edit::new(index, c)])
                             .map(|d| (c, d))
                     })
                     .collect::<Result<Vec<_>>>()?;

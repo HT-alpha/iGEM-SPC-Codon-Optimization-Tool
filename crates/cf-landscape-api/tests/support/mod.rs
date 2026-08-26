@@ -9,8 +9,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use cf_landscape_api::{
-    Capability, EvalContext, PositionDeltas, Provenance, TermProvider, TermRole, Uncertainty,
-    UncertaintyMethod,
+    Capability, EvalContext, PositionDeltas, Provenance, Rebased, TermProvider, TermRole,
+    Uncertainty, UncertaintyMethod,
 };
 use cf_types::{code, CfError, Direction, Result, TermId, Unit};
 
@@ -72,7 +72,12 @@ impl TermProvider for AdditiveTerm {
     fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
         Ok(additive_score(ctx.sequence))
     }
-    fn delta(&self, ctx: &EvalContext<'_>, edits: &[cf_landscape_api::Edit]) -> Result<f64> {
+    fn delta(
+        &self,
+        ctx: &EvalContext<'_>,
+        _base: &Rebased,
+        edits: &[cf_landscape_api::Edit],
+    ) -> Result<f64> {
         let codons = ctx.sequence.codons();
         Ok(edits
             .iter()
@@ -82,6 +87,7 @@ impl TermProvider for AdditiveTerm {
     fn delta_table(
         &self,
         ctx: &EvalContext<'_>,
+        _base: &Rebased,
         positions: &[usize],
     ) -> Result<Vec<PositionDeltas>> {
         Ok(positions
@@ -182,12 +188,18 @@ impl TermProvider for LyingL1Term {
     fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
         Ok(additive_score(ctx.sequence))
     }
-    fn delta(&self, _ctx: &EvalContext<'_>, _edits: &[cf_landscape_api::Edit]) -> Result<f64> {
+    fn delta(
+        &self,
+        _ctx: &EvalContext<'_>,
+        _base: &Rebased,
+        _edits: &[cf_landscape_api::Edit],
+    ) -> Result<f64> {
         Ok(0.0)
     }
     fn delta_table(
         &self,
         ctx: &EvalContext<'_>,
+        _base: &Rebased,
         positions: &[usize],
     ) -> Result<Vec<PositionDeltas>> {
         Ok(positions
@@ -243,7 +255,12 @@ impl TermProvider for MissingTableTerm {
     fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
         Ok(additive_score(ctx.sequence))
     }
-    fn delta(&self, ctx: &EvalContext<'_>, edits: &[cf_landscape_api::Edit]) -> Result<f64> {
+    fn delta(
+        &self,
+        ctx: &EvalContext<'_>,
+        _base: &Rebased,
+        edits: &[cf_landscape_api::Edit],
+    ) -> Result<f64> {
         let codons = ctx.sequence.codons();
         Ok(edits
             .iter()

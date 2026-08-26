@@ -620,9 +620,6 @@ impl LandscapeResponse {
 
     /// Parse a `landscape_response.schema.json` document.
     ///
-    /// `full_rescores` is not part of the document: it is an engine counter,
-    /// not a contract field, so a parsed response reports zero. Nothing may
-    /// derive a budget claim from a round-tripped response.
     pub fn from_json(value: &Value) -> Result<Self> {
         let map = obj(value, "response")?;
         envelope(map, "response")?;
@@ -790,7 +787,8 @@ impl LandscapeResponse {
                     cache_hits: d.get("cache_hits").and_then(Value::as_u64).unwrap_or(0),
                     cache_misses: d.get("cache_misses").and_then(Value::as_u64).unwrap_or(0),
                     evaluations: d.get("evaluations").and_then(Value::as_u64).unwrap_or(0),
-                    full_rescores: 0,
+                    full_rescores: d.get("full_rescores").and_then(Value::as_u64).unwrap_or(0),
+                    rebases: d.get("rebases").and_then(Value::as_u64).unwrap_or(0),
                     terms_deferred: match d.get("terms_deferred") {
                         None => Vec::new(),
                         Some(t) => t

@@ -282,6 +282,13 @@ pub struct Diagnostics {
     /// distinguishes per-term degradation from per-query degradation, and a
     /// budget regression here is invisible in wall time on small inputs.
     pub full_rescores: u64,
+    /// Providers pinned to a base sequence during this query.
+    ///
+    /// A sweep should pin once per `(base, term)` and reuse it. A count that
+    /// tracks the number of moves means the `O(L)` pin is being paid per move,
+    /// which is the regression `DEP-LAND-003` fixed and the one that leaves no
+    /// trace in any other counter.
+    pub rebases: u64,
     pub terms_deferred: Vec<TermId>,
     pub engine_notes: Vec<String>,
 }
