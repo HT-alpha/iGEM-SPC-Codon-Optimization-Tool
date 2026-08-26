@@ -157,6 +157,19 @@ impl Additive {
         self
     }
 
+    /// A term that wants one specific codon above everything else.
+    ///
+    /// So a test can make the DP *try* to choose a particular assignment and
+    /// find out whether something else stops it, rather than hoping the
+    /// pseudo-random weights happen to point that way.
+    fn preferring(term: &str, calls: Calls, codon: &str) -> Self {
+        let wanted = cf_types::Codon::parse(codon).unwrap();
+        let mut this = Self::new(term, calls, 0);
+        this.weight = [0.0; 64];
+        this.weight[wanted.index_usize()] = 1.0;
+        this
+    }
+
     fn total(&self, sequence: &CodonSequence) -> f64 {
         sequence
             .codons()
@@ -207,6 +220,132 @@ impl TermProvider for Additive {
                     - self.weight[codons[e.codon_index].index_usize()]
             })
             .sum())
+    }
+    fn delta_table(
+        &self,
+        ctx: &EvalContext<'_>,
+        base: &Rebased,
+        positions: &[usize],
+    ) -> Result<Vec<PositionDeltas>> {
+        self.calls.0.tables.fetch_add(1, Ordering::SeqCst);
+        positions
+            .iter()
+            .map(|&index| {
+                let current = ctx.sequence.codons()[index];
+                let alternatives = ctx
+                    .sequence
+                    .synonyms_at(index)
+                    .iter()
+                    .copied()
+                    .filter(|c| *c != current)
+                    .map(|c| {
+                        self.delta(ctx, base, &[cf_landscape_api::Edit::new(index, c)])
+                            .map(|d| (c, d))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(PositionDeltas {
+                    codon_index: index,
+                    alternatives,
+                })
+            })
+            .collect()
+    }
+}
+
+/// A target-seeking term: `-(mean − target)²`.
+///
+/// Its single-substitution delta is exact, so it is honestly L1 — but the
+/// deltas do not *sum*, and unlike a monotone transform the disagreement
+/// changes the answer rather than only its scale. Every individual move toward
+/// the target improves the term; a whole block of them overshoots and makes it
+/// worse. That is the situation §3.2's two-step accept exists for.
+///
+/// With purely additive test terms the DP's linearization *is* the true
+/// objective, so an implementation that committed every proposal unchecked
+/// agrees with one that checks — which is why the accept step went unexercised
+/// until this fixture existed. A first attempt used `mean³`, which is monotone
+/// in the mean and therefore has the same argmax as its linearization: it
+/// diverged numerically and never changed a decision.
+#[derive(Debug)]
+struct Convex {
+    term: TermId,
+    calls: Calls,
+    weight: [f64; 64],
+    target: f64,
+}
+
+impl Convex {
+    fn new(term: &str, calls: Calls) -> Self {
+        let mut weight = [0.0f64; 64];
+        for (index, slot) in weight.iter_mut().enumerate() {
+            *slot = ((index as u64 % 13) as f64) / 13.0;
+        }
+        Self {
+            term: TermId::new(term).unwrap(),
+            calls,
+            weight,
+            target: 0.0,
+        }
+    }
+
+    fn with_target(mut self, target: f64) -> Self {
+        self.target = target;
+        self
+    }
+
+    fn raw(&self, sequence: &CodonSequence) -> f64 {
+        sequence
+            .codons()
+            .iter()
+            .map(|c| self.weight[c.index_usize()])
+            .sum::<f64>()
+            / sequence.codon_count().max(1) as f64
+    }
+
+    fn value(&self, sequence: &CodonSequence) -> f64 {
+        let gap = self.raw(sequence) - self.target;
+        -(gap * gap)
+    }
+}
+
+impl TermProvider for Convex {
+    fn term_id(&self) -> &TermId {
+        &self.term
+    }
+    fn unit(&self) -> Unit {
+        Unit::new(Unit::DIMENSIONLESS)
+    }
+    fn direction(&self) -> Direction {
+        Direction::Maximize
+    }
+    fn capability(&self) -> Capability {
+        Capability::L1
+    }
+    fn interaction_radius(&self) -> InteractionRadius {
+        InteractionRadius::Positionwise
+    }
+    fn provenance(&self) -> Provenance {
+        Provenance::builtin("test_convex", "0.1.0")
+    }
+    fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
+        self.calls.0.scores.fetch_add(1, Ordering::SeqCst);
+        Ok(self.value(ctx.sequence))
+    }
+    fn rebase(&self, ctx: &EvalContext<'_>) -> Result<Rebased> {
+        self.calls.0.rebases.fetch_add(1, Ordering::SeqCst);
+        Ok(Rebased::value_only(self.value(ctx.sequence)))
+    }
+    fn delta(
+        &self,
+        ctx: &EvalContext<'_>,
+        _base: &Rebased,
+        edits: &[cf_landscape_api::Edit],
+    ) -> Result<f64> {
+        let mut mutated = ctx.sequence.clone();
+        for edit in edits {
+            mutated.substitute(edit.codon_index, edit.codon)?;
+        }
+        Ok(self.value(&mutated) - self.value(ctx.sequence))
     }
     fn delta_table(
         &self,
@@ -810,4 +949,196 @@ fn p1_25_a_short_sequence_is_one_block_with_no_seams() {
         report.incumbent.sequence().protein_string(),
         base.sequence().protein_string()
     );
+}
+
+// --------------------------------------------------------------------------- //
+// the two-step accept, and the line that buys monotonicity
+// --------------------------------------------------------------------------- //
+
+/// Accepting on the truth is load-bearing, not decoration.
+///
+/// With an additive term the DP's linearization *is* the true objective, so an
+/// implementation that committed every block proposal unchecked would agree
+/// with one that checked — which is why every other test here passed with the
+/// accept step disabled. `Convex` breaks that: its single-substitution deltas
+/// are exact but do not sum, so a block proposal that looks best under the
+/// accumulated surrogate can be worse in truth. The accept step must then
+/// reject some proposals, and the objective must still never decrease.
+#[test]
+fn p1_25_accepting_on_the_truth_rejects_surrogate_wins_that_are_truth_losses() {
+    let calls = Calls::default();
+    let checker = ConstraintChecker::compile(&motif_rules(&[])).unwrap();
+    let host = host();
+    let base = base();
+    let config = Tier2Config::from_planning(6);
+
+    // Just above the base, so every individual move toward it improves the term
+    // and a whole block of them overshoots.
+    let probe = Convex::new("usage.cai", calls.clone());
+    let target = probe.raw(base.sequence()) + 0.04;
+
+    let mut rejected_total = 0u64;
+    for seed in 0..80u64 {
+        let registry = registry_with(vec![Box::new(
+            Convex::new("usage.cai", calls.clone()).with_target(target),
+        )]);
+        let plan = Tier2Plan::check(&registry, &terms(&["usage.cai"]), &[1.0], &config).unwrap();
+        let report = tier2_block_ca(
+            &Tier2Request {
+                seed: &base,
+                registry: &registry,
+                host: &host,
+                checker: &checker,
+                config: &config,
+            },
+            &plan,
+            seed,
+        )
+        .unwrap();
+
+        for pair in report.surrogate_trace.windows(2) {
+            assert!(
+                pair[1] + 1e-12 >= pair[0],
+                "seed {seed}: the true objective fell from {} to {}",
+                pair[0],
+                pair[1]
+            );
+        }
+        rejected_total += report.blocks_rejected;
+    }
+
+    assert!(
+        rejected_total > 0,
+        "no block proposal was ever rejected across 80 seeds, so the accept step is \
+         never exercised and this test proves nothing"
+    );
+}
+
+/// The incumbent stays in the beam, so a block update is never worsening.
+///
+/// Only observable under truncation: with a beam wide enough to hold every
+/// path, the incumbent survives whether or not it is forced. Beam 1 makes the
+/// truncation maximal, and then a block update that dropped the incumbent would
+/// return a worse assignment and the accept step would reject it. With the
+/// incumbent forced in, nothing is ever rejected.
+#[test]
+fn p1_25_the_incumbent_stays_in_a_truncated_beam() {
+    let calls = Calls::default();
+    let checker = ConstraintChecker::compile(&motif_rules(&["GGATCC"])).unwrap();
+    let host = host();
+    let base = base();
+
+    let mut config = Tier2Config::from_planning(4);
+    config.beam = 1;
+
+    let mut committed = 0u64;
+    for seed in 0..80u64 {
+        let registry = registry_with(vec![Box::new(Additive::new("usage.cai", calls.clone(), 0))]);
+        let plan = Tier2Plan::check(&registry, &terms(&["usage.cai"]), &[1.0], &config).unwrap();
+        let report = tier2_block_ca(
+            &Tier2Request {
+                seed: &base,
+                registry: &registry,
+                host: &host,
+                checker: &checker,
+                config: &config,
+            },
+            &plan,
+            seed,
+        )
+        .unwrap();
+
+        assert_eq!(
+            report.blocks_rejected, 0,
+            "seed {seed}: a block update returned something worse than the incumbent, \
+             so the incumbent was not in the beam"
+        );
+        committed += report.blocks_committed;
+    }
+    assert!(
+        committed > 0,
+        "nothing was ever committed at beam 1, so the assertion is vacuous"
+    );
+}
+
+/// A motif created across a block's left edge is prevented by priming.
+///
+/// The block DP primes on everything to its left, so the fixed codons just
+/// across the edge are context rather than a fresh start — tier 1's bug was a
+/// fresh-start automaton at a construct junction, and this is the same risk at
+/// a block boundary.
+///
+/// The term is rigged to *want* the offending codon, so the DP will choose it
+/// unless the automaton stops it. Without that the DP might avoid the codon for
+/// unrelated scoring reasons and the test would pass on an unprimed
+/// implementation.
+#[test]
+fn p1_25_priming_prevents_a_motif_created_across_a_block_edge() {
+    let calls = Calls::default();
+    let host = host();
+
+    // Codon 1 is CTG (fixed in block 0 while black blocks update); codon 2 is
+    // arginine. `CTGCGC` spans the block 0 / block 1 edge at block size 2 and
+    // exists only when codon 2 is CGC.
+    let checker = ConstraintChecker::compile(&motif_rules(&["CTGCGC"])).unwrap();
+
+    // Codon 1 is locked, so it stays CTG. Without that, block 0 — which
+    // updates first — is free to pick a different leucine codon, the motif is
+    // never formed, and the test passes on an unprimed implementation for a
+    // reason that has nothing to do with priming.
+    let mut sequence = CodonSequence::from_cds(CDS, 1)
+        .unwrap()
+        .with_five_prime_flank(FIVE_PRIME)
+        .unwrap()
+        .with_three_prime_flank(THREE_PRIME)
+        .unwrap();
+    sequence.add_lock(1, 2, LockReason::UserLocked).unwrap();
+    let base = Genotype::new(sequence);
+    assert_eq!(base.codons()[1].to_string_upper(), "CTG");
+    assert!(base.sequence().is_locked(1));
+    assert!(base
+        .sequence()
+        .synonyms_at(2)
+        .iter()
+        .any(|c| c.to_string_upper() == "CGC"));
+
+    let config = Tier2Config::from_planning(2);
+    for seed in 0..60u64 {
+        let registry = registry_with(vec![Box::new(Additive::preferring(
+            "usage.cai",
+            calls.clone(),
+            "CGC",
+        ))]);
+        let plan = Tier2Plan::check(&registry, &terms(&["usage.cai"]), &[1.0], &config).unwrap();
+        let report = tier2_block_ca(
+            &Tier2Request {
+                seed: &base,
+                registry: &registry,
+                host: &host,
+                checker: &checker,
+                config: &config,
+            },
+            &plan,
+            seed,
+        )
+        .unwrap();
+
+        assert_ne!(
+            report.incumbent.codons()[2].to_string_upper(),
+            "CGC",
+            "seed {seed}: the DP chose the codon that completes CTGCGC across the block edge"
+        );
+        let construct = assemble(&report.incumbent);
+        let view = ConstructView::new(
+            &construct,
+            vec![(
+                report.incumbent.cds_offset_nt(),
+                report.incumbent.cds_offset_nt() + report.incumbent.len() * 3,
+            )],
+        );
+        assert!(
+            checker.is_feasible(&view),
+            "seed {seed}: infeasible incumbent"
+        );
+    }
 }
