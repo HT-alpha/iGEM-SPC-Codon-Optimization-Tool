@@ -46,6 +46,7 @@ from typing import Any
 from codonforge import _core
 from codonforge.modelreg import ArtifactStore, Lockfile
 
+from .archive import CandidateArchive
 from .budget import (
     EXECUTED_TIERS,
     GENERATIONAL_TIER,
@@ -119,17 +120,14 @@ class Job:
     stage_reports: dict[str, Any] = field(default_factory=dict)
     #: The sequence tiers 1 and 2 produced, handed to the generation loop.
     seeded_cds: str | None = None
-    #: `(origin, cds)` for each sequence a stage produced, best kept separately.
+    #: Every candidate any stage produced. The job reports the best of them.
     #:
-    #: The pipeline is not monotone in Phase 1. Tier 1 and tier 2 optimize; the
-    #: generation loop does not — selection is NSGA's, which is `P2-02`, so the
-    #: loop proposes and repairs and accepts whatever survives. Running it after
-    #: an optimizing tier therefore *lowers* the objective: on the fixture here
-    #: tier 1 takes CAI from 0.25 to 0.92 and the loop returns 0.62. Reporting
-    #: the last sequence rather than the best one would have published that,
-    #: and would have made every direction assertion a statement about a random
-    #: walk instead of about the search.
-    stage_candidates: list[tuple[str, str]] = field(default_factory=list)
+    #: The pipeline is not monotone and is not required to be: mutation and
+    #: repair explore, crossover explores, and NSGA is monotone in the Pareto
+    #: sense rather than in any scalarization. So the invariant is placed at the
+    #: point of reporting rather than enforced on the stage order, where it
+    #: holds for orderings that do not exist yet. See `archive.py`.
+    archive: CandidateArchive = field(default_factory=CandidateArchive)
     #: Set to request a clean stop at the next segment boundary.
     cancel_requested: bool = False
 
@@ -283,6 +281,7 @@ class Job:
                 self.budget.spend(result["generations_run"])
                 self.generations_run += result["generations_run"]
                 self._absorb_warnings(result.get("warnings", []))
+                self.record_candidate("mutation", self.checkpoint["incumbent"]["cds"])
                 self.persist_checkpoint()
 
                 if on_segment is not None:
@@ -316,12 +315,91 @@ class Job:
         self.finished_at = _now()
         return self
 
-    def candidates(self) -> list[tuple[str, str]]:
-        """Every sequence a stage produced, plus the loop's final incumbent."""
-        found = list(self.stage_candidates)
-        if self.checkpoint is not None:
-            found.append(("mutation", self.checkpoint["incumbent"]["cds"]))
-        return found
+    def best_candidate(self):
+        """The candidate this job reports, warning if a later stage regressed.
+
+        The warning is derived rather than narrated: it names the origin that
+        actually recorded last and the one actually being reported. The first
+        version hardcoded the stage as `tier3` and explained the generation
+        loop by name, which made it a statement about this round's pipeline
+        rather than about whatever pipeline ran.
+        """
+        best = self.archive.best()
+        if best is not None and self.archive.regressed():
+            last = self.archive.last_recorded()
+            assert last is not None
+            self._add_warning(
+                {
+                    "type": "https://codonforge.org/problems/cf-orch-007",
+                    "title": "A later stage did not improve on an earlier one",
+                    "status": 200,
+                    "code": "CF-ORCH-007",
+                    "detail": (
+                        f"the reported candidate came from {best.origin}, which scored "
+                        f"{best.score:.6g}; the last stage to produce one was "
+                        f"{last.origin}, at {last.score:.6g}. Stages are not required to "
+                        "improve on each other - exploration is not monotone - so the "
+                        "job reports the best candidate any stage produced rather than "
+                        "the most recent one"
+                    ),
+                    "stage": "tier_plan",
+                    "subject": last.origin,
+                }
+            )
+        return best
+
+    def _add_warning(self, warning: dict[str, Any]) -> None:
+        """Append a warning unless one with the same code and subject is there."""
+        key = (warning.get("code"), warning.get("subject"))
+        if key not in {(w.get("code"), w.get("subject")) for w in self.warnings}:
+            self.warnings.append(warning)
+
+    def record_candidate(self, origin: str, cds: str) -> None:
+        """Add a candidate to the archive, scored and feasibility-checked.
+
+        Both are computed here rather than taken from the producing stage. A
+        stage reporting its own score would be reporting the surrogate it
+        optimized, which is not always the objective the front claims; and a
+        stage asserting its own feasibility is the kind of unchecked claim
+        `verify_capability` exists to refuse elsewhere.
+        """
+        probe = self._tier_request(cds)
+        self.archive.record(
+            origin=origin,
+            cds=cds,
+            score=_core.scalarized_score(probe, cds),
+            feasible=self.is_feasible(cds),
+            digest=self.sequence_digest(cds),
+        )
+
+    def is_feasible(self, cds: str) -> bool:
+        """Whether a sequence has any *actionable* blocking violation.
+
+        Actionable, per `DEP-CONS-002`: a violation confined to immutable
+        sequence is a property of the input rather than a fault in the
+        candidate, and every other layer draws the line the same way.
+        """
+        construct = self.inputs.five_prime_flank + cds + self.inputs.three_prime_flank
+        start = len(self.inputs.five_prime_flank)
+        report = json.loads(
+            _core.constraint_violations(
+                json.dumps(self.inputs.constraint_set),
+                construct,
+                [(start, start + len(cds))],
+                "assembled",
+            )
+        )
+        return not any(v["actionable"] for v in report["violations"])
+
+    def sequence_digest(self, cds: str) -> str:
+        return json.loads(
+            _core.sequence_document(
+                cds,
+                self.inputs.translation_table,
+                self.inputs.five_prime_flank,
+                self.inputs.three_prime_flank,
+            )
+        )["digest"]
 
     def _tier_request(self, cds: str) -> str:
         """The shared document tiers 1 and 2 both take."""
@@ -366,7 +444,7 @@ class Job:
         """Run tier 1 and tier 2, in plan order, if the budget includes them."""
         stages = self.budget.stages()
         cds = self.inputs.cds
-        self.stage_candidates.append(("input", cds))
+        self.record_candidate("input", cds)
 
         if "tier1_seed" in stages:
             report = json.loads(
@@ -381,7 +459,7 @@ class Job:
                 # order. Taking [0] rather than re-sorting avoids introducing a
                 # tie-break this layer would have to define.
                 cds = _cds_of(report["seeds"][0])
-                self.stage_candidates.append(("tier1_dp", cds))
+                self.record_candidate("tier1_dp", cds)
             self.stage_reports["tier1_seed"] = report
             self._absorb_warnings(report.get("warnings", []))
 
@@ -394,7 +472,7 @@ class Job:
                 )
             )
             cds = _cds_of(report["incumbent"])
-            self.stage_candidates.append(("tier2_block_ca", cds))
+            self.record_candidate("tier2_block_ca", cds)
             self.stage_reports["tier2_block_ca"] = report
             self._absorb_warnings(report.get("warnings", []))
 
@@ -455,7 +533,7 @@ class Job:
                     # would report a candidate tier 2 produced as having come
                     # straight from the input.
                     "stage_reports": self.stage_reports,
-                    "stage_candidates": self.stage_candidates,
+                    "archive": self.archive.to_json(),
                     "seeded_cds": self.seeded_cds,
                     "state": self.checkpoint,
                 },
@@ -488,9 +566,7 @@ class Job:
         self.generations_run = int(checkpoint_document["generations_run"])
         self.budget.consumed = int(checkpoint_document["budget_consumed"])
         self.stage_reports = checkpoint_document.get("stage_reports", {})
-        self.stage_candidates = [
-            (origin, cds) for origin, cds in checkpoint_document.get("stage_candidates", [])
-        ]
+        self.archive = CandidateArchive.from_json(checkpoint_document.get("archive", []))
         self.seeded_cds = checkpoint_document.get("seeded_cds")
         return self
 

@@ -190,9 +190,7 @@ def test_tst_cli_004_a_minimize_term_is_actually_minimized(store: ArtifactStore)
     )
 
     produced = result.front["candidates"][0]["sequences"][0]["cds"]
-    assert gc(produced) <= gc(tier1), (
-        "the front reported a worse candidate than tier 1 produced"
-    )
+    assert gc(produced) <= gc(tier1), "the front reported a worse candidate than tier 1 produced"
 
 
 def test_tst_cli_004_a_maximize_term_is_actually_maximized(store: ArtifactStore) -> None:
@@ -569,7 +567,97 @@ def test_p1_30_a_non_monotone_stage_is_reported_rather_than_hidden(
     notes = [w for w in result.status["warnings"] if w["code"] == "CF-ORCH-007"]
 
     assert len(notes) == 1
-    assert notes[0]["stage"] == "tier3"
-    assert notes[0]["subject"] in ("tier1_dp", "tier2_block_ca")
-    assert "P2-02" in notes[0]["detail"]
-    assert result.front["candidates"][0]["provenance"]["origin"] == notes[0]["subject"]
+    # The stage is the planner, and the subject is the origin that recorded
+    # last - both derived from the run rather than hardcoded. The first version
+    # named `tier3` and explained the generation loop by name, which described
+    # this round's pipeline rather than whatever pipeline ran.
+    assert notes[0]["stage"] == "tier_plan"
+    assert notes[0]["subject"] == "mutation"
+    assert result.front["candidates"][0]["provenance"]["origin"] in (
+        "tier1_dp",
+        "tier2_block_ca",
+    )
+
+
+def test_p1_30_the_reported_candidate_is_never_worse_than_any_stage_produced(
+    store: ArtifactStore,
+) -> None:
+    """The archive guarantee, observed end to end through the real pipeline.
+
+    `test_archive.py` proves the rule holds for arbitrary stage orders; this
+    checks that the pipeline actually routes every stage's output through it,
+    which is the half a unit test of the archive cannot see.
+    """
+    result = design(request_for(objectives=["usage.cai"], generations=12), store)
+    probe = json.dumps(
+        {
+            "cds": CDS,
+            "translation_table": 1,
+            "five_prime_flank": FIVE_PRIME,
+            "three_prime_flank": THREE_PRIME,
+            "constraint_set": constraint_set(),
+            "host_profile": host_profile(),
+            "host_id": HOST,
+            "host_digest": "sha256:" + "1" * 64,
+            "terms": ["usage.cai"],
+            "weights": [1.0],
+            "root_seed": SEED,
+        }
+    )
+
+    recorded = list(result.job.archive)
+    assert len(recorded) >= 4, (
+        f"only {len(recorded)} candidates recorded; the stages are not all routed "
+        "through the archive, so the guarantee covers less than it claims"
+    )
+    assert {c.origin for c in recorded} >= {"input", "tier1_dp", "tier2_block_ca", "mutation"}
+
+    reported = result.front["candidates"][0]["sequences"][0]["cds"]
+    reported_score = _core.scalarized_score(probe, reported)
+    for candidate in recorded:
+        if candidate.feasible:
+            assert reported_score >= candidate.score - 1e-12, (
+                f"{candidate.origin} produced a better candidate "
+                f"({candidate.score:.6g}) than the one reported ({reported_score:.6g})"
+            )
+
+    # And the reported one is feasible, which outranks score.
+    assert result.front["candidates"][0]["constraint_report"]["feasible"]
+    assert result.job.is_feasible(reported)
+
+
+def test_p1_30_an_infeasible_input_is_never_reported_over_a_feasible_design(
+    store: ArtifactStore, tmp_path: Path
+) -> None:
+    """Feasibility outranks score, through the pipeline rather than in isolation.
+
+    The input is recorded like any other candidate, so a constraint set the
+    input violates is exactly the case where scoring alone would report an
+    infeasible sequence as the design.
+    """
+    request = request_for(objectives=["usage.cai"])
+    request.constraints = {
+        "schema_version": "1.0.0",
+        "constraint_set_id": "cst_input_violates",
+        "constraints": [
+            {
+                "id": "no_ctgcgt",
+                "class": "blocking",
+                "scope": "cds",
+                "rule": {
+                    "kind": "forbidden_motif",
+                    "motif": "CTGCGT",
+                    "strand": "sense",
+                    "max_occurrences": 0,
+                },
+            }
+        ],
+    }
+    result = design(request, store)
+
+    infeasible = [c for c in result.job.archive if not c.feasible]
+    assert infeasible, "the fixture's input must actually violate its constraint set"
+    assert {c.origin for c in infeasible} >= {"input"}
+
+    assert result.front["candidates"][0]["constraint_report"]["feasible"]
+    assert result.job.best_candidate().origin != "input"
