@@ -88,7 +88,13 @@ def test_p1_35_nothing_reintroduces_a_bare_python_venv(docs: dict[str, str]) -> 
         # weak, since a paragraph explaining the fallback lets a recommendation
         # through on the next line.
         if name.endswith(".md"):
-            units = re.split(r"(?<=[.:])\s", " ".join(text.split()))
+            # Emphasis markers are stripped before splitting: a sentence ending
+            # `detail.**` does not end in a period followed by whitespace, so
+            # it merges with the next one and lends it its qualifiers. That is
+            # how "use `python3 -m venv`" inherited a "not" from the sentence
+            # before it and went unnoticed.
+            flattened = " ".join(text.split()).replace("*", "").replace("`", "")
+            units = re.split(r"(?<=[.:])\s", flattened)
         else:
             units = text.splitlines()
 
@@ -262,8 +268,20 @@ def test_p1_35_the_documented_output_formats_all_exist(docs: dict[str, str]) -> 
         if hasattr(action, "choices") and action.choices and "design" in action.choices
     )
     supported = next(action.choices for action in design_parser._actions if action.dest == "output")
-    for fmt in re.findall(r"`(json|fasta|genbank|csv|table|explain)`", docs["README.md"]):
-        assert fmt in supported, f"README documents --output {fmt}, which is not accepted"
+
+    # Extract whatever the README claims rather than checking a list this test
+    # already knows. Matching known names only could catch a format removed
+    # from the CLI and never one invented in prose, which is the direction
+    # documentation actually drifts.
+    readme = docs["README.md"]
+    claimed = set(re.findall(r"`--output (\w+)`", readme))
+    for line in readme.splitlines():
+        if line.startswith("Other formats:") or (claimed & set(re.findall(r"`(\w+)`", line))):
+            claimed |= set(re.findall(r"`(\w+)`", line))
+
+    assert claimed, "the README documents no output formats at all"
+    unknown = claimed - set(supported)
+    assert not unknown, f"README documents --output {sorted(unknown)}, which is not accepted"
 
 
 def test_p1_35_the_documented_stage_names_are_the_real_ones(docs: dict[str, str]) -> None:
