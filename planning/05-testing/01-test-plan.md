@@ -190,6 +190,12 @@ Two supporting units the architecture implies but does not name, added here beca
 | --- | --- | --- |
 | `TST-ORCH-001` | integration | The lockfile is sealed before any search work begins, and no query in the job resolves outside it. |
 | `TST-ORCH-002` | integration | Checkpoint/resume: a job killed mid-run resumes to a bit-identical result. Compared against an *uninterrupted run of the same seed plan*, state for state — incumbent, tabu ledger and per-generation history — not against itself. A resume that restarted its RNG stream counter at zero would be perfectly reproducible against itself and quietly different from an uninterrupted run, and a final-state comparison would also miss a run that diverged and reconverged. |
+| `TST-ORCH-004` | unit | The segment runner: every split of the same generation total produces an identical checkpoint - incumbent, tabu ledger and per-generation history. Seven splits, not one, because a run that resumed correctly at one boundary and not another would pass a single-split test. |
+| `TST-ORCH-005` | unit | The tabu ledger survives the checkpoint, and the fixture asserts it was live at the boundary. An empty ledger makes "resume carries it" and "resume drops it" the same test. |
+| `TST-ORCH-006` | unit | The ledger's checkpoint snapshot is ordered. `HashMap` iteration order is randomly seeded per process, so an unsorted snapshot surfaces as an *intermittent* resume-comparison failure; asserted directly by inserting the same entries in opposite orders. |
+| `TST-ORCH-007` | unit | A malformed checkpoint is refused with `CF-ORCH-001` naming the missing field, rather than partly believed. |
+| `TST-ORCH-008` | integration | Every `job_status.warnings` entry carries a `stage` and a `subject`, and the three obligation sources remain separable in one document. |
+| `TST-ORCH-009` | integration | A job checkpointed across a model promotion resumes on its sealed digests. The promotion is published *while the job is stopped*, which is the case the non-blocking-recalibration guarantee has to survive and a continuous run never exercises. |
 | `TST-ORCH-003` | integration | `codonforge replay --assert-identical` reproduces a front exactly. |
 
 ### `cf-active`
