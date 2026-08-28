@@ -137,6 +137,15 @@ impl Additive {
         this
     }
 
+    /// Distinct weights, same signature as [`Additive::third_base_blind`].
+    ///
+    /// Exists so a negative control can swap the determinism fixture back to a
+    /// unique optimum and demonstrate that the tie-blind term is what makes the
+    /// RNG stream observable at all.
+    pub fn distinct_weights_for_the_control(term: &str, calls: Calls) -> Self {
+        Self::new(term, calls, 7)
+    }
+
     /// A term that wants one specific codon above everything else.
     ///
     /// So a test can make the DP *try* to choose a particular assignment and
