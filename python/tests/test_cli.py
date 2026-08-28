@@ -174,9 +174,24 @@ def test_tst_cli_004_a_minimize_term_is_actually_minimized(store: ArtifactStore)
     assert result.front["objective_sense"] == ["minimize"]
     assert result.status["resolved_objectives"][0]["direction"] == "minimize"
 
+    # Asserted on the *tiers'* own output, not only on the front. The front
+    # reports the best candidate found, and the generation loop wanders far
+    # enough that "better than the input" is satisfied even by a pipeline
+    # optimizing in the wrong direction - a signed-weight defect passed that
+    # threshold. What has to hold is that tier 1 and tier 2 each moved the way
+    # the provider declared.
+    tier1 = result.job.stage_reports["tier1_seed"]["seeds"][0]["cds"]
+    tier2 = result.job.stage_reports["tier2_block_ca"]["incumbent"]["cds"]
+    assert gc(tier1) < gc(CDS), (
+        f"tier 1 did not minimize a minimize term: GC went {gc(CDS):.3f} -> {gc(tier1):.3f}"
+    )
+    assert gc(tier2) <= gc(tier1), (
+        f"tier 2 moved a minimize term the wrong way: {gc(tier1):.3f} -> {gc(tier2):.3f}"
+    )
+
     produced = result.front["candidates"][0]["sequences"][0]["cds"]
-    assert gc(produced) < gc(CDS), (
-        f"a minimize term was not minimized: GC went {gc(CDS):.3f} -> {gc(produced):.3f}"
+    assert gc(produced) <= gc(tier1), (
+        "the front reported a worse candidate than tier 1 produced"
     )
 
 
