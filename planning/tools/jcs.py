@@ -139,13 +139,25 @@ def digest(value) -> str:
     return "sha256:" + hashlib.sha256(canonicalize(value).encode("utf-8")).hexdigest()
 
 
+#: Excluded from every content digest, alongside the self-reference.
+#:
+#: ``DEP-VER-003``. A document's identity is what it says, not when it was
+#: written. Kept in step with ``cf_types::VOLATILE_DIGEST_FIELDS``; the two
+#: implementations are independent on purpose, so the constant is duplicated
+#: and the *values* must match.
+VOLATILE_FIELDS = ("created_at",)
+
+
 def digest_of_document(document: dict, omit_field: str = "digest") -> str:
-    """Digest of a document with one field removed.
+    """Digest of a document with the self-reference and volatile fields removed.
 
     Every ``digest`` field in the schemas is defined this way: the digest a
-    document carries cannot include itself.
+    document carries cannot include itself, and cannot include when it was
+    written -- otherwise two identical resolutions are different lockfiles and
+    ``replay --assert-identical`` can never succeed.
     """
-    return digest({k: v for k, v in document.items() if k != omit_field})
+    dropped = {omit_field, *VOLATILE_FIELDS}
+    return digest({k: v for k, v in document.items() if k not in dropped})
 
 
 def digest_of_bytes(data: bytes) -> str:

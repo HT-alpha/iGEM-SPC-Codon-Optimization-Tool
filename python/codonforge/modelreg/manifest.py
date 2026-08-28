@@ -40,12 +40,12 @@ LIFECYCLE_STATUSES = ("draft", "active", "deprecated", "yanked")
 
 
 def digest_of(document: dict[str, Any], *, omit: str = "digest") -> str:
-    """Content digest of a document, with one field omitted.
+    """Content digest of a document, with the self-reference and time omitted.
 
     Delegates to the compiled core so the Python and Rust sides cannot disagree
     about what "the digest of this document" means. A second implementation
     here would be a second definition, and the two would drift on the first
-    unusual float.
+    unusual float. `created_at` is excluded by the core, per `DEP-VER-003`.
     """
     return _core.digest_json(json.dumps(document), omit)
 

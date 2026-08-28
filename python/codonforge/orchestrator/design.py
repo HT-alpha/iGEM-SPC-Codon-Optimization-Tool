@@ -73,6 +73,21 @@ class DesignRequest:
     def to_json(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
 
+    #: Fields that describe *where output goes*, not what is computed.
+    #:
+    #: Excluded from the request's identity. A job told where to write its
+    #: checkpoints resolves the same landscape as one that was not, and
+    #: `--resume` must land on the same job id as the run it resumes or it
+    #: cannot find the checkpoint. Deriving the id from the whole request made
+    #: both false: two identical designs got different lockfiles because one
+    #: had `--checkpoint-dir`.
+    PLUMBING = ("job_id", "checkpoint_dir", "resume")
+
+    def identity(self) -> str:
+        """The canonical form of everything that determines the result."""
+        fields = {k: v for k, v in asdict(self).items() if k not in self.PLUMBING}
+        return json.dumps(fields, sort_keys=True)
+
     @classmethod
     def from_json(cls, text: str) -> DesignRequest:
         return cls(**json.loads(text))
@@ -96,6 +111,22 @@ class DesignResult:
     @property
     def warnings(self) -> list[dict[str, Any]]:
         return self.job.status()["warnings"]
+
+    def sequence_document(self) -> dict[str, Any]:
+        """The `sequence.schema.json` document for the reported candidate.
+
+        Built by the job, so the digest a writer round-trips against is the
+        same one the archive selected on.
+        """
+        cds = self.front["candidates"][0]["sequences"][0]["cds"]
+        return json.loads(
+            _core.sequence_document(
+                cds,
+                self.job.inputs.translation_table,
+                self.job.inputs.five_prime_flank,
+                self.job.inputs.three_prime_flank,
+            )
+        )
 
     def best(self) -> dict[str, Any]:
         if not self.front["candidates"]:
@@ -140,7 +171,7 @@ def design(
             exit_code=2,
         )
 
-    job_id = request.job_id or _derived_id("job", request.to_json())
+    job_id = request.job_id or _derived_id("job", request.identity())
 
     # On resume the lockfile comes out of the checkpoint, never from a fresh
     # resolution. Re-sealing would re-resolve, and a resumed job that
@@ -270,7 +301,7 @@ def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
     )
     return seal(
         entries,
-        lockfile_id=_derived_id("lock", request.to_json()),
+        lockfile_id=_derived_id("lock", request.identity()),
         contract_major=1,
         host_profile={
             "host_id": request.host,
@@ -278,7 +309,7 @@ def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
             "digest": request.host_digest,
         },
         inputs={
-            "construct_digest": _core.digest_json(request.to_json(), None),
+            "construct_digest": _core.digest_json(request.identity(), None),
             "constraint_set_digest": _core.digest_json(json.dumps(request.constraints), None),
             "input_sequence_digests": [_core.digest_json(json.dumps(request.cds), None)],
         },
@@ -345,4 +376,18 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
         budget_tier=request.budget,
         termination_reason=reason,
         n_evaluations=job.generations_run,
+        input_sequence=_baseline(job, request),
     )
+
+
+def _baseline(job: Job, request: DesignRequest) -> dict[str, Any] | None:
+    """The input's own scores, from the archive rather than re-evaluated."""
+    recorded = next((c for c in job.archive if c.origin == "input"), None)
+    if recorded is None:
+        return None
+    scores = json.loads(_core.term_scores(_directions_request(request), recorded.cds))
+    return {
+        "digest": recorded.digest,
+        "objective_vector": [scores[t] for t in job.plan.scored],
+        "feasible": recorded.feasible,
+    }

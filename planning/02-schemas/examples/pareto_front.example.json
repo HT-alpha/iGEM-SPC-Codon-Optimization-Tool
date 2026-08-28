@@ -3,7 +3,7 @@
   "front_id": "front_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
   "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
   "created_at": "2026-08-25T08:11:42Z",
-  "landscape_lockfile_digest": "sha256:d504fae73004c6e5c6cae029015612d6d52aa5ec15602711580051d136787c0a",
+  "landscape_lockfile_digest": "sha256:06ae628f809d7791e97a6fc830070f77f4ac75082a5525960ccf3c8659136dfc",
   "objective_order": [
     "epistasis.dwell_deviation",
     "structure.local_accessibility",
@@ -305,5 +305,5 @@
       "igd_plus": "1.0"
     }
   },
-  "digest": "sha256:1c8cc997e79ed8309e243ed00b9507ca7ebd41890e08e3103fd8e4c224bfcd9a"
+  "digest": "sha256:f1a9e95222ca6063da8c3fe83fbb9969a5d36ef12bd03fcd4ae8bfc235ed5a27"
 }

@@ -36,6 +36,7 @@ def build(
     budget_tier: str,
     termination_reason: str,
     n_evaluations: int = 0,
+    input_sequence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble and self-digest a front document.
 
@@ -74,6 +75,15 @@ def build(
         },
         "digest": "sha256:" + "0" * 64,
     }
+    if input_sequence is not None:
+        # "Present so every improvement claim has a baseline in the same
+        # document", per the schema. The baseline is the input candidate the
+        # archive already scored and feasibility-checked, not a second
+        # evaluation that could disagree with it.
+        document["input_sequence"] = input_sequence
+    # `created_at` is outside the digest by DEP-VER-003: a front holding the
+    # same candidates from the same lockfile is the same front, and
+    # GATE-REPRO-001 asks replay to reproduce one *exactly*.
     document["digest"] = _core.digest_json(json.dumps(document), "digest")
     return document
 

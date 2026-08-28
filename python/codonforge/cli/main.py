@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 from codonforge import _core
+from codonforge.cli import writers
 from codonforge.modelreg import ArtifactStore
 from codonforge.orchestrator import BUILTIN_TERMS, DesignError, DesignRequest, design
 
@@ -56,7 +57,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="verb")
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--output", choices=["table", "json"], default="table")
+    common.add_argument(
+        "--output",
+        choices=["table", "json", "fasta", "genbank", "csv", "explain"],
+        default="table",
+    )
     common.add_argument("--store", default=".codonforge/artifacts")
 
     d = sub.add_parser("design", parents=[common], help="run a design job")
@@ -147,11 +152,29 @@ def _design(args: argparse.Namespace) -> int:
     finally:
         signal.signal(signal.SIGINT, previous)
 
-    if args.output == "json":
-        print(result.to_json())
+    _emit(result, args.output)
+    return EXIT_OK
+
+
+def _emit(result: Any, output: str) -> None:
+    """Render a finished design in the requested format.
+
+    Every branch below hands the *documents* to a writer. None of them reaches
+    into the job for a direction, a score or a tier state, because a value
+    computed twice is a value that can disagree with itself.
+    """
+    if output == "json":
+        print(writers.to_json({"status": result.status, "front": result.front}))
+    elif output == "fasta":
+        print(writers.to_fasta(result.front), end="")
+    elif output == "genbank":
+        print(writers.to_genbank(result.front, result.sequence_document()), end="")
+    elif output == "csv":
+        print(writers.to_csv(result.front), end="")
+    elif output == "explain":
+        print(writers.explain(result.front, result.status), end="")
     else:
         _render(result)
-    return EXIT_OK
 
 
 def _request(args: argparse.Namespace) -> DesignRequest:
@@ -272,7 +295,13 @@ def _feasibility(args: argparse.Namespace) -> int:
 
 def _show(path: Path, args: argparse.Namespace) -> int:
     document = json.loads(path.read_text(encoding="utf-8"))
-    print(json.dumps(document, indent=2, sort_keys=True))
+    if args.output in ("fasta", "csv") and "candidates" in document:
+        print(
+            writers.to_fasta(document) if args.output == "fasta" else writers.to_csv(document),
+            end="",
+        )
+    else:
+        print(writers.to_json(document))
     return EXIT_OK
 
 

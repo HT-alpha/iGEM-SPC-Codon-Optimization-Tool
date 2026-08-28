@@ -27,6 +27,24 @@ use crate::error::{code, CfError, Result};
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Digest(String);
 
+/// Fields excluded from a document's content identity.
+///
+/// `DEP-VER-003`. A document's identity is what it says, not when it was
+/// written: two lockfiles that resolved the same artifacts are the same
+/// landscape, and two fronts holding the same candidates from the same
+/// lockfile are the same front. With `created_at` inside the digest neither
+/// was true, and the consequences were concrete — `GATE-REPRO-001` requires
+/// `replay --assert-identical` to reproduce a stored front *exactly*, which a
+/// time-dependent digest makes impossible, and `TST-CLI-001`'s "identical
+/// lockfiles across three surfaces" passed only because the three ran within
+/// the same second.
+///
+/// Kept here rather than in either caller so the rule has one statement. It
+/// was briefly a Python constant shared between `cf-decision` and
+/// `cf-modelreg`, which the module-layering check correctly rejected as an
+/// undeclared dependency.
+pub const VOLATILE_DIGEST_FIELDS: [&str; 1] = ["created_at"];
+
 impl Digest {
     /// Digest of raw bytes.
     pub fn of_bytes(bytes: &[u8]) -> Self {
@@ -44,6 +62,29 @@ impl Digest {
     ///
     /// This is how every `digest` field in the schemas is defined: the digest
     /// of the document that carries it cannot include itself.
+    /// Digest of a document with several fields removed.
+    ///
+    /// `DEP-VER-003`. Beyond the self-reference `of_document` exists for, a
+    /// document's *identity* excludes when it was written. Two lockfiles that
+    /// resolved the same artifacts are the same landscape; two fronts holding
+    /// the same candidates from the same lockfile are the same front. With
+    /// `created_at` inside the digest neither was true, so
+    /// `replay --assert-identical` could never succeed and `TST-CLI-001`'s
+    /// "identical lockfiles" passed only because its three surfaces ran within
+    /// the same second.
+    pub fn of_document_omitting(value: &serde_json::Value, omit: &[&str]) -> Result<Self> {
+        match value {
+            serde_json::Value::Object(map) => {
+                let mut stripped = map.clone();
+                for field in omit {
+                    stripped.remove(*field);
+                }
+                Self::of_json(&serde_json::Value::Object(stripped))
+            }
+            other => Self::of_json(other),
+        }
+    }
+
     pub fn of_document(value: &serde_json::Value, omit_field: &str) -> Result<Self> {
         match value {
             serde_json::Value::Object(map) => {

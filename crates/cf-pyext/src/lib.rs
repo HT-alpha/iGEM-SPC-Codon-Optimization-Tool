@@ -106,13 +106,24 @@ fn canonical_json(document_json: &str) -> PyResult<String> {
 
 /// sha256 digest over the RFC 8785 canonical form, optionally omitting a field.
 #[pyfunction]
-#[pyo3(signature = (document_json, omit_field=None))]
-fn digest_json(document_json: &str, omit_field: Option<&str>) -> PyResult<String> {
+#[pyo3(signature = (document_json, omit_field=None, include_volatile=false))]
+fn digest_json(
+    document_json: &str,
+    omit_field: Option<&str>,
+    include_volatile: bool,
+) -> PyResult<String> {
     let value: serde_json::Value =
         serde_json::from_str(document_json).map_err(|e| PyValueError::new_err(e.to_string()))?;
-    let digest = match omit_field {
-        Some(field) => Digest::of_document(&value, field),
-        None => Digest::of_json(&value),
+
+    let mut omit: Vec<&str> = omit_field.into_iter().collect();
+    if !include_volatile {
+        omit.extend(cf_types::VOLATILE_DIGEST_FIELDS);
+    }
+
+    let digest = if omit.is_empty() {
+        Digest::of_json(&value)
+    } else {
+        Digest::of_document_omitting(&value, &omit)
     }
     .map_err(to_py_err)?;
     Ok(digest.to_string())

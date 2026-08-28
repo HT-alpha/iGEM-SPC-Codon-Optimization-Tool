@@ -23,6 +23,8 @@ The suite is also what makes the four "no reference implementation" layers revie
 
 **Ground truth.** The exact Pareto front, computed by brute force over all 6 561 sequences under any objective set.
 
+**It must contain genuine ties.** `DEP-SYN-001`. An earlier wording asked only for "the exact Pareto front", which a space with a unique optimum satisfies — and a suite of unambiguous instances cannot test tie-breaking anywhere. That is not hypothetical: the tier-2 determinism fixture used distinct weights, so the optimum was unique, tie-breaking was never invoked, and an implementation keying block streams on iteration order passed it. `SYN-01` therefore ships in two configurations from the same space: one with distinct objective values, and one whose weights are deliberately degenerate so that several distinct sequences attain the optimum exactly. The degenerate configuration is what makes "the search returns *an* optimum, deterministically" a testable claim rather than an assumed one, and it is where every tie-break in the system gets exercised at the scale the suite is regressed against.
+
 **Validates.** `TST-SYN-001`, `TST-SRCH-002`. This is the only place in the system where a search result can be compared against the *true* optimum rather than against another algorithm. Every search change is regression-tested here first: IGD+ to the true front must be 0 for tier 1 + tier 2 on the decomposable objective, and the tier-3 front must contain every true extreme point.
 
 **Why it is small on purpose.** A space of 6 561 is enumerable in milliseconds, so this test can run on every commit.

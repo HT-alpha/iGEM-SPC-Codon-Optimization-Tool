@@ -193,6 +193,20 @@ It also carries the tier-planning refusal that the `P1-25` note describes, one t
 | `P1-30` | CLI and library | `cf-cli` | `design`, `score`, `feasibility`, `seeds import`, `front`, `replay`, `explain`, `hosts list`; `cf.design()` with an identical argument object | `TST-CLI-001`, `TST-CLI-002`, `TST-ORCH-003` | `P1-29` | L |
 | `P1-31` | Output writers | `cf-cli` | FASTA, GenBank, CSV and JSON emitters; the aligned `explain` rendering | Round-trip test: emitted GenBank re-ingests to the same digest | `P1-30` | S |
 
+### `P1-31` — writers render documents, and two things that found
+
+**The rule.** A writer takes the emitted `pareto_front` and `job_status` documents and formats what it finds. None re-queries a provider for a direction, recomputes a score, or re-derives which tiers ran. A value computed twice can disagree with itself, and this codebase has paid for that once already — tier 1 and tier 2 each decided what to do with an L0 term and reached different answers until `TierPlan` decided once. The tests mutate a document and require the output to follow it, which a writer computing its own values fails.
+
+**The GenBank writer takes the sequence document as well as the front**, because the flanks are not in the front: `candidates[].sequences[].cds` is a `CodonString` and `input_sequence` is a closed object holding a digest and an objective vector. Since the round-trip digest is of the sequence *document*, which includes the flanks, a record carrying only the coding region would re-ingest to a different sequence that merely looked similar.
+
+**`input_sequence` is now populated**, from the archive's own record of the input rather than a second evaluation. The schema says it exists "so every improvement claim has a baseline in the same document", and the front had been omitting it.
+
+**Two defects found by the writers' resume test**, which required a resumed job to emit byte-identical output:
+
+`DEP-VER-003` — every content digest omits `created_at` alongside the self-reference. Two identical runs a second apart produced different lockfile and front digests, so `GATE-REPRO-001`'s "reproduces a stored reference front exactly" was unachievable and `TST-CLI-001`'s identical-lockfiles assertion passed only because its three surfaces ran inside the same second. A document's identity is what it says, not when it was written.
+
+**Request identity excludes I/O plumbing.** Job and lockfile ids derived from the whole request, including `checkpoint_dir`, `resume` and `job_id` — so a job told where to write checkpoints resolved a *different* lockfile than one that was not, and `--resume` could not land on the id of the run it resumed. Identity is now the fields that determine the result.
+
 ### `P1-28` — what "minimal" defers, precisely
 
 `P1-28` is not a parallel mechanism alongside the versioning scheme in [ADR-0009](../07-decisions/ADR-0009-artifact-versioning-and-resolution.md) and [`04-model-resolution.md`](../04-api/04-model-resolution.md); it is that scheme's Phase 1 subset. The split, stated so that no later ticket assumes a deferred rung already works:
@@ -243,7 +257,9 @@ The fix is a guarantee at the point of reporting rather than a constraint on sta
 The archive lives in `cf-orchestrator`, not in the library surface that first implemented the selection: a rule computed by whichever surface renders the result is a rule each surface can drift from, which is how tier 1 and tier 2 came to disagree about an L0 term before `TierPlan` made the decision once. `CF-ORCH-007` now names the origin that actually recorded last and the one actually reported, both derived from the run; the first version hardcoded `tier3` and explained the generation loop by name, describing that round's pipeline rather than whatever pipeline ran. The archive travels in the checkpoint, per the rule that anything the reported result depends on must.
 
 **`P1-29`'s split fixture is reused rather than re-derived.** `compare_splits` is that seven-way comparison generalised over a runner, and `standard_splits()` is the same list. A harness that rebuilt an equivalent fixture could pass while the thing it was meant to guard had regressed.
-| `P1-34` | `EXP-05` runner | `cf-bench` | Lamarckian vs Baldwinian repair comparison on tightly-constrained inputs | `EXP-05` decided and the default confirmed or changed | `P1-17`, `P1-32` | S |
+| `P1-34` | `EXP-05` runner | `cf-bench` | Lamarckian vs Baldwinian repair comparison on tightly-constrained inputs | `EXP-05` decided and the default confirmed or changed | `P1-17`, `P1-32`, `P2-02` | S |
+
+> **`P1-34` is not unblocked by `P1-32` alone, and `EXIT-003` cannot be a Phase 1 exit decision as `EXP-05` is designed.** `EXP-05`'s decision rule is "switch to Baldwinian iff it wins on **hypervolume** by more than the seed-to-seed standard deviation and its repair-invocation overhead is under 2×", comparing final hypervolume, **population diversity** (mean pairwise Hamming distance) and repair invocations. Hypervolume needs a front and population diversity needs a population; Phase 1 has neither, because the population loop is `P2-02`/`P2-03`. `P1-32` supplies the tightly-constrained inputs `EXP-05` needs (`SYN-04`) and removes the *fixture* blocker, which is real progress — it does not make the experiment runnable. Two honest options for whoever picks this up: move `EXIT-003` to a Phase 2 exit, or restate `EXP-05`'s decision rule in terms Phase 1 can measure (repair invocations and single-objective final score under a fixed budget), accepting that it then answers a narrower question. Recorded rather than chosen here, because it changes what an approved experiment measures. `DEP-EXP-001`.
 | `P1-35` | Docs | — | README with a working quickstart; contributor guide covering the two-toolchain setup; `AGENTS.md` updated from its current stub state to describe the real build, test and run commands | A new contributor can build, test and run a design from the README alone | `P1-30` | M |
 
 ---
@@ -259,7 +275,7 @@ not deciding is a decision to keep the legacy behaviour.
 | --- | --- | --- | --- |
 | `EXIT-001` | Should motif and restriction-site constraints default to `scope: construct`, catching a site that straddles the coding-region boundary? The prototype scopes them to the CDS and misses it. | legacy parity (`scope: cds` where the differential requires it; `spec::expand` already emits `construct` for assembly standards) | `docs/legacy-parity.md` §1 |
 | `EXIT-002` | Should k-mer counting default to `KmerMasking::Assembled`, catching a repeat that straddles a region boundary? The prototype's masked backbone counting misses it. | legacy parity available; `Assembled` is the code default and the differential runs in `SegmentedByRegion` | `docs/legacy-parity.md` §2 |
-| `EXIT-003` | `EXP-05`: Lamarckian vs Baldwinian repair. Gated on `P1-34`, which needs `P1-17` (done) and `P1-32`. | Lamarckian | `planning/08-experiments/experiment-register.md` |
+| `EXIT-003` | `EXP-05`: Lamarckian vs Baldwinian repair. Gated on `P1-34`, which needs `P1-17` (done), `P1-32` (done) **and a population loop** — see below. | Lamarckian | `planning/08-experiments/experiment-register.md` |
 
 `EXIT-001` and `EXIT-002` change which designs are called feasible relative to
 the tool this repository already ships, so a construct the prototype accepted

@@ -26,7 +26,7 @@ pub mod seqrec;
 pub mod tables;
 pub mod units;
 
-pub use canonical::{canonicalize, Digest};
+pub use canonical::{canonicalize, Digest, VOLATILE_DIGEST_FIELDS};
 pub use codon::{Codon, BASES, CODON_COUNT};
 pub use error::{code, CfCode, CfError, Result, REGISTRY};
 pub use ids::{ArtifactId, HostId, JobId, SchemaVersion, SemVer, TenantId, TermId};

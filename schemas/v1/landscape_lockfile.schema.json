@@ -5,12 +5,25 @@
   "description": "The exact set of artifacts, engines, data and RNG state that produced a result. Analogous to a package-manager lockfile, and it is the mechanism that makes three otherwise-conflicting requirements compatible at once:\n\n  * results are reproducible and auditable (BRIEF-2.2-d);\n  * a submitted wet-lab observation triggers recalibration WITHOUT blocking or perturbing other users' in-flight jobs (BRIEF-2.4-b) - because every job pins its lockfile at submission, a new artifact version appearing mid-job is simply not visible to it;\n  * host/dataset-specific model versions are selected at query time by a documented ladder (BRIEF-2.4-c) - the ladder runs ONCE, at pin time, and its outcome is recorded here rather than re-derived per query.\n\nA lockfile is immutable and content-addressed. Replaying a job means loading its lockfile and re-running; if any digest is unavailable the replay fails loudly rather than substituting a newer artifact.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
-    "lockfile_id": { "type": "string", "pattern": "^lock_[0-9A-HJKMNP-TV-Z]{26}$" },
-    "created_at": { "$ref": "common.schema.json#/$defs/Iso8601" },
-    "job_id": { "$ref": "common.schema.json#/$defs/JobId" },
-    "tenant_id": { "$ref": "common.schema.json#/$defs/TenantId" },
-    "contract_major": { "$ref": "common.schema.json#/$defs/ContractMajor" },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "lockfile_id": {
+      "type": "string",
+      "pattern": "^lock_[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/Iso8601"
+    },
+    "job_id": {
+      "$ref": "common.schema.json#/$defs/JobId"
+    },
+    "tenant_id": {
+      "$ref": "common.schema.json#/$defs/TenantId"
+    },
+    "contract_major": {
+      "$ref": "common.schema.json#/$defs/ContractMajor"
+    },
     "resolution": {
       "type": "array",
       "minItems": 1,
@@ -18,33 +31,110 @@
       "items": {
         "type": "object",
         "properties": {
-          "term_id": { "$ref": "common.schema.json#/$defs/TermId" },
+          "term_id": {
+            "$ref": "common.schema.json#/$defs/TermId"
+          },
           "artifact_id": {
             "description": "The artifact coordinate, or - for a term computed by shipped code rather than by a model - a builtin coordinate `builtin:<term_id>:<engine_version>`.\n\nThe builtin form was added during P1-28. The rung vocabulary below has always admitted `builtin`, but this field required an ArtifactId, whose grammar begins `cf:<kind>:` and has no spelling for a term that has no artifact. So a lockfile recording a CAI resolution could not be written. The alternative fixes were both worse: allowing null loses the engine version, which is the only thing identifying what computed the number, and stretching ArtifactId itself would let a builtin coordinate appear in `model_pins`, where it means nothing.",
             "oneOf": [
-              { "$ref": "common.schema.json#/$defs/ArtifactId" },
-              { "type": "string", "pattern": "^builtin:(epistasis|structure|kinetics|lm|burden|usage|constraint|meta)\\.[a-z0-9_]+:[0-9]+\\.[0-9]+\\.[0-9]+$", "examples": ["builtin:usage.cai:0.1.0", "builtin:constraint.violation_count:0.1.0"] }
+              {
+                "$ref": "common.schema.json#/$defs/ArtifactId"
+              },
+              {
+                "type": "string",
+                "pattern": "^builtin:(epistasis|structure|kinetics|lm|burden|usage|constraint|meta)\\.[a-z0-9_]+:[0-9]+\\.[0-9]+\\.[0-9]+$",
+                "examples": [
+                  "builtin:usage.cai:0.1.0",
+                  "builtin:constraint.violation_count:0.1.0"
+                ]
+              }
             ]
           },
-          "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest", "description": "For an artifact, its content digest. For a builtin, the digest of the engine descriptor `{engine, term_id, version}` - a real hash of a real document, so that changing the engine version changes the lockfile, rather than a sentinel that merely looks like a digest." },
-          "resolved_by": { "enum": ["pin", "tenant_channel", "host_channel", "nearest_host", "base", "builtin"] },
-          "channel": { "type": ["string", "null"], "examples": ["stable", "candidate", "nightly", null] },
-          "fallback": { "type": "boolean", "default": false },
+          "digest": {
+            "$ref": "common.schema.json#/$defs/Sha256Digest",
+            "description": "For an artifact, its content digest. For a builtin, the digest of the engine descriptor `{engine, term_id, version}` - a real hash of a real document, so that changing the engine version changes the lockfile, rather than a sentinel that merely looks like a digest."
+          },
+          "resolved_by": {
+            "enum": [
+              "pin",
+              "tenant_channel",
+              "host_channel",
+              "nearest_host",
+              "base",
+              "builtin"
+            ]
+          },
+          "channel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "examples": [
+              "stable",
+              "candidate",
+              "nightly",
+              null
+            ]
+          },
+          "fallback": {
+            "type": "boolean",
+            "default": false
+          },
           "host_distance": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "description": "Populated only when resolved_by = nearest_host. Records why this substitution was considered acceptable and by how much uncertainty was inflated.",
             "properties": {
-              "substitute_host_id": { "$ref": "common.schema.json#/$defs/HostId" },
-              "taxonomic_rank_of_lca": { "enum": ["strain", "species", "genus", "family", "order", "class", "phylum", "domain", "root"] },
-              "codon_usage_cosine": { "type": "number", "minimum": -1, "maximum": 1 },
-              "trna_pool_cosine": { "type": ["number", "null"], "minimum": -1, "maximum": 1 },
-              "uncertainty_inflation_factor": { "type": "number", "minimum": 1 }
+              "substitute_host_id": {
+                "$ref": "common.schema.json#/$defs/HostId"
+              },
+              "taxonomic_rank_of_lca": {
+                "enum": [
+                  "strain",
+                  "species",
+                  "genus",
+                  "family",
+                  "order",
+                  "class",
+                  "phylum",
+                  "domain",
+                  "root"
+                ]
+              },
+              "codon_usage_cosine": {
+                "type": "number",
+                "minimum": -1,
+                "maximum": 1
+              },
+              "trna_pool_cosine": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": -1,
+                "maximum": 1
+              },
+              "uncertainty_inflation_factor": {
+                "type": "number",
+                "minimum": 1
+              }
             },
-            "required": ["substitute_host_id", "taxonomic_rank_of_lca", "uncertainty_inflation_factor"],
+            "required": [
+              "substitute_host_id",
+              "taxonomic_rank_of_lca",
+              "uncertainty_inflation_factor"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["term_id", "artifact_id", "digest", "resolved_by"],
+        "required": [
+          "term_id",
+          "artifact_id",
+          "digest",
+          "resolved_by"
+        ],
         "additionalProperties": false
       }
     },
@@ -54,63 +144,171 @@
       "items": {
         "type": "object",
         "properties": {
-          "role": { "enum": ["structure", "kmer_index", "hypervolume", "conformal"] },
-          "name": { "type": "string", "examples": ["native_window", "viennarna", "linearfold", "wfg"] },
-          "version": { "type": "string" },
-          "digest": { "type": ["string", "null"] },
-          "parameters": { "type": "object", "additionalProperties": true }
+          "role": {
+            "enum": [
+              "structure",
+              "kmer_index",
+              "hypervolume",
+              "conformal"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "native_window",
+              "viennarna",
+              "linearfold",
+              "wfg"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "digest": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          }
         },
-        "required": ["role", "name", "version"],
+        "required": [
+          "role",
+          "name",
+          "version"
+        ],
         "additionalProperties": false
       }
     },
     "host_profile": {
       "type": "object",
       "properties": {
-        "host_id": { "$ref": "common.schema.json#/$defs/HostId" },
-        "version": { "$ref": "common.schema.json#/$defs/SemVer" },
-        "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+        "host_id": {
+          "$ref": "common.schema.json#/$defs/HostId"
+        },
+        "version": {
+          "$ref": "common.schema.json#/$defs/SemVer"
+        },
+        "digest": {
+          "$ref": "common.schema.json#/$defs/Sha256Digest"
+        }
       },
-      "required": ["host_id", "version", "digest"],
+      "required": [
+        "host_id",
+        "version",
+        "digest"
+      ],
       "additionalProperties": false
     },
     "inputs": {
       "type": "object",
       "properties": {
-        "construct_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
-        "constraint_set_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
-        "seed_set_digest": { "type": ["string", "null"] },
-        "input_sequence_digests": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Sha256Digest" } }
+        "construct_digest": {
+          "$ref": "common.schema.json#/$defs/Sha256Digest"
+        },
+        "constraint_set_digest": {
+          "$ref": "common.schema.json#/$defs/Sha256Digest"
+        },
+        "seed_set_digest": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "input_sequence_digests": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/Sha256Digest"
+          }
+        }
       },
-      "required": ["construct_digest", "constraint_set_digest"],
+      "required": [
+        "construct_digest",
+        "constraint_set_digest"
+      ],
       "additionalProperties": false
     },
     "rng": {
       "type": "object",
       "description": "Determinism contract. A parallel search is only reproducible if each worker's stream is derived deterministically from the root seed and the reduction order is fixed - floating-point summation is not associative, so 'same seed, different thread count' is otherwise a different answer.",
       "properties": {
-        "algorithm": { "enum": ["pcg64", "chacha8", "xoshiro256pp"] },
-        "root_seed": { "type": "integer", "minimum": 0 },
-        "stream_assignment": { "enum": ["per_block_index", "per_individual_index", "per_worker"], "description": "per_block_index and per_individual_index are thread-count-independent; per_worker is not and is only legal for `fast` tier.\n\nA run that derives streams at several granularities - per generation for the population loop, per block for tier 2 - records the FINEST one it uses, because that is the one that determines whether the run is thread-count independent. Recording a coarser granularity would understate the guarantee; recording per_worker when any finer scheme is in use would overstate the risk." },
-        "deterministic_reduction": { "type": "boolean", "description": "When true, all cross-thread float reductions use a fixed tree order. Costs ~3% throughput and is required for any published result." }
+        "algorithm": {
+          "enum": [
+            "pcg64",
+            "chacha8",
+            "xoshiro256pp"
+          ]
+        },
+        "root_seed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stream_assignment": {
+          "enum": [
+            "per_block_index",
+            "per_individual_index",
+            "per_worker"
+          ],
+          "description": "per_block_index and per_individual_index are thread-count-independent; per_worker is not and is only legal for `fast` tier.\n\nA run that derives streams at several granularities - per generation for the population loop, per block for tier 2 - records the FINEST one it uses, because that is the one that determines whether the run is thread-count independent. Recording a coarser granularity would understate the guarantee; recording per_worker when any finer scheme is in use would overstate the risk."
+        },
+        "deterministic_reduction": {
+          "type": "boolean",
+          "description": "When true, all cross-thread float reductions use a fixed tree order. Costs ~3% throughput and is required for any published result."
+        }
       },
-      "required": ["algorithm", "root_seed", "stream_assignment", "deterministic_reduction"],
+      "required": [
+        "algorithm",
+        "root_seed",
+        "stream_assignment",
+        "deterministic_reduction"
+      ],
       "additionalProperties": false
     },
     "environment": {
       "type": "object",
       "properties": {
-        "codonforge_version": { "$ref": "common.schema.json#/$defs/SemVer" },
-        "git_sha": { "type": "string" },
-        "platform": { "type": "string" },
-        "thread_count": { "type": "integer", "minimum": 1 },
-        "budget_tier": { "$ref": "common.schema.json#/$defs/BudgetTier" }
+        "codonforge_version": {
+          "$ref": "common.schema.json#/$defs/SemVer"
+        },
+        "git_sha": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "thread_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "budget_tier": {
+          "$ref": "common.schema.json#/$defs/BudgetTier"
+        }
       },
-      "required": ["codonforge_version", "budget_tier"],
+      "required": [
+        "codonforge_version",
+        "budget_tier"
+      ],
       "additionalProperties": false
     },
-    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+    "digest": {
+      "$ref": "common.schema.json#/$defs/Sha256Digest",
+      "description": "The digest omits `created_at` as well as itself (`DEP-VER-003`): a document's identity is what it says, not when it was written, and a time-dependent digest makes `replay --assert-identical` impossible."
+    }
   },
-  "required": ["schema_version", "lockfile_id", "created_at", "contract_major", "resolution", "host_profile", "inputs", "rng", "environment", "digest"],
+  "required": [
+    "schema_version",
+    "lockfile_id",
+    "created_at",
+    "contract_major",
+    "resolution",
+    "host_profile",
+    "inputs",
+    "rng",
+    "environment",
+    "digest"
+  ],
   "additionalProperties": false
 }
