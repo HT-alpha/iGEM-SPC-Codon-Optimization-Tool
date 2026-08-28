@@ -237,7 +237,19 @@ Implementation surfaced one schema defect. `resolution[].resolved_by` has always
 
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |
-| `P1-32` | Synthetic suite | `cf-testkit` | `SYN-01` (toy exhaustive), `SYN-04` (planted violations), `SYN-05` (infeasible sets), `SYN-07` (property strategies) | `TST-SYN-001`, `TST-SYN-004` | `P1-06` | M |
+| `P1-32` | Synthetic suite | `cf-testkit` | `SYN-01` (toy exhaustive, **distinct and degenerate**), `SYN-04` (planted violations, **unique / multi-fix / no-single-fix**), `SYN-05` (infeasible sets), `SYN-07` (property strategies) | `TST-SYN-001`, `TST-SYN-004` | `P1-06` | M |
+
+### `P1-32` — ties, and three fixture corrections
+
+**Every generator ships an ambiguous configuration alongside its unambiguous one.** `SYN-01` has a distinct configuration with one optimum and a degenerate one where nine distinct sequences attain the optimum exactly, the count predicted in closed form from the construction rather than read off the enumeration. `SYN-04` has a unique-fix case, a four-equal-fixes case, and a case no single substitution can fix. Without them the suite could not exercise tie-breaking anywhere, which is how a tier-2 determinism fixture passed while block RNG streams were keyed on iteration order.
+
+**`3⁸ = 6 561` needs the reduced table to be doing real work.** Under table 1 only isoleucine is exactly 3-fold degenerate, so a genuine `3⁸` space is not constructible from unrestricted amino acids — and the specification's own worked example (`M-K-R-I-L-D-E-*`) gives 648, not 6 561. The generator restricts eight residues that each have at least three synonyms down to exactly three, with a fixed start and stop, so the design space is over 8 codons and has exactly 6 561 members as `TST-SYN-001` states.
+
+**The `SYN-04` ground truth is computed against the real checker, not asserted**, then checked against the construction. A fixture stating its own answer would only be testing that two hand-written facts agree. That is how the first attempt was caught: a "unique fix" case built by hand had eight.
+
+**`SYN-05`'s backbone case must be `construct`-scoped.** Under `cds` scope the checker never examines the flank, so the planted violation is not detected and the case passes by testing that an unexamined region has no violations. It is included precisely because it must *not* be reported infeasible — non-actionable per `DEP-CONS-002` — and a suite containing only genuine infeasibilities cannot distinguish a correct analyser from one that escalates everything.
+
+**The toy space is solved once, at construction.** The specification claims a 6 561-member space "is enumerable in milliseconds, so this test can run on every commit", and it is — but only if the enumeration happens once. Recomputing it per call turned a caller's `all(score(x) <= optimum_value())` into 43 million scores and 56 seconds, the fixture failing its own stated design goal.
 | `P1-33` | Determinism harness | `cf-search` | Rayon-parallel same-colour block sweep; per-block RNG stream assignment; fixed-order float reduction; the 1/4/16-thread comparison harness | `TST-SRCH-004`, `TST-SRCH-014`, `TST-SRCH-015`, `GATE-DET-001` | `P1-25` | M |
 
 ### `P1-33` — the harness needed something to measure

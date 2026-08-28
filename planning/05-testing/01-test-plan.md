@@ -96,6 +96,8 @@ Two supporting units the architecture implies but does not name, added here beca
 | Id | Tier | Assertion |
 | --- | --- | --- |
 | `TST-SYN-001` | unit | The toy design space (8 codons, ≤3 synonyms, 6 561 sequences) enumerates exhaustively and its exact Pareto front is computable, giving every search test a ground truth. |
+| `TST-SYN-005` | unit | `SYN-01`'s degenerate configuration has several sequences attaining the optimum exactly, with the count predicted from the construction rather than observed. A suite of unambiguous instances cannot exercise tie-breaking, which is where determinism bugs live. |
+| `TST-SYN-006` | unit | `SYN-04` ships a unique-fix case, a several-equal-fixes case and a case no single substitution can fix, with every fix set verified exhaustively against the real checker rather than asserted. |
 | `TST-SYN-002` | unit | The synthetic Potts generator produces sequences whose empirical conditionals match the generating parameters. |
 | `TST-SYN-003` | unit | The two-cistron contention instance has an analytically known joint optimum that is strictly better than the best independent-optimization result. |
 | `TST-SYN-004` | unit | Planted-violation generators produce sequences with exactly the intended violations and a known minimal repair distance. |
