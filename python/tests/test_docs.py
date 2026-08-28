@@ -64,14 +64,42 @@ def test_p1_35_nothing_reintroduces_a_bare_python_venv(docs: dict[str, str]) -> 
         },
     }
 
+    # A mention is fine; a *recommendation* is not. Proximity to the word
+    # "virtualenv" is too weak a test — a paragraph explaining the fallback
+    # would let "use `python3 -m venv`" through on the next line, which is
+    # exactly what a first version of this test did.
+    permitted = (
+        "needs",
+        "requires",
+        "falls back",
+        "fallback",
+        "rather than",
+        "avoid",
+        "never",
+        "bare",
+        "not ",
+        "||",
+    )
+
     for name, text in sources.items():
-        for line_number, line in enumerate(text.splitlines(), 1):
-            if "python3 -m venv" not in line and "python -m venv" not in line:
+        # Prose is checked by sentence and scripts by line. A per-line check on
+        # markdown fails on wrapping — the qualifier that makes a mention a
+        # warning lands on the previous line — while a proximity window is too
+        # weak, since a paragraph explaining the fallback lets a recommendation
+        # through on the next line.
+        if name.endswith(".md"):
+            units = re.split(r"(?<=[.:])\s", " ".join(text.split()))
+        else:
+            units = text.splitlines()
+
+        for unit in units:
+            if "python3 -m venv" not in unit and "python -m venv" not in unit:
                 continue
-            context = "\n".join(text.splitlines()[max(0, line_number - 6) : line_number + 2])
-            assert "virtualenv" in context, (
-                f"{name}:{line_number} uses `python -m venv` with no virtualenv "
-                f"fallback nearby; this is the failure the fallback exists to avoid:\n{line}"
+            lowered = unit.lower()
+            assert any(marker in lowered for marker in permitted), (
+                f"{name} presents `python -m venv` as something to do, rather than "
+                "as a fallback or a warning. It needs `ensurepip`, which is not "
+                f"always installable:\n  {unit.strip()}"
             )
 
 
