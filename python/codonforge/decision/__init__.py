@@ -1,9 +1,13 @@
-"""cf-decision — decision-support layer.
+"""cf-decision — Pareto front post-processing and export.
 
-Pareto front post-processing: probabilistic dominance, robustness scoring, front
-reduction/knee detection, per-position rationale tagging, and export to the ParetoFront
-schema.
+Phase 1 delivers the export half (`P1-30`). Probabilistic dominance, robustness
+scoring and knee detection are `P2-08`'s, and this module does not pretend to
+them: a Phase 1 front is emitted with `reduction.method: "none"` because no
+reduction has been applied, not because none was wanted.
 
 Declared dependencies: cf-types, cf-metrics, cf-landscape-api.
-Contract: planning/02-schemas/pareto_front.schema.json
 """
+
+from .front import build, candidate
+
+__all__ = ["build", "candidate"]

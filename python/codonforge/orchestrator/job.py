@@ -46,7 +46,14 @@ from typing import Any
 from codonforge import _core
 from codonforge.modelreg import ArtifactStore, Lockfile
 
-from .budget import EXECUTED_TIERS, ComputeBudget, TierPlan, TierPlanError, Warning_
+from .budget import (
+    EXECUTED_TIERS,
+    GENERATIONAL_TIER,
+    ComputeBudget,
+    TierPlan,
+    TierPlanError,
+    Warning_,
+)
 
 SCHEMA_VERSION = "1.0.0"
 
@@ -69,6 +76,17 @@ class JobInputs:
     constraint_set: dict[str, Any] = field(default_factory=dict)
     codon_weights: list[float] = field(default_factory=list)
     tabu_leak: float = 0.1
+    #: `host_profile.schema.json` document, for the terms that need one.
+    host_profile: dict[str, Any] = field(default_factory=dict)
+    host_id: str = "escherichia_coli:511145/BL21"
+    host_digest: str = "sha256:" + "0" * 64
+    #: Scalarization coefficients, one per scored term.
+    term_weights: list[float] = field(default_factory=list)
+    #: Tier 1 beam width and seed count; tier 2 block size and sweep cap.
+    tier1_beam: int = 32
+    tier1_seeds: int = 4
+    tier2_block: int = 8
+    tier2_sweeps: int = 4
 
 
 @dataclass
@@ -97,6 +115,10 @@ class Job:
     problem: dict[str, Any] | None = None
     checkpoint: dict[str, Any] | None = None
     generations_run: int = 0
+    #: Per-stage outcome, keyed by tier name. Populated as stages complete.
+    stage_reports: dict[str, Any] = field(default_factory=dict)
+    #: The sequence tiers 1 and 2 produced, handed to the generation loop.
+    seeded_cds: str | None = None
     #: Set to request a clean stop at the next segment boundary.
     cancel_requested: bool = False
 
@@ -215,6 +237,13 @@ class Job:
         self.started_at = _now()
 
         try:
+            # Tiers run in plan order, each crossing the boundary once. They
+            # are skipped on resume: a checkpoint is a state of the generation
+            # loop, and re-seeding a resumed job would discard the very work
+            # the checkpoint exists to preserve.
+            if self.checkpoint is None:
+                self._run_seeding_tiers()
+
             while not self.budget.exhausted:
                 if self.cancel_requested:
                     raise Cancelled()
@@ -223,7 +252,7 @@ class Job:
                 result = json.loads(
                     _core.search_run_segment(
                         json.dumps(self.checkpoint) if self.checkpoint else None,
-                        self.inputs.cds,
+                        self.seeded_cds or self.inputs.cds,
                         self.inputs.translation_table,
                         self.inputs.five_prime_flank,
                         self.inputs.three_prime_flank,
@@ -275,6 +304,80 @@ class Job:
         self.state = "succeeded"
         self.finished_at = _now()
         return self
+
+    def _tier_request(self, cds: str) -> str:
+        """The shared document tiers 1 and 2 both take."""
+        return json.dumps(
+            {
+                "cds": cds,
+                "translation_table": self.inputs.translation_table,
+                "five_prime_flank": self.inputs.five_prime_flank,
+                "three_prime_flank": self.inputs.three_prime_flank,
+                "constraint_set": self.inputs.constraint_set,
+                "host_profile": self.inputs.host_profile,
+                "host_id": self.inputs.host_id,
+                "host_digest": self.inputs.host_digest,
+                "terms": self.plan.scored,
+                "weights": self._weights(),
+                "root_seed": self.root_seed(),
+            }
+        )
+
+    def _weights(self) -> list[float]:
+        """Scalarization coefficients. Magnitudes, deliberately unsigned.
+
+        Tier 1 and tier 2 each read `provider.direction()` and apply the sense
+        multiplier themselves, so the caller supplies magnitudes only. Signing
+        them here as well would apply the direction twice and invert the
+        objective — the search would minimize what the documents said it
+        maximized, and every document would still read correctly, which is
+        exactly the silent inversion `direction` is carried to prevent.
+
+        This is not hypothetical: this method did sign them, and a
+        `minimize` term came out maximized end to end. `TST-CLI-004` pins it.
+        """
+        supplied = self.inputs.term_weights or [1.0] * len(self.plan.scored)
+        if any(weight < 0 for weight in supplied):
+            raise ValueError(
+                "scalarization weights are magnitudes; the tiers apply each term's "
+                "declared direction themselves, so a negative weight applies it twice"
+            )
+        return list(supplied)
+
+    def _run_seeding_tiers(self) -> None:
+        """Run tier 1 and tier 2, in plan order, if the budget includes them."""
+        stages = self.budget.stages()
+        cds = self.inputs.cds
+
+        if "tier1_seed" in stages:
+            report = json.loads(
+                _core.search_tier1_seed(
+                    self._tier_request(cds),
+                    self.inputs.tier1_beam,
+                    self.inputs.tier1_seeds,
+                )
+            )
+            if report["seeds"]:
+                # Best surrogate first, and tier 1 already returns them in that
+                # order. Taking [0] rather than re-sorting avoids introducing a
+                # tie-break this layer would have to define.
+                cds = _cds_of(report["seeds"][0])
+            self.stage_reports["tier1_seed"] = report
+            self._absorb_warnings(report.get("warnings", []))
+
+        if "tier2_block_ca" in stages:
+            report = json.loads(
+                _core.search_tier2_polish(
+                    self._tier_request(cds),
+                    self.inputs.tier2_block,
+                    self.inputs.tier2_sweeps,
+                )
+            )
+            cds = _cds_of(report["incumbent"])
+            self.stage_reports["tier2_block_ca"] = report
+            self._absorb_warnings(report.get("warnings", []))
+
+        self.seeded_cds = cds
 
     def _absorb_warnings(self, incoming: list[dict[str, Any]]) -> None:
         """Add warnings the engine produced, without duplicating them.
@@ -387,17 +490,38 @@ class Job:
         return document
 
     def _progress(self) -> dict[str, Any]:
-        """Per-tier progress, reporting unrun tiers as skipped rather than done."""
+        """Per-tier progress: one entry per planned tier, each reporting itself.
+
+        Structured rather than a flat pair of counters because the tiers are
+        not interchangeable. A job that ran tier 1 and skipped tier 2 and one
+        that ran both are different outcomes, and a single percentage cannot
+        say which happened.
+
+        Only `tier3_moea` carries generation counters, because only it counts
+        in generations. Tier 1 runs once and tier 2 runs sweeps, and reporting
+        the loop's generation count against them would state something untrue
+        about work they did not do — the mirror image of flattening.
+        """
         running = self.state == "running"
         tiers = []
         for tier in self.budget.stages():
             if tier not in EXECUTED_TIERS:
                 tiers.append({"tier": tier, "state": "skipped"})
                 continue
-            if self.state in ("succeeded",):
+
+            if tier in self.stage_reports:
+                tiers.append({"tier": tier, "state": "done", "fraction": 1.0})
+                continue
+
+            if tier != GENERATIONAL_TIER:
+                # Planned, executable, and not yet reached.
+                tiers.append({"tier": tier, "state": "running" if running else "pending"})
+                continue
+
+            if self.state == "succeeded":
                 state = "done"
-            elif self.generations_run > 0 or running:
-                state = "running" if running else "pending"
+            elif running:
+                state = "running"
             else:
                 state = "pending"
             tiers.append(
@@ -413,14 +537,21 @@ class Job:
                     ),
                 }
             )
+
         current = "none"
         if running:
-            current = EXECUTED_TIERS[0]
+            unfinished = [t["tier"] for t in tiers if t["state"] in ("running", "pending")]
+            current = unfinished[0] if unfinished else "none"
         return {"current_tier": current, "tiers": tiers}
 
     def warnings_from(self, stage: str) -> list[dict[str, Any]]:
         """Warnings a given stage produced. `DEP-ORCH-001`'s whole point."""
         return [w for w in self.warnings if w.get("stage") == stage]
+
+
+def _cds_of(document: dict[str, Any]) -> str:
+    """The coding sequence out of a `sequence.schema.json` document."""
+    return str(document["cds"])
 
 
 def _now() -> str:

@@ -39,3 +39,4 @@ cf-types = { path = "../cf-types" }
 cf-constraints = { path = "../cf-constraints" }
 cf-landscape-api = { path = "../cf-landscape-api" }
 cf-search = { path = "../cf-search" }
+cf-landscape = { path = "../cf-landscape" }

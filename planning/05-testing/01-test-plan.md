@@ -216,6 +216,8 @@ Two supporting units the architecture implies but does not name, added here beca
 | `TST-API-003` | integration | Tenancy: tenant A cannot read, pin or replay any tenant-B resource. Enumerates every endpoint. |
 | `TST-API-004` | unit | Every error path returns `application/problem+json` with a documented `code`. |
 | `TST-CLI-001` | integration | REST, CLI and library produce identical lockfiles and fronts for a corpus of requests under a fixed seed. |
+| `TST-CLI-003` | integration | The assembled pipeline runs the tiers the budget planned: `tier1_seed` and `tier2_block_ca` report `done`, not `skipped`, and no `CF-ORCH-006` warning names them. `TST-CLI-001`'s three-way equivalence cannot catch this - all three surfaces share one orchestrator, so three surfaces that all skip a tier agree perfectly. |
+| `TST-CLI-004` | integration | Objective direction survives end to end: `pareto_front.objective_sense` matches what each provider declared, for a mix of `minimize` and `maximize` terms. A defaulted direction inverts the objective in the document a user reads while the search did the opposite. |
 | `TST-CLI-002` | unit | Exit codes match the documented table, in particular that infeasible constraints exit `3` and not `1`. |
 | `TST-BEN-001` | integration | The benchmark harness reproduces a stored reference result exactly from its lockfile. |
 | `TST-BEN-002` | unit | The harness refuses to compare fronts computed at different budget tiers or with different lockfiles. |

@@ -19,6 +19,10 @@ The library entry point takes a `DesignJobRequest` — the *same* object the RES
 
 `TST-CLI-001` asserts the equivalence directly: for a corpus of requests, `codonforge design --json <req>`, `POST /v1/jobs`, and `codonforge.design(**req)` produce identical lockfiles and identical fronts under a fixed seed.
 
+**Equivalence is necessary and not sufficient, and `TST-CLI-001` alone is not enough.** All three surfaces share one orchestrator, so three surfaces that all skip a tier agree perfectly and the test passes. `TST-CLI-003` therefore asserts separately that the pipeline *ran* what the budget planned: a job configured for tier 1 and tier 2 must report them `done` rather than `skipped`, and the `CF-ORCH-006` warnings naming them must be absent. Their disappearance is the evidence the wiring is real; their presence in `P1-29` was the evidence it was not.
+
+**What a Phase 1 front is.** `front` and `explain` presuppose a populated Pareto front, and the population loop that produces one is `P2-02`/`P2-03`. Phase 1 emits a schema-valid `pareto_front` document with the candidates the assembled tier-1/tier-2 pipeline produced and `reduction: "none"`. The document shape, the objective order and the objective senses are real and end-to-end; the multi-objective content is not, and a single-objective job yields a front of one. `DEP-CLI-003` records this so the verb is not mistaken for the full capability.
+
 ---
 
 ## 2. Library
@@ -47,7 +51,7 @@ result.explain("cand_a1b2c3d4")   # rendered per-position rationale
 
 Three properties the library must have and the REST surface cannot provide:
 
-- **Synchronous by default.** A researcher in a notebook wants a blocking call. `cf.design(..., background=True)` returns a handle for the async case.
+- **Synchronous by default.** A researcher in a notebook wants a blocking call. `cf.design(..., background=True)` returns a handle for the async case — `DEP-CLI-004`: not in Phase 1. Background execution needs the worker pool `cf-orchestrator` is declared to own and `P1-29` did not build; `background=True` raises `CF-CLI-003` naming that gap rather than running synchronously while claiming otherwise, which would make every timing assumption in the calling code wrong.
 - **In-process execution.** No server, no network, no daemon. `cf.design` drives the same Rust core directly through `codonforge._core`.
 - **Every intermediate is reachable.** `cf.landscape.score(...)`, `cf.constraints.analyse(...)`, `cf.search.tier2(...)` are public. A methods paper needs to run one layer in isolation, and forcing that through a REST API would be absurd.
 
@@ -57,6 +61,8 @@ Three properties the library must have and the REST surface cannot provide:
 
 ```
 codonforge design      --host H (--protein P | --cds F | --construct F) [options]
+                       [--seed N] [--budget fast|standard|exact]
+                       [--checkpoint-dir D] [--resume]
 codonforge score       --host H --cds F --terms T,...
 codonforge feasibility --construct F --constraints F
 codonforge seeds import --tool lineardesign --target-protein P --input F
@@ -80,6 +86,8 @@ codonforge serve       [--port 8080]
 | Exit codes: `0` success, `1` design failed, `2` invalid input, `3` infeasible constraints, `4` quota/budget, `5` internal | An infeasible constraint set is not a crash and must be distinguishable in a script. |
 | Every error prints the same `CF-*` code the API returns | One vocabulary across surfaces; searching the code finds the same documentation. |
 | `--seed` and `--lockfile` on `design` | Reproducibility is a flag away, not a research project. |
+| `--checkpoint-dir` and `--resume` on `design` | `DEP-CLI-001`. `P1-29` delivers checkpoint/resume and this document had no way to reach it, so the capability existed with no user-facing surface. `--resume` continues from the checkpoint in `--checkpoint-dir` for the same job id, refusing a checkpoint written under a different lockfile rather than silently changing which artifacts produced the numbers. |
+| `SIGINT` cancels at the next segment boundary | `DEP-CLI-002`. `P1-29`'s cancellation is cooperative and checked between segments; a blocking CLI call had no specified way to request it. The first `SIGINT` sets the flag and the job stops cleanly with a checkpoint, exiting `0` with `state: cancelled`. A second `SIGINT` aborts immediately, because a user pressing it twice has stopped asking politely — the checkpoint from the last completed segment is still on disk, so nothing is lost that was not already unwritten. |
 
 ### 3.2 `codonforge replay`
 

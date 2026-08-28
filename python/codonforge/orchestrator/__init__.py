@@ -17,10 +17,16 @@ cf-constraints, cf-decision, cf-modelreg.
 """
 
 from .budget import ComputeBudget, TierPlan, TierPlanError, Warning_
+from .design import BUILTIN_TERMS, DesignError, DesignRequest, DesignResult, design
 from .job import Cancelled, Job, JobInputs
 
 __all__ = [
+    "BUILTIN_TERMS",
     "Cancelled",
+    "DesignError",
+    "DesignRequest",
+    "DesignResult",
+    "design",
     "ComputeBudget",
     "Job",
     "JobInputs",

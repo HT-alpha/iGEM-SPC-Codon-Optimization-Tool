@@ -46,3 +46,15 @@ def core_version() -> str:
             "a released wheel, which ships the core prebuilt."
         ) from exc
     return _core.version()
+
+
+def design(*args, **kwargs):
+    """`cf.design(...)` — the documented library entry point.
+
+    Imported lazily so that `import codonforge` stays cheap and so that the
+    top-level package does not pull the whole orchestration stack in for a
+    caller who only wanted `_core`.
+    """
+    from codonforge.orchestrator import design as _design
+
+    return _design(*args, **kwargs)

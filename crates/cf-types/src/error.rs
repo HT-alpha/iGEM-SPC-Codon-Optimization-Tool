@@ -104,6 +104,11 @@ codes! {
     SRCH_TIER2_CONFIG      => ("CF-SRCH-009", 422, "Tier 2 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
     SRCH_TIER2_TERM_DROPPED => ("CF-SRCH-010", 200, "A term was dropped from tier 2 because it cannot be scored incrementally", "planning/04-api/04-model-resolution.md"),
 
+    // ---- CF-CLI: command line and library surface --------------------------
+    CLI_BAD_ARGUMENTS      => ("CF-CLI-001", 400, "Command-line arguments are missing or malformed", "planning/04-api/02-cli-and-library.md"),
+    CLI_EMPTY_FRONT        => ("CF-CLI-002", 200, "The job produced no candidates", "planning/02-schemas/pareto_front.schema.json"),
+    CLI_NOT_IN_PHASE_1     => ("CF-CLI-003", 501, "A requested surface needs a capability this build does not have", "planning/04-api/02-cli-and-library.md"),
+
     // ---- CF-ORCH: job lifecycle --------------------------------------------
     ORCH_CHECKPOINT_INVALID => ("CF-ORCH-001", 422, "Checkpoint document is malformed", "planning/06-build/01-phase-1-tickets.md"),
     ORCH_BUDGET_EXHAUSTED  => ("CF-ORCH-002", 200, "Compute budget was exhausted before the tier plan completed", "planning/07-decisions/ADR-0008-compute-budget-and-scaling.md"),

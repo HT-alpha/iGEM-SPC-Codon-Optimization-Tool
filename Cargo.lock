@@ -79,6 +79,7 @@ name = "cf-pyext"
 version = "0.1.0"
 dependencies = [
  "cf-constraints",
+ "cf-landscape",
  "cf-landscape-api",
  "cf-search",
  "cf-types",

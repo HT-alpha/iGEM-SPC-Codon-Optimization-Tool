@@ -33,6 +33,8 @@ fn to_py_err(err: cf_types::CfError) -> PyErr {
 }
 
 /// Version of the compiled core.
+mod pipeline;
+
 #[pyfunction]
 fn version() -> &'static str {
     cf_types::VERSION
@@ -322,6 +324,103 @@ fn operator_subject(detail: &str) -> String {
         .to_string()
 }
 
+/// Run tier 1 seeding. `P1-30`.
+#[pyfunction]
+#[pyo3(signature = (request_json, beam, seeds))]
+fn search_tier1_seed(request_json: &str, beam: usize, seeds: usize) -> PyResult<String> {
+    with_tier_inputs(request_json, |inputs| {
+        pipeline::run_tier1(inputs, beam, seeds)
+    })
+}
+
+/// Run tier 2 block coordinate ascent. `P1-30`.
+#[pyfunction]
+#[pyo3(signature = (request_json, block, sweeps))]
+fn search_tier2_polish(request_json: &str, block: usize, sweeps: u32) -> PyResult<String> {
+    with_tier_inputs(request_json, |inputs| {
+        pipeline::run_tier2(inputs, block, sweeps)
+    })
+}
+
+/// The optimization direction each requested term declares. `P1-30`.
+///
+/// Exposed so the job layer can populate `resolved_objectives[].direction` and
+/// `pareto_front.objective_sense` from the providers rather than from a
+/// default, and so that a `minimize` term is never silently reported as
+/// maximized.
+#[pyfunction]
+fn term_directions(request_json: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, pipeline::declared_directions)
+}
+
+/// Score a sequence on each requested term. `P1-30`.
+#[pyfunction]
+fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, |inputs| pipeline::score_terms(inputs, cds))
+}
+
+/// Decode the shared tier request document and hand it to a runner.
+fn with_tier_inputs(
+    request_json: &str,
+    run: impl FnOnce(&pipeline::TierInputs<'_>) -> cf_types::Result<serde_json::Value>,
+) -> PyResult<String> {
+    let request: serde_json::Value =
+        serde_json::from_str(request_json).map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let field = |name: &str| -> PyResult<&serde_json::Value> {
+        request
+            .get(name)
+            .ok_or_else(|| PyValueError::new_err(format!("tier request is missing {name}")))
+    };
+    let text = |name: &str| -> PyResult<&str> {
+        field(name)?
+            .as_str()
+            .ok_or_else(|| PyValueError::new_err(format!("{name} must be a string")))
+    };
+
+    let (cds, five, three) = (
+        text("cds")?,
+        text("five_prime_flank")?,
+        text("three_prime_flank")?,
+    );
+    let sequence = CodonSequence::from_cds(
+        cds,
+        field("translation_table")?.as_u64().unwrap_or(11) as u8,
+    )
+    .and_then(|s| s.with_five_prime_flank(five))
+    .and_then(|s| s.with_three_prime_flank(three))
+    .map_err(to_py_err)?;
+
+    let constraint_set = ConstraintSet::from_json(field("constraint_set")?).map_err(to_py_err)?;
+    let checker = ConstraintChecker::compile(&constraint_set).map_err(to_py_err)?;
+
+    let terms: Vec<String> = field("terms")?
+        .as_array()
+        .ok_or_else(|| PyValueError::new_err("terms must be an array"))?
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect();
+    let weights: Vec<f64> = field("weights")?
+        .as_array()
+        .ok_or_else(|| PyValueError::new_err("weights must be an array"))?
+        .iter()
+        .filter_map(serde_json::Value::as_f64)
+        .collect();
+
+    let value = run(&pipeline::TierInputs {
+        sequence: &sequence,
+        checker: &checker,
+        constraint_set: &constraint_set,
+        host_profile: field("host_profile")?,
+        terms: &terms,
+        weights: &weights,
+        host_id: text("host_id")?,
+        host_digest: text("host_digest")?,
+        root_seed: field("root_seed")?.as_u64().unwrap_or(0),
+    })
+    .map_err(to_py_err)?;
+    Ok(value.to_string())
+}
+
 fn parse_masking(masking: &str) -> PyResult<KmerMasking> {
     match masking {
         "assembled" => Ok(KmerMasking::Assembled),
@@ -417,5 +516,9 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(legacy_prefix_accepts, m)?)?;
     m.add_function(wrap_pyfunction!(baseline_backtracking, m)?)?;
     m.add_function(wrap_pyfunction!(search_run_segment, m)?)?;
+    m.add_function(wrap_pyfunction!(search_tier1_seed, m)?)?;
+    m.add_function(wrap_pyfunction!(search_tier2_polish, m)?)?;
+    m.add_function(wrap_pyfunction!(term_directions, m)?)?;
+    m.add_function(wrap_pyfunction!(term_scores, m)?)?;
     Ok(())
 }

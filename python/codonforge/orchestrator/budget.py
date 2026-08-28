@@ -34,16 +34,25 @@ TIER_PLAN: dict[str, tuple[str, ...]] = {
     "exact": ("tier1_seed", "tier2_block_ca", "tier3_moea", "decision"),
 }
 
-#: Tiers the job runner actually executes today.
+#: Tiers the job runner actually executes.
 #:
-#: `P1-29` delivers the lifecycle — budget, RNG plan, checkpoint, cancel — and
-#: drives the mutation/repair generation loop. Tier 1 and tier 2 exist in
-#: `cf-search` and are not yet wired into a job; `P1-30`'s `design` command is
-#: where the full pipeline is assembled. A job that skipped them silently while
-#: reporting success would be the worst of the available options, so the tiers
-#: it does not run are reported as `skipped` with a `CF-ORCH-006` warning
-#: naming what is missing.
-EXECUTED_TIERS: tuple[str, ...] = ("tier3_moea",)
+#: `P1-29` delivered the lifecycle and drove the generation loop alone, so tier
+#: 1 and tier 2 were reported `skipped` with a `CF-ORCH-006` warning naming what
+#: was missing rather than reporting success over less search than the plan
+#: described. `P1-30` assembles them, and those warnings disappearing for a job
+#: that runs them is the evidence the wiring is real rather than merely present
+#: - which is what `TST-CLI-003` asserts.
+#:
+#: `decision` remains unassembled: the reduction and knee-selection it names are
+#: `cf-decision`'s and belong to `P2-08`. An `exact` job still warns about it.
+EXECUTED_TIERS: tuple[str, ...] = ("tier1_seed", "tier2_block_ca", "tier3_moea")
+
+#: The only tier whose progress is denominated in generations.
+#:
+#: Tier 1 runs once and tier 2 runs sweeps, so reporting the loop's
+#: generation count against them would state something untrue about work
+#: they did not do.
+GENERATIONAL_TIER = "tier3_moea"
 
 
 @dataclass
