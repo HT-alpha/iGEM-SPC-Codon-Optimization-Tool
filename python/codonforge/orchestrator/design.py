@@ -18,7 +18,6 @@ test is `TST-CLI-003`, which asserts the pipeline *ran* what the budget planned.
 from __future__ import annotations
 
 import json
-import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -141,8 +140,17 @@ def design(
             exit_code=2,
         )
 
-    job_id = request.job_id or f"job_{uuid.uuid4().hex[:26].upper()}"
-    lockfile = _seal(request, store)
+    job_id = request.job_id or _derived_id("job", request.to_json())
+
+    # On resume the lockfile comes out of the checkpoint, never from a fresh
+    # resolution. Re-sealing would re-resolve, and a resumed job that
+    # re-resolved would observe any artifact promoted while it was stopped -
+    # reintroducing at this layer the hazard P1-29 closed at the one below.
+    resumed_document = _resume_document(request, job_id) if request.resume else None
+    if resumed_document is not None and "lockfile" in resumed_document:
+        lockfile = Lockfile.from_json(resumed_document["lockfile"])
+    else:
+        lockfile = _seal(request, store)
 
     # Directions come from the providers, through the same registry the tiers
     # build. Never defaulted: a term declared `minimize` and reported as
@@ -179,18 +187,29 @@ def design(
         checkpoint_dir=Path(request.checkpoint_dir) if request.checkpoint_dir else None,
     )
 
-    if request.resume:
-        path = job.checkpoint_path()
-        if path is None or not path.exists():
-            raise DesignError(
-                "CF-ORCH-001",
-                f"--resume was given but no checkpoint exists for {job_id}",
-                exit_code=2,
-            )
-        job.resume(Job.load_checkpoint(path))
+    if resumed_document is not None:
+        job.resume(resumed_document)
 
     job.run(on_segment=on_segment)
     return DesignResult(job=job, front=_front(job, request, directions))
+
+
+def _resume_document(request: DesignRequest, job_id: str) -> dict[str, Any]:
+    """Load the checkpoint `--resume` names, or say why it cannot."""
+    if not request.checkpoint_dir:
+        raise DesignError(
+            "CF-CLI-001",
+            "--resume needs --checkpoint-dir; there is nowhere to resume from",
+            exit_code=2,
+        )
+    path = Path(request.checkpoint_dir) / f"{job_id}.checkpoint.json"
+    if not path.exists():
+        raise DesignError(
+            "CF-ORCH-001",
+            f"--resume was given but no checkpoint exists at {path}",
+            exit_code=2,
+        )
+    return Job.load_checkpoint(path)
 
 
 def _directions_request(request: DesignRequest) -> str:
@@ -211,6 +230,34 @@ def _directions_request(request: DesignRequest) -> str:
     )
 
 
+#: Crockford base32, the alphabet ULIDs use: no I, L, O or U.
+_CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+def _derived_id(prefix: str, material: str) -> str:
+    """A ULID-shaped id that is a function of the request, not of the clock.
+
+    Random ids made `--resume` impossible and `TST-CLI-001` unsatisfiable at
+    once: a resumed job could never match the lockfile digest it checkpointed
+    under, and three surfaces running the same request would produce three
+    different lockfiles by construction. Deriving them from the request means
+    the same request names the same job, which is what both features assume.
+
+    The trade is that two genuinely separate submissions of an identical
+    request share an id. That is the correct reading here — they are the same
+    computation, they resolve the same artifacts, and they produce the same
+    answer. When jobs need to be distinguished for reasons other than their
+    content, the caller passes `job_id`.
+    """
+    digest = _core.digest_json(json.dumps({"id": material}), None)
+    value = int(digest.split(":")[1], 16)
+    out = []
+    for _ in range(26):
+        out.append(_CROCKFORD[value % 32])
+        value //= 32
+    return f"{prefix}_" + "".join(reversed(out))
+
+
 def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
     """Pin the landscape before any search work. `TST-ORCH-001`."""
     entries = resolve(
@@ -223,7 +270,7 @@ def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
     )
     return seal(
         entries,
-        lockfile_id=f"lock_{uuid.uuid4().hex[:26].upper()}",
+        lockfile_id=_derived_id("lock", request.to_json()),
         contract_major=1,
         host_profile={
             "host_id": request.host,
@@ -272,7 +319,7 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
 
     return front_module.build(
         job_id=job.job_id,
-        front_id=f"front_{uuid.uuid4().hex[:24]}",
+        front_id=_derived_id("front", f"{job.job_id}:{cds}"),
         lockfile_digest=job.lockfile.digest or "",
         objective_order=list(job.plan.scored),
         objective_sense=[directions[t] for t in job.plan.scored],

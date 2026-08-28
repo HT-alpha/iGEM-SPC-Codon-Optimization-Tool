@@ -69,7 +69,6 @@ def build(
             "hypervolume_normalized": None,
             "n_feasible": sum(1 for c in candidates if c["constraint_report"]["feasible"]),
             "n_evaluations": n_evaluations,
-            "wall_seconds": None,
             "budget_tier": budget_tier,
             "termination_reason": termination_reason,
         },

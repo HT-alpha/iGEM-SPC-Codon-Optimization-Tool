@@ -419,8 +419,22 @@ class Job:
                 {
                     "job_id": self.job_id,
                     "lockfile_digest": self.lockfile.digest,
+                    # The lockfile itself, not just its digest. A resumed job
+                    # that re-resolved would pick up any artifact promoted
+                    # while it was stopped - which is the exact thing being
+                    # checkpointed makes possible, and the exact thing pinning
+                    # at submission exists to prevent. Carrying the sealed
+                    # document means resume replays digests instead.
+                    "lockfile": self.lockfile.to_json(),
                     "generations_run": self.generations_run,
                     "budget_consumed": self.budget.consumed,
+                    # What the seeding tiers did, and what they produced. A
+                    # resumed job does not re-run them, so recomputing
+                    # provenance from what this invocation happened to execute
+                    # would report a candidate tier 2 produced as having come
+                    # straight from the input.
+                    "stage_reports": self.stage_reports,
+                    "seeded_cds": self.seeded_cds,
                     "state": self.checkpoint,
                 },
                 indent=2,
@@ -451,6 +465,8 @@ class Job:
         self.checkpoint = checkpoint_document["state"]
         self.generations_run = int(checkpoint_document["generations_run"])
         self.budget.consumed = int(checkpoint_document["budget_consumed"])
+        self.stage_reports = checkpoint_document.get("stage_reports", {})
+        self.seeded_cds = checkpoint_document.get("seeded_cds")
         return self
 
     @classmethod

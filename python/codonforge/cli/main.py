@@ -248,15 +248,26 @@ def _probe(term: str) -> str:
 def _feasibility(args: argparse.Namespace) -> int:
     report = json.loads(
         _core.constraint_violations(
-            args.cds, args.translation_table, "", "", json.dumps(_load(args.constraints))
+            json.dumps(_load(args.constraints, _EMPTY_CONSTRAINTS)),
+            args.cds,
+            [(0, len(args.cds))],
+            "assembled",
         )
     )
+    violations = report["violations"]
     if args.output == "json":
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
-        for violation in report:
-            print(f"{violation.get('constraint_id', '?')}  {violation.get('detail', '')}")
-    return EXIT_INFEASIBLE if report else EXIT_OK
+        for violation in violations:
+            mark = "actionable" if violation["actionable"] else "locked"
+            print(f"{violation['constraint_id']}  [{mark}]  {violation['detail']}")
+        for note in report["undetectable"]:
+            print(f"undetectable: {note}")
+    # Exit 3 only for violations the design could actually have avoided. A
+    # violation confined to immutable sequence is a property of the input, not
+    # a failure of the constraint set, and DEP-CONS-002 draws that line
+    # everywhere else too.
+    return EXIT_INFEASIBLE if any(v["actionable"] for v in violations) else EXIT_OK
 
 
 def _show(path: Path, args: argparse.Namespace) -> int:
