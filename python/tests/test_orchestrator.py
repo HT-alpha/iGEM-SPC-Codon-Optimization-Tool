@@ -39,10 +39,15 @@ def constraint_set() -> dict:
                 "id": "no_cgcagc",
                 "class": "blocking",
                 "scope": "construct",
+                # Both strands, deliberately. On the sense strand alone this
+                # motif never arose, repair never fired, and the tabu ledger
+                # was empty for every generation of every test here - so the
+                # assertions about the checkpoint carrying it were vacuous.
+                # Found by a negative control that did not fire.
                 "rule": {
                     "kind": "forbidden_motif",
                     "motif": "CGCAGC",
-                    "strand": "sense",
+                    "strand": "both",
                     "max_occurrences": 0,
                 },
             }
@@ -255,20 +260,28 @@ def test_tst_orch_002_a_resumed_run_matches_an_uninterrupted_one(
     assert uninterrupted.state == "succeeded"
     assert uninterrupted.generations_run == 12
 
+    # The fixture must exercise repair, or the claims about the checkpoint
+    # carrying the tabu ledger across a resume are about an empty list.
+    assert uninterrupted.checkpoint["repairs_attempted"] > 0, "repair never fired"
+
     # Stop after the first segment.
-    stopped = make_job(store, tmp_path / "b", total=12, segment=4)
+    stopped = make_job(store, tmp_path / "b", total=12, segment=3)
 
     def cancel_after_first(job: Job) -> None:
-        if job.generations_run >= 4:
+        if job.generations_run >= 3:
             job.cancel_requested = True
 
     stopped.run(on_segment=cancel_after_first)
     assert stopped.state == "cancelled"
-    assert stopped.generations_run == 4
+    assert stopped.generations_run == 3
+    assert stopped.checkpoint["tabu"], (
+        "the tabu ledger is empty at the checkpoint boundary, so resuming with it "
+        "and resuming without it would be the same thing"
+    )
 
     # Resume from the persisted checkpoint into a fresh job object.
     document = Job.load_checkpoint(stopped.checkpoint_path())
-    resumed = make_job(store, tmp_path / "b", total=12, segment=4).resume(document)
+    resumed = make_job(store, tmp_path / "b", total=12, segment=3).resume(document)
     resumed.run()
 
     assert resumed.state == "succeeded"
@@ -283,6 +296,7 @@ def test_tst_orch_002_the_history_is_identical_generation_by_generation(
 ) -> None:
     """Not just the endpoint: every generation must match."""
     straight = make_job(store, tmp_path / "a", total=9, segment=9).run()
+    assert straight.checkpoint["repairs_attempted"] > 0, "repair never fired"
 
     piecewise = make_job(store, tmp_path / "b", total=9, segment=3)
     for _ in range(3):
@@ -335,6 +349,7 @@ def test_p1_29_cancellation_stops_cleanly_and_leaves_a_usable_state(
     assert document["state"] == job.checkpoint
     assert document["state"]["generation"] == 3
     assert len(document["state"]["history"]) == 3
+    assert document["state"]["tabu"], "a checkpoint with an empty ledger proves nothing"
 
     status = job.status()
     assert status["state"] == "cancelled"
