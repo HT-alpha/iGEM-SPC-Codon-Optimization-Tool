@@ -93,6 +93,7 @@ dependencies = [
  "cf-constraints",
  "cf-landscape-api",
  "cf-types",
+ "serde_json",
 ]
 
 [[package]]

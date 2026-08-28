@@ -189,7 +189,7 @@ Two supporting units the architecture implies but does not name, added here beca
 | Id | Tier | Assertion |
 | --- | --- | --- |
 | `TST-ORCH-001` | integration | The lockfile is sealed before any search work begins, and no query in the job resolves outside it. |
-| `TST-ORCH-002` | integration | Checkpoint/resume: a job killed mid-tier-3 resumes to a bit-identical final front. |
+| `TST-ORCH-002` | integration | Checkpoint/resume: a job killed mid-run resumes to a bit-identical result. Compared against an *uninterrupted run of the same seed plan*, state for state — incumbent, tabu ledger and per-generation history — not against itself. A resume that restarted its RNG stream counter at zero would be perfectly reproducible against itself and quietly different from an uninterrupted run, and a final-state comparison would also miss a run that diverged and reconverged. |
 | `TST-ORCH-003` | integration | `codonforge replay --assert-identical` reproduces a front exactly. |
 
 ### `cf-active`

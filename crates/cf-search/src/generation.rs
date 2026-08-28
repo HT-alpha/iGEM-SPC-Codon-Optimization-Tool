@@ -75,6 +75,15 @@ pub struct GenerationConfig {
     /// K-mer masking, forwarded to repair. Legacy parity per EXIT-001/EXIT-002;
     /// not this ticket's default to change.
     pub masking: KmerMasking,
+    /// Absolute index of the first generation this call runs.
+    ///
+    /// Non-zero when resuming. Streams are derived from the *absolute* index,
+    /// so generation `k` sees the same randomness whether it is the first
+    /// generation of a resumed segment or the fiftieth of an uninterrupted run.
+    /// A counter that restarted at zero on resume would make a resumed job
+    /// diverge from an uninterrupted one while both looked reproducible —
+    /// each is reproducible against itself.
+    pub first_generation: u32,
 }
 
 impl GenerationConfig {
@@ -116,6 +125,11 @@ pub struct GenerationReport {
     pub repairs_attempted: u64,
     pub repairs_succeeded: u64,
     pub gave_up: Vec<GiveUp>,
+    /// Live tabu entries when the run stopped, for a checkpoint to carry.
+    ///
+    /// The ledger holds state across generations by design, so a resume that
+    /// dropped it would re-propose exactly the moves repair had just reverted.
+    pub tabu_snapshot: Vec<(usize, usize, cf_types::Codon, u32)>,
 }
 
 impl GenerationReport {
@@ -133,26 +147,40 @@ impl GenerationReport {
     }
 }
 
+/// Everything one run of the cycle needs.
+///
+/// A struct rather than eight parameters, matching `Tier1Request` and
+/// `Tier2Request`: the `&`-shaped arguments in the middle were positionally
+/// interchangeable, and a caller that swapped two of them would find out at
+/// runtime if at all.
+#[derive(Clone, Copy)]
+pub struct GenerationRequest<'a> {
+    pub start: &'a Genotype,
+    pub checker: &'a ConstraintChecker,
+    pub mix: &'a OperatorMix,
+    pub weights: &'a CodonWeights,
+    pub config: &'a GenerationConfig,
+    pub root_seed: u64,
+}
+
+impl std::fmt::Debug for GenerationRequest<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GenerationRequest")
+            .field("generations", &self.config.generations)
+            .field("first_generation", &self.config.first_generation)
+            .field("root_seed", &self.root_seed)
+            .finish()
+    }
+}
+
 /// Run the mutation/repair cycle.
 ///
 /// One generation is: propose → apply → check → repair if needed → **tick**.
 pub fn run_generations(
-    start: &Genotype,
-    checker: &ConstraintChecker,
-    mix: &OperatorMix,
-    weights: &CodonWeights,
-    config: &GenerationConfig,
-    root_seed: u64,
+    request: &GenerationRequest<'_>,
+    resume_from: Option<TabuLedger>,
 ) -> Result<GenerationReport> {
-    run_generations_with_objective(
-        start,
-        checker,
-        mix,
-        weights,
-        config,
-        root_seed,
-        &NoObjective,
-    )
+    run_generations_with_objective(request, &NoObjective, resume_from)
 }
 
 /// As [`run_generations`], with an objective for repair to prefer cheap fixes.
@@ -161,26 +189,32 @@ pub fn run_generations(
 /// `cf-constraints` inverts that dependency deliberately (see `ObjectiveDelta`),
 /// and the loop has no business re-coupling them.
 pub fn run_generations_with_objective(
-    start: &Genotype,
-    checker: &ConstraintChecker,
-    mix: &OperatorMix,
-    weights: &CodonWeights,
-    config: &GenerationConfig,
-    root_seed: u64,
+    request: &GenerationRequest<'_>,
     objective: &dyn ObjectiveDelta,
+    resume_from: Option<TabuLedger>,
 ) -> Result<GenerationReport> {
+    let GenerationRequest {
+        start,
+        checker,
+        mix,
+        weights,
+        config,
+        root_seed,
+    } = *request;
     let mut incumbent = start.clone();
-    let mut ledger = TabuLedger::new(config.tabu_leak);
+    let mut ledger = resume_from.unwrap_or_else(|| TabuLedger::new(config.tabu_leak));
     let mut history = Vec::with_capacity(config.generations as usize);
     let mut repairs_attempted = 0u64;
     let mut repairs_succeeded = 0u64;
     let mut gave_up = Vec::new();
 
-    for generation in 0..config.generations {
+    let first = config.first_generation;
+    for generation in first..first + config.generations {
         // A stream per generation, derived rather than drawn, so generation `g`
-        // sees the same stream whatever ran before it. `SearchRng::stream` goes
-        // through `SearchRng::new`, which is injective — the property the
-        // `seed | 1` defect violated.
+        // sees the same stream whatever ran before it — including whether
+        // anything ran before it at all. `SearchRng::stream` goes through
+        // `SearchRng::new`, which is injective: the property the `seed | 1`
+        // defect violated.
         let mut rng = SearchRng::stream(root_seed, u64::from(generation));
 
         let construct = assemble(&incumbent);
@@ -265,6 +299,7 @@ pub fn run_generations_with_objective(
         repairs_attempted,
         repairs_succeeded,
         gave_up,
+        tabu_snapshot: ledger.entries().collect(),
     })
 }
 

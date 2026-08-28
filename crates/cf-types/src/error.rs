@@ -104,6 +104,14 @@ codes! {
     SRCH_TIER2_CONFIG      => ("CF-SRCH-009", 422, "Tier 2 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
     SRCH_TIER2_TERM_DROPPED => ("CF-SRCH-010", 200, "A term was dropped from tier 2 because it cannot be scored incrementally", "planning/04-api/04-model-resolution.md"),
 
+    // ---- CF-ORCH: job lifecycle --------------------------------------------
+    ORCH_CHECKPOINT_INVALID => ("CF-ORCH-001", 422, "Checkpoint document is malformed", "planning/06-build/01-phase-1-tickets.md"),
+    ORCH_BUDGET_EXHAUSTED  => ("CF-ORCH-002", 200, "Compute budget was exhausted before the tier plan completed", "planning/07-decisions/ADR-0008-compute-budget-and-scaling.md"),
+    ORCH_CANCELLED         => ("CF-ORCH-003", 200, "Job was cancelled", "planning/04-api/01-rest-api.md"),
+    ORCH_LOCKFILE_UNSEALED => ("CF-ORCH-004", 500, "Search work began before the landscape lockfile was sealed", "planning/04-api/04-model-resolution.md"),
+    ORCH_RESUME_MISMATCH   => ("CF-ORCH-005", 409, "Checkpoint does not belong to this job", "planning/06-build/01-phase-1-tickets.md"),
+    ORCH_TIER_NOT_WIRED    => ("CF-ORCH-006", 200, "A tier in the budget plan is not executed by this build", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
+
     // ---- CF-JOINT ----------------------------------------------------------
     JOINT_NO_CONVERGENCE   => ("CF-JOINT-001", 200, "Price decomposition failed to converge; fell back to fully joint search", "planning/03-algorithms/04-systems-level-joint-search.md"),
 

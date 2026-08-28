@@ -100,6 +100,22 @@ impl TabuLedger {
         self.is_tabu(region, codon_index, codon) && roll >= self.leak
     }
 
+    /// Live entries as `(region, codon_index, codon, remaining)`.
+    ///
+    /// Sorted, so a checkpoint written twice from the same state is byte
+    /// identical — a `HashMap` iteration order is not a property anything may
+    /// depend on, least of all a document whose whole purpose is reproducing a
+    /// run.
+    pub fn entries(&self) -> impl Iterator<Item = (usize, usize, Codon, u32)> + '_ {
+        let mut all: Vec<(usize, usize, Codon, u32)> = self
+            .entries
+            .iter()
+            .map(|((region, index, codon), remaining)| (*region, *index, *codon, *remaining))
+            .collect();
+        all.sort_by_key(|(region, index, codon, _)| (*region, *index, codon.index()));
+        all.into_iter()
+    }
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }

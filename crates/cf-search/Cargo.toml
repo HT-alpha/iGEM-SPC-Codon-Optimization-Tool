@@ -12,3 +12,4 @@ cf-types = { path = "../cf-types" }
 # any predictor crate; the epistatic conditional arrives through ContextModel.
 cf-landscape-api = { path = "../cf-landscape-api" }
 cf-constraints = { path = "../cf-constraints" }
+serde_json = { workspace = true }

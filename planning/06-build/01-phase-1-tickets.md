@@ -175,7 +175,21 @@ It also carries the tier-planning refusal that the `P1-25` note describes, one t
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |
 | `P1-28` | Minimal registry | `cf-modelreg` | Manifest and lockfile types; local filesystem artifact store; the `pin`, `base` and `builtin` rungs (channels arrive in Phase 3) | `TST-MREG-002` | `P1-08` | M |
-| `P1-29` | Job lifecycle | `cf-orchestrator` | In-process job execution; lockfile sealed **before** any search work; RNG plan; checkpoint/resume; cooperative cancel | `TST-ORCH-001`, `TST-ORCH-002` | `P1-25`, `P1-28` | L |
+| `P1-29` | Job lifecycle | `cf-orchestrator` | In-process job execution in segments; lockfile sealed **before** any search work; compute budget and tier plan; RNG plan from `rng.root_seed`; checkpoint/resume; cooperative cancel; `job_status.warnings` aggregation | `TST-ORCH-001`, `TST-ORCH-002` | `P1-25`, `P1-28` | L |
+
+### `P1-29` — the three obligations, and three things the audit changed
+
+**All three carried-forward obligations are discharged.** `P1-23` required `OperatorMix::warnings()` to reach a user; `P1-18b` moved the plumbing as far as `GenerationReport::warnings` and said plainly it could go no further; `P1-25` added `Tier2Plan::warnings()` with the same problem. All three now land in `job_status.warnings` through one path, each tagged with `stage` and `subject` (`DEP-ORCH-001`) so a caller can attribute a warning without reading its prose. A fourth source joined them, described below.
+
+**One decision moved up a layer.** `04-model-resolution.md` §2.1 says "the planner" either drops an unaffordable term with a warning or fails. Until `P1-29` there was no planner, so each tier decided for itself and disagreed: tier 1 refused an L0 term outright with `CF-LAND-002`, tier 2 dropped it with `CF-SRCH-010`. The same term in the same job got two answers depending on which tier looked first. `TierPlan` now decides once and hands each tier a list it can score; the tiers' own refusals remain as backstops that should never fire.
+
+**`CF-SRCH-008` is not a warning.** It is sometimes listed with the warning codes, and it does not belong there: a term wider than the block does not degrade the search, it makes tier 2's independence claim false. It refuses the job and appears in `job_status.problem`.
+
+**The run is a loop over segments, and that is what makes cancellation safe.** ADR-0001 caps boundary crossings at one per generation, so a Python job loop checking a cancellation flag mid-generation would be over the limit. Rust advances whole segments and returns a state; the job layer decides between segments whether to continue, checkpoint or stop. Cancellation and checkpointing therefore happen at the same points, so there is no such thing as a checkpoint taken mid-cancellation — the persisted state is always a completed generation. The state returned *is* the checkpoint, so there is no second representation to keep in sync.
+
+**Resumed runs are identical, not merely reproducible.** Generation streams derive from the *absolute* generation index, so generation `k` sees the same randomness whether it is the first of a resumed segment or the fiftieth of an uninterrupted run. A counter restarting at zero on resume would have made a resumed job reproducible against itself and quietly different from an uninterrupted one — both looking correct. The tabu ledger travels in the checkpoint for the same reason: it carries state across generations by design, and dropping it would re-propose exactly the moves repair had just reverted.
+
+**A gap this ticket surfaces rather than hides.** The job runner drives the mutation/repair generation loop; tier 1 and tier 2 exist in `cf-search` and are not yet wired into a job — `P1-30`'s `design` command is where the pipeline is assembled. A job whose budget plans those tiers reports them as `skipped` with a `CF-ORCH-006` warning naming what is missing, rather than reporting success over less search than the plan describes.
 | `P1-30` | CLI and library | `cf-cli` | `design`, `score`, `feasibility`, `seeds import`, `front`, `replay`, `explain`, `hosts list`; `cf.design()` with an identical argument object | `TST-CLI-001`, `TST-CLI-002`, `TST-ORCH-003` | `P1-29` | L |
 | `P1-31` | Output writers | `cf-cli` | FASTA, GenBank, CSV and JSON emitters; the aligned `explain` rendering | Round-trip test: emitted GenBank re-ingests to the same digest | `P1-30` | S |
 

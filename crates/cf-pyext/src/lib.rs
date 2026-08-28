@@ -21,7 +21,9 @@ use pyo3::prelude::*;
 use cf_constraints::legacy::{self, LegacyScenario};
 use cf_constraints::{ConstraintChecker, ConstraintSet, ConstructView, KmerMasking};
 use cf_landscape_api::{LandscapeQuery, LandscapeResponse};
-use cf_search::{BaselineBudget, CodonWeights, Genotype, SearchRng};
+use cf_search::{
+    BaselineBudget, CodonWeights, Genotype, JobCheckpoint, OperatorMix, SearchRng, SegmentRequest,
+};
 use cf_types::{canonicalize, CodonSequence, Digest, GeneticCode};
 
 fn to_py_err(err: cf_types::CfError) -> PyErr {
@@ -212,6 +214,114 @@ fn baseline_backtracking(
         .map(|g| g.codons().iter().map(|c| c.to_string_upper()).collect()))
 }
 
+/// Advance a search by a whole number of generations.
+///
+/// `P1-29`. The single crossing the job lifecycle needs: Python owns the
+/// budget, the checkpoint store and the cancellation flag; Rust owns the
+/// search. ADR-0001 caps crossings at one per generation, so a segment of `n`
+/// generations is comfortably inside the limit, and the state returned *is* the
+/// checkpoint — there is no second representation to keep in sync.
+///
+/// `checkpoint_json` is `null` to start a fresh run from `cds`.
+#[pyfunction]
+#[pyo3(signature = (
+    checkpoint_json,
+    cds,
+    translation_table,
+    five_prime_flank,
+    three_prime_flank,
+    constraint_set_json,
+    codon_weights,
+    tabu_leak,
+    root_seed,
+    generations,
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_run_segment(
+    checkpoint_json: Option<&str>,
+    cds: &str,
+    translation_table: u8,
+    five_prime_flank: &str,
+    three_prime_flank: &str,
+    constraint_set_json: &str,
+    codon_weights: Vec<f64>,
+    tabu_leak: f64,
+    root_seed: u64,
+    generations: u32,
+) -> PyResult<String> {
+    let sequence = CodonSequence::from_cds(cds, translation_table)
+        .and_then(|s| s.with_five_prime_flank(five_prime_flank))
+        .and_then(|s| s.with_three_prime_flank(three_prime_flank))
+        .map_err(to_py_err)?;
+    let start = Genotype::new(sequence);
+
+    let set: serde_json::Value = serde_json::from_str(constraint_set_json)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let checker = ConstraintChecker::compile(&ConstraintSet::from_json(&set).map_err(to_py_err)?)
+        .map_err(to_py_err)?;
+
+    let mut table = [0.0f64; 64];
+    for (slot, value) in table.iter_mut().zip(codon_weights.iter()) {
+        *slot = *value;
+    }
+    let weights = if codon_weights.is_empty() {
+        CodonWeights::uniform()
+    } else {
+        CodonWeights::from_relative_adaptiveness(table).map_err(to_py_err)?
+    };
+
+    let checkpoint = match checkpoint_json {
+        None | Some("null") => JobCheckpoint::start(&start),
+        Some(text) => {
+            let value: serde_json::Value =
+                serde_json::from_str(text).map_err(|e| PyValueError::new_err(e.to_string()))?;
+            JobCheckpoint::from_json(&value).map_err(to_py_err)?
+        }
+    };
+
+    let mix = OperatorMix::without_context_model();
+    let report = cf_search::run_segment(
+        &checkpoint,
+        &SegmentRequest {
+            checker: &checker,
+            mix: &mix,
+            weights: &weights,
+            leak: tabu_leak,
+            region: 0,
+            masking: KmerMasking::default(),
+            root_seed,
+        },
+        generations,
+    )
+    .map_err(to_py_err)?;
+
+    Ok(serde_json::json!({
+        "checkpoint": report.checkpoint.to_json().map_err(to_py_err)?,
+        "generations_run": report.generations_run,
+        "warnings": report.warnings.iter().map(|w| {
+            let mut problem = w.to_problem_details();
+            problem["stage"] = serde_json::json!("operators");
+            problem["subject"] = serde_json::json!(operator_subject(&w.detail));
+            problem
+        }).collect::<Vec<_>>(),
+    })
+    .to_string())
+}
+
+/// The operator a `CF-SRCH-001` warning is about.
+///
+/// The detail names it first, by construction in `UnavailableOperator::warning`.
+/// Extracting it here rather than restructuring the error type keeps the
+/// `stage`/`subject` contract in one place — the boundary that emits the
+/// document — instead of spreading provenance concerns through `cf-search`.
+fn operator_subject(detail: &str) -> String {
+    detail
+        .strip_prefix("mutation operator ")
+        .and_then(|rest| rest.split_whitespace().next())
+        .unwrap_or("")
+        .to_string()
+}
+
 fn parse_masking(masking: &str) -> PyResult<KmerMasking> {
     match masking {
         "assembled" => Ok(KmerMasking::Assembled),
@@ -306,5 +416,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(landscape_response_round_trip, m)?)?;
     m.add_function(wrap_pyfunction!(legacy_prefix_accepts, m)?)?;
     m.add_function(wrap_pyfunction!(baseline_backtracking, m)?)?;
+    m.add_function(wrap_pyfunction!(search_run_segment, m)?)?;
     Ok(())
 }

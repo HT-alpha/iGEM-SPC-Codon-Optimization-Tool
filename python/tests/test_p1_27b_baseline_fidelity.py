@@ -143,13 +143,9 @@ def test_p1_27b_the_prefix_predicate_matches_the_prototype(legacy, scenario):
         plain = dict(counts)
         for _ in range(N_PREFIXES):
             length = rng.randrange(1, len(protein) + 1)
-            prefix = "".join(
-                rng.choice(legacy.REV_CODON_TABLE[protein[i]]) for i in range(length)
-            )
+            prefix = "".join(rng.choice(legacy.REV_CODON_TABLE[protein[i]]) for i in range(length))
             mine = _core.legacy_prefix_accepts(prefix, scenario["motifs"], k, limit, plain)
-            theirs = prototype_prefix_accepts(
-                legacy, prefix, scenario["motifs"], k, limit, counts
-            )
+            theirs = prototype_prefix_accepts(legacy, prefix, scenario["motifs"], k, limit, counts)
             assert mine == theirs, (
                 f"prefix predicate disagreed at k={k} limit={limit} length={length}: "
                 f"port={mine} prototype={theirs} for {prefix}"
@@ -161,8 +157,7 @@ def test_p1_27b_the_prefix_predicate_matches_the_prototype(legacy, scenario):
     # Both outcomes must be well represented, or the agreement is agreement
     # about nothing — the same requirement TST-CONS-007 imposes.
     assert 0.1 < accepted / checked < 0.9, (
-        f"{accepted}/{checked} prefixes were accepted; the fixture does not exercise "
-        "both branches"
+        f"{accepted}/{checked} prefixes were accepted; the fixture does not exercise both branches"
     )
 
 

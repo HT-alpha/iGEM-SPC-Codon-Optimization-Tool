@@ -35,6 +35,7 @@ pub mod baseline;
 pub mod context;
 pub mod generation;
 pub mod genotype;
+pub mod job;
 pub mod operators;
 pub mod population;
 pub mod rng;
@@ -43,8 +44,11 @@ pub mod tier2;
 
 pub use baseline::{baseline_backtracking, BaselineBudget, BaselineOutcome, BaselineReport};
 pub use context::{CodonWeights, ContextModel};
-pub use generation::{run_generations, GenerationConfig, GenerationRecord, GenerationReport};
+pub use generation::{
+    run_generations, GenerationConfig, GenerationRecord, GenerationReport, GenerationRequest,
+};
 pub use genotype::{Genotype, Move, MoveKind};
+pub use job::{run_segment, JobCheckpoint, SegmentReport, SegmentRequest};
 pub use operators::{
     BlockGibbs, BlockUniform, CrossoverOperator, MutationContext, MutationOperator, OnePoint,
     OperatorMix, PottsGuided, TwoPoint, UnavailableOperator, UniformSynonymous, ViolationDirected,
