@@ -52,6 +52,7 @@ use cf_landscape_api::{
     TermRegistry,
 };
 use cf_types::{code, CfError, Codon, Direction, Result, TermId};
+use rayon::prelude::*;
 
 use crate::genotype::{Genotype, Move, MoveKind};
 use crate::rng::SearchRng;
@@ -407,20 +408,30 @@ pub fn tier2_block_ca_with_order(
                 same_colour.reverse();
             }
 
-            let mut proposals: Vec<(Block, Vec<Codon>)> = Vec::new();
-            for block in same_colour {
-                // A stream per (sweep, colour, block), derived rather than
-                // drawn, so a block sees the same randomness however many other
-                // blocks ran first — the property parallel execution needs and
-                // the one `SearchRng::new`'s old `seed | 1` broke.
-                let mut rng = SearchRng::stream(
-                    root_seed,
-                    stream_index(sweep, colour, block.index, blocks.len()),
-                );
-                let proposal =
-                    update_block(&incumbent, block, &increments, checker, config, &mut rng)?;
-                proposals.push((*block, proposal));
-            }
+            // Same-colour blocks are conditionally independent by construction
+            // (§3.1, `B ≥ R`), so they are proposed in parallel. `rayon` is
+            // what ADR-0001 named for exactly this sweep.
+            //
+            // Determinism does not depend on the scheduling. Each block's
+            // stream is keyed on `(sweep, colour, block index)` rather than on
+            // iteration order, so a block sees the same randomness however
+            // many others ran first or on which thread; the results are
+            // collected into an index-ordered vector rather than a completion
+            // -ordered one; and the commit below is sorted by block index. Two
+            // thread counts therefore produce the same bytes, which is what
+            // `GATE-DET-001` requires and what `TST-SRCH-004` measures.
+            let proposals: Vec<(Block, Vec<Codon>)> = same_colour
+                .par_iter()
+                .map(|block| {
+                    let mut rng = SearchRng::stream(
+                        root_seed,
+                        stream_index(sweep, colour, block.index, blocks.len()),
+                    );
+                    update_block(&incumbent, block, &increments, checker, config, &mut rng)
+                        .map(|proposal| (**block, proposal))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            let mut proposals = proposals;
 
             // Committed after every same-colour block has been proposed, so no
             // block's update can be an input to another's. Sorted by index so

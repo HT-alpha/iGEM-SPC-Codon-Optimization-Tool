@@ -224,7 +224,15 @@ Implementation surfaced one schema defect. `resolution[].resolved_by` has always
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |
 | `P1-32` | Synthetic suite | `cf-testkit` | `SYN-01` (toy exhaustive), `SYN-04` (planted violations), `SYN-05` (infeasible sets), `SYN-07` (property strategies) | `TST-SYN-001`, `TST-SYN-004` | `P1-06` | M |
-| `P1-33` | Determinism harness | `cf-search` | Per-block/per-individual RNG stream assignment; fixed-order float reduction; the 1/4/16-thread comparison harness | `TST-SRCH-004`, `GATE-DET-001` | `P1-25` | M |
+| `P1-33` | Determinism harness | `cf-search` | Rayon-parallel same-colour block sweep; per-block RNG stream assignment; fixed-order float reduction; the 1/4/16-thread comparison harness | `TST-SRCH-004`, `TST-SRCH-014`, `TST-SRCH-015`, `GATE-DET-001` | `P1-25` | M |
+
+### `P1-33` — the harness needed something to measure
+
+**The parallelism came first, because without it the harness was theatre.** `GATE-DET-001` is about parallel execution, and before this ticket there was no parallelism anywhere in the workspace — no rayon, no threads. A harness comparing 1, 4 and 16 threads would have run the same sequential code three times and passed unconditionally: the most reassuring test in the repository, worth nothing. So tier 2's same-colour block sweep now runs on `rayon`, which is what ADR-0001 named for this sweep and what §3.1's conditional independence exists to make sound.
+
+**Nothing in tier 2 had to change to make it deterministic**, which is the useful finding. `P1-25` had already keyed each block's stream on `(sweep, colour, block index)` rather than on iteration order, collected proposals before committing any, and sorted the commit by block index. Those were written as correctness properties of block coordinate ascent and turn out to be exactly the properties thread-count independence needs.
+
+**`P1-29`'s split fixture is reused rather than re-derived.** `compare_splits` is that seven-way comparison generalised over a runner, and `standard_splits()` is the same list. A harness that rebuilt an equivalent fixture could pass while the thing it was meant to guard had regressed.
 | `P1-34` | `EXP-05` runner | `cf-bench` | Lamarckian vs Baldwinian repair comparison on tightly-constrained inputs | `EXP-05` decided and the default confirmed or changed | `P1-17`, `P1-32` | S |
 | `P1-35` | Docs | — | README with a working quickstart; contributor guide covering the two-toolchain setup; `AGENTS.md` updated from its current stub state to describe the real build, test and run commands | A new contributor can build, test and run a design from the README alone | `P1-30` | M |
 

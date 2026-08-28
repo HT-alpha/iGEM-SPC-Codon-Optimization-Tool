@@ -33,6 +33,7 @@
 
 pub mod baseline;
 pub mod context;
+pub mod determinism;
 pub mod generation;
 pub mod genotype;
 pub mod job;
@@ -44,6 +45,7 @@ pub mod tier2;
 
 pub use baseline::{baseline_backtracking, BaselineBudget, BaselineOutcome, BaselineReport};
 pub use context::{CodonWeights, ContextModel};
+pub use determinism::{compare_splits, compare_thread_counts, with_threads, GATE_THREAD_COUNTS};
 pub use generation::{
     run_generations, GenerationConfig, GenerationRecord, GenerationReport, GenerationRequest,
 };

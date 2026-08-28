@@ -8,8 +8,7 @@
 
 mod support;
 
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use cf_constraints::spec::{
     Constraint, ConstraintClass, ConstraintSet, RepairPolicy, Rule, Scope, Strand,
@@ -24,7 +23,7 @@ use cf_search::tier2::{partition, tier2_block_ca, Colour, Tier2Plan, Tier2Reques
 use cf_search::{Genotype, Tier2Config};
 use cf_types::{CodonSequence, Direction, LockReason, Result, TermId, Unit};
 
-use support::host;
+use support::{host, Additive, Calls};
 
 // --------------------------------------------------------------------------- //
 // fixtures
@@ -113,172 +112,6 @@ fn assemble(g: &Genotype) -> Vec<u8> {
 // --------------------------------------------------------------------------- //
 // instrumented terms
 // --------------------------------------------------------------------------- //
-
-#[derive(Clone, Debug, Default)]
-struct Calls(Arc<Counters>);
-
-#[derive(Debug, Default)]
-struct Counters {
-    scores: AtomicU64,
-    tables: AtomicU64,
-    rebases: AtomicU64,
-}
-
-impl Calls {
-    fn scores(&self) -> u64 {
-        self.0.scores.load(Ordering::SeqCst)
-    }
-    fn tables(&self) -> u64 {
-        self.0.tables.load(Ordering::SeqCst)
-    }
-    fn rebases(&self) -> u64 {
-        self.0.rebases.load(Ordering::SeqCst)
-    }
-}
-
-/// An additive, position-wise L1 term.
-#[derive(Debug)]
-struct Additive {
-    term: TermId,
-    calls: Calls,
-    weight: [f64; 64],
-    radius: InteractionRadius,
-    capability: Capability,
-}
-
-impl Additive {
-    fn new(term: &str, calls: Calls, salt: u64) -> Self {
-        let mut weight = [0.0f64; 64];
-        for (index, slot) in weight.iter_mut().enumerate() {
-            *slot = (((index as u64 * 31 + salt) % 97) as f64) / 97.0;
-        }
-        Self {
-            term: TermId::new(term).unwrap(),
-            calls,
-            weight,
-            radius: InteractionRadius::Positionwise,
-            capability: Capability::L1,
-        }
-    }
-
-    fn with_radius(mut self, radius: InteractionRadius) -> Self {
-        self.radius = radius;
-        self
-    }
-
-    fn score_only(mut self) -> Self {
-        self.capability = Capability::L0;
-        self
-    }
-
-    /// Explicit weights for named codons; everything else is zero.
-    ///
-    /// So a test can build a scoring landscape with a known shape rather than
-    /// hoping pseudo-random weights happen to produce one.
-    fn with_weights(term: &str, calls: Calls, pairs: &[(&str, f64)]) -> Self {
-        let mut this = Self::new(term, calls, 0);
-        this.weight = [0.0; 64];
-        for (codon, weight) in pairs {
-            let codon = cf_types::Codon::parse(codon).unwrap();
-            this.weight[codon.index_usize()] = *weight;
-        }
-        this
-    }
-
-    /// A term that wants one specific codon above everything else.
-    ///
-    /// So a test can make the DP *try* to choose a particular assignment and
-    /// find out whether something else stops it, rather than hoping the
-    /// pseudo-random weights happen to point that way.
-    fn preferring(term: &str, calls: Calls, codon: &str) -> Self {
-        let wanted = cf_types::Codon::parse(codon).unwrap();
-        let mut this = Self::new(term, calls, 0);
-        this.weight = [0.0; 64];
-        this.weight[wanted.index_usize()] = 1.0;
-        this
-    }
-
-    fn total(&self, sequence: &CodonSequence) -> f64 {
-        sequence
-            .codons()
-            .iter()
-            .map(|c| self.weight[c.index_usize()])
-            .sum()
-    }
-}
-
-impl TermProvider for Additive {
-    fn term_id(&self) -> &TermId {
-        &self.term
-    }
-    fn unit(&self) -> Unit {
-        Unit::new(Unit::DIMENSIONLESS)
-    }
-    fn direction(&self) -> Direction {
-        Direction::Maximize
-    }
-    fn capability(&self) -> Capability {
-        self.capability
-    }
-    fn interaction_radius(&self) -> InteractionRadius {
-        self.radius
-    }
-    fn provenance(&self) -> Provenance {
-        Provenance::builtin("test_additive", "0.1.0")
-    }
-    fn score(&self, ctx: &EvalContext<'_>) -> Result<f64> {
-        self.calls.0.scores.fetch_add(1, Ordering::SeqCst);
-        Ok(self.total(ctx.sequence))
-    }
-    fn rebase(&self, ctx: &EvalContext<'_>) -> Result<Rebased> {
-        self.calls.0.rebases.fetch_add(1, Ordering::SeqCst);
-        Ok(Rebased::value_only(self.total(ctx.sequence)))
-    }
-    fn delta(
-        &self,
-        ctx: &EvalContext<'_>,
-        _base: &Rebased,
-        edits: &[cf_landscape_api::Edit],
-    ) -> Result<f64> {
-        let codons = ctx.sequence.codons();
-        Ok(edits
-            .iter()
-            .map(|e| {
-                self.weight[e.codon.index_usize()]
-                    - self.weight[codons[e.codon_index].index_usize()]
-            })
-            .sum())
-    }
-    fn delta_table(
-        &self,
-        ctx: &EvalContext<'_>,
-        base: &Rebased,
-        positions: &[usize],
-    ) -> Result<Vec<PositionDeltas>> {
-        self.calls.0.tables.fetch_add(1, Ordering::SeqCst);
-        positions
-            .iter()
-            .map(|&index| {
-                let current = ctx.sequence.codons()[index];
-                let alternatives = ctx
-                    .sequence
-                    .synonyms_at(index)
-                    .iter()
-                    .copied()
-                    .filter(|c| *c != current)
-                    .map(|c| {
-                        self.delta(ctx, base, &[cf_landscape_api::Edit::new(index, c)])
-                            .map(|d| (c, d))
-                    })
-                    .collect::<Result<Vec<_>>>()?;
-                Ok(PositionDeltas {
-                    codon_index: index,
-                    alternatives,
-                })
-            })
-            .collect()
-    }
-}
 
 /// A target-seeking term: `-(mean − target)²`.
 ///
