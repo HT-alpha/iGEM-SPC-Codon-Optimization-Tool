@@ -296,8 +296,7 @@ pub fn tier1_seed(request: &Tier1Request<'_>, rng: &mut SearchRng) -> Result<Tie
 
         // The non-regular constraints the DP does not carry.
         let construct = assemble(&candidate);
-        let view = ConstructView::new(&construct, vec![cds_span(&candidate)]);
-        if !checker.is_feasible(&view) {
+        if !checker.is_feasible(&feasibility_view(&candidate, &construct)) {
             post_check_rejected += 1;
             continue;
         }
@@ -613,6 +612,21 @@ fn cds_span(g: &Genotype) -> (usize, usize) {
     (start, start + g.len() * 3)
 }
 
+/// A view that agrees with the DP about what "actionable" means.
+///
+/// `DEP-CONS-004` reached tier 1's *pruning* but not its post-check, which kept
+/// building a bare `ConstructView`. The two then disagreed: the DP correctly
+/// declined to prune a motif lying wholly inside a locked span, and the
+/// post-check then rejected the very candidate the DP had admitted. No test
+/// caught it because no fixture put a motif inside a locked span — the gap was
+/// found by auditing tier 1 for the accidental-feasibility problem tier 2 had,
+/// and turned out to be a different problem in the same place.
+fn feasibility_view<'a>(g: &'a Genotype, construct: &'a [u8]) -> ConstructView<'a> {
+    ConstructView::new(construct, vec![cds_span(g)]).with_editable_spans(
+        cf_constraints::repair::editable_spans(&[(g.cds_offset_nt(), g.sequence().clone())]),
+    )
+}
+
 /// Exhaustive enumeration of the design space, for ground truth.
 ///
 /// §2 notes that exact DP is affordable only when the state space is small, and
@@ -650,8 +664,7 @@ pub fn enumerate_feasible(
             .collect();
         let candidate = base.with_move(&Move::new(MoveKind::Explicit, edits))?;
         let construct = assemble(&candidate);
-        let view = ConstructView::new(&construct, vec![cds_span(&candidate)]);
-        if checker.is_feasible(&view) {
+        if checker.is_feasible(&feasibility_view(&candidate, &construct)) {
             found.push(candidate);
         }
 

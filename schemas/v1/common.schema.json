@@ -171,7 +171,9 @@
         "detail": { "type": "string" },
         "instance": { "type": "string", "format": "uri-reference" },
         "code": { "type": "string", "pattern": "^CF-[A-Z]{3,8}-[0-9]{3}$", "examples": ["CF-SEQ-001", "CF-RESOLVE-004", "CF-BUDGET-002"] },
-        "errors": { "type": "array", "items": { "type": "object" } }
+        "errors": { "type": "array", "items": { "type": "object" } },
+        "stage": { "enum": ["ingest", "feasibility", "resolution", "tier_plan", "tier1", "tier2", "tier3", "operators", "repair", "decision", "active_learning"], "description": "Which stage produced this problem. `code` separates classes of problem; `stage` separates producers of the same class, and the two together are what let a caller attribute a warning without parsing its prose. The tier-1 and tier-2 capability prechecks emit the same codes for the same reasons, and a job_status carrying several of them is unreadable without this." },
+        "subject": { "type": "string", "description": "What the problem is about: a term id, an operator name, an artifact coordinate, a constraint id. Free-form because the vocabularies differ by stage, but machine-comparable within one." }
       },
       "required": ["type", "title", "status", "code"],
       "additionalProperties": true

@@ -91,7 +91,7 @@
       "properties": {
         "algorithm": { "enum": ["pcg64", "chacha8", "xoshiro256pp"] },
         "root_seed": { "type": "integer", "minimum": 0 },
-        "stream_assignment": { "enum": ["per_block_index", "per_individual_index", "per_worker"], "description": "per_block_index and per_individual_index are thread-count-independent; per_worker is not and is only legal for `fast` tier." },
+        "stream_assignment": { "enum": ["per_block_index", "per_individual_index", "per_worker"], "description": "per_block_index and per_individual_index are thread-count-independent; per_worker is not and is only legal for `fast` tier.\n\nA run that derives streams at several granularities - per generation for the population loop, per block for tier 2 - records the FINEST one it uses, because that is the one that determines whether the run is thread-count independent. Recording a coarser granularity would understate the guarantee; recording per_worker when any finer scheme is in use would overstate the risk." },
         "deterministic_reduction": { "type": "boolean", "description": "When true, all cross-thread float reductions use a fixed tree order. Costs ~3% throughput and is required for any published result." }
       },
       "required": ["algorithm", "root_seed", "stream_assignment", "deterministic_reduction"],

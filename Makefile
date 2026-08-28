@@ -15,8 +15,18 @@ help:
 	@echo "invariants planning package, module layering, schema sync"
 	@echo "assets     regenerate vendored assets and show any diff"
 
+# `python3 -m venv` needs `ensurepip`, which Debian and Ubuntu ship in a
+# separate `python3-venv` package that is not always present and is not always
+# installable. `virtualenv` vendors its own bootstrap and needs neither, so it
+# is tried first and installed if missing; the stdlib module remains the last
+# resort rather than the first. Getting this wrong looks like a broken clone
+# rather than a missing package, which is the wrong first impression for a
+# contributor following the README.
 setup:
-	python3 -m virtualenv -q $(VENV) || python3 -m venv $(VENV)
+	python3 -m virtualenv -q $(VENV) \
+	  || (python3 -m pip install --quiet --user --break-system-packages virtualenv \
+	      && python3 -m virtualenv -q $(VENV)) \
+	  || python3 -m venv $(VENV)
 	$(PIP) install -q --upgrade pip
 	$(PIP) install -q "maturin>=1.5,<2" pytest jsonschema pyyaml biopython ruff
 

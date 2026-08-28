@@ -926,3 +926,88 @@ fn p1_27b_baseline_is_deterministic_and_seed_sensitive() {
         distinct.len()
     );
 }
+
+/// A motif lying wholly inside a locked span does not stop tier 1.
+///
+/// The tier-1 half of the `DEP-CONS-004` story, and the finding from auditing
+/// tier-1 fixtures for the accidental-feasibility problem tier 2 had. Tier 1
+/// does not suffer that problem — it re-chooses every unlocked codon rather
+/// than starting from the seed's assignment, so an infeasible base is
+/// legitimate input and one fixture here deliberately uses one. What the audit
+/// found instead was that `DEP-CONS-004` had reached tier 1's pruning and not
+/// its post-check, so the DP admitted a candidate its own post-check then
+/// rejected.
+///
+/// `AAATGGAAA` is spelled entirely by locked codons 1-3, so no assignment can
+/// remove it. Tier 1 must still produce seeds.
+#[test]
+fn p1_24_a_motif_inside_a_locked_span_does_not_stop_tier_1() {
+    let calls = Calls::default();
+    let registry = registry_with(&calls, &["usage.cai"]);
+    let checker = ConstraintChecker::compile(&motif_rules(&["AAATGGAAA"])).unwrap();
+
+    let mut sequence = CodonSequence::from_cds("ATGAAATGGAAACTGCGTTAA", 1)
+        .unwrap()
+        .with_five_prime_flank("GGAGGACATACC")
+        .unwrap();
+    sequence
+        .add_lock(1, 4, cf_types::LockReason::UserLocked)
+        .unwrap();
+    let base = Genotype::new(sequence);
+    assert!(
+        base.mutable_positions().len() >= 2,
+        "the fixture must leave real choice"
+    );
+
+    let host = host();
+    let config = Tier1Config::default().with_beam(32).with_seeds(4);
+    let mut rng = SearchRng::new(5);
+    let report = tier1_seed(
+        &Tier1Request {
+            base: &base,
+            registry: &registry,
+            terms: &terms(&["usage.cai"]),
+            weights: &[1.0],
+            host: &host,
+            checker: &checker,
+            config: &config,
+        },
+        &mut rng,
+    )
+    .expect("a motif nothing can change must not empty the beam or fail the post-check");
+
+    assert!(!report.seeds.is_empty());
+    assert_eq!(
+        report.states_pruned, 0,
+        "the DP pruned on a motif no candidate can affect"
+    );
+    assert_eq!(
+        report.post_check_rejected, 0,
+        "the post-check rejected a candidate the DP admitted; the two disagree about \
+         what actionable means"
+    );
+
+    // And the violation is genuinely there, so the assertions above are not
+    // about an empty situation.
+    let construct: Vec<u8> = {
+        let s = report.seeds[0].sequence();
+        let mut out = s.five_prime_flank().to_vec();
+        for codon in s.codons() {
+            out.extend_from_slice(&codon.to_bytes());
+        }
+        out.extend_from_slice(s.three_prime_flank());
+        out
+    };
+    let coarse = ConstructView::new(
+        &construct,
+        vec![(
+            report.seeds[0].cds_offset_nt(),
+            report.seeds[0].cds_offset_nt() + report.seeds[0].len() * 3,
+        )],
+    );
+    assert_eq!(
+        checker.check(&coarse).len(),
+        1,
+        "the fixture must actually contain the locked-span motif"
+    );
+}

@@ -55,15 +55,17 @@ TIER1_SEED(protein, host, constraints, beam b, weights λ) -> [seeds]
 
 ### 3.1 The partition, and why it removes the reconciliation problem
 
-Partition the editable positions into contiguous blocks of size `B`, and 2-colour them:
+Partition the **codon positions** into contiguous blocks of size `B`, and 2-colour them:
 
 ```
- block   0        1        2        3        4        5
+ codon   0        B       2B       3B       4B       5B
        [0,B)   [B,2B)  [2B,3B) [3B,4B) [4B,5B) [5B,6B)
  colour  RED     BLACK    RED     BLACK    RED     BLACK
 ```
 
-**Choose `B ≥ W`.** Then any two positions in *different red blocks* are at least `B ≥ W` codons apart, so no coupling term connects them. Holding all black blocks fixed, the red blocks are conditionally independent: they can be optimized **simultaneously, in parallel, exactly, with no interaction and therefore nothing to reconcile.** Then swap colours and repeat.
+`DEP-SRCH-007` — Codon positions, not editable positions. An earlier wording of this section said "editable positions" while the diagram showed codon ranges, and the two differ on a sequence with locked codons. Partitioning codon positions makes the independence argument direct: two positions in different same-colour blocks are then at least `B` codons apart by construction, with no reasoning about how many locked positions happen to lie between them. A block containing only locked codons is a no-op, which costs nothing. The alternative reading is not *wrong* — `B` editable positions apart implies at least `B` codons apart — but it makes the argument indirect for no gain, and the implementation follows the diagram.
+
+**Choose `B ≥ R`,** where `R` is the largest interaction radius among the scored terms. Then any two positions in *different red blocks* are at least `B ≥ R` codons apart, so no coupling term connects them. `W` is the right value for `R` only when the epistatic window is the widest coupling in play; §4 exists precisely because a term can reach further, so the condition is stated against what the terms declare rather than against `W`. `TermProvider::interaction_radius` is what they declare it with, and tier 2 refuses a term whose radius exceeds `B` rather than assuming independence it does not have. Holding all black blocks fixed, the red blocks are conditionally independent: they can be optimized **simultaneously, in parallel, exactly, with no interaction and therefore nothing to reconcile.** Then swap colours and repeat.
 
 This is the central design decision of tier 2, and it is a departure from the architecture proposal:
 

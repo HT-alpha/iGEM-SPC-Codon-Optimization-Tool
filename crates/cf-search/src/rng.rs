@@ -10,32 +10,69 @@
 //! per individual rather than shared — that assignment is `P1-33`'s, and this
 //! type is what it will hand out.
 
-/// xorshift64*, seeded per stream.
+/// xoshiro256++, seeded per stream.
+///
+/// The algorithm is named, not incidental. `landscape_lockfile.schema.json`'s
+/// `rng.algorithm` is a closed enum — `pcg64`, `chacha8`, `xoshiro256pp` — and a
+/// job has to record which one produced its numbers. This was plain xorshift64
+/// (shifts 13/7/17), which is none of the three, so a lockfile would have had
+/// to name an algorithm that did not run and a replay trusting it would have
+/// been relying on a false record. `DEP-DET-001`: the implementation was
+/// changed to match the contract rather than the enum widened to admit a weaker
+/// generator, because `GATE-DET-001` and `P1-33` both rest on this layer.
 #[derive(Clone, Debug)]
-pub struct SearchRng(u64);
+pub struct SearchRng([u64; 4]);
+
+#[inline]
+fn rotl(x: u64, k: u32) -> u64 {
+    x.rotate_left(k)
+}
 
 impl SearchRng {
     /// Seed a stream.
     ///
-    /// A zero state is absorbing for xorshift, so it has to be excluded — but
-    /// the obvious exclusion, `seed | 1`, silently maps every even seed onto
-    /// its odd successor. Seeds `2026` and `2027` would then produce
-    /// *identical runs*, and since the root seed comes from the lockfile, two
-    /// jobs a user deliberately seeded differently would agree and look like a
-    /// reproducibility success.
+    /// splitmix64 expands the seed into the 256-bit state, which is what
+    /// xoshiro's own reference recommends and what keeps a poor seed — zero,
+    /// or a small integer — from producing a poor state. It is also a
+    /// bijection, so distinct seeds stay distinct.
     ///
-    /// The splitmix64 finalizer is a bijection on `u64`, so distinct seeds stay
-    /// distinct; the initial XOR keeps zero from mapping to zero, and the
-    /// remaining single preimage of zero is redirected.
+    /// That last property is not decorative. An earlier version used
+    /// `seed | 1` to keep xorshift out of its absorbing zero state, which maps
+    /// every even seed onto its odd successor: seeds `2026` and `2027` produced
+    /// identical runs. Since the root seed comes from the lockfile, two jobs a
+    /// user seeded deliberately differently would have agreed and looked like a
+    /// reproducibility success.
     pub fn new(seed: u64) -> Self {
-        let mut z = seed ^ 0x9E37_79B9_7F4A_7C15;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^= z >> 31;
-        Self(if z == 0 { 0x2545_F491_4F6C_DD1D } else { z })
+        let mut z = seed;
+        let mut state = [0u64; 4];
+        for slot in state.iter_mut() {
+            z = z.wrapping_add(0x9E37_79B9_7F4A_7C15);
+            let mut x = z;
+            x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+            *slot = x ^ (x >> 31);
+        }
+        // An all-zero state is the one xoshiro cannot leave. splitmix64 reaches
+        // it from no input, but the state is not the caller's to choose and a
+        // guard costs one comparison at construction.
+        if state == [0, 0, 0, 0] {
+            state = [
+                0x2545_F491_4F6C_DD1D,
+                0x9E37_79B9_7F4A_7C15,
+                0xBF58_476D_1CE4_E5B9,
+                0x94D0_49BB_1331_11EB,
+            ];
+        }
+        Self(state)
     }
 
-    /// A child stream for one block or individual.
+    /// The algorithm name this generator records in a lockfile.
+    ///
+    /// A constant rather than a string literal at the call site, so the record
+    /// and the implementation cannot drift apart silently.
+    pub const ALGORITHM: &'static str = "xoshiro256pp";
+
+    /// A child stream for one block, generation or individual.
     ///
     /// Derived rather than drawn, so the same `(seed, index)` gives the same
     /// stream regardless of how many other streams were created first — which
@@ -45,10 +82,16 @@ impl SearchRng {
     }
 
     pub fn next_u64(&mut self) -> u64 {
-        self.0 ^= self.0 << 13;
-        self.0 ^= self.0 >> 7;
-        self.0 ^= self.0 << 17;
-        self.0
+        let s = &mut self.0;
+        let result = rotl(s[0].wrapping_add(s[3]), 23).wrapping_add(s[0]);
+        let t = s[1] << 17;
+        s[2] ^= s[0];
+        s[3] ^= s[1];
+        s[1] ^= s[2];
+        s[0] ^= s[3];
+        s[2] ^= t;
+        s[3] = rotl(s[3], 45);
+        result
     }
 
     /// Uniform in `[0, 1)`.
