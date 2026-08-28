@@ -272,7 +272,17 @@ The archive lives in `cf-orchestrator`, not in the library surface that first im
 | `P1-34` | `EXP-05` runner | `cf-bench` | Lamarckian vs Baldwinian repair comparison on tightly-constrained inputs | `EXP-05` decided and the default confirmed or changed | `P1-17`, `P1-32`, `P2-02` | S |
 
 > **`P1-34` is not unblocked by `P1-32` alone, and `EXIT-003` cannot be a Phase 1 exit decision as `EXP-05` is designed.** `EXP-05`'s decision rule is "switch to Baldwinian iff it wins on **hypervolume** by more than the seed-to-seed standard deviation and its repair-invocation overhead is under 2×", comparing final hypervolume, **population diversity** (mean pairwise Hamming distance) and repair invocations. Hypervolume needs a front and population diversity needs a population; Phase 1 has neither, because the population loop is `P2-02`/`P2-03`. `P1-32` supplies the tightly-constrained inputs `EXP-05` needs (`SYN-04`) and removes the *fixture* blocker, which is real progress — it does not make the experiment runnable. Two honest options for whoever picks this up: move `EXIT-003` to a Phase 2 exit, or restate `EXP-05`'s decision rule in terms Phase 1 can measure (repair invocations and single-objective final score under a fixed budget), accepting that it then answers a narrower question. Recorded rather than chosen here, because it changes what an approved experiment measures. `DEP-EXP-001`.
-| `P1-35` | Docs | — | README with a working quickstart; contributor guide covering the two-toolchain setup; `AGENTS.md` updated from its current stub state to describe the real build, test and run commands | A new contributor can build, test and run a design from the README alone | `P1-30` | M |
+| `P1-35` | Docs | — | `README.md` with a working quickstart and a capability-boundary section; `CONTRIBUTING.md` covering the two-toolchain setup, layering and the determinism rules; `AGENTS.md` describing the real build, test and run commands | A new contributor can build, test and run a design from the README alone | `P1-30` | M |
+
+### `P1-35` — the claims are tested
+
+**`AGENTS.md` did not exist.** The ticket describes it as needing updating "from its current stub state"; there was no stub, and no `README.md` either.
+
+**Documentation rots silently, so the claims are asserted.** `TST-DOC-001` checks that every `make` target the docs name exists, every CLI invocation they show parses against the real parser, every `CF-*` code they cite is registered, every output format they list is accepted, and every built-in term is documented. A quickstart that no longer works is worse than none: it costs the reader their first hour and their confidence.
+
+**The capability boundaries are documented as behaviour, not as a roadmap.** Each gap says what happens if you try it — `background=True` raises `CF-CLI-003`, a planned-but-unexecuted tier is reported `skipped` with `CF-ORCH-006`, an unavailable term is refused with `CF-LAND-001` — and each is tested to actually do that. The README says outright that a missing `CF-ORCH-006` warning for a skipped tier is a bug worth reporting.
+
+**The `virtualenv` fallback is documented as the supported path** in all three documents, with the reason (`ensurepip` ships separately on Debian and Ubuntu), and a test scans the docs, the `Makefile` and the CI workflows for any bare `python3 -m venv` without a `virtualenv` fallback nearby. Left undocumented it reads as an oddity to simplify away, and the failure it prevents looks like a broken checkout rather than a missing package.
 
 ---
 

@@ -220,6 +220,8 @@ Two supporting units the architecture implies but does not name, added here beca
 | `TST-API-003` | integration | Tenancy: tenant A cannot read, pin or replay any tenant-B resource. Enumerates every endpoint. |
 | `TST-API-004` | unit | Every error path returns `application/problem+json` with a documented `code`. |
 | `TST-CLI-001` | integration | REST, CLI and library produce identical lockfiles and fronts for a corpus of requests under a fixed seed. |
+| `TST-DOC-001` | unit | The documentation describes this build: every documented `make` target exists, every documented CLI invocation parses, every cited `CF-*` code is registered, every documented output format and built-in term is real, and the documented capability gaps (`CF-CLI-003`, `CF-ORCH-006`, `CF-LAND-001`) each produce the code they promise. |
+| `TST-DOC-002` | unit | No bare `python3 -m venv` appears in the docs, the `Makefile` or CI without the `virtualenv` fallback nearby, and all three documents explain why. |
 | `TST-CLI-005` | integration | Emitted GenBank re-ingests to the same `sequence.schema.json` digest, with the fixture asserting it has both flanks — the part of the record most likely to be dropped and the reason the digest would differ. |
 | `TST-CLI-006` | integration | Writers render the documents rather than recomputing them: mutating `objective_sense` or a tier state in the document changes the FASTA, CSV and `explain` output. A writer deriving its own values would emit the same bytes either way. |
 | `TST-CLI-007` | integration | Content digests are independent of when a run happened, with the fixture asserting the two runs actually straddled a clock tick. |
