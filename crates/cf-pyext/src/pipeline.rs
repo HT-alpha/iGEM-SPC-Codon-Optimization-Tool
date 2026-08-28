@@ -156,6 +156,29 @@ pub fn score_terms(inputs: &TierInputs<'_>, cds: &str) -> Result<Value> {
     Ok(Value::Object(out))
 }
 
+/// The scalarized objective tier 1 and tier 2 maximize, for one sequence.
+///
+/// The same formula the tiers use, including reading `provider.direction()` for
+/// the sense — so a caller comparing two sequences with this is comparing them
+/// the way the search did, rather than by a second convention that could
+/// disagree with it.
+pub fn scalarized_score(inputs: &TierInputs<'_>, cds: &str) -> Result<f64> {
+    let scores = score_terms(inputs, cds)?;
+    let directions = declared_directions(inputs)?;
+    let mut total = 0.0;
+    for (index, term) in inputs.terms.iter().enumerate() {
+        let value = scores.get(term).and_then(Value::as_f64).ok_or_else(|| {
+            CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} did not score"))
+        })?;
+        let sense = match directions.get(term).and_then(Value::as_str) {
+            Some("maximize") => 1.0,
+            _ => -1.0,
+        };
+        total += sense * inputs.weights.get(index).copied().unwrap_or(1.0) * value;
+    }
+    Ok(total)
+}
+
 pub struct TierInputs<'a> {
     pub sequence: &'a CodonSequence,
     pub checker: &'a ConstraintChecker,

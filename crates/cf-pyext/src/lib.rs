@@ -359,6 +359,16 @@ fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
     with_tier_inputs(request_json, |inputs| pipeline::score_terms(inputs, cds))
 }
 
+/// The scalarized objective the tiers maximize, for one sequence. `P1-30`.
+#[pyfunction]
+fn scalarized_score(request_json: &str, cds: &str) -> PyResult<f64> {
+    let text = with_tier_inputs(request_json, |inputs| {
+        Ok(serde_json::json!(pipeline::scalarized_score(inputs, cds)?))
+    })?;
+    text.parse::<f64>()
+        .map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 /// Decode the shared tier request document and hand it to a runner.
 fn with_tier_inputs(
     request_json: &str,
@@ -520,5 +530,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_tier2_polish, m)?)?;
     m.add_function(wrap_pyfunction!(term_directions, m)?)?;
     m.add_function(wrap_pyfunction!(term_scores, m)?)?;
+    m.add_function(wrap_pyfunction!(scalarized_score, m)?)?;
     Ok(())
 }

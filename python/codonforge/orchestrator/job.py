@@ -119,6 +119,17 @@ class Job:
     stage_reports: dict[str, Any] = field(default_factory=dict)
     #: The sequence tiers 1 and 2 produced, handed to the generation loop.
     seeded_cds: str | None = None
+    #: `(origin, cds)` for each sequence a stage produced, best kept separately.
+    #:
+    #: The pipeline is not monotone in Phase 1. Tier 1 and tier 2 optimize; the
+    #: generation loop does not — selection is NSGA's, which is `P2-02`, so the
+    #: loop proposes and repairs and accepts whatever survives. Running it after
+    #: an optimizing tier therefore *lowers* the objective: on the fixture here
+    #: tier 1 takes CAI from 0.25 to 0.92 and the loop returns 0.62. Reporting
+    #: the last sequence rather than the best one would have published that,
+    #: and would have made every direction assertion a statement about a random
+    #: walk instead of about the search.
+    stage_candidates: list[tuple[str, str]] = field(default_factory=list)
     #: Set to request a clean stop at the next segment boundary.
     cancel_requested: bool = False
 
@@ -305,6 +316,13 @@ class Job:
         self.finished_at = _now()
         return self
 
+    def candidates(self) -> list[tuple[str, str]]:
+        """Every sequence a stage produced, plus the loop's final incumbent."""
+        found = list(self.stage_candidates)
+        if self.checkpoint is not None:
+            found.append(("mutation", self.checkpoint["incumbent"]["cds"]))
+        return found
+
     def _tier_request(self, cds: str) -> str:
         """The shared document tiers 1 and 2 both take."""
         return json.dumps(
@@ -348,6 +366,7 @@ class Job:
         """Run tier 1 and tier 2, in plan order, if the budget includes them."""
         stages = self.budget.stages()
         cds = self.inputs.cds
+        self.stage_candidates.append(("input", cds))
 
         if "tier1_seed" in stages:
             report = json.loads(
@@ -362,6 +381,7 @@ class Job:
                 # order. Taking [0] rather than re-sorting avoids introducing a
                 # tie-break this layer would have to define.
                 cds = _cds_of(report["seeds"][0])
+                self.stage_candidates.append(("tier1_dp", cds))
             self.stage_reports["tier1_seed"] = report
             self._absorb_warnings(report.get("warnings", []))
 
@@ -374,6 +394,7 @@ class Job:
                 )
             )
             cds = _cds_of(report["incumbent"])
+            self.stage_candidates.append(("tier2_block_ca", cds))
             self.stage_reports["tier2_block_ca"] = report
             self._absorb_warnings(report.get("warnings", []))
 
@@ -434,6 +455,7 @@ class Job:
                     # would report a candidate tier 2 produced as having come
                     # straight from the input.
                     "stage_reports": self.stage_reports,
+                    "stage_candidates": self.stage_candidates,
                     "seeded_cds": self.seeded_cds,
                     "state": self.checkpoint,
                 },
@@ -466,6 +488,9 @@ class Job:
         self.generations_run = int(checkpoint_document["generations_run"])
         self.budget.consumed = int(checkpoint_document["budget_consumed"])
         self.stage_reports = checkpoint_document.get("stage_reports", {})
+        self.stage_candidates = [
+            (origin, cds) for origin, cds in checkpoint_document.get("stage_candidates", [])
+        ]
         self.seeded_cds = checkpoint_document.get("seeded_cds")
         return self
 

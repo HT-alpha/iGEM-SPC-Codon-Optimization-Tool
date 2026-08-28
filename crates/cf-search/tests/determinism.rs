@@ -71,13 +71,24 @@ fn host() -> HostContext {
 }
 
 /// Tier 2 over enough blocks that a thread pool has something to schedule.
+///
+/// The term is deliberately blind to the third base. Tier 2 consumes
+/// randomness for exactly one purpose — breaking ties in the beam ordering
+/// (§3.3) — so with distinct weights the optimum is unique, the stream cannot
+/// affect the answer, and a fixture built on distinct weights exercises the
+/// block *index* while never exercising the *stream*. An implementation that
+/// keyed streams on iteration order would have passed it. Found by a negative
+/// control that would not fire.
 fn tier2_run() -> String {
     let base = base();
     let checker = checker();
     let host = host();
     let mut registry = TermRegistry::new();
     registry
-        .register_default(Box::new(Additive::new("usage.cai", Calls::default(), 7)))
+        .register_default(Box::new(Additive::third_base_blind(
+            "usage.cai",
+            Calls::default(),
+        )))
         .unwrap();
 
     let config = Tier2Config::from_planning(3);
@@ -256,7 +267,10 @@ fn p1_33_thread_count_does_not_change_the_landscape_call_count() {
                 let calls = Calls::default();
                 let mut registry = TermRegistry::new();
                 registry
-                    .register_default(Box::new(Additive::new("usage.cai", calls.clone(), 7)))
+                    .register_default(Box::new(Additive::third_base_blind(
+                        "usage.cai",
+                        calls.clone(),
+                    )))
                     .unwrap();
 
                 let config = Tier2Config::from_planning(3);

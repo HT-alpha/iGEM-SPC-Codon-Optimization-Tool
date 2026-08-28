@@ -299,10 +299,39 @@ def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
 
 
 def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict[str, Any]:
-    """The front document for a finished job."""
-    cds = job.seeded_cds or request.cds
-    if job.checkpoint is not None:
-        cds = job.checkpoint["incumbent"]["cds"]
+    """The front document for a finished job.
+
+    Reports the *best* sequence the pipeline produced, scored with the same
+    scalarization the tiers maximize, rather than the last one. The pipeline is
+    not monotone in Phase 1: the generation loop proposes and repairs but does
+    not select — selection is NSGA's and arrives with `P2-02` — so running it
+    after an optimizing tier moves away from the optimum. On the fixture used
+    in the tests, tier 1 takes CAI from 0.25 to 0.92 and the loop returns 0.62.
+    Reporting the final sequence published that loss as the answer, and made
+    every direction assertion a statement about a random walk rather than about
+    the search.
+    """
+    probe = _directions_request(request)
+    found = job.candidates() or [("input", request.cds)]
+    origin, cds = max(found, key=lambda pair: _core.scalarized_score(probe, pair[1]))
+
+    if origin != found[-1][0]:
+        job.warnings.append(
+            {
+                "type": "https://codonforge.org/problems/cf-orch-007",
+                "title": "A later stage did not improve on an earlier one",
+                "status": 200,
+                "code": "CF-ORCH-007",
+                "detail": (
+                    f"the best candidate came from {origin}, not from the last stage "
+                    f"({found[-1][0]}). The generation loop proposes and repairs but "
+                    "does not select — selection is NSGA's and arrives with P2-02 — so "
+                    "it cannot improve on an optimizing tier and may move away from it"
+                ),
+                "stage": "tier3",
+                "subject": origin,
+            }
+        )
 
     document = json.loads(
         _core.sequence_document(
@@ -314,7 +343,6 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     )
     scores = json.loads(_core.term_scores(_directions_request(request), cds))
 
-    origin = "tier2_block_ca" if "tier2_block_ca" in job.stage_reports else "input"
     reason = "user_cancel" if job.state == "cancelled" else "generation_limit"
 
     return front_module.build(

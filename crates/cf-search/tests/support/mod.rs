@@ -116,6 +116,27 @@ impl Additive {
         this
     }
 
+    /// Weights that ignore the third base, so most synonyms tie exactly.
+    ///
+    /// Ties are what make the per-block RNG stream load-bearing. Tier 2
+    /// consumes randomness for one thing only: breaking ties in the beam
+    /// ordering (§3.3). With distinct weights the optimum is unique and the
+    /// stream cannot affect the answer, so a determinism fixture built on
+    /// `new` exercises the block *index* and never the *stream* — and an
+    /// implementation that keyed streams on iteration order would pass it.
+    ///
+    /// Blind to the third base is the useful shape: synonym pairs differing
+    /// only there tie exactly, so which of them is reported is decided by the
+    /// RNG, while positions differing in the first two bases still carry a real
+    /// gradient so tier 2 has something to improve.
+    pub fn third_base_blind(term: &str, calls: Calls) -> Self {
+        let mut this = Self::new(term, calls, 0);
+        for (index, slot) in this.weight.iter_mut().enumerate() {
+            *slot = (((index as u64 / 4) * 31 % 97) as f64) / 97.0;
+        }
+        this
+    }
+
     /// A term that wants one specific codon above everything else.
     ///
     /// So a test can make the DP *try* to choose a particular assignment and

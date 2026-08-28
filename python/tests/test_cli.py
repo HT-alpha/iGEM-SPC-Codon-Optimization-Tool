@@ -273,17 +273,32 @@ def test_tst_cli_001_the_front_document_validates(store: ArtifactStore) -> None:
     jsonschema.Draft202012Validator(schema, registry=registry).validate(result.front)
 
 
-def test_tst_cli_001_the_same_seed_reproduces_and_a_different_one_does_not(
+def test_tst_cli_001_the_same_seed_reproduces_and_a_different_one_explores_differently(
     store: ArtifactStore,
 ) -> None:
-    a = design(request_for(), store).front["candidates"][0]["sequences"][0]["cds"]
-    again = design(request_for(), store).front["candidates"][0]["sequences"][0]["cds"]
+    """Same seed, same everything. Different seed, different search.
+
+    The seed sensitivity is asserted on the *trajectory*, not on the reported
+    candidate, and that is not a weaker claim — it is the accurate one. Now
+    that the front reports the best candidate rather than the last, tier 1's DP
+    dominates it, and that DP is exact for an additive objective: it finds the
+    same optimum from any seed, using randomness only to break ties. Requiring
+    two seeds to disagree on the answer would be requiring the optimizer to be
+    worse than it is.
+    """
+    a = design(request_for(), store)
+    again = design(request_for(), store)
     other = request_for()
     other.seed = SEED + 1
-    b = design(other, store).front["candidates"][0]["sequences"][0]["cds"]
+    b = design(other, store)
 
-    assert a == again
-    assert a != b, "two root seeds produced identical designs"
+    assert a.front["candidates"] == again.front["candidates"]
+    assert a.job.checkpoint["history"] == again.job.checkpoint["history"]
+
+    assert b.job.checkpoint["history"] != a.job.checkpoint["history"], (
+        "two root seeds produced an identical search trajectory; the seed is not "
+        "reaching the engine"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -481,3 +496,65 @@ def _write(request: DesignRequest, store: ArtifactStore) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(request.to_json(), encoding="utf-8")
     return str(path)
+
+
+# --------------------------------------------------------------------------- #
+# the pipeline is not monotone, and says so
+# --------------------------------------------------------------------------- #
+
+
+def test_p1_30_the_front_reports_the_best_candidate_not_the_last(
+    store: ArtifactStore,
+) -> None:
+    """Found by a negative control that would not fire.
+
+    The generation loop proposes and repairs but does not select — selection is
+    NSGA's, which is `P2-02` — so running it after an optimizing tier moves away
+    from the optimum rather than past it. Here tier 1 takes CAI from 0.25 to
+    0.92 and the loop returns 0.62. Reporting the loop's output published that
+    loss as the answer, and made every direction assertion in this file a
+    statement about a random walk rather than about the search.
+    """
+    result = design(request_for(objectives=["usage.cai"], generations=12), store)
+    probe = json.dumps(
+        {
+            "cds": CDS,
+            "translation_table": 1,
+            "five_prime_flank": FIVE_PRIME,
+            "three_prime_flank": THREE_PRIME,
+            "constraint_set": constraint_set(),
+            "host_profile": host_profile(),
+            "host_id": HOST,
+            "host_digest": "sha256:" + "1" * 64,
+            "terms": ["usage.cai"],
+            "weights": [1.0],
+            "root_seed": SEED,
+        }
+    )
+    score = lambda cds: json.loads(_core.term_scores(probe, cds))["usage.cai"]  # noqa: E731
+
+    reported = result.front["candidates"][0]["sequences"][0]["cds"]
+    loop_output = result.job.checkpoint["incumbent"]["cds"]
+    tier1_output = result.job.stage_reports["tier1_seed"]["seeds"][0]["cds"]
+
+    # The fixture must actually exhibit the loss, or this asserts nothing.
+    assert score(loop_output) < score(tier1_output), (
+        "the generation loop did not degrade the objective here, so this test "
+        "cannot tell 'reports the best' from 'reports the last'"
+    )
+    assert score(reported) >= score(tier1_output)
+    assert reported != loop_output
+
+
+def test_p1_30_a_non_monotone_stage_is_reported_rather_than_hidden(
+    store: ArtifactStore,
+) -> None:
+    """CF-ORCH-007, through the same provenance path as every other warning."""
+    result = design(request_for(objectives=["usage.cai"], generations=12), store)
+    notes = [w for w in result.status["warnings"] if w["code"] == "CF-ORCH-007"]
+
+    assert len(notes) == 1
+    assert notes[0]["stage"] == "tier3"
+    assert notes[0]["subject"] in ("tier1_dp", "tier2_block_ca")
+    assert "P2-02" in notes[0]["detail"]
+    assert result.front["candidates"][0]["provenance"]["origin"] == notes[0]["subject"]

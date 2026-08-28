@@ -118,6 +118,7 @@ codes! {
     ORCH_LOCKFILE_UNSEALED => ("CF-ORCH-004", 500, "Search work began before the landscape lockfile was sealed", "planning/04-api/04-model-resolution.md"),
     ORCH_RESUME_MISMATCH   => ("CF-ORCH-005", 409, "Checkpoint does not belong to this job", "planning/06-build/01-phase-1-tickets.md"),
     ORCH_TIER_NOT_WIRED    => ("CF-ORCH-006", 200, "A tier in the budget plan is not executed by this build", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
+    ORCH_STAGE_NOT_MONOTONE => ("CF-ORCH-007", 200, "A later pipeline stage did not improve on an earlier one", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
 
     // ---- CF-JOINT ----------------------------------------------------------
     JOINT_NO_CONVERGENCE   => ("CF-JOINT-001", 200, "Price decomposition failed to converge; fell back to fully joint search", "planning/03-algorithms/04-systems-level-joint-search.md"),
