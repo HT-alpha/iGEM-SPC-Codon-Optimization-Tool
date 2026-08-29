@@ -303,3 +303,14 @@ fn stage_seed(root_seed: u64, tag: u64) -> u64 {
 
 const STREAM_TIER1: u64 = u64::MAX - 1;
 const STREAM_TIER2: u64 = u64::MAX - 2;
+/// `DEP-DET-003`. The generation loop derived from the job root seed directly,
+/// keying generations `0, 1, 2, …` — the same index space a population loop's
+/// per-individual streams naturally use. No collision existed while tiers 1
+/// and 2 were the only namespaced stages; one appears the moment tier 3
+/// sub-seeds per individual, which `P2-02` does.
+pub const STREAM_TIER3: u64 = u64::MAX - 3;
+
+/// The root seed the generation loop and tier 3 share.
+pub fn tier3_seed(root_seed: u64) -> u64 {
+    stage_seed(root_seed, STREAM_TIER3)
+}

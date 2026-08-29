@@ -268,7 +268,12 @@ class Job:
                         json.dumps(self.inputs.constraint_set),
                         self.inputs.codon_weights,
                         self.inputs.tabu_leak,
-                        self.root_seed(),
+                        # DEP-DET-003: the tier-3 root, not the job root. Every
+                        # other stage is namespaced; this one was still keying
+                        # generations 0, 1, 2 off the job seed, which is the
+                        # index space a population loop's per-individual
+                        # streams would land on.
+                        _core.tier3_root_seed(self.root_seed()),
                         generations,
                     )
                 )

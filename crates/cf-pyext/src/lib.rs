@@ -370,6 +370,15 @@ fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
     with_tier_inputs(request_json, |inputs| pipeline::score_terms(inputs, cds))
 }
 
+/// The RNG root tier 3 and the generation loop derive from. `DEP-DET-003`.
+///
+/// Exposed so the job layer passes a namespaced root rather than the job's own
+/// seed, which is what tiers 1 and 2 already receive.
+#[pyfunction]
+fn tier3_root_seed(root_seed: u64) -> u64 {
+    pipeline::tier3_seed(root_seed)
+}
+
 /// The scalarized objective the tiers maximize, for one sequence. `P1-30`.
 #[pyfunction]
 fn scalarized_score(request_json: &str, cds: &str) -> PyResult<f64> {
@@ -542,5 +551,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(term_directions, m)?)?;
     m.add_function(wrap_pyfunction!(term_scores, m)?)?;
     m.add_function(wrap_pyfunction!(scalarized_score, m)?)?;
+    m.add_function(wrap_pyfunction!(tier3_root_seed, m)?)?;
     Ok(())
 }

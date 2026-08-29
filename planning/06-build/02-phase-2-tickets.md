@@ -28,6 +28,18 @@
 | `P2-22` | `SYN-03`, `SYN-06` | `cf-testkit` | Two-cistron contention instance with closed-form margin; three-tier synthetic host | `TST-SYN-003` | `P2-12` | M |
 | `P2-23` | Licence and patent review | — | Written review of every dependency's licence and of the LinearDesign patent position; confirmation that no non-redistributable code is vendored; `NOTICE` file | Signed-off review document in `docs/` | `P2-09` | S |
 
+### `P2-01` / `P2-02` — the audit's corrections
+
+**Crowding distance had no acceptance test.** `P2-01` lists it as a deliverable and no `TST-*` covered it, which matters more than an ordinary omission because crowding distance is where the tie behaviour lives: boundary members take infinity, and a front whose members share an objective value has a zero range that a naive normalization divides by. `TST-METR-004` now covers both, plus a fully degenerate front, a single-member front and an unknown term. Writing it found that a one-member front took distance zero and could be discarded by selection.
+
+**`P2-02`'s only acceptance criterion was a comparator truth table.** A loop that ranks correctly, loses its population on resume, and reports one member of a tied front would have passed `TST-SRCH-007`. `TST-SRCH-016` (checkpoint completeness across five splits of the same total) and `TST-SRCH-017` (a tied front reported whole, and independent of member order) close that.
+
+**The reported front is not the scalar argmax of a front.** `CF-ORCH-007`'s guarantee is extended rather than reduced: `CandidateArchive::front` returns the non-dominated set and `CandidateArchive::best` returns the scalarization's winner, and neither is derived from the other. Collapsing a trade-off curve to one point hands a caller who asked for three objectives a single design, with nothing in the document saying the rest were found and discarded. Feasibility partitions the front the same way it outranks score in `best`, and an `UNKNOWN` term makes a candidate incomparable rather than dominated away.
+
+**Objective vectors travel in the checkpoint, not just the genotypes.** Recomputing them on resume would be correct only if evaluation were pure and cheap, and it is neither: an `UNKNOWN` is a fact about a budget already spent, and re-running could turn it into a value and change the ranking.
+
+**Absent, not stubbed.** §7's loop calls a surrogate (`P2-06`), reference-direction niching (`P2-03`) and certification (`P2-07`). `P2-02` evaluates exactly, selects on crowding distance, emits an uncertified front, and refuses `M > 3` with `CF-SRCH-014` naming `P2-03` — rather than approximating any of the three, since a stub returning a plausible number is indistinguishable from a working component until something depends on it.
+
 `P2-23` is a ticket rather than a background task because `AMD-009` identifies it as a blocking risk for the open-source goal, and because the cost of discovering it at release rather than at Phase 2 is a redesign of the structure layer.
 
 ## Phase 2 exit checklist

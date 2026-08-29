@@ -104,6 +104,7 @@ codes! {
     SRCH_TIER2_CONFIG      => ("CF-SRCH-009", 422, "Tier 2 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
     SRCH_TIER2_TERM_DROPPED => ("CF-SRCH-010", 200, "A term was dropped from tier 2 because it cannot be scored incrementally", "planning/04-api/04-model-resolution.md"),
 
+    SRCH_TIER3_CONFIG      => ("CF-SRCH-014", 422, "Tier 3 configuration is unusable", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
     SRCH_DETERMINISM       => ("CF-SRCH-013", 500, "A run is not reproducible across thread counts or segment splits", "planning/05-testing/02-acceptance-thresholds.md"),
 
     // ---- CF-METR: indicator math -------------------------------------------

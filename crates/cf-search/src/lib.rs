@@ -42,6 +42,7 @@ pub mod population;
 pub mod rng;
 pub mod tier1;
 pub mod tier2;
+pub mod tier3;
 
 pub use baseline::{baseline_backtracking, BaselineBudget, BaselineOutcome, BaselineReport};
 pub use context::{CodonWeights, ContextModel};

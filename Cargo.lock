@@ -93,6 +93,7 @@ version = "0.1.0"
 dependencies = [
  "cf-constraints",
  "cf-landscape-api",
+ "cf-metrics",
  "cf-types",
  "rayon",
  "serde_json",

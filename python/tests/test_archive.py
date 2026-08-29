@@ -234,3 +234,157 @@ def test_an_unknown_origin_is_refused() -> None:
     with pytest.raises(ValueError, match="provenance origin"):
         archive.record("tier9_magic", "ATGTAA", 1.0, True, digest("x"))
     assert set(ORIGINS) >= set(STAGES)
+
+
+# --------------------------------------------------------------------------- #
+# CF-ORCH-007 over a Pareto front, not a scalar winner
+# --------------------------------------------------------------------------- #
+
+
+def multi(entries: list[tuple[str, list[float | None], bool]]) -> CandidateArchive:
+    """An archive of multi-objective candidates. All values minimized."""
+    archive = CandidateArchive()
+    for origin, objectives, feasible in entries:
+        label = f"{origin}:{objectives}:{feasible}"
+        archive.record(
+            origin,
+            f"CDS_{label}",
+            score=0.0,
+            feasible=feasible,
+            digest=digest(label),
+            objectives=tuple(objectives),
+        )
+    return archive
+
+
+def test_the_front_is_the_non_dominated_set_not_a_scalar_winner() -> None:
+    """The guarantee P2 exists to produce.
+
+    Collapsing a trade-off curve to its scalar argmax hands a caller who asked
+    for three objectives a single design, and nothing in the document says the
+    rest were found and discarded.
+    """
+    archive = multi(
+        [
+            ("tier1_dp", [1.0, 5.0], True),
+            ("tier2_block_ca", [3.0, 3.0], True),
+            ("mutation", [5.0, 1.0], True),
+            ("crossover", [9.0, 9.0], True),
+        ]
+    )
+    front = archive.front()
+
+    assert len(front) == 3, f"expected three mutually non-dominated members, got {len(front)}"
+    assert {tuple(c.objectives) for c in front} == {(1.0, 5.0), (3.0, 3.0), (5.0, 1.0)}
+    assert all(tuple(c.objectives) != (9.0, 9.0) for c in front), "a dominated member was reported"
+
+
+def test_the_front_is_independent_of_record_order() -> None:
+    entries = [
+        ("tier1_dp", [1.0, 5.0], True),
+        ("tier2_block_ca", [3.0, 3.0], True),
+        ("mutation", [5.0, 1.0], True),
+        ("crossover", [4.0, 4.0], True),
+    ]
+    reported = {
+        tuple(c.digest for c in multi(list(order)).front())
+        for order in itertools.permutations(entries)
+    }
+    assert len(reported) == 1, f"the reported front depends on record order: {reported}"
+
+
+def test_a_feasible_front_excludes_infeasible_candidates_that_would_dominate() -> None:
+    """Feasibility partitions the front exactly as it outranks score in `best`.
+
+    An infeasible design is not a trade-off against a feasible one; it is not
+    an answer. Its objectives dominating is beside the point.
+    """
+    archive = multi(
+        [
+            ("input", [0.0, 0.0], False),
+            ("tier1_dp", [1.0, 5.0], True),
+            ("mutation", [5.0, 1.0], True),
+        ]
+    )
+    front = archive.front()
+
+    assert len(front) == 2
+    assert all(c.feasible for c in front)
+    assert all(tuple(c.objectives) != (0.0, 0.0) for c in front)
+
+
+def test_when_nothing_is_feasible_the_front_is_drawn_from_the_attempts() -> None:
+    """A job that found no feasible design still reports its best attempts."""
+    archive = multi(
+        [
+            ("input", [1.0, 5.0], False),
+            ("mutation", [5.0, 1.0], False),
+            ("crossover", [9.0, 9.0], False),
+        ]
+    )
+    front = archive.front()
+
+    assert len(front) == 2
+    assert all(not c.feasible for c in front)
+
+
+def test_an_unknown_term_makes_a_candidate_incomparable_rather_than_imputed() -> None:
+    """§4's rule, at the reporting layer.
+
+    A candidate whose provider missed its budget must not be dominated away on
+    a value nobody measured, and must not dominate on one either. Imputing a
+    mean or a worst case biases the front invisibly.
+    """
+    archive = multi(
+        [
+            ("tier1_dp", [1.0, 1.0], True),
+            ("mutation", [9.0, None], True),
+        ]
+    )
+    front = archive.front()
+
+    assert len(front) == 2, "an unknown term was imputed and the candidate dominated away"
+    assert any(None in tuple(c.objectives) for c in front)
+
+
+def test_a_fully_tied_front_is_reported_whole() -> None:
+    """Every member mutually non-dominated: none may be dropped."""
+    archive = multi(
+        [
+            ("tier1_dp", [2.0, 2.0], True),
+            ("tier2_block_ca", [2.0, 2.0], True),
+            ("mutation", [2.0, 2.0], True),
+        ]
+    )
+    assert len(archive.front()) == 3
+
+
+def test_a_single_objective_archive_gives_a_front_of_one_agreeing_with_best() -> None:
+    """The two answers agree where they should.
+
+    Every Phase 1 job records a scalarization and no objective vector, so the
+    front has to reduce to the same candidate `best` reports - otherwise the
+    front document and the status document would disagree about the design.
+    """
+    archive = archive_of(
+        [("input", 0.10, True), ("tier1_dp", 0.92, True), ("mutation", 0.62, True)]
+    )
+    front = archive.front()
+
+    assert len(front) == 1
+    assert front[0].digest == archive.best().digest
+    assert front[0].origin == "tier1_dp"
+
+
+def test_the_front_survives_the_checkpoint_round_trip() -> None:
+    archive = multi(
+        [
+            ("tier1_dp", [1.0, 5.0], True),
+            ("mutation", [5.0, 1.0], True),
+            ("crossover", [9.0, 9.0], True),
+        ]
+    )
+    restored = CandidateArchive.from_json(archive.to_json())
+
+    assert [c.to_json() for c in restored.front()] == [c.to_json() for c in archive.front()]
+    assert [tuple(c.objectives) for c in restored] == [tuple(c.objectives) for c in archive]

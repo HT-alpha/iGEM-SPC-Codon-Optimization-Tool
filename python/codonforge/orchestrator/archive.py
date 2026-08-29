@@ -24,6 +24,27 @@ implemented it. A selection rule computed by whichever surface happens to render
 the result is a rule each surface can drift from — precisely how tier 1 and tier
 2 came to disagree about an L0 term before `TierPlan` made the decision once.
 
+## A front, not a winner
+
+Tiers 1 and 2 optimize a scalarization and produce one incumbent. Tier 3
+produces a *set* — the mutually non-dominated individuals — and the whole
+reason `P2` exists is that set. So the archive answers two questions rather
+than reducing one to the other:
+
+* [`CandidateArchive::best`] gives the single best candidate under the
+  scalarization, which is what a single-objective job reports;
+* [`CandidateArchive::front`] gives the non-dominated set, which is what a
+  multi-objective job reports.
+
+`front` is not `best` generalized and `best` is not `front` collapsed. Taking
+the argmax of a scalarization over a Pareto front picks one point on it and
+discards the trade-off, which is the failure this section exists to prevent:
+a caller who asked for three objectives and received one design has been told
+less than the search found, and nothing in the document says so.
+
+Both answers obey the same three rules below, and both are functions of the
+candidate *set* rather than of the order it was recorded in.
+
 ## The order is total, and feasibility comes first
 
 Three keys, in order:
@@ -77,6 +98,13 @@ class Candidate:
     digest: str
     #: Position in the recorded order. Reporting only — never a selection key.
     recorded: int
+    #: Minimized objective values, in the job's objective order.
+    #:
+    #: `None` is `UNKNOWN` and is never imputed: a term whose provider missed
+    #: its budget makes the candidate incomparable rather than guessed at, per
+    #: `03-nsga-loop-and-operators.md` §4. Empty for a job that recorded only a
+    #: scalarization, which is every Phase 1 job.
+    objectives: tuple[float | None, ...] = ()
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -86,6 +114,7 @@ class Candidate:
             "feasible": self.feasible,
             "digest": self.digest,
             "recorded": self.recorded,
+            "objectives": list(self.objectives),
         }
 
     @classmethod
@@ -97,6 +126,7 @@ class Candidate:
             feasible=bool(document["feasible"]),
             digest=document["digest"],
             recorded=int(document["recorded"]),
+            objectives=tuple(document.get("objectives", ())),
         )
 
     def key(self) -> tuple[int, float, str]:
@@ -123,7 +153,15 @@ class CandidateArchive:
     def __init__(self, candidates: list[Candidate] | None = None) -> None:
         self._candidates: list[Candidate] = list(candidates or [])
 
-    def record(self, origin: str, cds: str, score: float, feasible: bool, digest: str) -> Candidate:
+    def record(
+        self,
+        origin: str,
+        cds: str,
+        score: float,
+        feasible: bool,
+        digest: str,
+        objectives: tuple[float | None, ...] = (),
+    ) -> Candidate:
         if origin not in ORIGINS:
             raise ValueError(
                 f"{origin!r} is not a pareto_front provenance origin; expected one of "
@@ -136,6 +174,7 @@ class CandidateArchive:
             feasible=feasible,
             digest=digest,
             recorded=len(self._candidates),
+            objectives=tuple(objectives),
         )
         self._candidates.append(candidate)
         return candidate
@@ -166,6 +205,43 @@ class CandidateArchive:
             key=lambda c: (int(c.feasible), c.score, _inverted(c.digest)),
         )
 
+    def front(self) -> list[Candidate]:
+        """The non-dominated set, in a stable order.
+
+        Not `best` generalized. `best` answers "which single design" under the
+        scalarization; this answers "which designs are not beaten by another",
+        and a multi-objective job reports the second. Reducing the front to its
+        scalar argmax would hand back one point of a trade-off curve and say
+        nothing about the rest.
+
+        Feasibility partitions first, exactly as it outranks score in `best`:
+        if anything is feasible the front is drawn from the feasible
+        candidates alone, because an infeasible design is not a trade-off
+        against a feasible one. Only when nothing is feasible does the
+        infeasible set get a front of its own, so a job that found no feasible
+        answer still reports its best attempts rather than nothing.
+
+        Candidates with no objective vector fall back to their scalar score, so
+        a single-objective job gets a front of one and the two answers agree
+        where they should.
+        """
+        if not self._candidates:
+            return []
+
+        feasible = [c for c in self._candidates if c.feasible]
+        pool = feasible or list(self._candidates)
+
+        front = [
+            candidate
+            for candidate in pool
+            if not any(_dominates(other, candidate) for other in pool if other is not candidate)
+        ]
+        # Sorted by digest so the reported set is a function of the candidates
+        # rather than of the order they were recorded in - the same reason the
+        # tie-break in `best` is a digest and not a position.
+        front.sort(key=lambda c: c.digest)
+        return front
+
     def last_recorded(self) -> Candidate | None:
         """The most recently recorded candidate, whatever it was.
 
@@ -190,6 +266,42 @@ class CandidateArchive:
     @classmethod
     def from_json(cls, documents: list[dict[str, Any]]) -> CandidateArchive:
         return cls([Candidate.from_json(d) for d in documents])
+
+
+def _vector(candidate: Candidate) -> tuple[float | None, ...]:
+    """The candidate's objectives, or its scalarization as a one-vector.
+
+    A score is a *utility* - higher is better - and everything in the
+    dominance layer minimizes, so it enters negated. Getting this backwards
+    would make `front` prefer the worst candidates while `best` preferred the
+    right one, and the two would disagree without either looking wrong.
+    """
+    if candidate.objectives:
+        return candidate.objectives
+    return (-candidate.score,)
+
+
+def _dominates(left: Candidate, right: Candidate) -> bool:
+    """Pareto dominance over minimized objectives, with `UNKNOWN` incomparable.
+
+    An unknown term makes the pair incomparable rather than being imputed: a
+    mean or a worst case would bias the front in a way nothing in the output
+    reveals. §4 of the NSGA specification is explicit about this, and it is
+    the reason `objectives` carries `None` rather than a sentinel number.
+    """
+    a, b = _vector(left), _vector(right)
+    if len(a) != len(b):
+        return False
+    if any(v is None for v in a) or any(v is None for v in b):
+        return False
+
+    strictly_better = False
+    for x, y in zip(a, b, strict=True):
+        if x > y:
+            return False
+        if x < y:
+            strictly_better = True
+    return strictly_better
 
 
 def _inverted(digest: str) -> tuple[int, ...]:

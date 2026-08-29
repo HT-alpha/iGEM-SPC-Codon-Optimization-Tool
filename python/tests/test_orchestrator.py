@@ -39,14 +39,22 @@ def constraint_set() -> dict:
                 "id": "no_cgcagc",
                 "class": "blocking",
                 "scope": "construct",
-                # Both strands, deliberately. On the sense strand alone this
-                # motif never arose, repair never fired, and the tabu ledger
-                # was empty for every generation of every test here - so the
-                # assertions about the checkpoint carrying it were vacuous.
-                # Found by a negative control that did not fire.
+                # Both strands, and a motif that is tripped in the *first*
+                # generation rather than one the trajectory eventually
+                # wanders into.
+                #
+                # This fixture has now gone vacuous twice. On the sense strand
+                # alone the motif never arose at all, so repair never fired and
+                # every assertion about the checkpoint carrying the tabu ledger
+                # was empty - found by a negative control that would not fire.
+                # Then DEP-DET-003 changed the generation loop's RNG root, the
+                # trajectory moved, and a six-base motif that had been tripped
+                # by luck around generation 18 stopped being tripped at all.
+                # A four-base motif is violated early and often, so the fixture
+                # no longer depends on where a particular random walk goes.
                 "rule": {
                     "kind": "forbidden_motif",
-                    "motif": "CGCAGC",
+                    "motif": "TTCG",
                     "strand": "both",
                     "max_occurrences": 0,
                 },
