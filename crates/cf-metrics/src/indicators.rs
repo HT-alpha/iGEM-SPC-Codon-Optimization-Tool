@@ -44,10 +44,16 @@ pub fn hypervolume(front: &[Vec<f64>], reference: &[f64]) -> Result<f64> {
 }
 
 fn wfg(front: &[Vec<f64>], reference: &[f64]) -> f64 {
-    // Sorted so the recursion is a function of the point set rather than of
-    // the order it arrived in. `TST-METR-003` requires exactly this, and a
-    // floating-point sum over a differently-ordered sequence is a different
-    // number even when the set is the same.
+    // Sorted so the *recursion* is a function of the point set rather than of
+    // arrival order. This is defensive, not load-bearing, and the distinction
+    // is worth stating because it is easy to assume otherwise: WFG's
+    // exclusive-contribution decomposition is order-independent by
+    // construction, and removing this sort leaves the result bit-identical
+    // even on deliberately adversarial float magnitudes. What it buys is that
+    // the intermediate decomposition is stable too, so a later short-circuit
+    // or tolerance cannot make the total depend on arrival order without
+    // someone noticing. `TST-METR-003` asserts the property directly rather
+    // than trusting this line for it.
     let mut ordered = front.to_vec();
     ordered.sort_by(|a, b| {
         for (x, y) in a.iter().zip(b.iter()) {
