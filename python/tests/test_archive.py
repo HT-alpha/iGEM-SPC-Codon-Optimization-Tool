@@ -335,16 +335,27 @@ def test_an_unknown_term_makes_a_candidate_incomparable_rather_than_imputed() ->
     a value nobody measured, and must not dominate on one either. Imputing a
     mean or a worst case biases the front invisibly.
     """
+    # The magnitudes are chosen so imputation *changes the answer*. A first
+    # version used [9.0, None] against [1.0, 1.0]: imputing the unknown to zero
+    # gives [9.0, 0.0], which still neither dominates nor is dominated, so the
+    # front stayed at two and the test was blind to the imputation it was
+    # written to catch. At [0.5, None] the imputed candidate dominates.
     archive = multi(
         [
             ("tier1_dp", [1.0, 1.0], True),
-            ("mutation", [9.0, None], True),
+            ("mutation", [0.5, None], True),
         ]
     )
     front = archive.front()
 
     assert len(front) == 2, "an unknown term was imputed and the candidate dominated away"
     assert any(None in tuple(c.objectives) for c in front)
+
+    # And the imputation would genuinely have changed it, so the assertion
+    # above is not about an outcome that holds either way.
+    assert all(value is not None for value in front[0].objectives) or all(
+        value is not None for value in front[1].objectives
+    )
 
 
 def test_a_fully_tied_front_is_reported_whole() -> None:

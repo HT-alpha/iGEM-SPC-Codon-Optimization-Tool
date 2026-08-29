@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from codonforge import _core
 from codonforge.modelreg import ArtifactStore, Pin, ResolutionRequest, resolve, seal
 from codonforge.orchestrator import ComputeBudget, Job, JobInputs, TierPlanError
 
@@ -620,3 +621,33 @@ def test_p1_29_the_budget_is_enforced(store: ArtifactStore, tmp_path: Path) -> N
     assert job.budget.remaining == 0
     assert job.budget.exhausted
     assert job.checkpoint["generation"] == 7
+
+
+def test_dep_det_003_every_stage_derives_from_a_distinct_reserved_root(
+    store: ArtifactStore, tmp_path: Path
+) -> None:
+    """Each stage's stream family must not overlap another's.
+
+    `DEP-DET-002` requires a reserved index per stage. Tiers 1 and 2 were
+    namespaced and the generation loop was left deriving from the job root
+    directly, keying generations `0, 1, 2, …` — which is the index space a
+    population loop's per-individual streams naturally use, so `P2-02` would
+    have collided with it.
+
+    Asserted on the roots rather than on a trajectory, because a trajectory
+    test passes whichever root is used as long as it is used consistently:
+    reverting to the job seed changes the answer but keeps every split-versus-
+    whole comparison green. Found by a negative control that would not fire.
+    """
+    job = make_job(store, tmp_path, total=4, segment=4)
+    root = job.root_seed()
+
+    tier3 = _core.tier3_root_seed(root)
+    assert tier3 != root, (
+        "tier 3 derives from the job root itself, so its per-individual streams "
+        "share an index space with the generation loop"
+    )
+
+    # And it is a function of the seed, not a constant.
+    assert _core.tier3_root_seed(root + 1) != tier3
+    assert _core.tier3_root_seed(root) == tier3

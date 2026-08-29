@@ -100,25 +100,32 @@ pub fn constraint_dominance(left: &Ranked, right: &Ranked) -> Dominance {
         (true, true) => {}
     }
 
+    // The one place `UNKNOWN` is handled. `pareto_dominance` below takes known
+    // values, so this screen cannot be bypassed and cannot be duplicated: an
+    // earlier version also returned `Neither` on an unknown *inside* the Pareto
+    // comparison, which made the two mechanisms redundant — and a negative
+    // control that removed this screen changed nothing, because the other one
+    // silently covered for it. Two implementations of one rule is one too many
+    // even when they agree.
     if left.has_unknown() || right.has_unknown() {
         return Dominance::Neither;
     }
-    pareto_dominance(&left.objectives, &right.objectives)
+    pareto_dominance(&known(&left.objectives), &known(&right.objectives))
+}
+
+fn known(objectives: &[Option<f64>]) -> Vec<f64> {
+    objectives
+        .iter()
+        .map(|v| v.expect("screened above"))
+        .collect()
 }
 
 /// Pareto comparison over fully-known, minimized objectives.
-fn pareto_dominance(left: &[Option<f64>], right: &[Option<f64>]) -> Dominance {
+fn pareto_dominance(left: &[f64], right: &[f64]) -> Dominance {
     let mut left_better = false;
     let mut right_better = false;
 
-    for (a, b) in left.iter().zip(right.iter()) {
-        let (a, b) = match (a, b) {
-            (Some(a), Some(b)) => (*a, *b),
-            // Unreachable through `constraint_dominance`, which screens
-            // unknowns first; handled rather than panicked because
-            // `pareto_dominance` is reachable from tests directly.
-            _ => return Dominance::Neither,
-        };
+    for (&a, &b) in left.iter().zip(right.iter()) {
         if a < b {
             left_better = true;
         } else if b < a {

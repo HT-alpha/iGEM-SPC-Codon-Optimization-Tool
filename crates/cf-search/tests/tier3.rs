@@ -444,3 +444,137 @@ fn p2_02_the_masking_default_is_unchanged() {
         KmerMasking::default()
     );
 }
+
+/// A checker whose motif sits in the immutable 5' flank.
+///
+/// So the violation is real, detected, and *non-actionable*: no synonymous
+/// assignment can remove it.
+fn flank_checker() -> ConstraintChecker {
+    ConstraintChecker::compile(&ConstraintSet {
+        schema_version: Some("1.0.0".into()),
+        constraint_set_id: "cst_flank".into(),
+        name: None,
+        derived_from: vec![],
+        constraints: vec![Constraint {
+            id: "no_ttgaca".into(),
+            class: ConstraintClass::Blocking,
+            scope: Scope::Construct,
+            cistron_id: None,
+            weight: 1.0,
+            enabled: true,
+            rule: Rule::ForbiddenMotif {
+                motif: "TTGACAATT".into(),
+                strand: Strand::Sense,
+                max_occurrences: 0,
+            },
+        }],
+        repair_policy: Default::default(),
+        digest: None,
+    })
+    .unwrap()
+}
+
+#[test]
+fn p2_02_a_violation_in_immutable_sequence_does_not_make_an_individual_infeasible() {
+    // DEP-SRCH-008. The motif is in the promoter, which no codon choice can
+    // change. Charging it to the individual would make the entire population
+    // infeasible, and since constraint-domination makes any feasible
+    // individual beat any infeasible one, the whole ranking would then be
+    // driven by a quantity nothing in the population can influence.
+    let checker = flank_checker();
+    let genotype = base();
+
+    // The fixture must actually contain the violation, or this asserts nothing.
+    let construct: Vec<u8> = {
+        let s = genotype.sequence();
+        let mut out = s.five_prime_flank().to_vec();
+        for codon in s.codons() {
+            out.extend_from_slice(&codon.to_bytes());
+        }
+        out.extend_from_slice(s.three_prime_flank());
+        out
+    };
+    let start = genotype.cds_offset_nt();
+    let coarse =
+        cf_constraints::ConstructView::new(&construct, vec![(start, start + genotype.len() * 3)]);
+    assert_eq!(
+        checker.check(&coarse).len(),
+        1,
+        "the fixture must plant a detectable violation in the flank"
+    );
+
+    assert_eq!(
+        cf_search::tier3::actionable_violation(&genotype, &checker),
+        0.0,
+        "a violation no synonymous assignment can remove was counted against the individual"
+    );
+}
+
+/// Forbids the only codon for tryptophan, so no assignment is feasible.
+fn unsatisfiable_checker() -> ConstraintChecker {
+    ConstraintChecker::compile(&ConstraintSet {
+        schema_version: Some("1.0.0".into()),
+        constraint_set_id: "cst_unsat".into(),
+        name: None,
+        derived_from: vec![],
+        constraints: vec![Constraint {
+            id: "no_tgg".into(),
+            class: ConstraintClass::Blocking,
+            scope: Scope::Cds,
+            cistron_id: None,
+            weight: 1.0,
+            enabled: true,
+            rule: Rule::ForbiddenMotif {
+                motif: "TGG".into(),
+                strand: Strand::Sense,
+                max_occurrences: 0,
+            },
+        }],
+        repair_policy: Default::default(),
+        digest: None,
+    })
+    .unwrap()
+}
+
+fn tryptophan_base() -> Genotype {
+    Genotype::new(
+        CodonSequence::from_cds("ATGTGGCTGCGTAGCGGCGTGTAA", 1)
+            .unwrap()
+            .with_five_prime_flank("GGAGGACATACC")
+            .unwrap(),
+    )
+}
+
+#[test]
+fn p2_02_an_unsatisfiable_population_is_ranked_rather_than_emptied() {
+    // §4: infeasible individuals are kept, not discarded. They survive as
+    // stepping stones across a constraint barrier, and discarding them is the
+    // standard way to make a tightly-constrained codon design return nothing.
+    let checker = unsatisfiable_checker();
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+    let evaluator = Conflicting;
+    let config = config(8);
+    let request = request(&checker, &mix, &weights, &evaluator, &config);
+
+    let start = seed_population(&[tryptophan_base()], &request).unwrap();
+    // Tryptophan has one codon, so every individual violates and none can be
+    // repaired - the fixture must confirm that rather than assume it.
+    assert!(
+        start.members.iter().all(|m| !m.is_feasible()),
+        "the fixture is satisfiable, so it cannot test what happens when nothing is"
+    );
+
+    let report = run_generations(&start, &request, 3).unwrap();
+
+    assert_eq!(
+        report.checkpoint.members.len(),
+        8,
+        "the population was emptied by discarding infeasible individuals"
+    );
+    assert!(
+        !report.front.is_empty(),
+        "an infeasible run reported no front at all"
+    );
+    assert!(report.front.iter().all(|m| !m.is_feasible()));
+}
