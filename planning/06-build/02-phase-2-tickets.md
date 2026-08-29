@@ -33,6 +33,7 @@
 ## Phase 2 exit checklist
 
 - [ ] Phase 1 checklist still green
+- [ ] `EXIT-003` decided — `EXP-05` (Lamarckian vs Baldwinian repair), moved here from Phase 1 because its rule turns on hypervolume and population diversity and Phase 1 had no population. `DEP-EXP-001`.
 - [ ] `TST-METR-*`, `TST-STRU-*`, `TST-BURD-*`, `TST-DEC-*`, `TST-KIN-*`, `TST-API-*`, `TST-BEN-*` green
 - [ ] `GATE-BEN-001`, `GATE-BEN-002`, `GATE-BURD-001` pass
 - [ ] `EXP-04` decided; the tier-3 burden term's role is settled

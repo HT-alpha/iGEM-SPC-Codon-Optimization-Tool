@@ -10,7 +10,7 @@ Every entry states the question, why planning cannot answer it, the design, the 
 | `EXP-02` | Should the dwell head shrink toward the context model? | Phase 3 | Fit `ψ` freely |
 | `EXP-03` | Does per-timepoint ledger resolution change the design? | Phase 4 (v2 scope) | Do not build the two-phase ledger |
 | `EXP-04` | Does the tier-3 burden proxy correlate with measured burden? | Phase 2 | Demote burden to `diagnostic` for tier-3 hosts |
-| `EXP-05` | Lamarckian or Baldwinian repair? | Phase 1 | Keep the Lamarckian default |
+| `EXP-05` | Lamarckian or Baldwinian repair? | Phase 2 (moved from Phase 1; `DEP-EXP-001`) | Keep the Lamarckian default |
 | `EXP-06` | Does pause/boundary concordance predict solubility or activity? | Phase 2→3 promotion | Keep as `diagnostic`, or remove |
 | `EXP-07` | How much should nearest-host fallback inflate uncertainty? | Phase 3 | Keep conservative defaults, `calibrated: false` |
 | `EXP-08` | What window and interaction order per host? | Phase 3 | Ship `W = 10`, pairwise only |
@@ -99,6 +99,8 @@ Every entry states the question, why planning cannot answer it, the design, the 
 **Design.** Run the standard benchmark suite under both policies, 20 seeds each, with tightly-constrained inputs where repair fires often. Compare final hypervolume, population diversity (mean pairwise Hamming distance), and total repair invocations.
 
 **Decision rule.** Switch the default to Baldwinian iff it wins on hypervolume by more than the seed-to-seed standard deviation **and** its repair-invocation overhead is under 2×.
+
+**Unchanged, deliberately.** The rule turns on hypervolume and on population diversity, both of which need a population — so this experiment could not run in Phase 1 and `EXIT-003` moved to Phase 2 rather than the rule being restated in Phase-1-measurable terms. A proxy over single-objective score under a fixed budget would answer a different question, and a default chosen from it would have to be re-decided once `P2-02` landed. `DEP-EXP-001`.
 
 **If it fails.** Keep Lamarckian (the current default). Cheap experiment, cheap either way.
 

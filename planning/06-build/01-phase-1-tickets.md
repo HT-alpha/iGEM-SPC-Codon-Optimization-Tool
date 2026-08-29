@@ -271,7 +271,7 @@ The archive lives in `cf-orchestrator`, not in the library surface that first im
 **`P1-29`'s split fixture is reused rather than re-derived.** `compare_splits` is that seven-way comparison generalised over a runner, and `standard_splits()` is the same list. A harness that rebuilt an equivalent fixture could pass while the thing it was meant to guard had regressed.
 | `P1-34` | `EXP-05` runner | `cf-bench` | Lamarckian vs Baldwinian repair comparison on tightly-constrained inputs | `EXP-05` decided and the default confirmed or changed | `P1-17`, `P1-32`, `P2-02` | S |
 
-> **`P1-34` is not unblocked by `P1-32` alone, and `EXIT-003` cannot be a Phase 1 exit decision as `EXP-05` is designed.** `EXP-05`'s decision rule is "switch to Baldwinian iff it wins on **hypervolume** by more than the seed-to-seed standard deviation and its repair-invocation overhead is under 2×", comparing final hypervolume, **population diversity** (mean pairwise Hamming distance) and repair invocations. Hypervolume needs a front and population diversity needs a population; Phase 1 has neither, because the population loop is `P2-02`/`P2-03`. `P1-32` supplies the tightly-constrained inputs `EXP-05` needs (`SYN-04`) and removes the *fixture* blocker, which is real progress — it does not make the experiment runnable. Two honest options for whoever picks this up: move `EXIT-003` to a Phase 2 exit, or restate `EXP-05`'s decision rule in terms Phase 1 can measure (repair invocations and single-objective final score under a fixed budget), accepting that it then answers a narrower question. Recorded rather than chosen here, because it changes what an approved experiment measures. `DEP-EXP-001`.
+> **`P1-34` is not unblocked by `P1-32` alone, and `EXIT-003` cannot be a Phase 1 exit decision as `EXP-05` is designed.** `EXP-05`'s decision rule is "switch to Baldwinian iff it wins on **hypervolume** by more than the seed-to-seed standard deviation and its repair-invocation overhead is under 2×", comparing final hypervolume, **population diversity** (mean pairwise Hamming distance) and repair invocations. Hypervolume needs a front and population diversity needs a population; Phase 1 has neither, because the population loop is `P2-02`/`P2-03`. `P1-32` supplies the tightly-constrained inputs `EXP-05` needs (`SYN-04`) and removes the *fixture* blocker, which is real progress — it does not make the experiment runnable. **Resolved: `EXIT-003` moves to Phase 2 and `EXP-05` keeps its original rule.** The alternative was to restate the rule in terms Phase 1 can measure — repair invocations and single-objective final score under a fixed budget — and that was rejected. It answers a different, weaker question than "does Baldwinian repair win on hypervolume and population diversity under real multi-objective selection", and a conclusion banked from the weaker version risks not transferring once `P2-02` exists. Diluting an experiment to fit an earlier phase buys a decision that has to be re-taken. `DEP-EXP-001`.
 | `P1-35` | Docs | — | `README.md` with a working quickstart and a capability-boundary section; `CONTRIBUTING.md` covering the two-toolchain setup, layering and the determinism rules; `AGENTS.md` describing the real build, test and run commands | A new contributor can build, test and run a design from the README alone | `P1-30` | M |
 
 ### `P1-35` — the claims are tested
@@ -297,7 +297,7 @@ not deciding is a decision to keep the legacy behaviour.
 | --- | --- | --- | --- |
 | `EXIT-001` | Should motif and restriction-site constraints default to `scope: construct`, catching a site that straddles the coding-region boundary? The prototype scopes them to the CDS and misses it. | legacy parity (`scope: cds` where the differential requires it; `spec::expand` already emits `construct` for assembly standards) | `docs/legacy-parity.md` §1 |
 | `EXIT-002` | Should k-mer counting default to `KmerMasking::Assembled`, catching a repeat that straddles a region boundary? The prototype's masked backbone counting misses it. | legacy parity available; `Assembled` is the code default and the differential runs in `SegmentedByRegion` | `docs/legacy-parity.md` §2 |
-| `EXIT-003` | `EXP-05`: Lamarckian vs Baldwinian repair. Gated on `P1-34`, which needs `P1-17` (done), `P1-32` (done) **and a population loop** — see below. | Lamarckian | `planning/08-experiments/experiment-register.md` |
+| `EXIT-003` | **Moved to Phase 2.** `EXP-05`: Lamarckian vs Baldwinian repair. Gated on `P1-34`, which needs `P1-17` (done), `P1-32` (done) **and `P2-02`'s population loop**. See `DEP-EXP-001`. | Lamarckian, until decided in Phase 2 | `planning/08-experiments/experiment-register.md` |
 
 `EXIT-001` and `EXIT-002` change which designs are called feasible relative to
 the tool this repository already ships, so a construct the prototype accepted
@@ -306,7 +306,7 @@ behaviour change and should be decided rather than absorbed.
 
 ## Phase 1 exit checklist
 
-- [ ] `EXIT-001`, `EXIT-002`, `EXIT-003` decided
+- [ ] `EXIT-001`, `EXIT-002` decided (`EXIT-003` moved to Phase 2 — `DEP-EXP-001`)
 - [ ] `TST-CORE-*`, `TST-CONS-*`, `TST-SYN-*`, `TST-INGE-*`, `TST-LAPI-*`, `TST-LAND-*`, `TST-CLI-*`, `TST-ORCH-*` green
 - [ ] `TST-SRCH-001`, `-002`, `-003`, `-004`, `-006` green
 - [ ] `GATE-DET-001` (bit-identical across thread counts) green
