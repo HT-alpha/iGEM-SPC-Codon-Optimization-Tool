@@ -205,6 +205,17 @@ class Job:
         """
         return int(self.lockfile.rng["root_seed"])
 
+    def tier3_seed(self) -> int:
+        """The RNG root the generation loop and tier 3 derive from.
+
+        `DEP-DET-003`. A method rather than an expression inlined at the call
+        site, so a test can assert the job *uses* the namespaced root — a test
+        that only checked the derivation function passes whichever root the
+        job actually passes, which is how a negative control reverting this to
+        the job seed went unnoticed.
+        """
+        return int(_core.tier3_root_seed(self.root_seed()))
+
     def rng_plan(self) -> dict[str, Any]:
         """The `rng` block this job is running under.
 
@@ -268,12 +279,8 @@ class Job:
                         json.dumps(self.inputs.constraint_set),
                         self.inputs.codon_weights,
                         self.inputs.tabu_leak,
-                        # DEP-DET-003: the tier-3 root, not the job root. Every
-                        # other stage is namespaced; this one was still keying
-                        # generations 0, 1, 2 off the job seed, which is the
-                        # index space a population loop's per-individual
-                        # streams would land on.
-                        _core.tier3_root_seed(self.root_seed()),
+                        # DEP-DET-003: the tier-3 root, not the job root.
+                        self.tier3_seed(),
                         generations,
                     )
                 )

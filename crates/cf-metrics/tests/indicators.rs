@@ -390,3 +390,56 @@ fn tst_metr_004_a_single_member_front_is_infinite() {
     let population = vec![feasible(&[1.0, 1.0])];
     assert!(crowding_distance(&population, &[0])[0].is_infinite());
 }
+
+// --------------------------------------------------------------------------- //
+// UNKNOWN, screened in exactly one place
+// --------------------------------------------------------------------------- //
+
+/// An unknown term makes two feasible individuals incomparable.
+///
+/// This crate had no test that put an `UNKNOWN` through `constraint_dominance`
+/// at all — the only unknown fixture went through `crowding_distance` — so
+/// deleting the screen changed nothing `cargo test -p cf-metrics` could see.
+/// Found by a negative control that would not fire.
+#[test]
+fn unknown_terms_are_incomparable_and_never_imputed() {
+    let known = Ranked::feasible(vec![Some(1.0), Some(1.0)]);
+    let unknown = Ranked::feasible(vec![Some(0.5), None]);
+
+    assert_eq!(constraint_dominance(&known, &unknown), Dominance::Neither);
+    assert_eq!(constraint_dominance(&unknown, &known), Dominance::Neither);
+    assert_eq!(
+        constraint_dominance(&unknown, &unknown.clone()),
+        Dominance::Neither
+    );
+
+    // Imputing the unknown to zero would make it dominate, so the assertions
+    // above are not about an outcome that holds either way.
+    let imputed = Ranked::feasible(vec![Some(0.5), Some(0.0)]);
+    assert_eq!(constraint_dominance(&imputed, &known), Dominance::Left);
+}
+
+/// Feasibility is decided before unknowns are consulted.
+#[test]
+fn an_unknown_does_not_let_an_infeasible_individual_escape_comparison() {
+    let hiding = Ranked::infeasible(vec![Some(0.0), None], 3.0);
+    let honest = Ranked::feasible(vec![Some(9.0), Some(9.0)]);
+    assert_eq!(constraint_dominance(&honest, &hiding), Dominance::Left);
+    assert_eq!(constraint_dominance(&hiding, &honest), Dominance::Right);
+}
+
+/// A front containing an unknown keeps it: sorting must not drop it.
+#[test]
+fn an_unknown_member_survives_nondominated_sorting() {
+    let population = vec![
+        Ranked::feasible(vec![Some(1.0), Some(1.0)]),
+        Ranked::feasible(vec![Some(0.5), None]),
+        Ranked::feasible(vec![Some(9.0), Some(9.0)]),
+    ];
+    let fronts = fast_nondominated_sort(&population);
+    assert!(
+        fronts[0].contains(&1),
+        "an individual with an unknown term was dominated away"
+    );
+    assert!(fronts[0].contains(&0));
+}

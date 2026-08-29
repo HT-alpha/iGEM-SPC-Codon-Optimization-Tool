@@ -642,7 +642,11 @@ def test_dep_det_003_every_stage_derives_from_a_distinct_reserved_root(
     job = make_job(store, tmp_path, total=4, segment=4)
     root = job.root_seed()
 
-    tier3 = _core.tier3_root_seed(root)
+    # Asserted on what the job *uses*, not merely on the derivation function:
+    # a test that only called `_core.tier3_root_seed` would pass whichever
+    # root the job actually passed to the engine.
+    tier3 = job.tier3_seed()
+    assert tier3 == _core.tier3_root_seed(root)
     assert tier3 != root, (
         "tier 3 derives from the job root itself, so its per-individual streams "
         "share an index space with the generation loop"
@@ -650,4 +654,23 @@ def test_dep_det_003_every_stage_derives_from_a_distinct_reserved_root(
 
     # And it is a function of the seed, not a constant.
     assert _core.tier3_root_seed(root + 1) != tier3
-    assert _core.tier3_root_seed(root) == tier3
+
+    # The job must pass it to the engine, which is the part the control
+    # reverted. Checked by observing the seed the segment call receives.
+    seen: list[int] = []
+    original = _core.search_run_segment
+
+    def watch(*args):
+        seen.append(args[8])
+        return original(*args)
+
+    _core.search_run_segment = watch  # type: ignore[assignment]
+    try:
+        make_job(store, tmp_path / "watch", total=4, segment=4).run()
+    finally:
+        _core.search_run_segment = original  # type: ignore[assignment]
+
+    assert seen, "the generation loop was never called"
+    assert all(value == tier3 for value in seen), (
+        f"the job passed {seen[0]} to the generation loop, not the reserved tier-3 root {tier3}"
+    )
