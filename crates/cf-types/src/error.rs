@@ -106,6 +106,13 @@ codes! {
 
     SRCH_DETERMINISM       => ("CF-SRCH-013", 500, "A run is not reproducible across thread counts or segment splits", "planning/05-testing/02-acceptance-thresholds.md"),
 
+    // ---- CF-METR: indicator math -------------------------------------------
+    //
+    // `cf-metrics` is rank 0 with no dependencies, so it carries its own error
+    // type and its own copy of these strings. Registered here so the rest of
+    // the system shares one vocabulary; the two must agree.
+    METR_DIMENSION         => ("CF-METR-001", 422, "Objective counts do not line up between fronts", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+
     // ---- CF-CLI: command line and library surface --------------------------
     CLI_BAD_ARGUMENTS      => ("CF-CLI-001", 400, "Command-line arguments are missing or malformed", "planning/04-api/02-cli-and-library.md"),
     CLI_EMPTY_FRONT        => ("CF-CLI-002", 200, "The job produced no candidates", "planning/02-schemas/pareto_front.schema.json"),
