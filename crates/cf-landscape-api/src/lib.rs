@@ -38,6 +38,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod batch;
 pub mod capability;
 pub mod json;
 pub mod provider;
@@ -45,6 +46,7 @@ pub mod query;
 pub mod response;
 pub mod role;
 
+pub use batch::{Batch, BatchProtocol, BatchResults, BatchScorer, Yield};
 pub use capability::{Capability, InteractionRadius};
 pub use json::ConstructRef;
 pub use provider::{

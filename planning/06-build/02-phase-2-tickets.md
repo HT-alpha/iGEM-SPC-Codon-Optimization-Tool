@@ -8,7 +8,17 @@
 | `P2-02` | NSGA-II loop | `cf-search` | The `M ≤ 3` path, with constraint-domination and the `UNKNOWN` rule | `TST-SRCH-007` | `P2-01` | M |
 | `P2-03` | NSGA-III loop | `cf-search` | Normalization (ideal point, extreme points, intercepts, degeneracy guards), reference-direction association, niching selection; automatic `M ≥ 4` switch | `TST-METR-005`, `TST-METR-006`, `TST-SRCH-018` | `P2-02` | L |
 | `P2-04` | Termination and progress | `cf-search` | Hypervolume-stagnation termination; `hypervolume_history`; per-tier progress reporting; **tier 3 wired into the job's execution path** | `TST-SRCH-019`, `TST-CLI-008`, `contract_*` against `job_status.schema.json` | `P2-03` | S |
-| `P2-05` | Batch-yield protocol | `cf-search`, `cf-landscape` | The resumable `step`/`absorb`/`snapshot`/`resume` state machine; Arrow IPC batch transport; `cf-worker` process; exercised end-to-end by a **stub** L0 term | `TST-LM-001` applied to the stub; one boundary crossing per generation asserted | `P2-03` | L |
+| `P2-05` | Batch-yield protocol | `cf-landscape-api` | The resumable `step`/`absorb`/`snapshot`/`resume` state machine and the `score_batch` seam, exercised end-to-end by a **stub** L0 term. Arrow IPC and the `cf-worker` process are deferred (`DEP-LAND-004`) | `TST-LM-001` applied to the stub; one boundary crossing per generation asserted | `P2-03` | L |
+
+### `P2-05` — synchronous by specification, and what that settles
+
+§6's pseudocode is explicit that `results <- WORKER.SCORE_BATCH(chosen)` blocks: the batching amortizes *model* cost over many sequences rather than overlapping work with the search. So the protocol needs no worker pool, which is the capability `P1-29` declined and `CF-CLI-003` still reports absent — the audit question about an undeclared concurrency dependency has a clean answer.
+
+**"One crossing per generation" is a property of the type, not a discipline.** `step` refuses while a batch is outstanding and `advance` refuses too, so a second crossing in one generation is a `CF-LAND-006` rather than something a caller has to remember not to do.
+
+**Truncation defers rather than discards.** §6's component (d): an individual dropped for budget would be `UNKNOWN` forever with nothing in the output saying it had ever been a candidate. Deferred items go to the head of the next generation's queue, and an item deferred and re-proposed is not scored twice.
+
+**A protocol snapshotted mid-batch resumes still waiting**, which is the state a checkpoint is most likely to be taken in — the search is idle precisely while the scorer runs. A resume that forgot the outstanding batch would step again and issue a second crossing for the same generation.
 | `P2-06` | Surrogate rationing | `cf-search` | Ridge surrogate on k-mer + L1-term features; the four-way `chosen` set including the mandatory random 10 %; periodic refit | `TST-SRCH-005` | `P2-05` | M |
 | `P2-07` | Front certification | `cf-search` | Exact re-evaluation of the reduced front before emission; warning when certification changes the front | `TST-SRCH-005` | `P2-06` | S |
 | `P2-08` | Native structure kernel | `cf-biophys-structure` | Permissively-licensed windowed accessibility (`O(n·w²)`), temperature-parameterized, over a **user-supplied** parameter set (`DEP-STRU-001`) | `TST-STRU-004`, `TST-STRU-005` | Phase 1, `P2-07a` | XL |

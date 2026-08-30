@@ -107,6 +107,9 @@ codes! {
     SRCH_TIER3_CONFIG      => ("CF-SRCH-014", 422, "Tier 3 configuration is unusable", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
     SRCH_DETERMINISM       => ("CF-SRCH-013", 500, "A run is not reproducible across thread counts or segment splits", "planning/05-testing/02-acceptance-thresholds.md"),
 
+    LAND_BATCH_OUTSTANDING => ("CF-LAND-011", 500, "A batch is already outstanding", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+    LAND_BATCH_UNEXPECTED  => ("CF-LAND-012", 500, "Batch results do not match the outstanding batch", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+
     // ---- CF-BURD: resource ledger ------------------------------------------
     BURD_WOBBLE_PARAMETER  => ("CF-BURD-001", 422, "A wobble decoding parameter is missing or out of range", "planning/02-schemas/host_profile.schema.json"),
     BURD_NON_SYNONYMOUS    => ("CF-BURD-002", 500, "The demand ledger was updated through a non-synonymous substitution", "planning/03-algorithms/05-burden-penalty-and-capacity.md"),
