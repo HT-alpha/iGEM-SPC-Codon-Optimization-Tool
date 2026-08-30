@@ -410,10 +410,9 @@ def test_the_front_reports_one_entry_per_distinct_sequence() -> None:
     tells a reader nothing 26 times.
     """
     archive = CandidateArchive()
-    for recorded, origin in enumerate(["tier1_dp", "tier2_block_ca", "mutation", "mutation"]):
+    for origin in ["tier1_dp", "tier2_block_ca", "mutation", "mutation"]:
         archive.record(origin, "CDS_A", 0.9, True, digest("A"), objectives=(1.0, 1.0))
     archive.record("mutation", "CDS_B", 0.9, True, digest("B"), objectives=(2.0, 0.5))
-    del recorded
 
     front = archive.front()
     assert len(front) == 2, f"the same sequence was reported {len(front) - 1} times"
