@@ -20,6 +20,23 @@ Thresholds: [`02-acceptance-thresholds.md`](02-acceptance-thresholds.md). Synthe
 
 ---
 
+## 1a. Fixture design rules
+
+Each of these was learned by a negative control refusing to fire against a
+fixture that could not reach the defect it was written for. They are written
+down here so the next ticket inherits them instead of rediscovering them.
+
+| Rule | Why, and what it cost to learn |
+| --- | --- |
+| **A fixture must be able to fail.** Break the code deliberately and confirm the test notices, before trusting it. | Every rule below is an instance of this one. |
+| **A search fixture needs genuine ties.** A space with a unique optimum never invokes a tie-break, and tie-breaks are where determinism bugs live. | The tier-2 determinism fixture used distinct weights, so the optimum was unique and an implementation keying block RNG streams on iteration order passed it. `SYN-01` now ships a degenerate configuration for the same reason. |
+| **A population-loop fixture must be multi-objective.** With one objective, tier 1's exact DP starts the population at the optimum, it converges to a single sequence, and hypervolume is constant — so every assertion about selection, diversity, crowding or niching passes by doing nothing. | Found when tier 3 was wired into the job path and the single-objective orchestrator fixture reported a front of one identical sequence, 26 times. |
+| **A stochastic condition must be constructed, not awaited.** If a test needs repair to fire or a search to stall, make it unavoidable rather than likely. | A repair fixture bound to a motif tripped "around generation 18" by chance broke silently twice when unrelated RNG changes shifted the walk. It now uses a motif violated in generation 1. |
+| **Serialization fixtures need adversarial floats.** Organically-generated values find boundary cases eventually; a deliberate set finds them now. | `serde_json` parsed floats one ulp away from what was written until a specific objective value happened to expose it, and every checkpoint in the system had been affected since the first float entered one. |
+| **Two mechanisms enforcing one rule are untestable.** If removing either changes nothing, neither is covered; consolidate to one. | Found twice: the `UNKNOWN` screen in `cf-metrics`, and the singular-matrix and non-positive-intercept guards in NSGA-III normalization. |
+
+---
+
 ## 2. Architecture §5 validation units → tests
 
 This is the mapping `BRIEF-2.5-a` asks for. Each of the four named validation units becomes a concrete, automated, thresholded check.
@@ -136,7 +153,9 @@ Two supporting units the architecture implies but does not name, added here beca
 | Id | Tier | Assertion |
 | --- | --- | --- |
 | `TST-STRU-001` | integration | Engine parity: on a reference sequence set, the native kernel's accessibility correlates with an installed ViennaRNA reference above a fixed threshold. Skipped, not failed, when ViennaRNA is absent. |
-| `TST-STRU-002` | property | Incremental accessibility equals full recomputation to `1e-9` over 10⁴ edits. |
+| `TST-STRU-002` | property | Incremental accessibility equals full recomputation to `1e-9` over 10⁴ edits. **`P2-10`'s criterion**, not `P2-08`'s — it tests the incremental cache, which `P2-08` does not build. Listed against `P2-08` until the `P2-05`/`P2-08`/`P2-12` audit found the misassignment. |
+| `TST-STRU-004` | property | The native kernel's windowed accessibility is invariant to window origin within its span, monotone in temperature, and agrees with an independent brute-force partition function on sequences short enough to enumerate. `P2-08`'s own criterion. |
+| `TST-STRU-005` | unit | A run with no `structure_parameters` document is refused with `CF-STRU-001` naming the gap, rather than falling back to a built-in table. The parameter set's digest appears in the landscape lockfile, so two runs cannot silently use different thermodynamics. `DEP-STRU-001`. |
 | `TST-STRU-003` | unit | With no optional engine installed, the native engine is selected, the lockfile records it, and no import of an absent package is attempted. |
 
 ### `cf-biophys-kinetics`
