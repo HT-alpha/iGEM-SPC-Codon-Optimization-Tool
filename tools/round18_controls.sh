@@ -110,9 +110,28 @@ control "(g) an L0 scorer may overwrite an in-core axis" "$RS 2>&1"
 # scoring after selection rather than before.
 python3 - <<'PYEOF'
 p='crates/cf-search/src/tier3.rs'; s=open(p).read()
-old="        if let Some(scorer) = request.l0 {\n            score_l0_batch(&mut combined, scorer, &mut protocol, &mut rationer, &mut rng)?;\n        }\n\n        members = select(combined, request.config.population, selection);"
-new="        members = select(combined, request.config.population, selection);\n        if let Some(scorer) = request.l0 {\n            score_l0_batch(&mut members, scorer, &mut protocol, &mut rationer, &mut rng)?;\n        }"
-assert old in s, "anchor h"; open(p,'w').write(s.replace(old,new,1))
+block = """        if let Some(scorer) = request.l0 {
+            score_l0_batch(
+                &mut combined,
+                scorer,
+                &mut protocol,
+                &mut rationer,
+                &mut rng,
+            )?;
+        }
+
+        members = select(combined, request.config.population, selection);"""
+moved = """        members = select(combined, request.config.population, selection);
+        if let Some(scorer) = request.l0 {
+            score_l0_batch(
+                &mut members,
+                scorer,
+                &mut protocol,
+                &mut rationer,
+                &mut rng,
+            )?;
+        }"""
+assert block in s, "anchor h"; open(p,'w').write(s.replace(block, moved, 1))
 PYEOF
 control "(h) selection ranks before the L0 axis is filled" "$RS 2>&1"
 
