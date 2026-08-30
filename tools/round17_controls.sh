@@ -121,8 +121,8 @@ control "wiring/9: a term nothing optimized appears in the objective order" \
 # 10. The diagnostic reaches only the first candidate.
 python3 - <<'PY'
 p='python/codonforge/orchestrator/design.py'; s=open(p).read()
-old="                    structure_details[position] if structure_details else None"
-new="                    structure_details[0] if structure_details and position == 0 else None"
+old="objective_detail=(structure_details[position] if structure_details else None),"
+new="objective_detail=(structure_details[0] if structure_details and position == 0 else None),"
 assert old in s, "anchor 10"; open(p,'w').write(s.replace(old,new,1))
 PY
 control "wiring/10: only the first candidate gets the diagnostic" \
