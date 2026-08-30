@@ -121,6 +121,8 @@ codes! {
     BURD_NO_CAPACITY_DATA  => ("CF-BURD-004", 422, "The host lacks the data its capacity tier requires", "planning/03-algorithms/05-burden-penalty-and-capacity.md"),
     STRU_NO_PARAMETERS     => ("CF-STRU-001", 422, "No thermodynamic parameter set was supplied", "planning/00-scope/03-architecture-amendments.md"),
     STRU_BAD_PARAMETERS    => ("CF-STRU-002", 422, "The supplied thermodynamic parameter set is unusable or unattributed", "planning/02-schemas/structure_parameters.schema.json"),
+    STRU_NO_ENGINE         => ("CF-STRU-003", 422, "No structure engine is installed and CodonForge ships none", "planning/00-scope/03-architecture-amendments.md"),
+    STRU_BAD_WINDOW        => ("CF-STRU-004", 422, "A structure query asks for a window that cannot be answered", "planning/00-scope/03-architecture-amendments.md"),
 
     // ---- CF-METR: indicator math -------------------------------------------
     //
