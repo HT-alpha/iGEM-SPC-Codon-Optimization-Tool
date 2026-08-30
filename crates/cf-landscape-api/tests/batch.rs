@@ -421,7 +421,15 @@ fn p2_05_adversarial_floats_survive_the_snapshot_exactly() {
         })
         .unwrap();
 
-    let restored = BatchProtocol::resume(&protocol.snapshot()).unwrap();
+    // Through *text*, not through a `serde_json::Value`. A snapshot that never
+    // leaves Rust holds an `f64` directly and no parser is involved, so a
+    // fixture that round-tripped the value alone would not exercise the code
+    // that was broken: the defect was in parsing decimal text back to binary.
+    // A checkpoint on disk is text, so text is what has to be tested.
+    let serialized = serde_json::to_string(&protocol.snapshot()).unwrap();
+    let reparsed: serde_json::Value = serde_json::from_str(&serialized).unwrap();
+    let restored = BatchProtocol::resume(&reparsed).unwrap();
+
     for (index, (a, b)) in restored.absorbed().iter().zip(&adversarial).enumerate() {
         match (a, b) {
             (Some(a), Some(b)) => assert_eq!(
