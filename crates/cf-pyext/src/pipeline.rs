@@ -632,18 +632,12 @@ impl L0Scorer for PyL0Scorer<'_> {
         let values: Vec<Option<f64>> = returned
             .extract()
             .map_err(|e| CfError::new(code::LAND_BATCH_UNEXPECTED, e.to_string()))?;
-        if values.len() != sequences.len() {
-            return Err(CfError::new(
-                code::LAND_BATCH_UNEXPECTED,
-                format!(
-                    "the scorer was given {} sequences and returned {} values; \
-                     aligning them by position would attribute one sequence's score \
-                     to another and every value would still look plausible",
-                    sequences.len(),
-                    values.len()
-                ),
-            ));
-        }
+        // No length check here on purpose. `BatchProtocol::absorb` already
+        // refuses a mismatch, and a second check in this type would be a
+        // mechanism nobody could test: removing either one changes nothing,
+        // so neither is covered. The negative control for (f) went silent for
+        // exactly this reason, which is the fifth fixture-design rule doing
+        // its job on code written the same afternoon it was applied elsewhere.
         Ok(values)
     }
 }

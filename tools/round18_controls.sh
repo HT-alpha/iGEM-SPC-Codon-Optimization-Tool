@@ -86,10 +86,12 @@ assert old in s, "anchor e"; open(p,'w').write(s.replace(old,new,1))
 PYEOF
 control "(e) a declined item is imputed as zero" "$PY"
 
-# a wrong-length reply is zipped instead of refused.
+# a wrong-length reply is zipped instead of refused. Targets BatchProtocol,
+# which is now the only mechanism enforcing this (the duplicate in PyL0Scorer
+# was removed when this control went silent against it).
 python3 - <<'PYEOF'
-p='crates/cf-pyext/src/pipeline.rs'; s=open(p).read()
-old="        if values.len() != sequences.len() {"
+p='crates/cf-landscape-api/src/batch.rs'; s=open(p).read()
+old="        if results.values.len() != expected {"
 new="        if false {"
 assert old in s, "anchor f"; open(p,'w').write(s.replace(old,new,1))
 PYEOF

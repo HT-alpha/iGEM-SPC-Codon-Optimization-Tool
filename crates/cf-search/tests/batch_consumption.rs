@@ -470,3 +470,105 @@ fn tst_srch_023_a_run_without_an_l0_term_is_unchanged() {
     );
     assert!(report.stranded.is_empty());
 }
+
+/// The axis guard has a test, because a guard without one is decoration.
+///
+/// Added when the negative control for it went silent: the fixture above
+/// declares two objectives and an axis of 2, so `axis < objective_count` was
+/// never true and the guard was never reached. Removing it changed nothing,
+/// which is indistinguishable from it not existing.
+#[test]
+fn tst_srch_023_a_scorer_may_not_claim_an_axis_the_evaluator_fills() {
+    let checker = checker_for();
+    let mix = OperatorMix::without_context_model();
+    let weights = toy_weights();
+    let evaluator = TwoPlusOne; // declares 2 objectives, indices 0 and 1
+    let cfg = config(6, 1);
+
+    // Axis 1 is in-core. Scoring it would overwrite the evaluator's value with
+    // no trace, and the objective would silently become something else.
+    let overlapping = RecordingScorer::new(1, 4);
+    let req = request(&checker, &mix, &weights, &evaluator, &cfg, Some(&overlapping));
+
+    let error = seed_population(&toy_seeds(), &req)
+        .expect_err("an overlapping axis must be refused");
+    assert_eq!(error.code, "CF-SRCH-014");
+    assert!(
+        error.detail.contains("axis 1"),
+        "the refusal must name the axis: {}",
+        error.detail
+    );
+
+    // And the non-overlapping case still works, so this is a guard rather than
+    // a blanket refusal.
+    let appended = RecordingScorer::new(2, 4);
+    let ok = request(&checker, &mix, &weights, &evaluator, &cfg, Some(&appended));
+    assert!(seed_population(&toy_seeds(), &ok).is_ok());
+}
+
+/// The L0 axis influences selection, which is only true if it is scored first.
+///
+/// Also added after a silent control. Scoring after `select` leaves every
+/// individual's L0 value `UNKNOWN` at the moment survival is decided, so the
+/// term is computed, reported, and completely without effect — a decorative
+/// objective that costs a boundary crossing per generation.
+///
+/// Two scorers with opposite preferences over the same seed and the same RNG:
+/// if the axis reaches selection, the surviving populations differ. If it does
+/// not, selection sees identical inputs both times and the survivors match.
+#[test]
+fn tst_srch_023_the_l0_axis_actually_reaches_selection() {
+    struct Signed {
+        sign: f64,
+    }
+    impl L0Scorer for Signed {
+        fn axis(&self) -> usize {
+            L0_AXIS
+        }
+        fn budget(&self) -> usize {
+            64 // large enough that every individual is scored
+        }
+        fn score_batch(&self, genotypes: &[&Genotype]) -> Result<Vec<Option<f64>>> {
+            Ok(genotypes
+                .iter()
+                .map(|g| Some(self.sign * RecordingScorer::score_of(&g.sequence().cds_string())))
+                .collect())
+        }
+    }
+
+    let survivors = |sign: f64| -> Vec<String> {
+        let checker = checker_for();
+        let mix = OperatorMix::without_context_model();
+        let weights = toy_weights();
+        let evaluator = TwoPlusOne;
+        let cfg = config(12, 4);
+        let scorer = Signed { sign };
+        let req = Tier3Request {
+            checker: &checker,
+            mix: &mix,
+            weights: &weights,
+            evaluator: &evaluator,
+            config: &cfg,
+            root_seed: 0x5eed,
+            l0: Some(&scorer as &dyn L0Scorer),
+        };
+        let start = seed_population(&toy_seeds(), &req).expect("seed");
+        let report = run_generations(&start, &req, 4).expect("run");
+        let mut out: Vec<String> = report
+            .checkpoint
+            .members
+            .iter()
+            .map(|i| i.genotype.sequence().cds_string())
+            .collect();
+        out.sort();
+        out
+    };
+
+    assert_ne!(
+        survivors(1.0),
+        survivors(-1.0),
+        "reversing the L0 objective's direction did not change who survived, so \
+         the axis is UNKNOWN at the moment selection ranks and the term is \
+         decorative - computed, reported, and without effect"
+    );
+}
