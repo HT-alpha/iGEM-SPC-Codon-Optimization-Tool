@@ -6,8 +6,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `P2-01` | Indicator math | `cf-metrics` | Fast non-dominated sort, crowding distance, Das–Dennis (single and two-layer), WFG hypervolume, IGD+, ε-indicator | `TST-METR-001`, `TST-METR-002`, `TST-METR-003` | Phase 1 | M |
 | `P2-02` | NSGA-II loop | `cf-search` | The `M ≤ 3` path, with constraint-domination and the `UNKNOWN` rule | `TST-SRCH-007` | `P2-01` | M |
-| `P2-03` | NSGA-III loop | `cf-search` | Normalization (ideal point, extreme points, intercepts, degeneracy guards), reference-direction association, niching selection; automatic `M ≥ 4` switch | `TST-SRCH-007`, `TST-METR-002` | `P2-02` | L |
-| `P2-04` | Termination and progress | `cf-search` | Hypervolume-stagnation termination; `hypervolume_history`; per-tier progress reporting | `contract_*` against `job_status.schema.json` | `P2-03` | S |
+| `P2-03` | NSGA-III loop | `cf-search` | Normalization (ideal point, extreme points, intercepts, degeneracy guards), reference-direction association, niching selection; automatic `M ≥ 4` switch | `TST-METR-005`, `TST-METR-006`, `TST-SRCH-018` | `P2-02` | L |
+| `P2-04` | Termination and progress | `cf-search` | Hypervolume-stagnation termination; `hypervolume_history`; per-tier progress reporting; **tier 3 wired into the job's execution path** | `TST-SRCH-019`, `TST-CLI-008`, `contract_*` against `job_status.schema.json` | `P2-03` | S |
 | `P2-05` | Batch-yield protocol | `cf-search`, `cf-landscape` | The resumable `step`/`absorb`/`snapshot`/`resume` state machine; Arrow IPC batch transport; `cf-worker` process; exercised end-to-end by a **stub** L0 term | `TST-LM-001` applied to the stub; one boundary crossing per generation asserted | `P2-03` | L |
 | `P2-06` | Surrogate rationing | `cf-search` | Ridge surrogate on k-mer + L1-term features; the four-way `chosen` set including the mandatory random 10 %; periodic refit | `TST-SRCH-005` | `P2-05` | M |
 | `P2-07` | Front certification | `cf-search` | Exact re-evaluation of the reduced front before emission; warning when certification changes the front | `TST-SRCH-005` | `P2-06` | S |

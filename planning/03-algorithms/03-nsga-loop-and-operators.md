@@ -48,6 +48,8 @@ Objectives are normalized every generation by the standard NSGA-III procedure: u
 - If the extreme-point matrix is singular or an intercept is non-positive, fall back to the per-axis max of the current front (a degenerate front, e.g. when two objectives are perfectly correlated, otherwise produces a division by ~0).
 - Terms declared `maximize` are negated once, at ingress to `cf-metrics`, so all internal math is minimization. The sign convention lives in exactly one place.
 
+**Niching selection is deterministic.** `DEP-SRCH-009`. Deb's algorithm makes two random choices: which least-occupied reference point to fill when several are tied, and which associated member to take when the chosen niche is already occupied. Both are replaced by deterministic rules — the lowest reference index, and the minimum perpendicular distance. Determinism by construction rather than by seeding: `GATE-DET-001` requires bit-identical output across thread counts, and a rule with no randomness in it cannot depend on scheduling, whereas a correctly-seeded one still has to be proved not to. It also avoids adding two sub-seeding sites under tier 3's reserved root. The cost is a mild preference for members lying closest to a direction, where Deb spreads randomly among a niche's members; that trades a little diversity for a guarantee the release gate treats as absolute.
+
 ---
 
 ## 4. Ranking: constraint-domination with an explicit `unknown`
