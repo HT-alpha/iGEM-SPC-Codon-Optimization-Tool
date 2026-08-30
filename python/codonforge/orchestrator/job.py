@@ -297,7 +297,7 @@ class Job:
                 self.generations_run += result["generations_run"]
                 self._absorb_warnings(result.get("warnings", []))
                 self._absorb_warnings(
-                    self._deferral_warnings(result.get("deferred_unevaluated", []))
+                    self._deferral_warnings(result.get("stranded", []))
                 )
                 self.tier3 = result
                 for member in result["front"]:

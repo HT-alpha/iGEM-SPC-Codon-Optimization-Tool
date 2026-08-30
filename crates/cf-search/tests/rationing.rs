@@ -41,27 +41,24 @@ fn tst_srch_020_the_budget_caps_exact_calls_and_the_rest_are_not_imputed() {
     let mut rng = SearchRng::new(7);
     let mut rationer = rationer(12);
 
-    let Rationed {
-        chosen, deferred, ..
-    } = rationer.choose(&objectives, &violations, &mut rng);
+    let Rationed { ranked, .. } = rationer.rank(&objectives, &violations, &mut rng);
 
-    assert!(
-        chosen.len() <= 12,
-        "the budget is a cap: {} chosen against E_max 12",
-        chosen.len()
+    // The ranker ranks; the budget cut belongs to BatchProtocol (DEP-SRCH-011).
+    // What this checks is that the ranking is a strict priority order with no
+    // duplicates, since the protocol takes a prefix of it.
+    let unique: std::collections::BTreeSet<usize> = ranked.iter().copied().collect();
+    assert_eq!(
+        unique.len(),
+        ranked.len(),
+        "a duplicated index would be scored twice and waste the budget it cost"
     );
     assert!(
-        chosen.len() < objectives.len(),
-        "rationing must actually ration; if everything is chosen there is no \
-         surrogate story to tell"
+        ranked.len() <= objectives.len(),
+        "the ranking cannot exceed the population"
     );
-    // The unchosen are simply absent from the chosen set. §6: f_L0 <- UNKNOWN,
-    // not imputed. Nothing here hands back a filled-in value for them.
-    let unchosen = objectives.len() - chosen.len();
-    assert!(unchosen > 0);
     assert!(
-        deferred.iter().all(|index| !chosen.contains(index)),
-        "an individual cannot be both chosen and deferred"
+        !ranked.is_empty(),
+        "a non-empty population must produce candidates, or nothing is ever scored"
     );
 }
 
@@ -84,7 +81,7 @@ fn tst_srch_020_the_uniform_sample_is_drawn_even_when_the_front_could_fill_the_b
 
     let mut rng = SearchRng::new(11);
     let mut rationer = rationer(16);
-    let rationed = rationer.choose(&objectives, &violations, &mut rng);
+    let rationed = rationer.rank(&objectives, &violations, &mut rng);
 
     let sampled = rationed
         .reasons
@@ -95,76 +92,6 @@ fn tst_srch_020_the_uniform_sample_is_drawn_even_when_the_front_could_fill_the_b
         sampled > 0,
         "the uniform sample must survive a population that is entirely \
          non-dominated; this is the case where dropping it is invisible"
-    );
-}
-
-/// Truncation defers rather than discards, and the deferral is honoured.
-#[test]
-fn tst_srch_021_a_truncated_individual_is_first_in_line_next_generation() {
-    let (objectives, violations) = spread_population(60);
-    let mut rng = SearchRng::new(3);
-    let mut rationer = rationer(8);
-
-    let first = rationer.choose(&objectives, &violations, &mut rng);
-    assert!(
-        !first.deferred.is_empty(),
-        "a 60-member population under E_max 8 must overflow, or this test proves nothing"
-    );
-
-    let second = rationer.choose(&objectives, &violations, &mut rng);
-    let carried: Vec<usize> = first
-        .deferred
-        .iter()
-        .copied()
-        .filter(|index| second.chosen.contains(index))
-        .collect();
-    assert!(
-        !carried.is_empty(),
-        "deferred individuals must be taken up next generation; deferring into a \
-         set that never gets read is discarding with extra steps"
-    );
-    assert!(
-        second
-            .reasons
-            .iter()
-            .any(|(_, reason)| *reason == Reason::Deferred),
-        "and they must be recorded as deferred, so the report can say why"
-    );
-}
-
-/// The silent-UNKNOWN gap is visible.
-///
-/// Structurally the same problem `CF-ORCH-006` solves for skipped tiers: an
-/// individual the budget never reached stays `UNKNOWN` forever, and without
-/// this the job's output would not say so.
-#[test]
-fn tst_srch_021_individuals_the_budget_never_reached_are_reported() {
-    let (objectives, violations) = spread_population(60);
-    let mut rng = SearchRng::new(5);
-    let mut rationer = rationer(6);
-
-    for _ in 0..3 {
-        let rationed = rationer.choose(&objectives, &violations, &mut rng);
-        for index in rationed.chosen {
-            rationer.absorb(index, Observation::from_exact(vec![index as f64], 1.0));
-        }
-    }
-
-    let stranded = rationer.unevaluated_at_end();
-    assert!(
-        !stranded.is_empty(),
-        "60 individuals at E_max 6 over 3 generations cannot all have been evaluated"
-    );
-    // And absorbing clears the flag, so this reports a real gap rather than
-    // everything that was ever deferred.
-    let mut settled = rationer;
-    for &index in &stranded {
-        settled.absorb(index, Observation::from_exact(vec![index as f64], 1.0));
-    }
-    assert!(
-        settled.unevaluated_at_end().is_empty(),
-        "an individual that later gets an exact evaluation is no longer stranded; \
-         otherwise the warning would fire on every run that ever deferred anything"
     );
 }
 

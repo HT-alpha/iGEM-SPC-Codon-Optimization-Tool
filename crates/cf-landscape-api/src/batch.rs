@@ -30,6 +30,8 @@
 //! dependency whose only consumer is a stub would be building the plumbing
 //! before the thing that needs it exists.
 
+use std::collections::BTreeSet;
+
 use cf_types::{code, CfError, CodonSequence, Result, TermId};
 
 /// A batch handed out for scoring.
@@ -117,6 +119,21 @@ pub struct BatchProtocol {
     /// rather than being forgotten, so a bounded budget delays an evaluation
     /// instead of dropping it.
     deferred: Vec<usize>,
+    /// Every item that has ever been deferred, minus those later evaluated.
+    ///
+    /// The visible trace behind `CF-SRCH-016`. Deferring correctly is not the
+    /// same as saying so: an item the budget never reached stays `UNKNOWN` to
+    /// the end, which means the run searched less than its plan describes and
+    /// nothing in the output admits it. That is structurally what `CF-ORCH-006`
+    /// exists to surface for a skipped tier.
+    ///
+    /// Lives here rather than in `cf-search`'s rationer because this type owns
+    /// the deferral queue; tracking it in both places would be two mechanisms
+    /// for one rule (`DEP-SRCH-011`).
+    stranded: BTreeSet<usize>,
+    /// Batch order of the outstanding batch, so `absorb` knows which items its
+    /// values belong to.
+    in_flight: Vec<usize>,
 }
 
 impl Default for BatchProtocol {
@@ -133,6 +150,8 @@ impl BatchProtocol {
             absorbed: Vec::new(),
             evaluations: 0,
             deferred: Vec::new(),
+            stranded: BTreeSet::new(),
+            in_flight: Vec::new(),
         }
     }
 
@@ -146,6 +165,14 @@ impl BatchProtocol {
 
     pub fn deferred(&self) -> &[usize] {
         &self.deferred
+    }
+
+    /// Items deferred at some point and never exactly evaluated since.
+    ///
+    /// The orchestrator turns a non-empty result into a `CF-SRCH-016` warning
+    /// with stage and subject provenance.
+    pub fn stranded(&self) -> Vec<usize> {
+        self.stranded.iter().copied().collect()
     }
 
     pub fn is_waiting(&self) -> bool {
@@ -186,7 +213,11 @@ impl BatchProtocol {
             self.outstanding = None;
             return Ok((Yield::Ready, chosen));
         }
+        for index in &self.deferred {
+            self.stranded.insert(*index);
+        }
         self.outstanding = Some(chosen.len());
+        self.in_flight = chosen.clone();
         self.absorbed.clear();
         Ok((Yield::Score(self.generation, chosen.len()), chosen))
     }
@@ -226,6 +257,14 @@ impl BatchProtocol {
         }
 
         self.evaluations += results.values.iter().filter(|v| v.is_some()).count() as u64;
+        // An item is stranded only until it is actually scored. A `None` value
+        // is not a score: the scorer said `UNKNOWN`, so the item is still
+        // waiting for a number it never got.
+        for (index, value) in self.in_flight.iter().zip(&results.values) {
+            if value.is_some() {
+                self.stranded.remove(index);
+            }
+        }
         self.absorbed = results.values.clone();
         self.outstanding = None;
         Ok(())
@@ -263,6 +302,13 @@ impl BatchProtocol {
             "absorbed": self.absorbed,
             "evaluations": self.evaluations,
             "deferred": self.deferred,
+            // Both travel, because both decide what the run reports. Dropping
+            // `stranded` would make CF-SRCH-016 vanish across a resume, which
+            // is the one place a warning about silence must not itself go
+            // silent. Dropping `in_flight` would leave a mid-batch resume
+            // unable to clear the right items on absorb.
+            "stranded": self.stranded.iter().copied().collect::<Vec<usize>>(),
+            "in_flight": self.in_flight,
         })
     }
 
@@ -307,6 +353,16 @@ impl BatchProtocol {
                 .iter()
                 .filter_map(|v| v.as_u64().map(|n| n as usize))
                 .collect(),
+            stranded: map
+                .get("stranded")
+                .and_then(serde_json::Value::as_array)
+                .map(|items| items.iter().filter_map(serde_json::Value::as_u64).map(|n| n as usize).collect())
+                .unwrap_or_default(),
+            in_flight: map
+                .get("in_flight")
+                .and_then(serde_json::Value::as_array)
+                .map(|items| items.iter().filter_map(serde_json::Value::as_u64).map(|n| n as usize).collect())
+                .unwrap_or_default(),
         })
     }
 }

@@ -185,14 +185,20 @@ impl Surrogate {
     }
 }
 
-/// What a generation's rationing decided.
+/// A generation's ranked candidates for exact evaluation.
+///
+/// A *ranking*, not a selection. `DEP-SRCH-011`: the budget cut, the deferral
+/// queue and the "defers rather than discards" guarantee all live in
+/// [`cf_landscape_api::batch::BatchProtocol`], which already implemented them
+/// before this module existed. Two mechanisms enforcing one rule is one too
+/// many, and the one that survives is the one the worker crossing already has
+/// to go through.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rationed {
-    /// Indices getting a real L0 call this generation.
-    pub chosen: Vec<usize>,
-    /// Squeezed out by `E_max`. First in line next generation, never dropped.
-    pub deferred: Vec<usize>,
-    /// Why each chosen index was chosen, for the report.
+    /// Candidate indices in priority order, longest-first. The protocol takes
+    /// as many as its budget allows and defers the tail.
+    pub ranked: Vec<usize>,
+    /// Why each index is where it is, for the report.
     pub reasons: Vec<(usize, Reason)>,
 }
 
@@ -234,10 +240,6 @@ pub struct Rationer {
     refit_period: u64,
     sample_fraction: f64,
     observations: Vec<Observation>,
-    deferred: Vec<usize>,
-    /// Individuals that have never had an exact L0 evaluation, by generation
-    /// they were first deferred. Drives `CF-SRCH-016`.
-    never_evaluated: BTreeSet<usize>,
 }
 
 impl Rationer {
@@ -247,8 +249,6 @@ impl Rationer {
             refit_period,
             sample_fraction: 0.10,
             observations: Vec::new(),
-            deferred: Vec::new(),
-            never_evaluated: BTreeSet::new(),
         }
     }
 
@@ -261,24 +261,12 @@ impl Rationer {
     }
 
     /// Record an exact result. Only exact results reach the training set.
-    pub fn absorb(&mut self, index: usize, observation: Observation) {
-        self.never_evaluated.remove(&index);
+    pub fn absorb(&mut self, observation: Observation) {
         self.observations.push(observation);
     }
 
     pub fn observations(&self) -> &[Observation] {
         &self.observations
-    }
-
-    /// Individuals that were deferred and never got an exact evaluation.
-    ///
-    /// This is the visible trace the carried-forward item asked for: a
-    /// budget-dropped individual staying `UNKNOWN` forever is the same shape as
-    /// a silently-skipped tier, and the orchestrator turns a non-empty result
-    /// here into a `CF-SRCH-016` warning rather than leaving it correct but
-    /// invisible.
-    pub fn unevaluated_at_end(&self) -> Vec<usize> {
-        self.never_evaluated.iter().copied().collect()
     }
 
     /// Build this generation's chosen set: §6's four components, then truncate.
@@ -287,7 +275,7 @@ impl Rationer {
     /// surrogate's L0 estimate where one is available. `rng` supplies component
     /// (b) only — the other three components are deterministic given the
     /// objectives, so a seed change perturbs the sample and nothing else.
-    pub fn choose(
+    pub fn rank(
         &mut self,
         objectives: &[Vec<f64>],
         violations: &[f64],
@@ -297,15 +285,10 @@ impl Rationer {
         let mut reasons: Vec<(usize, Reason)> = Vec::new();
         let mut picked: BTreeSet<usize> = BTreeSet::new();
 
-        // (d) first: deferral is a promise, and a promise that competes for
-        // room with fresh candidates every generation is not a promise. Taking
-        // it first is what makes "defers rather than discards" true under a
-        // budget that is always full.
-        for index in std::mem::take(&mut self.deferred) {
-            if index < population && picked.insert(index) {
-                reasons.push((index, Reason::Deferred));
-            }
-        }
+        // Component (d), "deferred from last generation", is deliberately
+        // absent here. `BatchProtocol::step` puts its own deferred queue at the
+        // head of whatever ranking it is handed, so re-adding it would either
+        // duplicate the rule or quietly disagree with it.
 
         // (b) the mandatory uniform sample, drawn from the whole population and
         // drawn *before* (a).
@@ -374,33 +357,15 @@ impl Rationer {
             }
         }
 
-        // Truncate by [`Reason`]'s declaration order, which *is* the priority
-        // (see its docs). Sorting by the reason before the index also keeps the
-        // result independent of the order components were added above.
+        // Order by [`Reason`]'s declaration order, which *is* the priority
+        // (see its docs). Sorting by reason before index also keeps the result
+        // independent of the order components were added above. The protocol
+        // cuts this list at its budget; everything past the cut is deferred by
+        // it, not dropped here.
         reasons.sort_by_key(|(index, reason)| (*reason, *index));
-        let mut chosen: Vec<usize> = Vec::new();
-        let mut deferred: Vec<usize> = Vec::new();
-        for (index, _) in &reasons {
-            if chosen.len() < self.e_max {
-                chosen.push(*index);
-            } else {
-                deferred.push(*index);
-            }
-        }
-        chosen.sort_unstable();
-        deferred.sort_unstable();
+        let ranked: Vec<usize> = reasons.iter().map(|(index, _)| *index).collect();
 
-        for &index in &deferred {
-            self.never_evaluated.insert(index);
-        }
-        self.deferred = deferred.clone();
-        reasons.retain(|(index, _)| chosen.contains(index));
-
-        Rationed {
-            chosen,
-            deferred,
-            reasons,
-        }
+        Rationed { ranked, reasons }
     }
 }
 

@@ -474,3 +474,107 @@ fn p2_05_a_malformed_snapshot_is_refused() {
         assert!(error.detail.contains(missing), "{}", error.detail);
     }
 }
+
+/// `TST-SRCH-021` — truncation defers rather than discards, and says so.
+///
+/// Moved here from `cf-search`'s rationing tests by `DEP-SRCH-011`. The rule
+/// belongs to whichever type owns the deferral queue, and so does its test:
+/// testing it against a second implementation is how the two drift apart while
+/// both suites stay green.
+#[test]
+fn tst_srch_021_a_truncated_item_is_first_in_line_next_generation() {
+    let mut protocol = BatchProtocol::new();
+
+    // 20 candidates, budget 6: the overflow is deterministic, not incidental.
+    let candidates: Vec<usize> = (0..20).collect();
+    let (_, first) = protocol.step(&candidates, 6).expect("step");
+    assert_eq!(first.len(), 6);
+    assert_eq!(
+        protocol.deferred().len(),
+        14,
+        "the tail must be deferred, not dropped"
+    );
+
+    protocol
+        .absorb(&BatchResults {
+            generation: 0,
+            values: vec![Some(1.0); 6],
+        })
+        .expect("absorb");
+    protocol.advance().expect("advance");
+
+    // The same candidates are proposed again; the deferred ones must come first
+    // rather than competing afresh with a full population every generation.
+    let (_, second) = protocol.step(&candidates, 6).expect("step");
+    assert!(
+        second.iter().all(|index| first.iter().all(|f| f != index)),
+        "a deferred item goes to the head of the queue, so the second batch is \
+         drawn from the tail rather than repeating the first six"
+    );
+}
+
+/// An item the budget never reached is reported, not silently UNKNOWN.
+#[test]
+fn tst_srch_021_items_the_budget_never_reached_are_reported() {
+    let mut protocol = BatchProtocol::new();
+    let candidates: Vec<usize> = (0..20).collect();
+
+    let (_, batch) = protocol.step(&candidates, 6).expect("step");
+    assert!(
+        !protocol.stranded().is_empty(),
+        "20 candidates at a budget of 6 must strand something, or this proves nothing"
+    );
+
+    // Scoring clears the flag for the scored items only.
+    protocol
+        .absorb(&BatchResults {
+            generation: 0,
+            values: vec![Some(1.0); batch.len()],
+        })
+        .expect("absorb");
+    let stranded = protocol.stranded();
+    assert!(
+        batch.iter().all(|index| !stranded.contains(index)),
+        "an item that got a real score is no longer stranded"
+    );
+
+    // UNKNOWN is not a score. An item the scorer declined to evaluate is still
+    // waiting for a number it never got, so it must stay stranded - otherwise
+    // the warning would clear itself by the scorer shrugging.
+    protocol.advance().expect("advance");
+    let (_, second) = protocol.step(&candidates, 6).expect("step");
+    protocol
+        .absorb(&BatchResults {
+            generation: 1,
+            values: vec![None; second.len()],
+        })
+        .expect("absorb");
+    assert!(
+        second.iter().all(|index| protocol.stranded().contains(index)),
+        "a None result leaves the item stranded; UNKNOWN is not an evaluation"
+    );
+}
+
+/// The stranded set survives a snapshot/resume.
+///
+/// The one place a warning about silence must not itself fall silent.
+#[test]
+fn tst_srch_021_the_stranded_set_survives_a_resume() {
+    let mut protocol = BatchProtocol::new();
+    let candidates: Vec<usize> = (0..20).collect();
+    let (_, _) = protocol.step(&candidates, 6).expect("step");
+    let before = protocol.stranded();
+    assert!(!before.is_empty());
+
+    let document = protocol.snapshot();
+    let text = serde_json::to_string(&document).expect("serialize");
+    let reparsed: serde_json::Value = serde_json::from_str(&text).expect("parse");
+    let resumed = BatchProtocol::resume(&reparsed).expect("resume");
+
+    assert_eq!(
+        resumed.stranded(),
+        before,
+        "a resumed run must still know what it never evaluated, or CF-SRCH-016 \
+         disappears at exactly the point a long job is most likely to be interrupted"
+    );
+}
