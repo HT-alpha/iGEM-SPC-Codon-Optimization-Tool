@@ -11,7 +11,7 @@
 
 use cf_metrics::{
     associate, das_dennis, niching_select, normalize, perpendicular_distance, placeable,
-    Association, Ranked,
+    Association, Normalization, Ranked,
 };
 
 // --------------------------------------------------------------------------- //
@@ -354,4 +354,27 @@ fn tst_metr_006_an_infeasible_member_is_still_placeable() {
     let (known, unknown) = placeable(&population, &[0]);
     assert_eq!(known, vec![0]);
     assert!(unknown.is_empty());
+}
+
+#[test]
+fn tst_metr_005_a_hand_built_zero_span_normalizes_to_zero_rather_than_nan() {
+    // `normalize`'s own fallback never produces a zero span - it sets an
+    // intercept of `ideal + 1` when the per-axis maximum is zero - so this
+    // guard is unreachable through it and a control removing the guard does
+    // not fire. It protects a `Normalization` a caller built directly, which
+    // is what this constructs. Found by a negative control that stayed silent
+    // for a reason worth writing down rather than annotating away.
+    let normalization = Normalization {
+        ideal: vec![5.0, 5.0],
+        intercepts: vec![5.0, 9.0],
+        degenerate: true,
+    };
+    let applied = normalization.apply(&[5.0, 7.0]);
+
+    assert!(
+        applied.iter().all(|v| !v.is_nan()),
+        "a zero span produced NaN"
+    );
+    assert_eq!(applied[0], 0.0);
+    assert!((applied[1] - 0.5).abs() < 1e-12);
 }

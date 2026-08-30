@@ -47,6 +47,14 @@ impl Normalization {
                 // A zero span means every member shares this axis. Contributing
                 // zero says "this axis distinguishes nobody", which is true;
                 // dividing would produce NaN and poison every distance.
+                //
+                // Defensive rather than load-bearing for `normalize`'s own
+                // output: its degenerate fallback already sets an intercept of
+                // `ideal + 1` when the per-axis maximum is zero, so a span of
+                // zero cannot arrive from there. This guard is for a
+                // `Normalization` a caller built directly, and the distinction
+                // is worth stating because a negative control removing it does
+                // not fire through `normalize`.
                 if span.abs() <= f64::EPSILON {
                     0.0
                 } else {
@@ -122,12 +130,22 @@ pub fn normalize(points: &[Vec<f64>], previous_ideal: Option<&[f64]>) -> Normali
         })
         .collect();
 
+    // The one validity test. An intercept must be finite and positive: a
+    // singular extreme-point matrix produces an infinity or a NaN here, a
+    // degenerate front produces a non-positive value, and §3's two guards have
+    // the same answer for both — fall back to the per-axis maximum.
     match solve_intercepts(&extremes) {
-        Some(intercepts) if intercepts.iter().all(|v| *v > f64::EPSILON) => Normalization {
-            intercepts: intercepts.iter().zip(&ideal).map(|(a, i)| a + i).collect(),
-            ideal,
-            degenerate: false,
-        },
+        Some(intercepts)
+            if intercepts
+                .iter()
+                .all(|v| v.is_finite() && *v > f64::EPSILON) =>
+        {
+            Normalization {
+                intercepts: intercepts.iter().zip(&ideal).map(|(a, i)| a + i).collect(),
+                ideal,
+                degenerate: false,
+            }
+        }
         // §3's guards, as one branch because they have one answer: a singular
         // extreme-point matrix and a non-positive intercept both mean the
         // hyperplane is not usable, and both fall back to the per-axis maximum
@@ -166,9 +184,13 @@ fn solve_intercepts(extremes: &[Vec<f64>]) -> Option<Vec<f64>> {
                 .partial_cmp(&matrix[*b][column].abs())
                 .unwrap_or(std::cmp::Ordering::Equal)
         })?;
-        if matrix[pivot][column].abs() <= 1e-12 {
-            return None;
-        }
+        // No zero-pivot guard here, deliberately. A singular matrix divides by
+        // zero, which in IEEE arithmetic gives an infinity or a NaN rather than
+        // a trap, and both fail the single validity test below. Checking here
+        // as well would be two mechanisms for one rule: they agreed, so
+        // removing either changed nothing and neither was testable — which is
+        // exactly how the `UNKNOWN` screen went unnoticed in `cf-metrics`
+        // until a negative control refused to fire.
         matrix.swap(column, pivot);
         rhs.swap(column, pivot);
 

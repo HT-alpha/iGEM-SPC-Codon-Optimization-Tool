@@ -847,3 +847,111 @@ fn tst_srch_019_a_segment_that_has_not_terminated_says_so() {
     assert_eq!(partial.termination, Termination::SegmentComplete);
     assert!(!partial.termination.is_final());
 }
+
+/// Four objectives, the last always `UNKNOWN`.
+///
+/// So every member of every splitting front is unplaceable in objective space
+/// and niching has to fall back on them rather than merely rank them last.
+/// A fixture where *some* members are placeable cannot test this: the
+/// placeable ones fill every slot and the fallback branch never runs, which is
+/// what a first version of this test found - four generations in, not one
+/// member carried an unknown and the assertion that the fixture bound caught
+/// it.
+#[derive(Debug)]
+struct AlwaysUnknown;
+
+impl ObjectiveEvaluator for AlwaysUnknown {
+    fn evaluate(&self, genotype: &Genotype) -> Result<Vec<Option<f64>>> {
+        let codons = genotype.codons();
+        let total: usize = codons.iter().map(|c| c.index_usize()).sum();
+        Ok(vec![
+            Some(total as f64 / codons.len() as f64),
+            Some((total % 7) as f64),
+            Some((total % 5) as f64),
+            None,
+        ])
+    }
+    fn objective_count(&self) -> usize {
+        4
+    }
+}
+
+#[test]
+fn tst_srch_018_nsga3_keeps_members_it_cannot_place_in_objective_space() {
+    // §4: an UNKNOWN term is never imputed, and an individual carrying one is
+    // not shown to be bad - only unmeasured. Dropping such members would leave
+    // the population unable to refill itself the moment a provider missed a
+    // budget for everyone, which is exactly when a search must not collapse.
+    let checker = checker();
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+    let evaluator = AlwaysUnknown;
+    let mut config = config(12);
+    config.stagnation_window = 1000;
+    let request = request(&checker, &mix, &weights, &evaluator, &config);
+
+    let start = seed_population(&[base()], &request).unwrap();
+    assert!(
+        start
+            .members
+            .iter()
+            .all(|m| m.objectives.iter().any(Option::is_none)),
+        "the fixture must actually produce unplaceable members"
+    );
+
+    let report = run_generations(&start, &request, 3).unwrap();
+
+    assert_eq!(report.selection, Selection::ReferenceDirections);
+    assert_eq!(
+        report.checkpoint.members.len(),
+        12,
+        "selection dropped members it could not place in objective space, so a \
+         population whose provider missed its budget would collapse"
+    );
+    assert!(!report.front.is_empty());
+}
+
+#[test]
+fn tst_srch_018_nsga3_prefers_a_placeable_member_to_an_unplaceable_one() {
+    // The other half of the rule: unplaceable members are ranked *last*, not
+    // treated as equals. With a mixed splitting front the placeable members
+    // fill the slots first.
+    let ranked = vec![
+        Ranked::feasible(vec![Some(1.0), Some(1.0), Some(1.0), None]),
+        Ranked::feasible(vec![Some(2.0), Some(2.0), Some(2.0), Some(2.0)]),
+    ];
+    let (known, unknown) = cf_metrics::placeable(&ranked, &[0, 1]);
+    assert_eq!(known, vec![1]);
+    assert_eq!(unknown, vec![0]);
+}
+
+#[test]
+fn tst_srch_019_a_resumed_segment_shorter_than_the_window_still_stagnates() {
+    // The history has to be inherited, not restarted. With a window of 3 and a
+    // resumed segment of 2 generations, stagnation is unreachable from an empty
+    // history - so a run that terminates here can only have done so on the
+    // history it carried. The earlier test used a long resumed segment, which
+    // could stagnate on its own and so could not tell the two apart.
+    let checker = checker();
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+    let mut config = config(8);
+    config.stagnation_window = 3;
+    config.max_generations = 100;
+    let evaluator = Constant;
+    let request = request(&checker, &mix, &weights, &evaluator, &config);
+
+    let start = seed_population(&[base()], &request).unwrap();
+    let first = run_generations(&start, &request, 3).unwrap();
+    assert_eq!(first.termination, Termination::SegmentComplete);
+    assert_eq!(first.checkpoint.hypervolume_history.len(), 3);
+
+    let resumed = run_generations(&first.checkpoint, &request, 2).unwrap();
+    assert_eq!(
+        resumed.termination,
+        Termination::HypervolumeStagnation,
+        "a two-generation segment terminated on a three-generation window only if \
+         it inherited the history"
+    );
+    assert_eq!(resumed.generations_run, 1);
+}
