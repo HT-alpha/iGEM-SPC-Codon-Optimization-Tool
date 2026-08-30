@@ -82,3 +82,37 @@ def test_no_forbidden_structure_dependency() -> None:
     assert not offenders, (
         "forbidden structure-prediction dependency found; see AMD-009:\n  " + "\n  ".join(offenders)
     )
+
+
+def test_the_compiled_extension_is_not_older_than_its_sources() -> None:
+    """`pytest` run directly can silently test a stale `_core`.
+
+    `make test` depends on `build`, so the supported path rebuilds first. Run
+    `pytest` on its own after editing Rust and the extension is whatever was
+    last installed — the Python tests then exercise old behaviour and fail, or
+    worse pass, for reasons nothing in the output explains. That cost a long
+    diagnosis once: a test failure was chased into a Python comprehension that
+    turned out to be correct, and the real cause was an extension built before
+    the change under test.
+    """
+    import pathlib
+
+    from codonforge import _core
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    extension = pathlib.Path(_core.__file__)
+    assert extension.exists(), "the compiled extension is missing; run `make build`"
+
+    newest = max(
+        (
+            path.stat().st_mtime
+            for path in root.joinpath("crates").rglob("*.rs")
+            if "target" not in path.parts
+        ),
+        default=0.0,
+    )
+    assert extension.stat().st_mtime >= newest, (
+        f"{extension.name} is older than the Rust sources it was built from. "
+        "Run `make build` (or `make test`, which does it for you) — running "
+        "pytest directly after editing Rust tests the previous build."
+    )
