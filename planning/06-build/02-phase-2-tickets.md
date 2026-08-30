@@ -28,6 +28,20 @@
 | `P2-22` | `SYN-03`, `SYN-06` | `cf-testkit` | Two-cistron contention instance with closed-form margin; three-tier synthetic host | `TST-SYN-003` | `P2-12` | M |
 | `P2-23` | Licence and patent review | — | Written review of every dependency's licence and of the LinearDesign patent position; confirmation that no non-redistributable code is vendored; `NOTICE` file | Signed-off review document in `docs/` | `P2-09` | S |
 
+### `P2-04` — what wiring tier 3 into the job exposed
+
+**The pipeline is now monotone, and `CF-ORCH-007`'s warning correctly stops firing.** `P1-30` found the objective-free mutation loop moving *away* from tier 1's optimum, with the front reporting the loss. Tier 3 is elitist — NSGA-II keeps the best front — so the regression it was compensating for is gone. The archive guarantee is unchanged and still tested directly against constructed regressions, because a future stage may well regress; what changed is that the pipeline no longer produces one.
+
+**`serde_json` needs its `float_roundtrip` feature, and every checkpoint depended on it.** Without it the parser takes a fast path that can land one ulp from the value written, so `0.40476190476190477` came back as `0.4047619047619048`. Every checkpoint here carries floats — objective vectors, hypervolume history, violations — so a resumed run diverged from an uninterrupted one by a rounding error. Found by a tier-3 resume test, not by a control, and it is exactly what `GATE-REPRO-001` forbids.
+
+**The generation cap has to be checked before a generation runs, not after.** Checking afterwards let a resumed segment run one past it: an uninterrupted request for nine against a cap of eight stopped at eight, while the same run split 8 + 1 ran a ninth. Both were internally consistent and disagreed with each other.
+
+**The tier-3 checkpoint carries the tabu ledger.** The fourth thing found missing from a checkpoint in this repository, and the first found by a test rather than by a negative control.
+
+**A single-objective fixture cannot exercise tier 3 at all.** Tier 1's DP is exact for an additive objective, so the population starts at the optimum, converges to one sequence, and hypervolume is constant — every assertion about the population loop passes by doing nothing. The orchestrator and CLI fixtures are two-objective for this reason.
+
+**`current_front_summary.best_per_objective` is a per-axis extremum**, filled from tier 3's own report rather than recomputed, so the number a UI plots is the one termination was decided on. It is deliberately not a third notion of "best" beside `front()` and `best()`: those answer "which designs", this answers "how far did each axis get".
+
 ### `P2-01` / `P2-02` — the audit's corrections
 
 **Crowding distance had no acceptance test.** `P2-01` lists it as a deliverable and no `TST-*` covered it, which matters more than an ordinary omission because crowding distance is where the tie behaviour lives: boundary members take infinity, and a front whose members share an objective value has a zero range that a naive normalization divides by. `TST-METR-004` now covers both, plus a fully degenerate front, a single-member front and an unknown term. Writing it found that a one-member front took distance zero and could be discarded by selection.

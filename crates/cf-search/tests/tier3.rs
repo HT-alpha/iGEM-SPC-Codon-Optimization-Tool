@@ -11,8 +11,8 @@ use cf_constraints::spec::{Constraint, ConstraintClass, ConstraintSet, Rule, Sco
 use cf_constraints::{ConstraintChecker, KmerMasking};
 use cf_metrics::{constraint_dominance, Dominance, Ranked};
 use cf_search::tier3::{
-    nondominated, run_generations, seed_population, Individual, ObjectiveEvaluator, Selection,
-    Tier3Config, Tier3Request,
+    nondominated, run_generations, seed_population, stagnated, Individual, ObjectiveEvaluator,
+    Selection, Termination, Tier3Config, Tier3Request,
 };
 use cf_search::{CodonWeights, Genotype, OperatorMix};
 use cf_types::{CodonSequence, Result};
@@ -691,4 +691,159 @@ fn p2_02_an_unsatisfiable_population_is_ranked_rather_than_emptied() {
         "an infeasible run reported no front at all"
     );
     assert!(report.front.iter().all(|m| !m.is_feasible()));
+}
+
+// --------------------------------------------------------------------------- //
+// TST-SRCH-019 — termination
+// --------------------------------------------------------------------------- //
+
+#[test]
+fn tst_srch_019_stagnation_is_relative_and_needs_a_full_window() {
+    // A window longer than the history is never stagnant: a run has to have
+    // had the chance to improve before failing to is evidence of anything.
+    assert!(!stagnated(&[1.0, 1.0, 1.0], 5, 1e-3));
+    assert!(!stagnated(&[], 3, 1e-3));
+    assert!(
+        !stagnated(&[1.0; 4], 0, 1e-3),
+        "a zero window must not fire"
+    );
+
+    // Flat over the window: stagnant.
+    assert!(stagnated(&[1.0, 1.0, 1.0, 1.0, 1.0], 3, 1e-3));
+
+    // Still climbing: not stagnant.
+    assert!(!stagnated(&[1.0, 2.0, 3.0, 4.0, 5.0], 3, 1e-3));
+
+    // Relative, not absolute. The same absolute gain is stagnation at a large
+    // scale and progress at a small one, which is why hypervolume - whose
+    // magnitude depends on the reference point and the objective units -
+    // cannot use an absolute epsilon.
+    assert!(stagnated(&[1.0e6, 1.0e6, 1.0e6, 1.0e6 + 1.0], 3, 1e-3));
+    assert!(!stagnated(&[1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3 + 1.0], 3, 1e-3));
+}
+
+/// A constant objective, so the population cannot improve at all.
+///
+/// The stagnation condition is *constructed*, not waited for. A fixture that
+/// ran a real search and hoped it stalled would depend on where a particular
+/// random walk went - which is how a motif fixture in this repository broke
+/// twice when an unrelated RNG change shifted the trajectory.
+#[derive(Debug)]
+struct Constant;
+
+impl ObjectiveEvaluator for Constant {
+    fn evaluate(&self, _genotype: &Genotype) -> Result<Vec<Option<f64>>> {
+        Ok(vec![Some(1.0), Some(1.0)])
+    }
+    fn objective_count(&self) -> usize {
+        2
+    }
+}
+
+fn run_until_termination(
+    evaluator: &dyn ObjectiveEvaluator,
+    window: usize,
+    max_generations: u32,
+) -> cf_search::tier3::Tier3Report {
+    let checker = checker();
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+    let mut config = config(8);
+    config.stagnation_window = window;
+    config.max_generations = max_generations;
+    let request = request(&checker, &mix, &weights, evaluator, &config);
+    let start = seed_population(&[base()], &request).unwrap();
+    run_generations(&start, &request, max_generations).unwrap()
+}
+
+#[test]
+fn tst_srch_019_a_run_that_cannot_improve_terminates_on_stagnation() {
+    let report = run_until_termination(&Constant, 3, 50);
+
+    assert_eq!(
+        report.termination,
+        Termination::HypervolumeStagnation,
+        "a run with a constant objective ran to its generation cap instead of stopping"
+    );
+    assert!(report.termination.is_final());
+    assert!(
+        report.generations_run < 50,
+        "termination fired only at the cap, which is not termination"
+    );
+    assert_eq!(report.termination.as_summary(), "hypervolume_stagnation");
+}
+
+#[test]
+fn tst_srch_019_a_run_that_is_still_improving_reaches_its_generation_cap() {
+    // The other half: a fixture where stagnation must *not* fire, so the test
+    // above cannot pass by a condition that always holds. The window is longer
+    // than the run, so stagnation is unreachable by construction.
+    let report = run_until_termination(&Conflicting, 100, 5);
+
+    assert_eq!(report.termination, Termination::GenerationLimit);
+    assert_eq!(report.generations_run, 5);
+}
+
+#[test]
+fn tst_srch_019_the_history_has_one_entry_per_generation_run() {
+    let report = run_until_termination(&Conflicting, 100, 6);
+    assert_eq!(report.checkpoint.hypervolume_history.len(), 6);
+    assert_eq!(report.generations_run, 6);
+    assert!(report
+        .checkpoint
+        .hypervolume_history
+        .iter()
+        .all(|v| v.is_finite()));
+}
+
+#[test]
+fn tst_srch_019_the_history_travels_in_the_checkpoint() {
+    // Termination depends on it, so a resumed run that started with an empty
+    // history could not stagnate until it had run a whole window again - a job
+    // checkpointed near convergence would keep going where an uninterrupted
+    // one stopped.
+    let checker = checker();
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+    let mut config = config(8);
+    config.stagnation_window = 3;
+    config.max_generations = 50;
+    let evaluator = Constant;
+    let request = request(&checker, &mix, &weights, &evaluator, &config);
+
+    let start = seed_population(&[base()], &request).unwrap();
+    let first = run_generations(&start, &request, 2).unwrap();
+    assert_eq!(first.termination, Termination::SegmentComplete);
+    assert_eq!(first.checkpoint.hypervolume_history.len(), 2);
+
+    let resumed = run_generations(&first.checkpoint, &request, 10).unwrap();
+    assert_eq!(
+        resumed.termination,
+        Termination::HypervolumeStagnation,
+        "the resumed run did not inherit the history and could not stagnate"
+    );
+    assert!(resumed.checkpoint.hypervolume_history.len() > 2);
+}
+
+#[test]
+fn tst_srch_019_a_segment_that_has_not_terminated_says_so() {
+    // SegmentComplete is not a termination: the caller may continue. Reporting
+    // it as a generation limit would tell a job it had converged when it had
+    // only reached the end of a checkpoint interval.
+    let report = run_until_termination(&Conflicting, 100, 20);
+    assert!(report.termination.is_final());
+
+    let checker = checker();
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+    let mut config = config(8);
+    config.stagnation_window = 100;
+    config.max_generations = 20;
+    let evaluator = Conflicting;
+    let request = request(&checker, &mix, &weights, &evaluator, &config);
+    let start = seed_population(&[base()], &request).unwrap();
+    let partial = run_generations(&start, &request, 3).unwrap();
+
+    assert_eq!(partial.termination, Termination::SegmentComplete);
+    assert!(!partial.termination.is_final());
 }

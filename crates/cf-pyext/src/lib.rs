@@ -327,7 +327,7 @@ fn search_run_segment(
 /// Extracting it here rather than restructuring the error type keeps the
 /// `stage`/`subject` contract in one place — the boundary that emits the
 /// document — instead of spreading provenance concerns through `cf-search`.
-fn operator_subject(detail: &str) -> String {
+pub(crate) fn operator_subject(detail: &str) -> String {
     detail
         .strip_prefix("mutation operator ")
         .and_then(|rest| rest.split_whitespace().next())
@@ -368,6 +368,44 @@ fn term_directions(request_json: &str) -> PyResult<String> {
 #[pyfunction]
 fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
     with_tier_inputs(request_json, |inputs| pipeline::score_terms(inputs, cds))
+}
+
+/// Run tier 3 for a segment. `P2-04`.
+///
+/// The job's execution path for the population loop, replacing the
+/// mutation-only driver. Whole generations per crossing, so ADR-0001's
+/// one-crossing-per-generation cap holds, and the state returned is the
+/// checkpoint.
+#[pyfunction]
+#[pyo3(signature = (
+    request_json,
+    checkpoint_json,
+    population,
+    generations,
+    stagnation_window,
+))]
+fn search_tier3_segment(
+    request_json: &str,
+    checkpoint_json: Option<&str>,
+    population: usize,
+    generations: u32,
+    stagnation_window: usize,
+) -> PyResult<String> {
+    let checkpoint: Option<serde_json::Value> = match checkpoint_json {
+        None | Some("null") => None,
+        Some(text) => {
+            Some(serde_json::from_str(text).map_err(|e| PyValueError::new_err(e.to_string()))?)
+        }
+    };
+    with_tier_inputs(request_json, |inputs| {
+        pipeline::run_tier3_segment(
+            inputs,
+            checkpoint.as_ref(),
+            population,
+            generations,
+            stagnation_window,
+        )
+    })
 }
 
 /// The RNG root tier 3 and the generation loop derive from. `DEP-DET-003`.
@@ -552,5 +590,6 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(term_scores, m)?)?;
     m.add_function(wrap_pyfunction!(scalarized_score, m)?)?;
     m.add_function(wrap_pyfunction!(tier3_root_seed, m)?)?;
+    m.add_function(wrap_pyfunction!(search_tier3_segment, m)?)?;
     Ok(())
 }

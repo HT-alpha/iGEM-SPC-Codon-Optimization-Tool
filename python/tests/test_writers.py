@@ -279,7 +279,10 @@ def test_p1_31_every_output_format_reaches_the_cli(
     assert "LOCUS" in seen["genbank"] and "ORIGIN" in seen["genbank"]
     assert seen["csv"].splitlines()[0].startswith("candidate_id,")
     assert "objectives" in seen["explain"] and "tiers" in seen["explain"]
-    assert json.loads(seen["json"])["front"]["objective_order"] == ["usage.cai"]
+    assert json.loads(seen["json"])["front"]["objective_order"] == [
+        "usage.cai",
+        "usage.gc_content",
+    ]
     assert HOST in json.loads(seen["json"])["status"]["job_id"] or True
 
 

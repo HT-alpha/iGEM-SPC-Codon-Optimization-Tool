@@ -17,7 +17,15 @@ repository = "https://github.com/HT-alpha/iGEM-Codon-Optimization-Tool"
 # permissive native kernel.
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+# `float_roundtrip` is not optional here. Without it serde_json parses floats
+# through a fast path that can land one ulp away from the value that was
+# written, so a document carrying an f64 does not survive a write-read cycle.
+# Every checkpoint in this system carries floats — objective vectors,
+# hypervolume history, constraint violations — so a resumed run would diverge
+# from an uninterrupted one by a rounding error, which is precisely what
+# GATE-REPRO-001 forbids. Found when a tier-3 resume diverged and the diff came
+# down to 0.40476190476190477 becoming 0.4047619047619048.
+serde_json = { version = "1", features = ["float_roundtrip"] }
 sha2 = "0.10"
 regex = "1"
 

@@ -26,9 +26,13 @@ use cf_landscape_api::provider::EvalContext;
 use cf_landscape_api::provider::TermRegistry;
 use cf_landscape_api::query::Budget;
 use cf_landscape_api::HostContext;
+use cf_search::tier3::{
+    seed_population, Individual, ObjectiveEvaluator, Selection, Tier3Checkpoint, Tier3Config,
+    Tier3Request,
+};
 use cf_search::{
-    tier1_seed, tier2_block_ca, Genotype, SearchRng, Tier1Config, Tier1Request, Tier2Config,
-    Tier2Plan, Tier2Request,
+    tier1_seed, tier2_block_ca, CodonWeights, Genotype, OperatorMix, SearchRng, Tier1Config,
+    Tier1Request, Tier2Config, Tier2Plan, Tier2Request,
 };
 use cf_types::{code, CfError, CodonSequence, Digest, HostId, Result, TermId};
 use serde_json::{json, Value};
@@ -313,4 +317,257 @@ pub const STREAM_TIER3: u64 = u64::MAX - 3;
 /// The root seed the generation loop and tier 3 share.
 pub fn tier3_seed(root_seed: u64) -> u64 {
     stage_seed(root_seed, STREAM_TIER3)
+}
+
+// --------------------------------------------------------------------------- //
+// Tier 3: the population loop, in the job's execution path
+// --------------------------------------------------------------------------- //
+
+/// Run tier 3 for a segment, resuming from a checkpoint document.
+///
+/// `P2-04`. This is what replaces the mutation loop in the job's execution
+/// path. The loop is the same driver `P1-18b` established — whole generations
+/// per crossing, so ADR-0001's one-crossing-per-generation cap holds — and the
+/// state returned is the checkpoint, so there is no second representation.
+///
+/// Objectives are evaluated through the same registry tiers 1 and 2 use, with
+/// each term's declared direction applied once so everything below is
+/// minimization. That is deliberately not a second evaluation path: a job whose
+/// tiers optimized one thing while tier 3 ranked another would be the
+/// direction bug of `P1-30` in a new place.
+pub fn run_tier3_segment(
+    inputs: &TierInputs<'_>,
+    checkpoint: Option<&Value>,
+    population: usize,
+    generations: u32,
+    stagnation_window: usize,
+) -> Result<Value> {
+    let registry = build_registry(
+        inputs.terms,
+        inputs.host_profile,
+        inputs.sequence,
+        inputs.constraint_set,
+    )?;
+    let host = host_context(inputs)?;
+    let checker = ConstraintChecker::compile(inputs.constraint_set)?;
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+
+    let evaluator = RegistryEvaluator {
+        registry: &registry,
+        host: &host,
+        terms: term_ids(inputs.terms)?,
+        senses: term_senses(&registry, inputs.terms)?,
+    };
+
+    let mut config = Tier3Config::from_planning(population);
+    config.max_generations = u32::MAX;
+    config.stagnation_window = stagnation_window;
+
+    let request = Tier3Request {
+        checker: &checker,
+        mix: &mix,
+        weights: &weights,
+        evaluator: &evaluator,
+        config: &config,
+        root_seed: tier3_seed(inputs.root_seed),
+    };
+
+    let start = match checkpoint {
+        Some(document) if !document.is_null() => checkpoint_from_json(document, &request)?,
+        _ => {
+            let seed = Genotype::new(inputs.sequence.clone());
+            seed_population(&[seed], &request)?
+        }
+    };
+    let report = cf_search::tier3::run_generations(&start, &request, generations)?;
+
+    Ok(json!({
+        "checkpoint": checkpoint_to_json(&report.checkpoint)?,
+        "front": report.front.iter().map(|m| json!({
+            "cds": m.genotype.sequence().cds_string(),
+            "objectives": m.objectives,
+            "feasible": m.is_feasible(),
+        })).collect::<Vec<_>>(),
+        "termination": report.termination.as_summary(),
+        "terminated": report.termination.is_final(),
+        "selection": match report.selection {
+            Selection::CrowdingDistance => "crowding_distance",
+            Selection::ReferenceDirections => "reference_directions",
+        },
+        "generations_run": report.generations_run,
+        "hypervolume_history": report.checkpoint.hypervolume_history,
+        "evaluations": report.checkpoint.evaluations,
+        "warnings": report.warnings.iter().map(|w| {
+            let mut problem = w.to_problem_details();
+            problem["stage"] = json!("operators");
+            problem["subject"] = json!(crate::operator_subject(&w.detail));
+            problem
+        }).collect::<Vec<_>>(),
+    }))
+}
+
+/// Evaluates objectives through the shared registry, direction applied once.
+struct RegistryEvaluator<'a> {
+    registry: &'a TermRegistry,
+    host: &'a HostContext,
+    terms: Vec<TermId>,
+    senses: Vec<f64>,
+}
+
+impl ObjectiveEvaluator for RegistryEvaluator<'_> {
+    fn evaluate(&self, genotype: &Genotype) -> Result<Vec<Option<f64>>> {
+        let sequence = genotype.sequence();
+        let ctx = EvalContext::new(sequence, self.host, Budget::default(), 0);
+        let mut out = Vec::with_capacity(self.terms.len());
+        for (term, sense) in self.terms.iter().zip(&self.senses) {
+            let registration = self.registry.get(term).ok_or_else(|| {
+                CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} is not registered"))
+            })?;
+            // `sense` turns a maximized term into a minimized one. Everything
+            // below `cf-metrics` minimizes, and the sign convention lives in
+            // exactly one place per §3.
+            out.push(Some(sense * registration.provider.score(&ctx)?));
+        }
+        Ok(out)
+    }
+
+    fn objective_count(&self) -> usize {
+        self.terms.len()
+    }
+}
+
+fn term_senses(registry: &TermRegistry, terms: &[String]) -> Result<Vec<f64>> {
+    terms
+        .iter()
+        .map(|term| {
+            let id = TermId::new(term)?;
+            let registration = registry.get(&id).ok_or_else(|| {
+                CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} is not registered"))
+            })?;
+            Ok(match registration.provider.direction() {
+                cf_types::Direction::Minimize => 1.0,
+                cf_types::Direction::Maximize => -1.0,
+            })
+        })
+        .collect()
+}
+
+fn checkpoint_to_json(checkpoint: &Tier3Checkpoint) -> Result<Value> {
+    let mut members = Vec::with_capacity(checkpoint.members.len());
+    for member in &checkpoint.members {
+        members.push(json!({
+            "sequence": member.genotype.sequence().to_json()?,
+            "objectives": member.objectives,
+            "violation": member.violation,
+        }));
+    }
+    Ok(json!({
+        "generation": checkpoint.generation,
+        "members": members,
+        "tabu": checkpoint.tabu.iter().map(|(region, index, codon, remaining)| json!({
+            "region": region,
+            "codon_index": index,
+            "codon": codon.to_string_upper(),
+            "remaining": remaining,
+        })).collect::<Vec<_>>(),
+        "evaluations": checkpoint.evaluations,
+        "repairs_attempted": checkpoint.repairs_attempted,
+        "repairs_succeeded": checkpoint.repairs_succeeded,
+        "hypervolume_history": checkpoint.hypervolume_history,
+    }))
+}
+
+fn checkpoint_from_json(document: &Value, request: &Tier3Request<'_>) -> Result<Tier3Checkpoint> {
+    let bad = |what: &str| {
+        CfError::new(
+            code::ORCH_CHECKPOINT_INVALID,
+            format!("tier 3 checkpoint is missing or malformed: {what}"),
+        )
+    };
+    let map = document.as_object().ok_or_else(|| bad("not an object"))?;
+    let mut members = Vec::new();
+    for entry in map
+        .get("members")
+        .and_then(Value::as_array)
+        .ok_or_else(|| bad("members"))?
+    {
+        let entry = entry.as_object().ok_or_else(|| bad("member"))?;
+        let sequence =
+            CodonSequence::from_json(entry.get("sequence").ok_or_else(|| bad("sequence"))?)?;
+        members.push(Individual {
+            genotype: Genotype::new(sequence),
+            // Restored, never recomputed: an `UNKNOWN` is a fact about a
+            // budget already spent, and re-running evaluation could turn it
+            // into a value and change the ranking.
+            objectives: entry
+                .get("objectives")
+                .and_then(Value::as_array)
+                .ok_or_else(|| bad("objectives"))?
+                .iter()
+                .map(|v| v.as_f64())
+                .collect(),
+            violation: entry
+                .get("violation")
+                .and_then(Value::as_f64)
+                .ok_or_else(|| bad("violation"))?,
+        });
+    }
+    // The tabu ledger travels with everything else. Dropping it made a resumed
+    // run re-propose exactly the moves repair had just reverted - the thrash
+    // the ledger exists to break, restarted by the checkpoint mechanism. This
+    // is the fourth thing to be found missing from a checkpoint here, and the
+    // first found by the test rather than by a control.
+    let mut tabu = Vec::new();
+    for entry in map
+        .get("tabu")
+        .and_then(Value::as_array)
+        .ok_or_else(|| bad("tabu"))?
+    {
+        let entry = entry.as_object().ok_or_else(|| bad("tabu entry"))?;
+        tabu.push((
+            entry
+                .get("region")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| bad("region"))? as usize,
+            entry
+                .get("codon_index")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| bad("codon_index"))? as usize,
+            cf_types::Codon::parse(
+                entry
+                    .get("codon")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| bad("codon"))?,
+            )?,
+            entry
+                .get("remaining")
+                .and_then(Value::as_u64)
+                .ok_or_else(|| bad("remaining"))? as u32,
+        ));
+    }
+
+    let _ = request;
+    Ok(Tier3Checkpoint {
+        generation: map
+            .get("generation")
+            .and_then(Value::as_u64)
+            .ok_or_else(|| bad("generation"))? as u32,
+        members,
+        tabu,
+        evaluations: map.get("evaluations").and_then(Value::as_u64).unwrap_or(0),
+        repairs_attempted: map
+            .get("repairs_attempted")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        repairs_succeeded: map
+            .get("repairs_succeeded")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        hypervolume_history: map
+            .get("hypervolume_history")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_f64).collect())
+            .unwrap_or_default(),
+    })
 }

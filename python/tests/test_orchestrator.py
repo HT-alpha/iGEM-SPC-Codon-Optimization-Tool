@@ -184,6 +184,12 @@ def inputs() -> JobInputs:
         host_profile=host_profile(),
         host_id=HOST,
         host_digest="sha256:" + "1" * 64,
+        population=8,
+        # Long enough that these fixtures terminate on their budget rather than
+        # on stagnation: a budget test that stopped early would be measuring
+        # convergence. Termination itself is tested separately, with a fixture
+        # that cannot improve at all.
+        stagnation_window=1000,
         tier1_beam=16,
         tier1_seeds=4,
         tier2_block=4,
@@ -211,9 +217,13 @@ def make_job(
         budget=ComputeBudget(tier="standard", total_generations=total, segment=segment),
         lockfile=sealed_lockfile(store, root_seed),
         store=store,
-        terms=terms if terms is not None else ["usage.cai"],
-        capabilities=capabilities or {"usage.cai": "L1"},
-        radii=radii or {"usage.cai": 0},
+        # Two conflicting objectives by default. With one, tier 1's DP is
+        # already at the optimum and tier 3 has nothing to explore: the
+        # population converges to a single sequence, hypervolume is constant,
+        # and every assertion about the population loop becomes vacuous.
+        terms=terms if terms is not None else ["usage.cai", "usage.gc_content"],
+        capabilities=capabilities or {"usage.cai": "L1", "usage.gc_content": "L1"},
+        radii=radii or {"usage.cai": 0, "usage.gc_content": 0},
         block_size=block_size,
         directions=directions
         or {
@@ -301,6 +311,7 @@ def test_tst_orch_002_a_resumed_run_matches_an_uninterrupted_one(
     # The fixture must exercise repair, or the claims about the checkpoint
     # carrying the tabu ledger across a resume are about an empty list.
     assert uninterrupted.checkpoint["repairs_attempted"] > 0, "repair never fired"
+    assert len(uninterrupted.checkpoint["members"]) == 8
 
     # Stop after the first segment.
     stopped = make_job(store, tmp_path / "b", total=12, segment=3)
@@ -326,9 +337,9 @@ def test_tst_orch_002_a_resumed_run_matches_an_uninterrupted_one(
     # The ledger has to be live at some boundary, or "resume carries it" and
     # "resume drops it" are the same test. Which boundary depends on where
     # repair happens to fire, so it is found rather than assumed.
-    assert any(h["tabu_live"] > 0 for h in uninterrupted.checkpoint["history"]), (
-        "the tabu ledger was empty in every generation; the fixture proves nothing "
-        "about the checkpoint carrying it"
+    assert len(uninterrupted.checkpoint["hypervolume_history"]) == 12, (
+        "the history must have one entry per generation, or resuming cannot know "
+        "whether the run had already stagnated"
     )
 
 
@@ -347,9 +358,8 @@ def test_tst_orch_002_the_history_is_identical_generation_by_generation(
         piecewise = make_job(store, tmp_path / "b", total=9, segment=3).resume(document)
     assert piecewise.generations_run == 9
 
-    assert straight.checkpoint["history"] == piecewise.checkpoint["history"]
-    assert straight.checkpoint["incumbent"] == piecewise.checkpoint["incumbent"]
-    assert straight.checkpoint["tabu"] == piecewise.checkpoint["tabu"]
+    assert straight.checkpoint["members"] == piecewise.checkpoint["members"]
+    assert straight.checkpoint["hypervolume_history"] == piecewise.checkpoint["hypervolume_history"]
 
 
 def test_tst_orch_002_a_checkpoint_from_another_lockfile_is_refused(
@@ -389,7 +399,7 @@ def test_p1_29_cancellation_stops_cleanly_and_leaves_a_usable_state(
     assert document["budget_consumed"] == job.budget.consumed
     assert document["state"] == job.checkpoint
     assert document["state"]["generation"] == 3
-    assert len(document["state"]["history"]) == 3
+    assert len(document["state"]["members"]) == 8
 
     status = job.status()
     assert status["state"] == "cancelled"
@@ -610,7 +620,7 @@ def test_p1_29_the_root_seed_comes_from_the_lockfile_and_nowhere_else(
     again = make_job(store, tmp_path / "c", total=6, segment=6, root_seed=1).run()
 
     assert a.checkpoint == again.checkpoint
-    assert a.checkpoint["history"] != b.checkpoint["history"], (
+    assert a.checkpoint["members"] != b.checkpoint["members"], (
         "two root seeds produced identical runs; the seed is not reaching the engine"
     )
 
@@ -658,19 +668,21 @@ def test_dep_det_003_every_stage_derives_from_a_distinct_reserved_root(
     # The job must pass it to the engine, which is the part the control
     # reverted. Checked by observing the seed the segment call receives.
     seen: list[int] = []
-    original = _core.search_run_segment
+    original = _core.search_tier3_segment
 
-    def watch(*args):
-        seen.append(args[8])
-        return original(*args)
+    def watch(request_json, *rest):
+        seen.append(json.loads(request_json)["root_seed"])
+        return original(request_json, *rest)
 
-    _core.search_run_segment = watch  # type: ignore[assignment]
+    _core.search_tier3_segment = watch  # type: ignore[assignment]
     try:
         make_job(store, tmp_path / "watch", total=4, segment=4).run()
     finally:
-        _core.search_run_segment = original  # type: ignore[assignment]
+        _core.search_tier3_segment = original  # type: ignore[assignment]
 
-    assert seen, "the generation loop was never called"
-    assert all(value == tier3 for value in seen), (
-        f"the job passed {seen[0]} to the generation loop, not the reserved tier-3 root {tier3}"
+    assert seen, "tier 3 was never called"
+    # The engine namespaces internally, so the observable property is that the
+    # seed it receives derives the reserved root rather than being used raw.
+    assert all(_core.tier3_root_seed(value) == tier3 for value in seen), (
+        f"the seed reaching tier 3 does not derive the reserved root {tier3}"
     )

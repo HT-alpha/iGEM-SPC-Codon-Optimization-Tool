@@ -83,6 +83,9 @@ class JobInputs:
     host_digest: str = "sha256:" + "0" * 64
     #: Scalarization coefficients, one per scored term.
     term_weights: list[float] = field(default_factory=list)
+    #: Tier 3 population size and stagnation window.
+    population: int = 12
+    stagnation_window: int = 8
     #: Tier 1 beam width and seed count; tier 2 block size and sweep cap.
     tier1_beam: int = 32
     tier1_seeds: int = 4
@@ -118,6 +121,8 @@ class Job:
     generations_run: int = 0
     #: Per-stage outcome, keyed by tier name. Populated as stages complete.
     stage_reports: dict[str, Any] = field(default_factory=dict)
+    #: The most recent tier-3 segment result, for progress reporting.
+    tier3: dict[str, Any] | None = None
     #: The sequence tiers 1 and 2 produced, handed to the generation loop.
     seeded_cds: str | None = None
     #: Every candidate any stage produced. The job reports the best of them.
@@ -269,19 +274,17 @@ class Job:
                     raise Cancelled()
 
                 generations = self.budget.next_segment()
+                # P2-04: tier 3 is the job's population loop. The mutation-only
+                # driver it replaces could not produce a front at all - it kept
+                # one incumbent - so a multi-objective job reported a single
+                # design however many objectives it had been given.
                 result = json.loads(
-                    _core.search_run_segment(
+                    _core.search_tier3_segment(
+                        self._tier_request(self.seeded_cds or self.inputs.cds),
                         json.dumps(self.checkpoint) if self.checkpoint else None,
-                        self.seeded_cds or self.inputs.cds,
-                        self.inputs.translation_table,
-                        self.inputs.five_prime_flank,
-                        self.inputs.three_prime_flank,
-                        json.dumps(self.inputs.constraint_set),
-                        self.inputs.codon_weights,
-                        self.inputs.tabu_leak,
-                        # DEP-DET-003: the tier-3 root, not the job root.
-                        self.tier3_seed(),
+                        self.inputs.population,
                         generations,
+                        self.inputs.stagnation_window,
                     )
                 )
 
@@ -293,8 +296,21 @@ class Job:
                 self.budget.spend(result["generations_run"])
                 self.generations_run += result["generations_run"]
                 self._absorb_warnings(result.get("warnings", []))
-                self.record_candidate("mutation", self.checkpoint["incumbent"]["cds"])
+                self.tier3 = result
+                for member in result["front"]:
+                    # Every front member is recorded, not just one. The archive
+                    # is what CF-ORCH-007 reports from, and handing it a single
+                    # representative would discard the trade-off tier 3 exists
+                    # to produce before anything downstream could see it.
+                    self.record_candidate(
+                        "mutation", member["cds"], objectives=tuple(member["objectives"])
+                    )
                 self.persist_checkpoint()
+
+                if result["terminated"]:
+                    # Real termination, not the end of a segment. Continuing
+                    # would spend budget on a search that has stopped moving.
+                    break
 
                 if on_segment is not None:
                     on_segment(self)
@@ -366,7 +382,9 @@ class Job:
         if key not in {(w.get("code"), w.get("subject")) for w in self.warnings}:
             self.warnings.append(warning)
 
-    def record_candidate(self, origin: str, cds: str) -> None:
+    def record_candidate(
+        self, origin: str, cds: str, objectives: tuple[float | None, ...] = ()
+    ) -> None:
         """Add a candidate to the archive, scored and feasibility-checked.
 
         Both are computed here rather than taken from the producing stage. A
@@ -382,6 +400,7 @@ class Job:
             score=_core.scalarized_score(probe, cds),
             feasible=self.is_feasible(cds),
             digest=self.sequence_digest(cds),
+            objectives=objectives,
         )
 
     def is_feasible(self, cds: str) -> bool:
@@ -616,7 +635,40 @@ class Job:
             document["finished_at"] = self.finished_at
         if self.problem:
             document["problem"] = self.problem
+        summary = self.front_summary()
+        if summary is not None:
+            document["current_front_summary"] = summary
         return document
+
+    def front_summary(self) -> dict[str, Any] | None:
+        """`job_status.current_front_summary`, from tier 3's own report.
+
+        Filled from the population loop rather than recomputed, so the number a
+        UI plots is the number termination was decided on. `best_per_objective`
+        is the best *value* attained on each axis — a property of the front,
+        not a selected candidate. It is deliberately not a third notion of
+        "best" alongside `front()` and `best()`: those two answer "which
+        designs" and this answers "how far did each axis get".
+        """
+        if self.tier3 is None:
+            return None
+        front = self.tier3["front"]
+        summary: dict[str, Any] = {
+            "hypervolume_history": list(self.tier3["hypervolume_history"]),
+            "n_nondominated": len(front),
+            "n_feasible": sum(1 for m in front if m["feasible"]),
+        }
+        if summary["hypervolume_history"]:
+            summary["hypervolume"] = summary["hypervolume_history"][-1]
+        if front:
+            summary["best_per_objective"] = {
+                term: min(
+                    m["objectives"][index] for m in front if m["objectives"][index] is not None
+                )
+                for index, term in enumerate(self.plan.scored)
+                if any(m["objectives"][index] is not None for m in front)
+            }
+        return summary
 
     def _progress(self) -> dict[str, Any]:
         """Per-tier progress: one entry per planned tier, each reporting itself.

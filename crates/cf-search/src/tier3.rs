@@ -105,11 +105,70 @@ impl Selection {
     }
 }
 
+/// When a run stops, and why.
+///
+/// `P2-04`. §7 terminates on hypervolume stagnation by default "because it is
+/// the only signal that tracks the thing the user cares about"; the generation
+/// and budget caps are backstops, and saying which one fired is the difference
+/// between "converged" and "ran out of time".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Termination {
+    /// Hypervolume stopped improving over the stagnation window.
+    HypervolumeStagnation,
+    /// The generation cap was reached.
+    GenerationLimit,
+    /// The caller's segment ended; the run can continue.
+    SegmentComplete,
+}
+
+impl Termination {
+    /// The `pareto_front.summary.termination_reason` value.
+    pub fn as_summary(&self) -> &'static str {
+        match self {
+            Self::HypervolumeStagnation => "hypervolume_stagnation",
+            Self::GenerationLimit => "generation_limit",
+            Self::SegmentComplete => "generation_limit",
+        }
+    }
+
+    pub fn is_final(&self) -> bool {
+        !matches!(self, Self::SegmentComplete)
+    }
+}
+
+/// Whether a hypervolume history has stopped improving.
+///
+/// Relative rather than absolute, because hypervolume has no natural scale:
+/// its magnitude depends on the reference point and the objective units, so an
+/// absolute epsilon would mean "converged" for one job and "barely started"
+/// for another.
+///
+/// A window shorter than `window` is never stagnant — a run has to have had
+/// the chance to improve before failing to is evidence of anything.
+pub fn stagnated(history: &[f64], window: usize, relative_epsilon: f64) -> bool {
+    if window == 0 || history.len() <= window {
+        return false;
+    }
+    let recent = &history[history.len() - window - 1..];
+    let baseline = recent[0];
+    let latest = recent[recent.len() - 1];
+    let scale = baseline.abs().max(f64::MIN_POSITIVE);
+    (latest - baseline) / scale <= relative_epsilon
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Tier3Config {
     /// Population size `N`.
     pub population: usize,
     pub max_generations: u32,
+    /// Generations of no relative hypervolume improvement before stopping.
+    ///
+    /// §7's default is 30 at `N = 212`. Stated by the caller rather than
+    /// defaulted here for a small population, because a window longer than a
+    /// short run can never fire and one shorter than the search's own noise
+    /// stops it before it has begun.
+    pub stagnation_window: usize,
+    pub stagnation_epsilon: f64,
     /// Crossover probability, `p_c` in §7.
     pub crossover_rate: f64,
     pub tabu_leak: f64,
@@ -123,6 +182,8 @@ impl Tier3Config {
         Self {
             population,
             max_generations: 20,
+            stagnation_window: 8,
+            stagnation_epsilon: 1e-3,
             crossover_rate: 0.9,
             tabu_leak: 0.0,
             region: 0,
@@ -147,6 +208,13 @@ pub struct Tier3Checkpoint {
     pub evaluations: u64,
     pub repairs_attempted: u64,
     pub repairs_succeeded: u64,
+    /// One entry per generation actually run, across every segment.
+    ///
+    /// Travels in the checkpoint because termination depends on it: a resumed
+    /// run that started its history empty could not stagnate until it had run
+    /// the whole window again, so a job checkpointed near convergence would
+    /// keep going where an uninterrupted one stopped.
+    pub hypervolume_history: Vec<f64>,
 }
 
 #[derive(Clone, Debug)]
@@ -157,6 +225,8 @@ pub struct Tier3Report {
     pub selection: Selection,
     /// The non-dominated set, best front first, in a stable order.
     pub front: Vec<Individual>,
+    /// Why the run stopped.
+    pub termination: Termination,
     pub generations_run: u32,
     pub warnings: Vec<CfError>,
 }
@@ -255,6 +325,7 @@ pub fn seed_population(seeds: &[Genotype], request: &Tier3Request<'_>) -> Result
         evaluations: request.config.population as u64,
         repairs_attempted: 0,
         repairs_succeeded: 0,
+        hypervolume_history: Vec::new(),
     })
 }
 
@@ -273,12 +344,26 @@ pub fn run_generations(
     }
 
     let mut members = checkpoint.members.clone();
+    let mut history = checkpoint.hypervolume_history.clone();
+    let mut termination = Termination::SegmentComplete;
+    let mut ran = 0u32;
     let mut evaluations = checkpoint.evaluations;
     let mut repairs_attempted = checkpoint.repairs_attempted;
     let mut repairs_succeeded = checkpoint.repairs_succeeded;
 
     let first = checkpoint.generation;
-    for generation in first..first + generations {
+    // The cap is a bound on the *run*, not on the segment, and it is applied
+    // before a generation runs rather than after. Checking it afterwards let a
+    // resumed segment run one generation past it: an uninterrupted request for
+    // nine against a cap of eight stopped at eight, while the same run split
+    // 8 + 1 ran the eighth, resumed, and ran a ninth. Both were internally
+    // consistent and they disagreed with each other, which is the exact shape
+    // of bug `TST-SRCH-016` exists to catch.
+    let last = (first + generations).min(request.config.max_generations);
+    if last <= first {
+        termination = Termination::GenerationLimit;
+    }
+    for generation in first..last {
         // A stream per absolute generation, so generation k sees the same
         // randomness whether it is the first of a resumed segment or the
         // fiftieth of an uninterrupted run.
@@ -321,21 +406,38 @@ pub fn run_generations(
         combined.extend(offspring);
         members = select(combined, request.config.population, selection);
         ledger.tick();
+        ran += 1;
+
+        history.push(front_hypervolume(&members));
+        if stagnated(
+            &history,
+            request.config.stagnation_window,
+            request.config.stagnation_epsilon,
+        ) {
+            termination = Termination::HypervolumeStagnation;
+            break;
+        }
+        if generation + 1 >= request.config.max_generations {
+            termination = Termination::GenerationLimit;
+            break;
+        }
     }
 
     let front = nondominated(&members);
     Ok(Tier3Report {
         checkpoint: Tier3Checkpoint {
-            generation: first + generations,
+            generation: first + ran,
             members,
             tabu: ledger.entries().collect(),
             evaluations,
             repairs_attempted,
             repairs_succeeded,
+            hypervolume_history: history,
         },
         front,
+        termination,
         selection,
-        generations_run: generations,
+        generations_run: ran,
         warnings: request.mix.warnings(),
     })
 }
@@ -589,6 +691,40 @@ fn reference_directions(objectives: usize, target: usize) -> Vec<Vec<f64>> {
         }
     }
     das_dennis(objectives, 30).unwrap_or_else(|_| vec![vec![1.0; objectives]])
+}
+
+/// Hypervolume of the feasible non-dominated set, against a nadir-derived
+/// reference point.
+///
+/// The reference point is the per-axis worst of the population plus one, so it
+/// dominates every member and the volume is positive and comparable *within* a
+/// run. It is deliberately not comparable *across* runs: a comparison like
+/// `EXP-05`'s needs a fixed reference point supplied by the benchmark harness
+/// (`P2-19`), and using this one there would compare two differently-scaled
+/// numbers. Here it is only a stagnation signal.
+fn front_hypervolume(members: &[Individual]) -> f64 {
+    let feasible: Vec<&Individual> = members
+        .iter()
+        .filter(|m| m.is_feasible() && m.objectives.iter().all(Option::is_some))
+        .collect();
+    if feasible.is_empty() {
+        return 0.0;
+    }
+    let objectives = feasible[0].objectives.len();
+    let points: Vec<Vec<f64>> = feasible
+        .iter()
+        .map(|m| m.objectives.iter().map(|v| v.unwrap()).collect())
+        .collect();
+    let reference: Vec<f64> = (0..objectives)
+        .map(|axis| {
+            points
+                .iter()
+                .map(|p| p[axis])
+                .fold(f64::NEG_INFINITY, f64::max)
+                + 1.0
+        })
+        .collect();
+    cf_metrics::hypervolume(&points, &reference).unwrap_or(0.0)
 }
 
 /// The mutually non-dominated members, in ascending member order.

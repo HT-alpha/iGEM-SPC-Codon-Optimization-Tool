@@ -45,7 +45,10 @@ def request_for(
         host=HOST,
         cds=CDS,
         host_profile=host_profile(),
-        objectives=objectives or ["usage.cai"],
+        # Two conflicting objectives by default: with one, tier 1's exact DP is
+        # already at the optimum, tier 3's population converges to a single
+        # sequence, and every assertion about the population loop is vacuous.
+        objectives=objectives or ["usage.cai", "usage.gc_content"],
         constraints=constraint_set(),
         five_prime_flank=FIVE_PRIME,
         three_prime_flank=THREE_PRIME,
@@ -306,9 +309,9 @@ def test_tst_cli_001_the_same_seed_reproduces_and_a_different_one_explores_diffe
     b = design(other, store)
 
     assert a.front["candidates"] == again.front["candidates"]
-    assert a.job.checkpoint["history"] == again.job.checkpoint["history"]
+    assert a.job.checkpoint["members"] == again.job.checkpoint["members"]
 
-    assert b.job.checkpoint["history"] != a.job.checkpoint["history"], (
+    assert b.job.checkpoint["members"] != a.job.checkpoint["members"], (
         "two root seeds produced an identical search trajectory; the seed is not "
         "reaching the engine"
     )
@@ -421,7 +424,10 @@ def test_p1_30_resume_through_the_library_matches_an_uninterrupted_run(
         request_for(generations=12, checkpoint_dir=str(checkpoints), resume=True), store
     )
     assert resumed.status["state"] == "succeeded"
-    assert resumed.job.generations_run == 12
+    # Compared against the uninterrupted run rather than a fixed count: tier 3
+    # terminates when it converges, so the number is a property of the search
+    # and asserting 12 would be asserting that convergence never happens.
+    assert resumed.job.generations_run == straight.job.generations_run
     assert resumed.job.checkpoint == straight.job.checkpoint, (
         "a run resumed through the library diverged from an uninterrupted one"
     )
@@ -547,16 +553,21 @@ def test_p1_30_the_front_reports_the_best_candidate_not_the_last(
     score = lambda cds: json.loads(_core.term_scores(probe, cds))["usage.cai"]  # noqa: E731
 
     reported = result.front["candidates"][0]["sequences"][0]["cds"]
-    loop_output = result.job.checkpoint["incumbent"]["cds"]
     tier1_output = result.job.stage_reports["tier1_seed"]["seeds"][0]["cds"]
 
-    # The fixture must actually exhibit the loss, or this asserts nothing.
-    assert score(loop_output) < score(tier1_output), (
-        "the generation loop did not degrade the objective here, so this test "
-        "cannot tell 'reports the best' from 'reports the last'"
-    )
+    # The claim has changed shape, and the change is the point. P1-30 found
+    # that the objective-free mutation loop moved *away* from tier 1's optimum
+    # and the front reported the loss. P2-04 replaced that loop with tier 3,
+    # which is elitist - NSGA-II keeps the best front - so the pipeline no
+    # longer degrades and there is nothing for the archive to compensate for
+    # here. What must still hold is that the reported candidate is no worse
+    # than any stage produced, which is the guarantee rather than the symptom.
+    for candidate in result.job.archive:
+        if candidate.feasible:
+            assert score(reported) >= score(candidate.cds) - 1e-12, (
+                f"{candidate.origin} produced a better candidate than the one reported"
+            )
     assert score(reported) >= score(tier1_output)
-    assert reported != loop_output
 
 
 def test_p1_30_a_non_monotone_stage_is_reported_rather_than_hidden(
@@ -566,16 +577,24 @@ def test_p1_30_a_non_monotone_stage_is_reported_rather_than_hidden(
     result = design(request_for(objectives=["usage.cai"], generations=12), store)
     notes = [w for w in result.status["warnings"] if w["code"] == "CF-ORCH-007"]
 
-    assert len(notes) == 1
-    # The stage is the planner, and the subject is the origin that recorded
-    # last - both derived from the run rather than hardcoded. The first version
-    # named `tier3` and explained the generation loop by name, which described
-    # this round's pipeline rather than whatever pipeline ran.
-    assert notes[0]["stage"] == "tier_plan"
-    assert notes[0]["subject"] == "mutation"
+    # Tier 3 is elitist, so a later stage no longer regresses and the warning
+    # correctly does not fire. The mechanism is not gone - it is exercised
+    # directly in `test_archive.py` against constructed regressions, which is
+    # where it belongs now that the pipeline does not produce one. Asserting
+    # its absence here keeps the claim honest: if a future stage does regress,
+    # this test says nothing and the archive tests still do.
+    assert notes == [], (
+        "a stage regressed. That is permitted - exploration is not monotone - "
+        "but it means this pipeline is no longer the monotone one this test "
+        "documents, and the change deserves a look rather than a passing test"
+    )
+    assert len(notes) == 0
+    # And the reported candidate now comes from the population loop rather than
+    # from an earlier stage the archive had to rescue.
     assert result.front["candidates"][0]["provenance"]["origin"] in (
         "tier1_dp",
         "tier2_block_ca",
+        "mutation",
     )
 
 
@@ -661,3 +680,105 @@ def test_p1_30_an_infeasible_input_is_never_reported_over_a_feasible_design(
 
     assert result.front["candidates"][0]["constraint_report"]["feasible"]
     assert result.job.best_candidate().origin != "input"
+
+
+# --------------------------------------------------------------------------- #
+# TST-CLI-008 — tier 3 through the actual job and CLI surfaces
+# --------------------------------------------------------------------------- #
+
+
+def test_tst_cli_008_a_real_job_runs_tier_3_and_its_front_reaches_job_status(
+    store: ArtifactStore,
+) -> None:
+    """The pipeline-level test the archive-level ones cannot stand in for.
+
+    `P2-01` and `P2-02` prove the machinery directly, and a pipeline that never
+    called it would pass every one of them — the same reason `P1-30` needed
+    `TST-CLI-003` beyond `P1-29`'s segment-level tests.
+    """
+    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+
+    # Tier 3 actually ran, and produced a population rather than an incumbent.
+    assert result.job.tier3 is not None, "the job never called tier 3"
+    assert len(result.job.checkpoint["members"]) == result.job.inputs.population
+    assert result.job.tier3["selection"] == "crowding_distance"
+
+    # Its front reached job_status through the schema's own structure.
+    summary = result.status["current_front_summary"]
+    assert summary["n_nondominated"] == len(result.job.tier3["front"])
+    assert summary["n_nondominated"] > 0
+    assert len(summary["hypervolume_history"]) == result.job.generations_run
+    assert summary["hypervolume"] == summary["hypervolume_history"][-1]
+
+    # `best_per_objective` is a per-axis extremum, not a selected candidate:
+    # every value must be attained by some front member on that axis.
+    for index, term in enumerate(result.front["objective_order"]):
+        attained = {m["objectives"][index] for m in result.job.tier3["front"]}
+        assert summary["best_per_objective"][term] == min(attained)
+
+
+def test_tst_cli_008_the_front_reaches_the_cli_output(
+    store: ArtifactStore, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from codonforge.cli import main as cli_main
+
+    path = tmp_path / "request.json"
+    path.write_text(request_for().to_json(), encoding="utf-8")
+    assert (
+        cli_main(["design", "--json", str(path), "--output", "json", "--store", str(store.root)])
+        == 0
+    )
+    emitted = json.loads(capsys.readouterr().out)
+
+    summary = emitted["status"]["current_front_summary"]
+    assert summary["n_nondominated"] > 0
+    assert summary["hypervolume_history"]
+    assert emitted["front"]["candidates"], "the front document has no candidates"
+
+
+def test_tst_cli_008_a_job_terminates_on_stagnation_rather_than_the_budget(
+    store: ArtifactStore,
+) -> None:
+    """Termination reaches the job, not just the engine.
+
+    The budget is deliberately far larger than the search needs, so a run that
+    used all of it would be one where termination never fired.
+    """
+    request = request_for(generations=200)
+    request.segment = 4
+    result = design(request, store)
+
+    assert result.status["state"] == "succeeded"
+    assert result.job.generations_run < 200, (
+        "the job ran its whole budget; hypervolume-stagnation termination did not "
+        "reach the job layer"
+    )
+    assert result.job.tier3["terminated"] is True
+    assert result.job.tier3["termination"] == "hypervolume_stagnation"
+
+
+def test_tst_cli_008_the_archive_holds_every_front_member_not_one_representative(
+    store: ArtifactStore,
+) -> None:
+    """CF-ORCH-007 receives the whole front.
+
+    Recording a single representative would discard the trade-off before
+    anything downstream could see it, which is the failure mode the front/best
+    split exists to prevent.
+    """
+    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+
+    from_loop = {c.cds for c in result.job.archive if c.origin == "mutation"}
+    reported = {m["cds"] for m in result.job.tier3["front"]}
+    assert reported <= from_loop, "front members never reached the archive"
+    assert len(from_loop) > 1, (
+        "only one candidate came from the population loop, so this cannot tell "
+        "'records the front' from 'records a representative'"
+    )
+
+    # And every archived candidate carries its objective vector, so the
+    # archive's front() has coordinates to work with rather than falling back
+    # to the scalarization.
+    for candidate in result.job.archive:
+        if candidate.origin == "mutation":
+            assert len(candidate.objectives) == 2
