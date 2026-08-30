@@ -2,10 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://codonforge.org/schemas/v1/structure_parameters.schema.json",
   "title": "StructureParameters",
-  "description": "A nearest-neighbour thermodynamic parameter set for the native structure kernel.\n\nDEP-STRU-001. AMD-009 verified the licence position of the folding *code* and prescribed a permissively-licensed kernel; it said nothing about the parameter set that kernel needs to compute anything. Published sets are embedded in tools whose licences are exactly what AMD-009 rejects, so a kernel shipping a table would either carry fabricated values - which the no-fabricated-constants rule forbids - or redistribute data whose terms nobody on the project has verified.\n\nSo parameters are input data, following the host-profile and model-artifact pattern: the user supplies a document, it carries its own provenance, and its digest is recorded in the landscape lockfile so two runs cannot silently use different thermodynamics. A run with no parameter set is refused with CF-STRU-001 rather than falling back to a default.\n\nThe schema deliberately cannot tell a real parameter set from a well-formed invented one - no schema can. What it *can* do is refuse a set that does not say where it came from, which is why `provenance` is required and its fields are not nullable.",
+  "description": "A nearest-neighbour thermodynamic parameter set for the structure kernel.\n\nDEP-STRU-001, re-scoped by AMD-013. The original motivation was licensing: AMD-009 verified the licence position of the folding *code* and said nothing about the parameter set that code needs to compute anything. AMD-013 corrected the underlying finding - ViennaRNA's licence permits use and modification and restricts only charging a fee for redistribution, which a freely-distributed iGEM entry satisfies trivially - so the intended default engine binds to a user-installed ViennaRNA that loads its own tables, and CodonForge redistributes neither code nor parameters.\n\nThis document survives that correction because its other job does not depend on licensing: which parameter set was in force decides every energy a run produced, so it must be recorded in the landscape lockfile for the run to be reproducible. It also remains the way a user supplies their own measured set.\n\nThe schema deliberately cannot tell a real parameter set from a well-formed invented one - no schema can. What it *can* do is refuse a set that does not say where it came from, which is why `provenance` is required and its fields are not nullable.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
     "parameter_set_id": {
       "type": "string",
       "pattern": "^param_[a-z0-9_]+_v[0-9]+$",
@@ -20,9 +22,18 @@
           "minLength": 20,
           "description": "Full bibliographic citation of the measurements. A DOI alone is not enough for a reader with no network."
         },
-        "doi": { "type": ["string", "null"] },
+        "doi": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "source_digest": {
-          "allOf": [{ "$ref": "common.schema.json#/$defs/Sha256Digest" }],
+          "allOf": [
+            {
+              "$ref": "common.schema.json#/$defs/Sha256Digest"
+            }
+          ],
           "description": "Digest of the source file the values were transcribed from, so a transcription can be re-checked against the thing it came from."
         },
         "licence": {
@@ -34,10 +45,25 @@
           "type": "boolean",
           "description": "Whether the supplier believes this set may be redistributed. CodonForge records the claim and never acts on it by vendoring - the set stays user-supplied either way."
         },
-        "transcribed_by": { "type": ["string", "null"] },
-        "notes": { "type": ["string", "null"] }
+        "transcribed_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
-      "required": ["citation", "source_digest", "licence", "redistributable"],
+      "required": [
+        "citation",
+        "source_digest",
+        "licence",
+        "redistributable"
+      ],
       "additionalProperties": false
     },
     "temperature_k": {
@@ -48,24 +74,38 @@
     "stack": {
       "type": "object",
       "description": "Nearest-neighbour stacking free energies in kcal/mol, keyed by the two base pairs as '5'XY3'/3'WZ5''. No default: an absent entry is refused at use, naming the pair.",
-      "additionalProperties": { "type": "number" }
+      "additionalProperties": {
+        "type": "number"
+      }
     },
     "hairpin_loop": {
       "type": "object",
       "description": "Hairpin initiation free energies by unpaired loop length.",
-      "additionalProperties": { "type": "number" }
+      "additionalProperties": {
+        "type": "number"
+      }
     },
     "bulge_loop": {
       "type": "object",
-      "additionalProperties": { "type": "number" }
+      "additionalProperties": {
+        "type": "number"
+      }
     },
     "internal_loop": {
       "type": "object",
-      "additionalProperties": { "type": "number" }
+      "additionalProperties": {
+        "type": "number"
+      }
     },
-    "terminal_au_penalty": { "type": "number" },
+    "terminal_au_penalty": {
+      "type": "number"
+    },
     "digest": {
-      "allOf": [{ "$ref": "common.schema.json#/$defs/Sha256Digest" }],
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/Sha256Digest"
+        }
+      ],
       "description": "Digest of this document with `digest` omitted, and with `created_at` omitted per DEP-VER-003. This is the value recorded in the landscape lockfile."
     }
   },

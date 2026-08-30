@@ -188,6 +188,8 @@ And in the architecture document: state the coverage claim as *"context-aware fo
 
 **Severity:** Blocking for the open-source goal. This is a legal constraint, not a technical one, and it is the item most likely to be discovered too late.
 
+**Corrected in part by [`AMD-013`](#amd-013--amd-009s-licence-finding-was-too-coarse-viennarna-and-linearfold-are-usable-lineardesigns-method-is-not).** Clauses 2 and 3 below are superseded: ViennaRNA is now the intended default structure engine and LinearFold is permitted on the same terms, because this project is a freely-distributed iGEM entry and both licences restrict charging a fee for redistribution rather than use. The LinearDesign exclusion, the no-vendoring rule and clause 6 (`DEP-STRU-001`) all stand. Read `AMD-013` before acting on anything in this amendment.
+
 **What the architecture implies.** Standard tooling for RNA folding, with LinearDesign and CDSfold as comparison points.
 
 **Why it is a problem.** Verified licence terms:
@@ -260,6 +262,87 @@ The existing prototype in this repository shows the failure mode exactly. After 
 **Cost of not amending.** An expectation of a fast-improving system, and a roadmap that under-weights the one recalibration that actually transforms a host's capability.
 
 **Where reflected:** [`../04-api/03-active-learning-ingestion.md`](../04-api/03-active-learning-ingestion.md) §4 and §7, [ADR-0006](../07-decisions/ADR-0006-active-learning-data-isolation.md).
+
+---
+
+## AMD-013 — AMD-009's licence finding was too coarse; ViennaRNA and LinearFold are usable, LinearDesign's method is not
+
+**Severity:** Blocking for `P2-08`, and it changes which structure engine is the default.
+
+**Status:** Corrects `AMD-009` clauses 2 and 3. `AMD-009` is not withdrawn — its patent reasoning, its no-vendoring instinct and its `DEP-STRU-001` clause all survive.
+
+**Project context that changes the analysis.** CodonForge is an iGEM competition entry, distributed freely and not sold. `AMD-009` was written against an implicit commercial-open-source release, and its conclusions followed from that premise rather than from the licence texts themselves.
+
+### What was verified, and from where
+
+Primary sources, fetched directly rather than described:
+
+| Source | Retrieved from | Finding |
+|---|---|---|
+| ViennaRNA `COPYING` | `raw.githubusercontent.com/ViennaRNA/ViennaRNA/master/COPYING` | Verbatim below |
+| ViennaRNA `license.txt` | `raw.githubusercontent.com/ViennaRNA/ViennaRNA/master/license.txt` | Same text; this is the file `doc/source/license.md` includes, so it is what the readthedocs licence page renders |
+| LinearFold `LICENSE` | `raw.githubusercontent.com/LinearFold/LinearFold/master/LICENSE` | Verbatim below — **not** CC BY-NC |
+| LinearDesign claims | EPO publication server, `data.epo.org/publication-server/rest/v1.0/publication-dates/20220720/patents/EP4030438NWA1/document.html` | EP 4 030 438 A1, appl. 22158108.5, filed 23.02.2022, priority 24.02.2021 US 202117184505, applicant Baidu USA LLC |
+| LinearDesign US publication | US 2022/0269951 A1, application 17/184,505 | Same claim text as the EP A1 |
+
+**ViennaRNA, verbatim:**
+
+> Permission is granted for research, educational, and commercial use and modification so long as 1) the package and any derived works are not redistributed for any fee, other than media costs, 2) proper credit is given to the authors and the Institute for Theoretical Chemistry of the University of Vienna.
+
+`COPYING` adds a carve-out `license.txt` omits: *"Note that the file ./src/ViennaRNA/plotting/naview.c has its own copyright attached."*
+
+**LinearFold, verbatim:**
+
+> Permission is granted for research, educational, and commercial use and modification so long as 1) the package and any derived works are not redistributed for any fee, other than media costs, 2) proper credit is given to the authors. Please cite the following paper: Liang Huang, He Zhang, Dezhong Deng, Kai Zhao, Kaibo Liu, David Hendrix, and David Mathews (2019). LinearFold: Linear-Time Approximate RNA Folding by 5'-to-3' Dynamic Programming and Beam Search. Bioinformatics, Vol. 35, July 2019.
+
+### What `AMD-009` got right, and what it got wrong
+
+Right, and worth stating because the correction is narrower than it first appears: `AMD-009` already quoted ViennaRNA's terms accurately, already recorded LinearFold as carrying *"the same licence text"* rather than CC BY-NC, and already permitted both as **user-installed, runtime-detected back ends**. It never forbade depending on them. The CC BY-NC attribution sometimes made for LinearFold belongs to the *paper*; the code licence permits commercial use.
+
+Wrong in one respect, and it is the one that mattered: `AMD-009` treated the no-fee clause as disqualifying because it was optimising for *"commercial support, paid hosting, and inclusion in most distributions"*. For a freely-distributed academic entry those are non-goals, so the cost that justified refusing these engines as defaults does not exist. Condition (1) is satisfied trivially by a release that charges nothing.
+
+### Corrected scope
+
+1. **ViennaRNA may be a depended-upon library, and becomes the intended default structure engine.** Not vendored: the user installs it, CodonForge detects and calls it. Under that arrangement CodonForge redistributes neither the code nor its parameter tables, so condition (1) is satisfied by construction rather than by promise.
+2. **LinearFold is permitted on the same terms**, with the paper citation its licence requires.
+3. **Attribution is mandatory, not optional.** Condition (2) is a licence term. Credit to the ViennaRNA authors and the Institute for Theoretical Chemistry of the University of Vienna, and the LinearFold citation above, belong in a `NOTICE` file and in the docs — not only in a source comment.
+4. **CodonForge's own distribution stays free of charge.** This is now a licence obligation inherited from a dependency, not merely a project preference. If the project ever contemplates charging, this amendment stops applying and both licences must be re-examined.
+5. **Bundling remains a separate decision from depending.** A free bundle would satisfy condition (1), but it would make the combined distribution non-Apache-2.0 and would carry the `naview.c` carve-out. Depending without bundling avoids both questions, and is what this amendment adopts.
+6. **The from-scratch windowed-accessibility kernel is no longer required.** It existed because the licensed engines were treated as unavailable as defaults. `P2-08` becomes an engine binding rather than a folding implementation.
+
+### LinearDesign stays excluded, and here is exactly why
+
+Not a copyright question. The relevant instrument is the patent family: **US 2022/0269951 A1** (application 17/184,505, filed 24 February 2021) and its European counterpart **EP 4 030 438 A1** (application 22158108.5), applicant Baidu USA LLC.
+
+The two independent claims, 1 (method) and 9 (computer-readable medium), both require every one of:
+
+- building a unit **deterministic finite automaton** for each source sequence unit;
+- concatenating the unit DFAs into a **single DFA** representing candidate target sequences that translate into the source sequence;
+- **intersecting a context-free grammar on that DFA**;
+- defining nonterminals, a start symbol and rules in the intersected CFG;
+- **searching the intersected CFG** for a target sequence minimising an objective function.
+
+Dependent claims narrow further: claim 2 to a stochastic CFG, claim 4/10 to an objective that is *"a minimum free energy (MFE) of a target sequence and an additive regularization term"*, claim 6/13 to a log-CAI edge cost, and claim 7/15 to a beam-pruned DP with pairing and bifurcation rules.
+
+**What this means for the architecture, precisely.** The claimed method is *not* "joint MFE plus codon optimisation" in the abstract — it is that problem solved by **CFG × DFA intersection**. The CFG intersection is a required element of both independent claims, and a method claim is not literally infringed unless every element is present.
+
+CodonForge has **no context-free grammar anywhere**: no SCFG, no nonterminals, no bifurcation rules, no CYK or inside-outside parsing. Its structure term is windowed local accessibility, and `AMD-001` already excluded global MFE from the search loop on performance grounds — which incidentally puts the architecture far from claim 4's objective function as well. Tier 1 does use an automaton, but for *regular-language constraint* tracking (motif and site avoidance) over an additive objective, with no grammar intersected onto it.
+
+So the honest reading is that the architecture does not practise the claimed method, and the exclusion is cheap to maintain: nothing in the plan wants a CFG intersection.
+
+**What would create exposure, and is therefore forbidden:** implementing a codon-choice DFA intersected with a folding grammar, under any name, in any "simplified" form, or reimplemented from scratch. Patent rights attach to the method, not to the provenance of the code. If a future ticket proposes a lattice DP that jointly optimises folding and codon usage by parsing a grammar over a synonymous-sequence automaton, that ticket is this exclusion's target regardless of how it is described.
+
+**Two things that are not established and are not claimed to be.** Grant status could not be verified from a primary source: Google Patents and the USPTO endpoints are outside this environment's network allowlist, the EPO register returned nothing machine-readable, and no granted B1 document was retrievable from the EPO publication server. Absence of a document I could fetch is not evidence of non-grant. Nor is claim scope in other jurisdictions established; only the US and EP publications were read.
+
+### This needs a human
+
+The copyright analysis above rests on two short licence texts that say plainly what they permit, and I would be comfortable with it. The patent analysis does not deserve the same confidence. Claim construction is a legal exercise, the doctrine of equivalents has no counterpart I can evaluate by reading claim text, and I could not confirm whether these applications have granted or what a granted claim set looks like after prosecution.
+
+**Before this correction is acted on in a shipped release, a faculty advisor, PI, or the institution's technology-transfer or legal office should review it — particularly the LinearDesign section.** That review should happen even though the recommendation is the conservative one, because "we avoided it" is only a defence if the reasoning about *what* was avoided is sound.
+
+**Cost of not amending.** A from-scratch folding kernel built at considerable cost to avoid a licence that permitted the use all along, and a parameter-sourcing problem that had no in-repo solution.
+
+**Where reflected:** `DEP-STRU-001` (retained, re-scoped), `P2-07a`/`P2-08`/`P2-09` in [`../06-build/02-phase-2-tickets.md`](../06-build/02-phase-2-tickets.md), `RISK-DEP-001`, `RISK-DEP-002`.
 
 ---
 

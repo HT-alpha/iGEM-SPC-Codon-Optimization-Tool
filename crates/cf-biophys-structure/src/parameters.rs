@@ -5,18 +5,25 @@
 //!
 //! ## Why there is no table in this file
 //!
-//! `AMD-009` verified the licence position of the folding *code* and prescribed
-//! a permissively-licensed kernel. It said nothing about the nearest-neighbour
-//! parameter set that kernel needs to compute anything, and the published sets
-//! are embedded in tools whose licences are exactly what the amendment rejects.
-//! A kernel shipping a table would either carry values someone invented — which
-//! the no-fabricated-constants rule forbids — or redistribute data whose terms
-//! nobody here has verified.
+//! Originally because `AMD-009` ruled out the tools the published sets are
+//! embedded in. `AMD-013` corrected that finding — ViennaRNA's licence permits
+//! use and modification, restricting only *charging a fee for redistribution*,
+//! which a freely-distributed iGEM entry satisfies trivially — so the intended
+//! default engine is now a binding to a user-installed ViennaRNA, which loads
+//! its own tables.
 //!
-//! So this module holds a *reader*, not a table. The set is user-supplied, it
-//! carries its own provenance, and its digest goes in the landscape lockfile so
-//! two runs cannot silently use different thermodynamics. A run with none is
-//! refused.
+//! This module survives that correction with a narrower job, because the reason
+//! it holds a reader rather than a table was never only licensing:
+//!
+//! * A table compiled in here would have to come from somewhere, and inventing
+//!   values is what the no-fabricated-constants rule forbids regardless of who
+//!   may distribute what.
+//! * Which parameter set was in force decides every energy a run produced, so
+//!   reproducibility requires recording it whether the set came from ViennaRNA
+//!   or from a user's own measurements.
+//!
+//! So: a *reader*, not a table. Its digest goes in the landscape lockfile so two
+//! runs cannot silently use different thermodynamics.
 //!
 //! ## What a schema can and cannot do here
 //!
@@ -303,9 +310,11 @@ impl ParameterSource {
             CfError::new(
                 code::STRU_NO_PARAMETERS,
                 "this build ships no thermodynamic parameter table and none was supplied. \
-                 AMD-009 rules out vendoring the published sets, and inventing values is \
-                 worse than refusing: supply a structure_parameters document, whose digest \
-                 is then recorded in the landscape lockfile",
+                 Either install ViennaRNA and let the bound engine use its parameter set \
+                 (AMD-013), or supply a structure_parameters document of your own; either \
+                 way the set in force is recorded in the landscape lockfile. Inventing \
+                 values to get past this message would make every energy the run reports \
+                 meaningless while looking exactly like a successful run",
             )
         })
     }

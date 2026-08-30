@@ -5,9 +5,12 @@
 //! `StructureEngine` plugin seam for ViennaRNA / LinearFold back ends that
 //! the user installs separately (see RISK-DEP-001).
 //!
-//! The kernel itself is blocked on parameter data (`DEP-STRU-001`): what ships
-//! today is the parameter *reader*, so that the data question is answered
-//! before a kernel exists to answer it wrongly.
+//! `AMD-013` re-scoped the kernel: rather than implementing folding from
+//! scratch, the default engine binds to a user-installed ViennaRNA, whose
+//! licence permits use and restricts only charging a fee for redistribution.
+//! What ships today is the parameter *reader*, which survives the correction
+//! because recording which parameter set produced a run is a reproducibility
+//! requirement independent of who may distribute it.
 //!
 //! Declared dependencies: cf-types, cf-landscape-api.
 //! Contract: `planning/02-schemas/interfaces/predictors.pyi`.
