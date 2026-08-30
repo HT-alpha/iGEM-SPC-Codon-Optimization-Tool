@@ -48,7 +48,12 @@ from .store import ArtifactStore
 #: Exactly the `P1-21` built-ins. A term is on this list because there is
 #: nothing to train, not because no artifact happens to exist yet — the
 #: difference matters, since the second case must raise `CF-RESOLVE-001`.
-BUILTIN_TERMS = ("usage.cai", "usage.gc_content", "constraint.violation_count")
+BUILTIN_TERMS = (
+    "usage.cai",
+    "usage.gc_content",
+    "constraint.violation_count",
+    "structure.local_accessibility",
+)
 
 
 @dataclass(frozen=True)

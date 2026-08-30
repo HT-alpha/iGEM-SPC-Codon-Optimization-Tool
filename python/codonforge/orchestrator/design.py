@@ -25,13 +25,19 @@ from typing import Any
 from codonforge import _core
 from codonforge.decision import front as front_module
 from codonforge.modelreg import ArtifactStore, Lockfile, ResolutionRequest, resolve, seal
+
+#: Terms this build ships providers for.
+#:
+#: Imported rather than restated. There were three copies of this list - here,
+#: in `modelreg.resolve`, and in the Rust registry - and the round that added
+#: `structure.local_accessibility` updated one, which is how a term ended up
+#: advertised by the CLI and rejected by the resolver. Two remain, because the
+#: Rust one cannot be imported from Python; `TST-CLI-010` holds those together.
+from codonforge.modelreg.resolve import BUILTIN_TERMS
 from codonforge.orchestrator import structure_diag
 
 from .budget import ComputeBudget
 from .job import Job, JobInputs
-
-#: Terms Phase 1 ships providers for.
-BUILTIN_TERMS = ("usage.cai", "usage.gc_content", "constraint.violation_count")
 
 
 class DesignError(Exception):
@@ -167,7 +173,7 @@ def design(
     if unknown:
         raise DesignError(
             "CF-LAND-001",
-            f"no built-in provider supplies {', '.join(unknown)}; Phase 1 ships "
+            f"no built-in provider supplies {', '.join(unknown)}; this build ships "
             f"{', '.join(BUILTIN_TERMS)}",
             exit_code=2,
         )
@@ -213,9 +219,16 @@ def design(
         lockfile=lockfile,
         store=store,
         terms=list(request.objectives),
-        capabilities={term: "L1" for term in request.objectives},
+        # From the registry, not asserted. TierPlan's own docstring says a
+        # capability a caller asserts is not a capability; this call site
+        # asserted L1 for everything, which was invisible while every built-in
+        # was L1 and wrong the moment one was not.
+        capabilities=json.loads(_core.term_capabilities(_directions_request(request))),
         radii={term: 0 for term in request.objectives},
         directions=directions,
+        # From the registry's own registrations, so a term that cannot be
+        # ranked on is demoted here rather than silently optimized.
+        roles=json.loads(_core.term_roles(_directions_request(request))),
         checkpoint_dir=Path(request.checkpoint_dir) if request.checkpoint_dir else None,
     )
 
@@ -371,10 +384,22 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     # DEP-STRU-003: the structure term is computed for reporting, not ranked on.
     # Details and the warning that explains them are produced together, so a
     # front cannot carry the numbers without carrying the caveat.
-    structure_details, structure_warning = structure_diag.annotate(
-        [member.cds for member in ordered]
-    )
-    job._absorb_warnings([structure_warning])
+    # Roles come from the providers, through the same accessor `directions`
+    # uses. A mapping maintained here would be a second copy of what
+    # TermProvider::max_role already says.
+    roles = json.loads(_core.term_roles(_directions_request(request)))
+
+    # Only when the term is *not* already an objective. Once P2-11 made it a
+    # real axis, computing it a second time here would fold the same construct
+    # twice per candidate and attach CF-LAND-013 - a warning saying the term
+    # took no part in a search that had just ranked on it.
+    if structure_diag.TERM_ID in job.plan.scored:
+        structure_details, structure_warning = None, None
+    else:
+        structure_details, structure_warning = structure_diag.annotate(
+            [member.cds for member in ordered]
+        )
+        job._absorb_warnings([structure_warning])
 
     candidates = []
     for position, member in enumerate(ordered):
@@ -396,7 +421,18 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
                 origin=member.origin,
                 feasible=member.feasible,
                 generation_found=job.generations_run,
-                objective_detail=(structure_details[position] if structure_details else None),
+                objective_detail=_with_roles(
+                    structure_details[position] if structure_details else None,
+                    member_scores,
+                    job.plan.scored,
+                    roles,
+                    member.objectives,
+                ),
+                unknown_terms=[
+                    term
+                    for index, term in enumerate(job.plan.scored)
+                    if _axis_value(member.objectives, index, member_scores.get(term)) is None
+                ],
             )
         )
 
@@ -411,6 +447,17 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
         termination_reason=reason,
         n_evaluations=job.generations_run,
         input_sequence=_baseline(job, request),
+        recommended={
+            "candidate_id": f"cand_{best.digest.split(':')[1][:16]}",
+            "rule": "feasible_then_score_then_digest",
+            # CF-ORCH-007's guarantee, stated rather than implied: the reported
+            # answer is the best across every stage, which is only interesting
+            # to a reader when it is *not* the last stage's output.
+            "differs_from_last_stage": (
+                job.archive.last_recorded() is not None
+                and job.archive.last_recorded().digest != best.digest
+            ),
+        },
     )
 
 
@@ -440,3 +487,51 @@ def _baseline(job: Job, request: DesignRequest) -> dict[str, Any] | None:
         "objective_vector": [scores[t] for t in job.plan.scored],
         "feasible": recorded.feasible,
     }
+
+
+def _axis_value(
+    objectives: tuple[float | None, ...] | None, index: int, in_core: float | None
+) -> float | None:
+    """The value for one axis, preferring the in-core score.
+
+    An out-of-core term has no in-core value, so it falls back to the objective
+    vector tier 3 recorded - which is where a batched score actually lands.
+    Returning `None` when neither exists is the honest answer, and is what
+    `unknown_terms` reports.
+    """
+    if in_core is not None:
+        return in_core
+    if objectives is not None and index < len(objectives):
+        return objectives[index]
+    return None
+
+
+def _with_roles(
+    diagnostic: dict[str, Any] | None,
+    scores: dict[str, float],
+    scored: list[str],
+    roles: dict[str, str],
+    objectives: tuple[float | None, ...] | None = None,
+) -> dict[str, Any] | None:
+    """Assemble `objective_detail`, every entry carrying its declared role.
+
+    The optimized terms and the diagnostic ones end up in the same map, which is
+    the point: a caller reads one place and each entry says what it was. The
+    alternative the schema had until now - infer `diagnostic` from absence in
+    `objective_order` - works only while absence has exactly one cause, and a
+    term dropped for an unsupported host would have been indistinguishable.
+    """
+    detail: dict[str, Any] = {}
+    for index, term in enumerate(scored):
+        value = _axis_value(objectives, index, scores.get(term))
+        if value is None:
+            continue
+        detail[term] = {
+            "value": value,
+            "unit": "dimensionless",
+            "role": roles.get(term, "pareto_axis"),
+        }
+    if diagnostic:
+        for term, entry in diagnostic.items():
+            detail[term] = {**entry, "role": roles.get(term, "diagnostic")}
+    return detail or None

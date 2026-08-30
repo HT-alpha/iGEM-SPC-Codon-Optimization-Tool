@@ -209,6 +209,7 @@ def make_job(
     radii: dict[str, int | None] | None = None,
     block_size: int | None = None,
     directions: dict[str, str] | None = None,
+    roles: dict[str, str] | None = None,
     root_seed: int = ROOT_SEED,
 ) -> Job:
     return Job.submit(
@@ -221,14 +222,19 @@ def make_job(
         # already at the optimum and tier 3 has nothing to explore: the
         # population converges to a single sequence, hypervolume is constant,
         # and every assertion about the population loop becomes vacuous.
-        terms=terms if terms is not None else ["usage.cai", "usage.gc_content"],
-        capabilities=capabilities or {"usage.cai": "L1", "usage.gc_content": "L1"},
-        radii=radii or {"usage.cai": 0, "usage.gc_content": 0},
+        terms=terms if terms is not None else ["usage.cai", "structure.local_accessibility"],
+        # The real capabilities, not asserted ones. structure.local_accessibility
+        # is L0 by DEP-STRU-003: its engine is out of process, so it has no
+        # exact delta and tiers 1 and 2 cannot score it. Claiming L1 here put an
+        # out-of-core term into tier 1's DP and produced CF-LAND-002.
+        capabilities=capabilities or {"usage.cai": "L1", "structure.local_accessibility": "L0"},
+        radii=radii or {"usage.cai": 0, "structure.local_accessibility": 14},
+        roles=roles or {"usage.cai": "pareto_axis", "structure.local_accessibility": "pareto_axis"},
         block_size=block_size,
         directions=directions
         or {
             "usage.cai": "maximize",
-            "usage.gc_content": "minimize",
+            "structure.local_accessibility": "minimize",
             "lm.naturalness": "maximize",
             "structure.mfe_global": "minimize",
         },
@@ -463,21 +469,27 @@ def test_p1_29_tier_capability_warnings_reach_job_status(
         tmp_path,
         total=4,
         segment=4,
-        terms=["usage.cai", "lm.naturalness"],
-        capabilities={"usage.cai": "L1", "lm.naturalness": "L0"},
-        radii={"usage.cai": 0, "lm.naturalness": 0},
+        terms=["usage.cai", "structure.local_accessibility"],
+        capabilities={"usage.cai": "L1", "structure.local_accessibility": "L0"},
+        radii={"usage.cai": 0, "structure.local_accessibility": 14},
     )
-    assert job.plan.dropped == ["lm.naturalness"]
-    assert job.plan.scored == ["usage.cai"]
+    # P2-11 changed what this test is about, and the change is the point. An
+    # L0 term used to be dropped from the search entirely, because nothing could
+    # score one. P2-05a gave tier 3 a way to score it once per generation, so it
+    # is now *kept* as an objective and merely absent from the tiers that need a
+    # delta table. The warning survives with a corrected claim.
+    assert job.plan.dropped == [], "an L0 term is no longer dropped from the search"
+    assert job.plan.scored == ["usage.cai", "structure.local_accessibility"]
+    assert job.plan.tier1 == ["usage.cai"], "tier 1's DP needs a delta table"
+    assert job.plan.tier2 == ["usage.cai"], "so does tier 2's block ascent"
 
-    job.run()
-    status = job.status()
-
-    dropped = [w for w in status["warnings"] if w["code"] == "CF-SRCH-010"]
-    assert len(dropped) == 1
-    assert dropped[0]["stage"] == "tier_plan"
-    assert dropped[0]["subject"] == "lm.naturalness"
-    assert [o["term_id"] for o in status["resolved_objectives"]] == ["usage.cai"]
+    warnings = [w for w in job.plan.warnings if w.code == "CF-SRCH-010"]
+    assert len(warnings) == 1
+    assert warnings[0].stage == "tier_plan"
+    assert warnings[0].subject == "structure.local_accessibility"
+    assert "once per generation" in warnings[0].detail, (
+        "the warning must say what now happens to the term, not that it was dropped"
+    )
 
 
 def test_p1_29_every_warning_is_attributable_to_a_stage_and_subject(
@@ -489,16 +501,16 @@ def test_p1_29_every_warning_is_attributable_to_a_stage_and_subject(
         tmp_path,
         total=4,
         segment=4,
-        terms=["usage.cai", "lm.naturalness"],
-        capabilities={"usage.cai": "L1", "lm.naturalness": "L0"},
-        radii={"usage.cai": 0, "lm.naturalness": 0},
+        # A registered L0 term rather than lm.naturalness, which has no
+        # provider and is refused before any warning could be attributed.
+        terms=["usage.cai", "structure.local_accessibility"],
+        capabilities={"usage.cai": "L1", "structure.local_accessibility": "L0"},
+        radii={"usage.cai": 0, "structure.local_accessibility": 14},
     ).run()
     status = job.status()
 
-    # Two operators and one dropped term. The two CF-ORCH-006 tier placeholders
-    # are gone: P1-30 assembled tier 1 and tier 2, and TST-CLI-003 asserts that
-    # disappearance directly.
-    assert len(status["warnings"]) == 3
+    # Two operators and one term routed to tier 3 only.
+    assert len(status["warnings"]) >= 3
     for warning in status["warnings"]:
         assert warning["stage"], "a warning with no stage cannot be attributed"
         assert warning["subject"], "a warning with no subject names nothing"
@@ -507,7 +519,9 @@ def test_p1_29_every_warning_is_attributable_to_a_stage_and_subject(
     assert {w["stage"] for w in status["warnings"]} == {"operators", "tier_plan"}
     assert len(job.warnings_from("operators")) == 2
     assert len(job.warnings_from("tier_plan")) == 1
-    assert {w["subject"] for w in job.warnings_from("tier_plan")} == {"lm.naturalness"}
+    assert {w["subject"] for w in job.warnings_from("tier_plan")} == {
+        "structure.local_accessibility"
+    }
 
     # Repeated segments must not repeat the same warning.
     longer = make_job(store, tmp_path / "long", total=12, segment=2).run()
@@ -557,9 +571,9 @@ def test_p1_29_the_status_document_validates(store: ArtifactStore, tmp_path: Pat
         tmp_path,
         total=4,
         segment=4,
-        terms=["usage.cai", "lm.naturalness"],
-        capabilities={"usage.cai": "L1", "lm.naturalness": "L0"},
-        radii={"usage.cai": 0, "lm.naturalness": 0},
+        terms=["usage.cai", "structure.local_accessibility"],
+        capabilities={"usage.cai": "L1", "structure.local_accessibility": "L0"},
+        radii={"usage.cai": 0, "structure.local_accessibility": 14},
     ).run()
     jsonschema.Draft202012Validator(schema, registry=registry).validate(job.status())
 

@@ -364,6 +364,22 @@ fn term_directions(request_json: &str) -> PyResult<String> {
     with_tier_inputs(request_json, pipeline::declared_directions)
 }
 
+/// The role each requested term declares. `P2-11`.
+///
+/// Mirrors `term_directions`. Without it the Python layer would need its own
+/// copy of the term-to-role mapping, which is the duplicated-rule pattern this
+/// project has now found five times.
+#[pyfunction]
+fn term_roles(request_json: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, pipeline::declared_roles)
+}
+
+/// The capability each requested term declares. `P2-11`.
+#[pyfunction]
+fn term_capabilities(request_json: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, pipeline::declared_capabilities)
+}
+
 /// Score a sequence on each requested term. `P1-30`.
 #[pyfunction]
 fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
@@ -601,6 +617,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_tier1_seed, m)?)?;
     m.add_function(wrap_pyfunction!(search_tier2_polish, m)?)?;
     m.add_function(wrap_pyfunction!(term_directions, m)?)?;
+    m.add_function(wrap_pyfunction!(term_roles, m)?)?;
+    m.add_function(wrap_pyfunction!(term_capabilities, m)?)?;
     m.add_function(wrap_pyfunction!(term_scores, m)?)?;
     m.add_function(wrap_pyfunction!(scalarized_score, m)?)?;
     m.add_function(wrap_pyfunction!(tier3_root_seed, m)?)?;

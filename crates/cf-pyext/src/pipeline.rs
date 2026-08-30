@@ -20,11 +20,13 @@
 
 use cf_constraints::ConstraintChecker;
 use cf_landscape::terms::constraints::ViolationCountTerm;
+use cf_landscape::terms::structure::LocalAccessibilityTerm;
 use cf_landscape::terms::usage::{CaiTerm, CodonUsageTable, GcContentTerm};
 use cf_landscape::ConstructLayout;
 use cf_landscape_api::provider::EvalContext;
 use cf_landscape_api::provider::TermRegistry;
 use cf_landscape_api::query::Budget;
+use cf_landscape_api::Capability;
 use cf_landscape_api::HostContext;
 use cf_search::tier3::{
     seed_population, Individual, L0Scorer, ObjectiveEvaluator, Selection, Tier3Checkpoint,
@@ -37,6 +39,15 @@ use cf_search::{
 use cf_types::{code, CfError, CodonSequence, Digest, HostId, Result, TermId};
 use pyo3::types::PyAnyMethods;
 use serde_json::{json, Value};
+
+/// The folding span the structure term declares, in nucleotides.
+///
+/// Must match `codonforge.orchestrator.structure_diag.SPAN_NT`. Two constants
+/// for one quantity is the pattern this project keeps finding, so
+/// `TST-STRU-007` asserts they agree rather than trusting a comment — the Rust
+/// side needs it to declare an interaction radius before any Python has run,
+/// and the Python side needs it to call the engine.
+pub const STRUCTURE_SPAN_NT: usize = 40;
 
 /// Build a registry holding exactly the terms a job asked for.
 ///
@@ -61,6 +72,14 @@ pub fn build_registry(
             "usage.gc_content" => {
                 registry.register_default(Box::new(GcContentTerm::new()))?;
             }
+            "structure.local_accessibility" => {
+                // Contract only. The values arrive through the batch path
+                // (P2-05a); this registration is what makes the term's
+                // capability, role, direction and radius readable from the one
+                // place every consumer already looks.
+                registry
+                    .register_default(Box::new(LocalAccessibilityTerm::new(STRUCTURE_SPAN_NT)?))?;
+            }
             "constraint.violation_count" => {
                 // Compiled afresh rather than shared: `ConstraintChecker` is not
                 // `Clone`, and the term owns its checker for the life of the
@@ -75,9 +94,10 @@ pub fn build_registry(
                 return Err(CfError::new(
                     code::LAND_TERM_UNKNOWN,
                     format!(
-                        "no built-in provider supplies {other}; Phase 1 ships usage.cai, \
-                         usage.gc_content and constraints.violation_count, and a job is \
-                         refused rather than run against fewer terms than it asked for"
+                        "no built-in provider supplies {other}; this build ships \
+                         usage.cai, usage.gc_content, constraint.violation_count and \
+                         structure.local_accessibility, and a job is refused rather \
+                         than run against fewer terms than it asked for"
                     ),
                 ));
             }
@@ -123,6 +143,71 @@ pub fn declared_directions(inputs: &TierInputs<'_>) -> Result<Value> {
     Ok(Value::Object(out))
 }
 
+/// The role each requested term declares. `P2-11`.
+///
+/// Sourced from `Registration.role` — the **effective** role the registry holds,
+/// not `TermProvider::max_role`, which is a ceiling. The two differ: a provider
+/// declaring `Diagnostic` as its maximum is registered as diagnostic, while one
+/// permitting `ParetoAxis` may still be registered lower. Reporting the ceiling
+/// would tell a caller what a term *could* be rather than what it *was*, and the
+/// first fixture written against this caught exactly that.
+///
+/// The distinction matters most for the case that motivated exposing it: a
+/// `diagnostic` term is computed and reported but never ranked on, and a caller
+/// could previously only infer that from its *absence* from `objective_order`.
+/// An inference is not a contract — it holds until someone adds a second reason
+/// for a term to be missing.
+pub fn declared_roles(inputs: &TierInputs<'_>) -> Result<Value> {
+    let registry = build_registry(
+        inputs.terms,
+        inputs.host_profile,
+        inputs.sequence,
+        inputs.constraint_set,
+    )?;
+    let mut out = serde_json::Map::new();
+    for term in inputs.terms {
+        let id = TermId::new(term)?;
+        let provider = registry.get(&id).ok_or_else(|| {
+            CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} is not registered"))
+        })?;
+        out.insert(term.clone(), json!(provider.role.as_str()));
+    }
+    Ok(Value::Object(out))
+}
+
+/// The capability each requested term declares. `P2-11`.
+///
+/// `TierPlan.plan` says in as many words that capabilities "come from the
+/// registry rather than from configuration, because a capability a caller
+/// asserts is not a capability" — and then `design()` asserted `L1` for every
+/// term. That went unnoticed while every built-in was in fact `L1`. The first
+/// `L0` term made it visible immediately: the plan routed an out-of-core term
+/// into tier 1, which asked it for an in-core value it must not supply.
+pub fn declared_capabilities(inputs: &TierInputs<'_>) -> Result<Value> {
+    let registry = build_registry(
+        inputs.terms,
+        inputs.host_profile,
+        inputs.sequence,
+        inputs.constraint_set,
+    )?;
+    let mut out = serde_json::Map::new();
+    for term in inputs.terms {
+        let id = TermId::new(term)?;
+        let provider = registry.get(&id).ok_or_else(|| {
+            CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} is not registered"))
+        })?;
+        out.insert(
+            term.clone(),
+            json!(match provider.provider.capability() {
+                Capability::L0 => "L0",
+                Capability::L1 => "L1",
+                Capability::L2 => "L2",
+            }),
+        );
+    }
+    Ok(Value::Object(out))
+}
+
 /// Score a sequence on each requested term.
 ///
 /// The front's `objective_vector` has to be the value the providers actually
@@ -156,6 +241,15 @@ pub fn score_terms(inputs: &TierInputs<'_>, cds: &str) -> Result<Value> {
         let registration = registry.get(&id).ok_or_else(|| {
             CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} is not registered"))
         })?;
+        // An out-of-core term has no in-core value, and `null` is the honest
+        // report: the schema's `unknown_terms` says the same thing at the front
+        // level. Calling `score` here would hit `CF-STRU-006`, which is a
+        // refusal aimed at a caller reaching for a value it must not have -
+        // not at the ordinary path asking what can be known in core.
+        if registration.provider.capability() == Capability::L0 {
+            out.insert(term.clone(), Value::Null);
+            continue;
+        }
         out.insert(term.clone(), json!(registration.provider.score(&ctx)?));
     }
     Ok(Value::Object(out))
@@ -172,9 +266,15 @@ pub fn scalarized_score(inputs: &TierInputs<'_>, cds: &str) -> Result<f64> {
     let directions = declared_directions(inputs)?;
     let mut total = 0.0;
     for (index, term) in inputs.terms.iter().enumerate() {
-        let value = scores.get(term).and_then(Value::as_f64).ok_or_else(|| {
-            CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} did not score"))
-        })?;
+        // Out-of-core terms are absent from the scalar, and that is a real
+        // limitation rather than an oversight: this formula is what tiers 1
+        // and 2 maximize, and those tiers evaluate in core. Including a term
+        // they never saw would make the archive's ordering disagree with the
+        // search that produced the candidates. The full objective vector,
+        // which does carry the out-of-core axis, is what tier 3 ranks on.
+        let Some(value) = scores.get(term).and_then(Value::as_f64) else {
+            continue;
+        };
         let sense = match directions.get(term).and_then(Value::as_str) {
             Some("maximize") => 1.0,
             _ => -1.0,
@@ -355,11 +455,29 @@ pub fn run_tier3_segment(
     let mix = OperatorMix::without_context_model();
     let weights = CodonWeights::uniform();
 
+    // DEP-SRCH-012: the evaluator supplies the in-core axes and tier 3 appends
+    // the out-of-core one. Splitting here rather than letting the evaluator try
+    // and fail keeps the refusal in `LocalAccessibilityTerm::score` meaningful:
+    // it fires when something reaches for an in-core value it must not have,
+    // not on every ordinary generation.
+    let in_core: Vec<String> = inputs
+        .terms
+        .iter()
+        .filter(|term| {
+            TermId::new(term.as_str())
+                .ok()
+                .and_then(|id| registry.get(&id))
+                .map(|reg| reg.provider.capability() != Capability::L0)
+                .unwrap_or(true)
+        })
+        .cloned()
+        .collect();
+
     let evaluator = RegistryEvaluator {
         registry: &registry,
         host: &host,
-        terms: term_ids(inputs.terms)?,
-        senses: term_senses(&registry, inputs.terms)?,
+        terms: term_ids(&in_core)?,
+        senses: term_senses(&registry, &in_core)?,
     };
 
     let mut config = Tier3Config::from_planning(population);

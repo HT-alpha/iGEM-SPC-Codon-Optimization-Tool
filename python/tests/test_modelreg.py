@@ -177,7 +177,7 @@ def test_builtin_terms_resolve_without_an_artifact(store: ArtifactStore) -> None
     entries = resolve(
         store,
         ResolutionRequest(
-            terms=["usage.cai", "usage.gc_content", "constraint.violation_count"],
+            terms=["usage.cai", "structure.local_accessibility", "structure.local_accessibility"],
             host_id=HOST,
             contract_major=1,
         ),

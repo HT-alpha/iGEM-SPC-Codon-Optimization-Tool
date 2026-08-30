@@ -150,10 +150,23 @@ stage, rather than reporting success over less search than the plan describes.
 If a stage the budget planned is missing from `progress.tiers` as `done` and
 there is no `CF-ORCH-006` warning for it, that is a bug worth reporting.
 
-**Most objective terms.** Phase 1 ships `usage.cai`, `usage.gc_content` and
-`constraint.violation_count`. Requesting anything else is refused with
-`CF-LAND-001` rather than silently optimizing a smaller objective set — a job
-that asked for four objectives must not quietly optimize three.
+**Most objective terms.** This build ships `usage.cai`,
+`constraint.violation_count` and `structure.local_accessibility` as rankable
+objectives, plus `usage.gc_content` as a **diagnostic**. Requesting anything
+else is refused with `CF-LAND-001` rather than silently optimizing a smaller
+objective set — a job that asked for four objectives must not quietly optimize
+three.
+
+`usage.gc_content` is reported and never ranked on, and that is deliberate. GC
+content has no direction: too high and the transcript folds, too low and it
+does the same for other reasons. Its provider caps itself at `diagnostic` for
+that reason, and a job requesting it as an objective gets `CF-LAND-014` saying
+so. Bound GC as a *constraint* instead, with `Rule::GcWindow`.
+
+`structure.local_accessibility` needs a user-installed ViennaRNA
+(`pip install ViennaRNA`); CodonForge ships no folding engine (`AMD-013`). It is
+scored out of core, once per generation on the whole population, so tiers 1 and
+2 do not see it — `CF-SRCH-010` says so on every job that asks for it.
 
 **A REST server.** `codonforge serve` is specified and not built.
 

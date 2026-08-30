@@ -142,6 +142,12 @@ class TierPlan:
 
     budget: ComputeBudget
     scored: list[str] = field(default_factory=list)
+    #: Terms tier 1's DP scores. In-core only: the DP needs a delta table.
+    tier1: list[str] = field(default_factory=list)
+    #: Terms tier 2's block ascent scores. In-core only, for the same reason.
+    tier2: list[str] = field(default_factory=list)
+    #: Requested terms that are computed and reported but never ranked on.
+    diagnostics: list[str] = field(default_factory=list)
     dropped: list[str] = field(default_factory=list)
     warnings: list[Warning_] = field(default_factory=list)
     #: Optimization direction per scored term, as its provider declared it.
@@ -161,6 +167,7 @@ class TierPlan:
         radii: dict[str, int | None] | None = None,
         block_size: int | None = None,
         directions: dict[str, str] | None = None,
+        roles: dict[str, str] | None = None,
     ) -> TierPlan:
         """Decide which terms each tier scores.
 
@@ -171,26 +178,72 @@ class TierPlan:
         """
         radii = radii or {}
         directions = directions or {}
+        roles = roles or {}
         plan = cls(budget=budget)
 
         for term in terms:
+            # A term may only be ranked on if its registration says so.
+            #
+            # `CF-LAND-014`. The registry already refuses to *register* a
+            # provider in a role above its declared ceiling; nothing stopped the
+            # orchestrator from then treating a diagnostic registration as a
+            # Pareto axis. `usage.gc_content` is the case that exposed it: GC
+            # content has no direction - too high folds the transcript, too low
+            # does the same for other reasons - so its provider deliberately
+            # caps itself at `diagnostic` and says in as many words that this
+            # "keeps it out of any ranking". The search ranked on it anyway,
+            # minimizing a quantity whose direction the biology does not have.
+            #
+            # Demoted rather than refused: the number is still worth reporting,
+            # and refusing would reject jobs that have been accepted for
+            # several rounds. But it stops being an axis, and the warning says
+            # so with the same (code, stage, subject) provenance CF-ORCH-006
+            # uses for a skipped tier.
+            role = roles.get(term, "pareto_axis")
+            if role != "pareto_axis":
+                plan.warnings.append(
+                    Warning_(
+                        code="CF-LAND-014",
+                        title="A term was requested as an objective but cannot be ranked on",
+                        detail=(
+                            f"{term} is registered as {role!r}, so it is computed and "
+                            f"reported but takes no part in the search. Ranking on it "
+                            f"would order designs by a quantity its provider declares "
+                            f"has no meaningful direction"
+                        ),
+                        stage="tier_plan",
+                        subject=term,
+                    )
+                )
+                plan.diagnostics.append(term)
+                continue
+
             capability = capabilities.get(term)
             if capability is None:
                 raise KeyError(f"no provider is registered for term {term!r}")
 
             if capability == "L0":
-                # §2.1's default: drop with a warning rather than pay a full
-                # rescore per move. Dropping changes the objective, so it is
-                # said out loud.
-                plan.dropped.append(term)
+                # Kept, but only for tier 3. `P2-11`.
+                #
+                # This used to drop the term outright with CF-SRCH-010, and
+                # that was right while nothing could score an out-of-core term
+                # at all. `P2-05a` changed the fact the rule rested on: tier 3
+                # now evaluates such a term once per generation on the whole
+                # population, which is exactly the amortization §2.1 says makes
+                # it affordable. Tiers 1 and 2 still cannot take it - both need
+                # a delta table, and an L0 provider has none - so it is absent
+                # from their lists rather than from the search.
+                plan.scored.append(term)
+                plan.directions[term] = directions.get(term, "minimize")
                 plan.warnings.append(
                     Warning_(
                         code="CF-SRCH-010",
-                        title="A term was dropped because it cannot be scored incrementally",
+                        title="A term is scored by the population loop only",
                         detail=(
-                            f"{term}'s provider is {capability}, so every search move would "
-                            "rescore it in full. It is dropped from the search and the job "
-                            "optimizes without it; supply an L1 provider to keep it"
+                            f"{term}'s provider is L0, so it has no exact delta and cannot "
+                            "be scored by the seeding DP or the block ascent. Tier 3 scores "
+                            "it once per generation on the whole population; the seeds those "
+                            "earlier tiers produce were chosen without it"
                         ),
                         stage="tier_plan",
                         subject=term,
@@ -222,6 +275,8 @@ class TierPlan:
                     "and there is no defensible default"
                 )
             plan.scored.append(term)
+            plan.tier1.append(term)
+            plan.tier2.append(term)
             plan.directions[term] = direction
 
         return plan

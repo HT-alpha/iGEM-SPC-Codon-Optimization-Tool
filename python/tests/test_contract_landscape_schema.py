@@ -49,7 +49,7 @@ def _query(**overrides: object) -> dict:
             ),
         },
         "host_context": HOST_CONTEXT,
-        "requested_terms": ["usage.cai", "usage.gc_content"],
+        "requested_terms": ["usage.cai", "structure.local_accessibility"],
         "budget": {"tier": "standard", "max_latency_ms": 250},
     }
     document.update(overrides)
@@ -119,7 +119,7 @@ QUERIES = {
                 "digest": ARTIFACT_DIGEST,
             }
         },
-        requested_terms=["epistasis.dwell_deviation", "usage.gc_content"],
+        requested_terms=["epistasis.dwell_deviation", "structure.local_accessibility"],
         budget={"tier": "exact"},
         seed=20260826,
     ),
@@ -130,7 +130,7 @@ RESPONSES = {
     "partial": _response(
         status="partial",
         objective_vector={
-            "order": ["usage.cai", "usage.gc_content"],
+            "order": ["usage.cai", "structure.local_accessibility"],
             "values": [0.7421, None],
             "sense": ["maximize", "minimize"],
         },
@@ -138,7 +138,7 @@ RESPONSES = {
             "cache_hits": 0,
             "cache_misses": 2,
             "evaluations": 1,
-            "terms_deferred": ["usage.gc_content"],
+            "terms_deferred": ["structure.local_accessibility"],
             "engine_notes": ["deferred by latency budget"],
         },
     ),

@@ -71,12 +71,14 @@
             "calibrated": true,
             "n_members": 5
           },
-          "percentile_vs_native": 61.0
+          "percentile_vs_native": 61.0,
+          "role": "pareto_axis"
         },
         "structure.local_accessibility": {
           "value": 0.72,
           "unit": "dimensionless",
-          "percentile_vs_native": 84.0
+          "percentile_vs_native": 84.0,
+          "role": "pareto_axis"
         },
         "burden.growth_cost": {
           "value": 0.021,
@@ -86,7 +88,8 @@
             "method": "parametric_bootstrap",
             "calibrated": false
           },
-          "percentile_vs_native": 30.0
+          "percentile_vs_native": 30.0,
+          "role": "pareto_axis"
         },
         "usage.cai": {
           "value": 0.79,
@@ -95,7 +98,8 @@
             "method": "none",
             "calibrated": true
           },
-          "percentile_vs_native": 77.0
+          "percentile_vs_native": 77.0,
+          "role": "pareto_axis"
         }
       },
       "robustness": {
@@ -168,7 +172,8 @@
             "text": "The BsaI site at position 3 was removed for golden_gate_bsai assembly."
           }
         ]
-      }
+      },
+      "unknown_terms": []
     },
     {
       "candidate_id": "cand_e5f60718",
@@ -202,22 +207,26 @@
             "calibrated": true,
             "n_members": 5
           },
-          "percentile_vs_native": 55.0
+          "percentile_vs_native": 55.0,
+          "role": "pareto_axis"
         },
         "structure.local_accessibility": {
           "value": 0.58,
           "unit": "dimensionless",
-          "percentile_vs_native": 52.0
+          "percentile_vs_native": 52.0,
+          "role": "pareto_axis"
         },
         "burden.growth_cost": {
           "value": 0.048,
           "unit": "relative_growth_rate",
-          "percentile_vs_native": 48.0
+          "percentile_vs_native": 48.0,
+          "role": "pareto_axis"
         },
         "usage.cai": {
           "value": 0.83,
           "unit": "dimensionless",
-          "percentile_vs_native": 88.0
+          "percentile_vs_native": 88.0,
+          "role": "pareto_axis"
         }
       },
       "robustness": {
@@ -278,7 +287,8 @@
             "text": "Predictions over codons 3-6 are low-confidence; consider including this variant in a wet-lab test set."
           }
         ]
-      }
+      },
+      "unknown_terms": []
     }
   ],
   "reduction": {
@@ -305,5 +315,10 @@
       "igd_plus": "1.0"
     }
   },
-  "digest": "sha256:f1a9e95222ca6063da8c3fe83fbb9969a5d36ef12bd03fcd4ae8bfc235ed5a27"
+  "digest": "sha256:590033d4ecb7ba83127c18e8e7148d4ada7416723108b5f7acd906b203a245ae",
+  "recommended": {
+    "candidate_id": "cand_a1b2c3d4",
+    "rule": "feasible_then_score_then_digest",
+    "differs_from_last_stage": false
+  }
 }

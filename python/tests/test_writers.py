@@ -42,7 +42,7 @@ def store(tmp_path: Path) -> ArtifactStore:
 
 @pytest.fixture()
 def result(store: ArtifactStore):
-    return design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+    return design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
 
 
 # --------------------------------------------------------------------------- #
@@ -135,7 +135,7 @@ def test_p1_31_csv_headers_follow_the_front_not_the_providers(result) -> None:
     rows = writers.to_csv(result.front).splitlines()
     assert rows[0].startswith("candidate_id,origin,feasible,nondomination_rank,")
     assert "usage.cai (maximize)" in rows[0]
-    assert "usage.gc_content (minimize)" in rows[0]
+    assert "structure.local_accessibility (minimize)" in rows[0]
 
     flipped = copy.deepcopy(result.front)
     flipped["objective_sense"] = ["minimize", "maximize"]
@@ -151,6 +151,11 @@ def test_p1_31_csv_has_one_column_per_objective_in_order(result) -> None:
     order = result.front["objective_order"]
     for index, term in enumerate(order):
         assert header[4 + index].startswith(term)
+        if body[4 + index] == "":
+            # An out-of-core axis the budget never reached is UNKNOWN, and an
+            # empty cell is the honest CSV rendering of that. A zero would read
+            # as a measurement.
+            continue
         assert float(body[4 + index]) == pytest.approx(
             result.front["candidates"][0]["objective_vector"][index], abs=1e-6
         )
@@ -285,7 +290,7 @@ def test_p1_31_every_output_format_reaches_the_cli(
     assert "objectives" in seen["explain"] and "tiers" in seen["explain"]
     assert json.loads(seen["json"])["front"]["objective_order"] == [
         "usage.cai",
-        "usage.gc_content",
+        "structure.local_accessibility",
     ]
     assert HOST in json.loads(seen["json"])["status"]["job_id"] or True
 

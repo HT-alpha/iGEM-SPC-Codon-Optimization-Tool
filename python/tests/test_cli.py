@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -48,7 +49,7 @@ def request_for(
         # Two conflicting objectives by default: with one, tier 1's exact DP is
         # already at the optimum, tier 3's population converges to a single
         # sequence, and every assertion about the population loop is vacuous.
-        objectives=objectives or ["usage.cai", "usage.gc_content"],
+        objectives=objectives or ["usage.cai", "structure.local_accessibility"],
         constraints=constraint_set(),
         five_prime_flank=FIVE_PRIME,
         three_prime_flank=THREE_PRIME,
@@ -172,7 +173,7 @@ def test_tst_cli_004_a_minimize_term_is_actually_minimized(store: ArtifactStore)
     well — so `usage.gc_content`, declared `minimize`, came out maximized while
     `objective_sense` still read `minimize`.
     """
-    result = design(request_for(objectives=["usage.gc_content"]), store)
+    result = design(request_for(objectives=["structure.local_accessibility"]), store)
 
     assert result.front["objective_sense"] == ["minimize"]
     assert result.status["resolved_objectives"][0]["direction"] == "minimize"
@@ -229,8 +230,8 @@ def test_tst_cli_004_a_maximize_term_is_actually_maximized(store: ArtifactStore)
 
 def test_tst_cli_004_directions_come_from_the_providers(store: ArtifactStore) -> None:
     """Both senses appear in one front, in the objective order."""
-    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
-    assert result.front["objective_order"] == ["usage.cai", "usage.gc_content"]
+    result = design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
+    assert result.front["objective_order"] == ["usage.cai", "structure.local_accessibility"]
     assert result.front["objective_sense"] == ["maximize", "minimize"]
     assert [o["direction"] for o in result.status["resolved_objectives"]] == [
         "maximize",
@@ -253,7 +254,7 @@ def test_tst_cli_001_cli_and_library_produce_the_same_front(
     store: ArtifactStore, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Same request, same seed, same front — through both surfaces."""
-    request = request_for(objectives=["usage.cai", "usage.gc_content"])
+    request = request_for(objectives=["usage.cai", "structure.local_accessibility"])
     library = design(request, store)
 
     path = tmp_path / "request.json"
@@ -285,7 +286,7 @@ def test_tst_cli_001_the_front_document_validates(store: ArtifactStore) -> None:
     )
     schema = json.loads((schema_dir / "pareto_front.schema.json").read_text())
 
-    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+    result = design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
     jsonschema.Draft202012Validator(schema, registry=registry).validate(result.front)
 
 
@@ -696,7 +697,7 @@ def test_tst_cli_008_a_real_job_runs_tier_3_and_its_front_reaches_job_status(
     called it would pass every one of them — the same reason `P1-30` needed
     `TST-CLI-003` beyond `P1-29`'s segment-level tests.
     """
-    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+    result = design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
 
     # Tier 3 actually ran, and produced a population rather than an incumbent.
     assert result.job.tier3 is not None, "the job never called tier 3"
@@ -714,7 +715,14 @@ def test_tst_cli_008_a_real_job_runs_tier_3_and_its_front_reaches_job_status(
     # every value must be attained by some front member on that axis.
     for index, term in enumerate(result.front["objective_order"]):
         attained = {m["objectives"][index] for m in result.job.tier3["front"]}
-        assert summary["best_per_objective"][term] == min(attained)
+        known = {v for v in attained if v is not None}
+        if not known:
+            assert term not in summary["best_per_objective"], (
+                "an axis no front member was scored on has no best value, and "
+                "reporting one would invent a measurement"
+            )
+            continue
+        assert summary["best_per_objective"][term] == min(known)
 
 
 def test_tst_cli_008_the_front_reaches_the_cli_output(
@@ -766,7 +774,7 @@ def test_tst_cli_008_the_archive_holds_every_front_member_not_one_representative
     anything downstream could see it, which is the failure mode the front/best
     split exists to prevent.
     """
-    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+    result = design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
 
     from_loop = {c.cds for c in result.job.archive if c.origin == "mutation"}
     reported = {m["cds"] for m in result.job.tier3["front"]}
@@ -784,50 +792,161 @@ def test_tst_cli_008_the_archive_holds_every_front_member_not_one_representative
             assert len(candidate.objectives) == 2
 
 
-def test_dep_stru_003_the_structure_term_is_reported_but_not_ranked_on(
+def test_p2_11_the_structure_term_completed_the_diagnostic_to_axis_transition(
     store: ArtifactStore,
 ) -> None:
-    """P2-10 / DEP-STRU-003: the interim path is visible, not silent.
+    """P2-11: the term moved, and every field that describes it moved with it.
 
-    Two claims, and the second is the one that matters. The term reaches the
-    front as a real folded number — so the wiring is not decorative. And it does
-    *not* reach `objective_vector` or `objective_order`, so nothing implies the
-    search ranked on it, with `CF-LAND-013` saying so in words.
+    Last round it was `TermRole::Diagnostic` - computed from a real fold,
+    reported in `objective_detail`, absent from `objective_order`, with
+    `CF-LAND-013` saying it took no part in the search. `P2-05a` gave tier 3 a
+    way to score an out-of-core term, so it is now a real axis.
 
-    This is the same treatment `CF-ORCH-006` gives a skipped tier. A number
-    sitting beside the objectives, in the document a user reads, with nothing
-    marking it as uninvolved, would be the same failure in a different place.
+    The transition is what this asserts, because a half-completed one is the
+    dangerous state: a term ranked on while still described as diagnostic would
+    order the front by a dimension the document says was never optimized.
     """
     from codonforge.orchestrator import structure_diag
 
-    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+    result = design(request_for(objectives=["usage.cai", structure_diag.TERM_ID]), store)
     front = result.front
 
-    assert structure_diag.TERM_ID not in front["objective_order"], (
-        "a term the search did not rank on must not appear in the objective "
-        "order, or the front is ordered by a dimension nothing optimized"
+    # It is an axis now: in the order, in every vector, and saying so.
+    assert structure_diag.TERM_ID in front["objective_order"]
+    axis = front["objective_order"].index(structure_diag.TERM_ID)
+    assert front["objective_sense"][axis] == "minimize"
+
+    # A front member carries the axis or declares it unknown, never both and
+    # never neither. Members seeded by tiers 1 and 2 genuinely were not batched
+    # - those tiers cannot score an out-of-core term - so UNKNOWN is the honest
+    # report for them rather than a gap.
+    scored_here = 0
+    for candidate in front["candidates"]:
+        detail = candidate["objective_detail"].get(structure_diag.TERM_ID)
+        unknown = structure_diag.TERM_ID in candidate["unknown_terms"]
+        assert (detail is None) == unknown, (
+            "a candidate must either carry the value or say it is unknown; "
+            "having neither hides an unscored axis, having both contradicts itself"
+        )
+        if detail is not None:
+            scored_here += 1
+            assert detail["role"] == "pareto_axis", (
+                "the term is ranked on, so describing it as diagnostic would tell "
+                "a reader the front was not ordered by a dimension it was"
+            )
+    assert scored_here > 0, (
+        "no front member carries the axis, so the batch path never filled it and "
+        "the term is an axis in name only"
     )
 
-    warnings = [w for w in result.status["warnings"] if w["code"] == "CF-LAND-013"]
-    assert len(warnings) == 1, "the caveat must be stated exactly once"
-    assert warnings[0]["subject"] == structure_diag.TERM_ID
-    assert warnings[0]["stage"] == "landscape"
+    # And the caveat that accompanied the diagnostic form is gone, because the
+    # thing it warned about is no longer true.
+    assert not [w for w in result.status["warnings"] if w["code"] == "CF-LAND-013"], (
+        "CF-LAND-013 says the term did not drive the search; it does now"
+    )
 
-    if structure_diag.is_available():
-        # With an engine present the number is real and reaches every candidate.
+    # It is scored out of core, so tiers 1 and 2 never saw it - said out loud
+    # rather than left for a reader to infer from the tier plan.
+    routed = [w for w in result.status["warnings"] if w["code"] == "CF-SRCH-010"]
+    assert len(routed) == 1
+    assert routed[0]["subject"] == structure_diag.TERM_ID
+    assert "once per generation" in routed[0]["detail"]
+
+
+def test_tst_cli_009_the_front_states_its_answer_rather_than_implying_it(
+    store: ArtifactStore,
+) -> None:
+    """Part A gaps 1-3: three distinctions the engine has, said out loud.
+
+    Each of these was previously derivable by a caller willing to reimplement a
+    backend rule. That is the P1-31 "consume emitted documents, never recompute
+    them" discipline, and a re-derivation drifts the moment the backend rule
+    changes - silently, because both sides still look self-consistent.
+    """
+    from codonforge.orchestrator import structure_diag
+
+    result = design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
+    front = result.front
+
+    # 1. The recommended candidate is named, and it is the archive's answer -
+    #    not the first entry by coincidence of ordering.
+    recommended = front["recommended"]
+    assert recommended is not None
+    assert recommended["rule"] == "feasible_then_score_then_digest"
+    best = result.job.best_candidate()
+    assert recommended["candidate_id"] == f"cand_{best.digest.split(':')[1][:16]}", (
+        "the reported id must be the archive's best(), which is the only place "
+        "the selection rule lives"
+    )
+    assert recommended["candidate_id"] == front["candidates"][0]["candidate_id"], (
+        "and it must agree with the document's own ordering, or a reader taking "
+        "candidates[0] and a reader taking recommended get different designs"
+    )
+
+    # 2. Every objective_detail entry states its role rather than implying it.
+    for candidate in front["candidates"]:
+        for term, entry in candidate.get("objective_detail", {}).items():
+            assert "role" in entry, f"{term} does not say what it was"
+            assert entry["role"] in {"pareto_axis", "epsilon_constraint", "diagnostic"}
+            if term in front["objective_order"]:
+                assert entry["role"] == "pareto_axis", (
+                    f"{term} is in the objective order but claims {entry['role']}"
+                )
+
+    # The diagnostic case the field exists for. This job asks only for
+    # usage.cai, so the structure term is not an objective here; when an engine
+    # is installed it is still computed and reported, and it says diagnostic.
+    if structure_diag.is_available() and structure_diag.TERM_ID not in front["objective_order"]:
         for candidate in front["candidates"]:
-            detail = candidate.get("objective_detail", {})
-            assert structure_diag.TERM_ID in detail, (
-                "every front candidate should carry the diagnostic, not just the first"
+            entry = candidate["objective_detail"].get(structure_diag.TERM_ID)
+            if entry is None:
+                assert structure_diag.TERM_ID in candidate["unknown_terms"]
+                continue
+            assert entry["role"] == "diagnostic"
+
+    # 3. unknown_terms is always present, and is a list rather than a third
+    #    value of `feasible`. Feasibility stays two-valued because the engine's
+    #    is: constraint checking is in-core and always reaches a verdict.
+    for candidate in front["candidates"]:
+        assert isinstance(candidate["unknown_terms"], list), (
+            "an absent key would make 'fully scored' and 'the writer forgot' indistinguishable"
+        )
+        assert isinstance(candidate["constraint_report"]["feasible"], bool), (
+            "feasibility must stay boolean; making it tri-state would invent a "
+            "state the engine does not have and would re-conflate two "
+            "distinctions DEP-CONS-004 separated"
+        )
+        for term in candidate["unknown_terms"]:
+            assert term in front["objective_order"], (
+                "an unknown term must be one of the objectives, or the list is "
+                "reporting on something the front does not rank"
             )
-            entry = detail[structure_diag.TERM_ID]
-            assert entry["unit"] == "dimensionless"
-            assert entry["value"] >= 0.0, (
-                "the penalty is a mean negative log probability and cannot be negative"
-            )
-        assert "not one of the objectives" in warnings[0]["detail"]
-    else:
-        # Without one, absence is stated rather than passed over.
-        assert "no structure engine is installed" in warnings[0]["detail"]
-        for candidate in front["candidates"]:
-            assert structure_diag.TERM_ID not in candidate.get("objective_detail", {})
+
+
+def test_tst_cli_010_the_two_term_whitelists_agree(store: ArtifactStore) -> None:
+    """Two lists of the same fact, so a test has to hold them together.
+
+    `design.BUILTIN_TERMS` refuses an unknown term early, with a CLI exit code
+    and before any lockfile is sealed. The Rust registry refuses it too, later
+    and with more context. Both are worth having; what is not worth having is
+    discovering they disagree the way this round did, when a term was added to
+    one and the other silently rejected every job that asked for it.
+    """
+    from codonforge.orchestrator.design import BUILTIN_TERMS
+
+    request = request_for(objectives=["usage.cai"])
+    for term in BUILTIN_TERMS:
+        probe = _directions_request_for(request, [term])
+        # The registry accepts exactly the terms the CLI advertises. A term in
+        # one list and not the other raises here.
+        roles = json.loads(_core.term_roles(probe))
+        assert term in roles, (
+            f"{term} is advertised by the CLI but the registry has no provider "
+            "for it; the two lists have drifted"
+        )
+
+
+def _directions_request_for(request, terms: list[str]) -> str:
+    from codonforge.orchestrator.design import _directions_request
+
+    return _directions_request(replace(request, objectives=terms))

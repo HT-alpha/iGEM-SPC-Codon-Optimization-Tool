@@ -5,88 +5,279 @@
   "description": "The body of GET /v1/jobs/{job_id} (BRIEF-2.4-a).\n\nPROGRESS IS REPORTED PER TIER, not as a single percentage. A three-tier search has genuinely different phases with different cost profiles, and a single bar that jumps from 5% to 90% is worse than no bar. `current_front_summary` lets a UI show a live hypervolume trace, which is the only progress signal that actually correlates with result quality.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
-    "job_id": { "$ref": "common.schema.json#/$defs/JobId" },
-    "tenant_id": { "$ref": "common.schema.json#/$defs/TenantId" },
-    "state": { "enum": ["queued", "resolving", "running", "succeeded", "failed", "cancelled", "expired"] },
-    "created_at": { "$ref": "common.schema.json#/$defs/Iso8601" },
-    "started_at": { "type": ["string", "null"] },
-    "finished_at": { "type": ["string", "null"] },
-    "landscape_lockfile_digest": { "type": ["string", "null"], "description": "Null until state leaves `queued`. Available from `resolving` onward, so a client can see exactly which models will be used before paying for the run." },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/SchemaVersion"
+    },
+    "job_id": {
+      "$ref": "common.schema.json#/$defs/JobId"
+    },
+    "tenant_id": {
+      "$ref": "common.schema.json#/$defs/TenantId"
+    },
+    "state": {
+      "enum": [
+        "queued",
+        "resolving",
+        "running",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "expired"
+      ]
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/Iso8601"
+    },
+    "started_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "finished_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "landscape_lockfile_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Null until state leaves `queued`. Available from `resolving` onward, so a client can see exactly which models will be used before paying for the run."
+    },
     "resolved_objectives": {
       "type": "array",
       "description": "The expanded objective list, after preset expansion and after dropping any term the host cannot support. Echoed so a preset never hides what was optimized.",
       "items": {
         "type": "object",
         "properties": {
-          "term_id": { "$ref": "common.schema.json#/$defs/TermId" },
-          "role": { "enum": ["pareto_axis", "epsilon_constraint", "diagnostic"] },
-          "direction": { "$ref": "common.schema.json#/$defs/ObjectiveDirection" },
-          "artifact_id": { "$ref": "common.schema.json#/$defs/ArtifactId" },
-          "fallback": { "type": "boolean", "default": false }
+          "term_id": {
+            "$ref": "common.schema.json#/$defs/TermId"
+          },
+          "role": {
+            "enum": [
+              "pareto_axis",
+              "epsilon_constraint",
+              "diagnostic"
+            ],
+            "description": "What this term does in the search, from the provider's TermRole. A diagnostic term is computed and reported but never ranked on; without this field a caller must infer that from its absence elsewhere."
+          },
+          "direction": {
+            "$ref": "common.schema.json#/$defs/ObjectiveDirection"
+          },
+          "artifact_id": {
+            "$ref": "common.schema.json#/$defs/ArtifactId"
+          },
+          "fallback": {
+            "type": "boolean",
+            "default": false
+          }
         },
-        "required": ["term_id", "role", "direction"],
+        "required": [
+          "term_id",
+          "role",
+          "direction"
+        ],
         "additionalProperties": false
       }
     },
     "progress": {
       "type": "object",
       "properties": {
-        "current_tier": { "enum": ["tier1_seed", "tier2_block_ca", "tier3_moea", "decision", "none"] },
+        "current_tier": {
+          "enum": [
+            "tier1_seed",
+            "tier2_block_ca",
+            "tier3_moea",
+            "decision",
+            "none"
+          ]
+        },
         "tiers": {
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
-              "tier": { "enum": ["tier1_seed", "tier2_block_ca", "tier3_moea", "decision"] },
-              "state": { "enum": ["pending", "running", "done", "skipped"] },
-              "fraction": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-              "generation": { "type": ["integer", "null"], "minimum": 0 },
-              "max_generations": { "type": ["integer", "null"], "minimum": 1 },
-              "wall_seconds": { "type": ["number", "null"], "minimum": 0 }
+              "tier": {
+                "enum": [
+                  "tier1_seed",
+                  "tier2_block_ca",
+                  "tier3_moea",
+                  "decision"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "pending",
+                  "running",
+                  "done",
+                  "skipped"
+                ]
+              },
+              "fraction": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "generation": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "max_generations": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "wall_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
             },
-            "required": ["tier", "state"],
+            "required": [
+              "tier",
+              "state"
+            ],
             "additionalProperties": false
           }
         },
-        "evaluations": { "type": "integer", "minimum": 0 },
-        "cache_hit_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
-        "eta_seconds": { "type": ["number", "null"], "minimum": 0 }
+        "evaluations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_hit_rate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "eta_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
       },
-      "required": ["current_tier", "tiers"],
+      "required": [
+        "current_tier",
+        "tiers"
+      ],
       "additionalProperties": false
     },
     "current_front_summary": {
-      "type": ["object", "null"],
+      "type": [
+        "object",
+        "null"
+      ],
       "properties": {
-        "hypervolume": { "type": ["number", "null"] },
-        "hypervolume_history": { "type": "array", "items": { "type": "number" }, "description": "One entry per generation. This is the live quality signal a UI should plot." },
-        "n_nondominated": { "type": "integer", "minimum": 0 },
-        "n_feasible": { "type": "integer", "minimum": 0 },
-        "best_per_objective": { "type": "object", "additionalProperties": { "type": "number" } }
+        "hypervolume": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "hypervolume_history": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "One entry per generation. This is the live quality signal a UI should plot."
+        },
+        "n_nondominated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_feasible": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "best_per_objective": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
       },
       "additionalProperties": false
     },
     "warnings": {
       "type": "array",
       "description": "Non-fatal conditions the user must see: host fallback used, a requested term unsupported and dropped, budget tier downgraded to fit the hardware, seed rejected.",
-      "items": { "$ref": "common.schema.json#/$defs/ProblemDetails" },
+      "items": {
+        "$ref": "common.schema.json#/$defs/ProblemDetails"
+      },
       "default": []
     },
-    "problem": { "oneOf": [{ "$ref": "common.schema.json#/$defs/ProblemDetails" }, { "type": "null" }] },
+    "problem": {
+      "oneOf": [
+        {
+          "$ref": "common.schema.json#/$defs/ProblemDetails"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "links": {
       "type": "object",
       "properties": {
-        "self": { "type": "string" },
-        "front": { "type": ["string", "null"] },
-        "lockfile": { "type": ["string", "null"] },
-        "events": { "type": ["string", "null"], "description": "Server-sent events stream for live progress." },
-        "cancel": { "type": ["string", "null"] }
+        "self": {
+          "type": "string"
+        },
+        "front": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lockfile": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "events": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Server-sent events stream for live progress."
+        },
+        "cancel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
-      "required": ["self"],
+      "required": [
+        "self"
+      ],
       "additionalProperties": false
     }
   },
-  "required": ["schema_version", "job_id", "state", "created_at", "progress", "links"],
+  "required": [
+    "schema_version",
+    "job_id",
+    "state",
+    "created_at",
+    "progress",
+    "links"
+  ],
   "additionalProperties": false
 }

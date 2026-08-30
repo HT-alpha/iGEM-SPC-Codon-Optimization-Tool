@@ -37,6 +37,7 @@ def build(
     termination_reason: str,
     n_evaluations: int = 0,
     input_sequence: dict[str, Any] | None = None,
+    recommended: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Assemble and self-digest a front document.
 
@@ -75,6 +76,11 @@ def build(
         },
         "digest": "sha256:" + "0" * 64,
     }
+    # Which candidate is the answer. Not recomputed here: the caller passes the
+    # outcome of `CandidateArchive.best()`, which is the only implementation of
+    # the feasible-then-score-then-digest rule. Deriving it a second time at the
+    # serialization boundary is the pattern this project has found five times.
+    document["recommended"] = recommended
     if input_sequence is not None:
         # "Present so every improvement claim has a baseline in the same
         # document", per the schema. The baseline is the input candidate the
@@ -97,6 +103,7 @@ def candidate(
     feasible: bool = True,
     generation_found: int | None = None,
     objective_detail: dict[str, dict[str, Any]] | None = None,
+    unknown_terms: list[str] | None = None,
 ) -> dict[str, Any]:
     """One front entry.
 
@@ -130,4 +137,8 @@ def candidate(
     # be reading a dimension nothing optimized. DEP-STRU-003.
     if objective_detail:
         entry["objective_detail"] = objective_detail
+    # Always emitted, even when empty. An absent key would make "fully scored"
+    # and "the writer forgot" indistinguishable, which is the ambiguity this
+    # field exists to remove rather than relocate.
+    entry["unknown_terms"] = list(unknown_terms or [])
     return entry

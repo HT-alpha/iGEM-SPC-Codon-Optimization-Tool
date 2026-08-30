@@ -231,7 +231,10 @@ def _render(result: Any) -> None:
     print(f"front    {len(front['candidates'])} candidate(s), reduction={reduction}")
     for cand in front["candidates"]:
         values = ", ".join(
-            f"{term}={value:.4f}"
+            # UNKNOWN is a value, not a formatting problem. An out-of-core term
+            # the budget never reached has no number, and printing a placeholder
+            # would make an unscored axis look measured.
+            f"{term}={'unknown' if value is None else format(value, '.4f')}"
             for term, value in zip(front["objective_order"], cand["objective_vector"], strict=True)
         )
         print(f"  {cand['candidate_id']}  {values}")

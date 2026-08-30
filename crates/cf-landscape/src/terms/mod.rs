@@ -21,6 +21,7 @@
 //! naming it, which is the loud failure the standing rules require.
 
 pub mod constraints;
+pub mod structure;
 pub mod usage;
 
 pub use constraints::ViolationCountTerm;

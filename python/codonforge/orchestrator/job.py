@@ -86,6 +86,13 @@ class JobInputs:
     #: Tier 3 population size and stagnation window.
     population: int = 12
     stagnation_window: int = 8
+    #: `E_max` in §6 - exact out-of-core evaluations per generation.
+    #:
+    #: Defaults to the population, so a job that asks for a structure objective
+    #: scores every candidate rather than silently searching on a partially
+    #: UNKNOWN axis by default. Rationing below this is a deliberate choice a
+    #: caller makes, and `CF-SRCH-016` reports what it cost.
+    l0_budget: int = 12
     #: Tier 1 beam width and seed count; tier 2 block size and sweep cap.
     tier1_beam: int = 32
     tier1_seeds: int = 4
@@ -153,6 +160,7 @@ class Job:
         radii: dict[str, int | None] | None = None,
         block_size: int | None = None,
         directions: dict[str, str] | None = None,
+        roles: dict[str, str] | None = None,
         checkpoint_dir: Path | None = None,
     ) -> Job:
         """Seal, plan, and return a job ready to run.
@@ -167,7 +175,7 @@ class Job:
                 "an unsealed lockfile cannot pin anything"
             )
 
-        plan = TierPlan.plan(budget, terms, capabilities, radii, block_size, directions)
+        plan = TierPlan.plan(budget, terms, capabilities, radii, block_size, directions, roles)
         unwired = [tier for tier in budget.stages() if tier not in EXECUTED_TIERS]
         job = cls(
             job_id=job_id,
@@ -278,6 +286,7 @@ class Job:
                 # driver it replaces could not produce a front at all - it kept
                 # one incumbent - so a multi-objective job reported a single
                 # design however many objectives it had been given.
+                scorer, axis = self._l0_scorer()
                 result = json.loads(
                     _core.search_tier3_segment(
                         self._tier_request(self.seeded_cds or self.inputs.cds),
@@ -285,6 +294,9 @@ class Job:
                         self.inputs.population,
                         generations,
                         self.inputs.stagnation_window,
+                        scorer,
+                        axis,
+                        self.inputs.l0_budget,
                     )
                 )
 
@@ -469,7 +481,37 @@ class Job:
             )
         )["digest"]
 
-    def _tier_request(self, cds: str) -> str:
+    def _l0_scorer(self):
+        """The out-of-core scorer for this job, and which axis it fills.
+
+        `P2-11`. Returns `(None, 0)` when every objective is in-core, which is
+        every job that does not ask for a structure term.
+
+        The axis is the count of in-core objectives, not a configured number:
+        tier 3 appends the L0 axis after the evaluator's own (`DEP-SRCH-012`),
+        so the index follows from the split rather than being maintained
+        alongside it.
+        """
+        # Imported here rather than at module scope: `structure_diag` reaches
+        # the predictors package, which reaches an optional engine, and a job
+        # that asks for no structure objective should not pay for that import
+        # or fail on it.
+        from codonforge.orchestrator import structure_diag
+
+        out_of_core = [t for t in self.plan.scored if t == structure_diag.TERM_ID]
+        if not out_of_core:
+            return None, 0
+        axis = len([t for t in self.plan.scored if t != structure_diag.TERM_ID])
+
+        def score(sequences: list[str]) -> list[float | None]:
+            # One call per generation. The engine is stateless, so this holds no
+            # cache across calls - front members differ at many positions and a
+            # cache is exact only for edits it was told about.
+            return structure_diag.evaluate(sequences)
+
+        return score, axis
+
+    def _tier_request(self, cds: str, terms: list[str] | None = None) -> str:
         """The shared document tiers 1 and 2 both take."""
         return json.dumps(
             {
@@ -481,13 +523,18 @@ class Job:
                 "host_profile": self.inputs.host_profile,
                 "host_id": self.inputs.host_id,
                 "host_digest": self.inputs.host_digest,
-                "terms": self.plan.scored,
-                "weights": self._weights(),
+                # Defaults to every scored term. Tiers 1 and 2 pass their own
+                # narrower list: an out-of-core term has no delta table, so
+                # handing it to tier 1 is a CF-LAND-002 rather than a slow
+                # path. The plan already knows which tier scores what; this
+                # just stops the request from over-reporting it.
+                "terms": terms if terms is not None else self.plan.scored,
+                "weights": self._weights(terms),
                 "root_seed": self.root_seed(),
             }
         )
 
-    def _weights(self) -> list[float]:
+    def _weights(self, terms: list[str] | None = None) -> list[float]:
         """Scalarization coefficients. Magnitudes, deliberately unsigned.
 
         Tier 1 and tier 2 each read `provider.direction()` and apply the sense
@@ -506,7 +553,13 @@ class Job:
                 "scalarization weights are magnitudes; the tiers apply each term's "
                 "declared direction themselves, so a negative weight applies it twice"
             )
-        return list(supplied)
+        if terms is None:
+            return list(supplied)
+        # A tier scoring a subset needs the weights for that subset, aligned by
+        # position. Zipping a full weight list against a shorter term list would
+        # silently give each term its neighbour's weight.
+        by_term = dict(zip(self.plan.scored, supplied, strict=False))
+        return [by_term.get(term, 1.0) for term in terms]
 
     def _run_seeding_tiers(self) -> None:
         """Run tier 1 and tier 2, in plan order, if the budget includes them."""
@@ -517,7 +570,7 @@ class Job:
         if "tier1_seed" in stages:
             report = json.loads(
                 _core.search_tier1_seed(
-                    self._tier_request(cds),
+                    self._tier_request(cds, self.plan.tier1),
                     self.inputs.tier1_beam,
                     self.inputs.tier1_seeds,
                 )
@@ -534,7 +587,7 @@ class Job:
         if "tier2_block_ca" in stages:
             report = json.loads(
                 _core.search_tier2_polish(
-                    self._tier_request(cds),
+                    self._tier_request(cds, self.plan.tier2),
                     self.inputs.tier2_block,
                     self.inputs.tier2_sweeps,
                 )
