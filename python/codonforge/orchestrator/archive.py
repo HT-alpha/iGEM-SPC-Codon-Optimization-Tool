@@ -231,6 +231,22 @@ class CandidateArchive:
         feasible = [c for c in self._candidates if c.feasible]
         pool = feasible or list(self._candidates)
 
+        # One entry per distinct sequence. The archive is append-only by
+        # design, and every stage records what it produced — so a sequence that
+        # survives several generations is recorded several times, and a
+        # single-objective run converging on one design produced a front of 26
+        # copies of it. Two records of the same sequence are the same
+        # candidate, and a front listing one design 26 times tells a reader
+        # nothing 26 times.
+        unique: dict[str, Candidate] = {}
+        for candidate in pool:
+            existing = unique.get(candidate.digest)
+            # The earliest record wins, so the reported origin is the stage
+            # that first found the design rather than the last to re-report it.
+            if existing is None or candidate.recorded < existing.recorded:
+                unique[candidate.digest] = candidate
+        pool = list(unique.values())
+
         front = [
             candidate
             for candidate in pool

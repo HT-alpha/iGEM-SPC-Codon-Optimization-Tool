@@ -399,3 +399,27 @@ def test_the_front_survives_the_checkpoint_round_trip() -> None:
 
     assert [c.to_json() for c in restored.front()] == [c.to_json() for c in archive.front()]
     assert [tuple(c.objectives) for c in restored] == [tuple(c.objectives) for c in archive]
+
+
+def test_the_front_reports_one_entry_per_distinct_sequence() -> None:
+    """The archive is append-only, so a surviving design is recorded repeatedly.
+
+    A single-objective run converging on one design produced a front of 26
+    copies of it before this: every generation's front members are recorded,
+    and they were all the same sequence. A front listing one design 26 times
+    tells a reader nothing 26 times.
+    """
+    archive = CandidateArchive()
+    for recorded, origin in enumerate(["tier1_dp", "tier2_block_ca", "mutation", "mutation"]):
+        archive.record(origin, "CDS_A", 0.9, True, digest("A"), objectives=(1.0, 1.0))
+    archive.record("mutation", "CDS_B", 0.9, True, digest("B"), objectives=(2.0, 0.5))
+    del recorded
+
+    front = archive.front()
+    assert len(front) == 2, f"the same sequence was reported {len(front) - 1} times"
+    assert {c.cds for c in front} == {"CDS_A", "CDS_B"}
+
+    # The earliest record wins, so the reported origin is the stage that first
+    # found the design rather than the last to re-report it.
+    first = next(c for c in front if c.cds == "CDS_A")
+    assert first.origin == "tier1_dp"
