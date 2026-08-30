@@ -6,3 +6,5 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+cf-types = { path = "../cf-types" }
+serde_json.workspace = true

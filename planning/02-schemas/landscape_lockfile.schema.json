@@ -212,6 +212,13 @@
         "constraint_set_digest": {
           "$ref": "common.schema.json#/$defs/Sha256Digest"
         },
+        "structure_parameters_digest": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Digest of the structure_parameters document in force, or null when no structure term ran. DEP-STRU-001: thermodynamic parameters are user-supplied input data rather than a compiled-in table, so two runs are only comparable if they agree here. A different parameter set is a different energy model, and every fold it produced is a different answer."
+        },
         "seed_set_digest": {
           "type": [
             "string",

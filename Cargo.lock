@@ -33,6 +33,10 @@ version = "0.1.0"
 [[package]]
 name = "cf-biophys-structure"
 version = "0.1.0"
+dependencies = [
+ "cf-types",
+ "serde_json",
+]
 
 [[package]]
 name = "cf-burden"

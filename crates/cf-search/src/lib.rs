@@ -40,6 +40,7 @@ pub mod job;
 pub mod operators;
 pub mod population;
 pub mod rng;
+pub mod rationing;
 pub mod tier1;
 pub mod tier2;
 pub mod tier3;
