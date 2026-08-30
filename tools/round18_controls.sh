@@ -7,6 +7,11 @@ control() {
   local name="$1"; shift; local cmd="$1"; shift
   echo "=================================================================="
   echo "CONTROL: $name"
+  # Rebuild *after* injecting. Python tests run against the compiled extension,
+  # so without this the control measures the previous build and goes silent -
+  # which is the exact failure `test_the_compiled_extension_is_not_older_than_
+  # its_sources` exists to catch, reproduced here in the harness itself.
+  make build >/dev/null 2>&1
   if eval "$cmd" >/tmp/c18.out 2>&1; then
     echo "  SILENT — the check did not fire"; fail=$((fail+1))
   else
