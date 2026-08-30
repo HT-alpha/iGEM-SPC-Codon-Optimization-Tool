@@ -782,3 +782,52 @@ def test_tst_cli_008_the_archive_holds_every_front_member_not_one_representative
     for candidate in result.job.archive:
         if candidate.origin == "mutation":
             assert len(candidate.objectives) == 2
+
+
+def test_dep_stru_003_the_structure_term_is_reported_but_not_ranked_on(
+    store: ArtifactStore,
+) -> None:
+    """P2-10 / DEP-STRU-003: the interim path is visible, not silent.
+
+    Two claims, and the second is the one that matters. The term reaches the
+    front as a real folded number — so the wiring is not decorative. And it does
+    *not* reach `objective_vector` or `objective_order`, so nothing implies the
+    search ranked on it, with `CF-LAND-013` saying so in words.
+
+    This is the same treatment `CF-ORCH-006` gives a skipped tier. A number
+    sitting beside the objectives, in the document a user reads, with nothing
+    marking it as uninvolved, would be the same failure in a different place.
+    """
+    from codonforge.orchestrator import structure_diag
+
+    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
+    front = result.front
+
+    assert structure_diag.TERM_ID not in front["objective_order"], (
+        "a term the search did not rank on must not appear in the objective "
+        "order, or the front is ordered by a dimension nothing optimized"
+    )
+
+    warnings = [w for w in result.status["warnings"] if w["code"] == "CF-LAND-013"]
+    assert len(warnings) == 1, "the caveat must be stated exactly once"
+    assert warnings[0]["subject"] == structure_diag.TERM_ID
+    assert warnings[0]["stage"] == "landscape"
+
+    if structure_diag.is_available():
+        # With an engine present the number is real and reaches every candidate.
+        for candidate in front["candidates"]:
+            detail = candidate.get("objective_detail", {})
+            assert structure_diag.TERM_ID in detail, (
+                "every front candidate should carry the diagnostic, not just the first"
+            )
+            entry = detail[structure_diag.TERM_ID]
+            assert entry["unit"] == "dimensionless"
+            assert entry["value"] >= 0.0, (
+                "the penalty is a mean negative log probability and cannot be negative"
+            )
+        assert "not one of the objectives" in warnings[0]["detail"]
+    else:
+        # Without one, absence is stated rather than passed over.
+        assert "no structure engine is installed" in warnings[0]["detail"]
+        for candidate in front["candidates"]:
+            assert structure_diag.TERM_ID not in candidate.get("objective_detail", {})

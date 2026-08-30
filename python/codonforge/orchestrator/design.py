@@ -25,6 +25,7 @@ from typing import Any
 from codonforge import _core
 from codonforge.decision import front as front_module
 from codonforge.modelreg import ArtifactStore, Lockfile, ResolutionRequest, resolve, seal
+from codonforge.orchestrator import structure_diag
 
 from .budget import ComputeBudget
 from .job import Job, JobInputs
@@ -367,8 +368,16 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     ordered = [c for c in members if c.digest == best.digest]
     ordered += [c for c in members if c.digest != best.digest]
 
+    # DEP-STRU-003: the structure term is computed for reporting, not ranked on.
+    # Details and the warning that explains them are produced together, so a
+    # front cannot carry the numbers without carrying the caveat.
+    structure_details, structure_warning = structure_diag.annotate(
+        [member.cds for member in ordered]
+    )
+    job._absorb_warnings([structure_warning])
+
     candidates = []
-    for member in ordered:
+    for position, member in enumerate(ordered):
         member_document = json.loads(
             _core.sequence_document(
                 member.cds,
@@ -387,6 +396,7 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
                 origin=member.origin,
                 feasible=member.feasible,
                 generation_found=job.generations_run,
+                objective_detail=(structure_details[position] if structure_details else None),
             )
         )
 

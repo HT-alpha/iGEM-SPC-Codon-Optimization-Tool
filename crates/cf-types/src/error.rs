@@ -109,6 +109,7 @@ codes! {
 
     LAND_BATCH_OUTSTANDING => ("CF-LAND-011", 500, "A batch is already outstanding", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
     LAND_BATCH_UNEXPECTED  => ("CF-LAND-012", 500, "Batch results do not match the outstanding batch", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+    LAND_DIAGNOSTIC_ONLY   => ("CF-LAND-013", 200, "A term was computed for reporting only and did not drive the search", "planning/00-scope/04-departure-index.md"),
 
     // ---- CF-BURD: resource ledger ------------------------------------------
     BURD_WOBBLE_PARAMETER  => ("CF-BURD-001", 422, "A wobble decoding parameter is missing or out of range", "planning/02-schemas/host_profile.schema.json"),
@@ -123,6 +124,7 @@ codes! {
     STRU_BAD_PARAMETERS    => ("CF-STRU-002", 422, "The supplied thermodynamic parameter set is unusable or unattributed", "planning/02-schemas/structure_parameters.schema.json"),
     STRU_NO_ENGINE         => ("CF-STRU-003", 422, "No structure engine is installed and CodonForge ships none", "planning/00-scope/03-architecture-amendments.md"),
     STRU_BAD_WINDOW        => ("CF-STRU-004", 422, "A structure query asks for a window that cannot be answered", "planning/00-scope/03-architecture-amendments.md"),
+    STRU_CACHE_UNPRIMED    => ("CF-STRU-005", 500, "The accessibility cache was used before it was primed", "planning/06-build/02-phase-2-tickets.md"),
 
     // ---- CF-METR: indicator math -------------------------------------------
     //

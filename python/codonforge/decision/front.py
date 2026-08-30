@@ -96,6 +96,7 @@ def candidate(
     origin: str,
     feasible: bool = True,
     generation_found: int | None = None,
+    objective_detail: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """One front entry.
 
@@ -105,7 +106,7 @@ def candidate(
     conventions would make that check silently wrong for any construct with
     flanks.
     """
-    return {
+    entry = {
         "candidate_id": candidate_id,
         "cistron_id": None,
         "sequences": [{"cistron_id": None, "cds": cds, "digest": sequence_digest}],
@@ -123,3 +124,10 @@ def candidate(
             "parents": [],
         },
     }
+    # Diagnostic terms live here rather than in `objective_vector`, which holds
+    # the ranked axes. A term that did not drive the search must not appear in
+    # the vector the front is ordered by, or a reader comparing candidates would
+    # be reading a dimension nothing optimized. DEP-STRU-003.
+    if objective_detail:
+        entry["objective_detail"] = objective_detail
+    return entry
