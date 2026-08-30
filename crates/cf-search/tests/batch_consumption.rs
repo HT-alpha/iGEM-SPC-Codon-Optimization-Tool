@@ -488,10 +488,17 @@ fn tst_srch_023_a_scorer_may_not_claim_an_axis_the_evaluator_fills() {
     // Axis 1 is in-core. Scoring it would overwrite the evaluator's value with
     // no trace, and the objective would silently become something else.
     let overlapping = RecordingScorer::new(1, 4);
-    let req = request(&checker, &mix, &weights, &evaluator, &cfg, Some(&overlapping));
+    let req = request(
+        &checker,
+        &mix,
+        &weights,
+        &evaluator,
+        &cfg,
+        Some(&overlapping),
+    );
 
-    let error = seed_population(&toy_seeds(), &req)
-        .expect_err("an overlapping axis must be refused");
+    let error =
+        seed_population(&toy_seeds(), &req).expect_err("an overlapping axis must be refused");
     assert_eq!(error.code, "CF-SRCH-014");
     assert!(
         error.detail.contains("axis 1"),
@@ -506,69 +513,48 @@ fn tst_srch_023_a_scorer_may_not_claim_an_axis_the_evaluator_fills() {
     assert!(seed_population(&toy_seeds(), &ok).is_ok());
 }
 
-/// The L0 axis influences selection, which is only true if it is scored first.
+/// The L0 axis is scored *before* selection, so selection can read it.
 ///
-/// Also added after a silent control. Scoring after `select` leaves every
-/// individual's L0 value `UNKNOWN` at the moment survival is decided, so the
-/// term is computed, reported, and completely without effect — a decorative
-/// objective that costs a boundary crossing per generation.
+/// The observable is the size of the pool handed across the boundary, and it
+/// took three attempts to find one that could fail:
 ///
-/// Two scorers with opposite preferences over the same seed and the same RNG:
-/// if the axis reaches selection, the surviving populations differ. If it does
-/// not, selection sees identical inputs both times and the survivors match.
+/// * comparing survivors under a **sign flip** cannot work — crowding distance
+///   is computed from spacings along an axis, so negating an objective reverses
+///   the sort order and leaves every distance identical;
+/// * comparing survivors under a **varying vs constant** axis cannot work
+///   either at this population size, because the first non-dominated front
+///   already exceeds `N` and the third axis does not move the top `N`.
+///
+/// What does distinguish them: scoring before selection hands the scorer the
+/// whole combined pool of `2N`, because parents and offspring both need the
+/// axis to compete on it. Scoring afterwards can only ever see the `N`
+/// survivors — an offspring would then never be selected *on* its own L0 value,
+/// only on values inherited from a previous generation.
 #[test]
-fn tst_srch_023_the_l0_axis_actually_reaches_selection() {
-    struct Signed {
-        sign: f64,
-    }
-    impl L0Scorer for Signed {
-        fn axis(&self) -> usize {
-            L0_AXIS
-        }
-        fn budget(&self) -> usize {
-            64 // large enough that every individual is scored
-        }
-        fn score_batch(&self, genotypes: &[&Genotype]) -> Result<Vec<Option<f64>>> {
-            Ok(genotypes
-                .iter()
-                .map(|g| Some(self.sign * RecordingScorer::score_of(&g.sequence().cds_string())))
-                .collect())
-        }
-    }
+fn tst_srch_023_the_l0_axis_is_scored_before_selection_not_after() {
+    let population = 10;
+    let checker = checker_for();
+    let mix = OperatorMix::without_context_model();
+    let weights = toy_weights();
+    let evaluator = TwoPlusOne;
+    let cfg = config(population, 1);
+    // A budget larger than the combined pool, so the batch size is set by what
+    // the loop offers rather than by `E_max`.
+    let scorer = RecordingScorer::new(L0_AXIS, 1000);
+    let req = request(&checker, &mix, &weights, &evaluator, &cfg, Some(&scorer));
 
-    let survivors = |sign: f64| -> Vec<String> {
-        let checker = checker_for();
-        let mix = OperatorMix::without_context_model();
-        let weights = toy_weights();
-        let evaluator = TwoPlusOne;
-        let cfg = config(12, 4);
-        let scorer = Signed { sign };
-        let req = Tier3Request {
-            checker: &checker,
-            mix: &mix,
-            weights: &weights,
-            evaluator: &evaluator,
-            config: &cfg,
-            root_seed: 0x5eed,
-            l0: Some(&scorer as &dyn L0Scorer),
-        };
-        let start = seed_population(&toy_seeds(), &req).expect("seed");
-        let report = run_generations(&start, &req, 4).expect("run");
-        let mut out: Vec<String> = report
-            .checkpoint
-            .members
-            .iter()
-            .map(|i| i.genotype.sequence().cds_string())
-            .collect();
-        out.sort();
-        out
-    };
+    let start = seed_population(&toy_seeds(), &req).expect("seed");
+    run_generations(&start, &req, 1).expect("run");
 
-    assert_ne!(
-        survivors(1.0),
-        survivors(-1.0),
-        "reversing the L0 objective's direction did not change who survived, so \
-         the axis is UNKNOWN at the moment selection ranks and the term is \
-         decorative - computed, reported, and without effect"
+    let log = scorer.log.borrow();
+    assert_eq!(log.crossings(), 1);
+    assert_eq!(
+        log.calls[0].len(),
+        population * 2,
+        "the scorer saw {} genotypes, not the combined pool of {}. Selection is \
+         ranking on an axis that was still UNKNOWN when it ran, which makes the \
+         term decorative: computed, reported, and without effect on who survives",
+        log.calls[0].len(),
+        population * 2
     );
 }
