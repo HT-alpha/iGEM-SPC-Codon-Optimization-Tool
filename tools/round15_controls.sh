@@ -32,12 +32,16 @@ control() {
 python3 - <<'PY'
 p='crates/cf-biophys-structure/src/parameters.rs'
 s=open(p).read()
-old='''            licence: provenance_text(
-                "licence",'''
-new='''            licence: provenance_map.get("licence").and_then(Value::as_str).unwrap_or("unknown").to_string(),
-            #[allow(unreachable_code)]
-            _unused_licence: provenance_text(
-                "licence",'''
+old = '''            licence: provenance_text(
+                "licence",
+                "AMD-009 exists because a licence nobody checked turned out to forbid the \\
+                 distribution the project had assumed",
+            )?,'''
+new = '''            licence: provenance_map
+                .get("licence")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_string(),'''
 assert old in s, "anchor 1 missing"
 open(p,'w').write(s.replace(old,new,1))
 PY
