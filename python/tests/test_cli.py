@@ -950,3 +950,43 @@ def _directions_request_for(request, terms: list[str]) -> str:
     from codonforge.orchestrator.design import _directions_request
 
     return _directions_request(replace(request, objectives=terms))
+
+
+def test_cf_land_014_a_term_that_declares_it_cannot_be_ranked_on_is_not_ranked_on(
+    store: ArtifactStore,
+) -> None:
+    """The round's headline finding, with a fixture that can fail.
+
+    `usage.gc_content`'s provider caps itself at `diagnostic` deliberately: GC
+    content has no direction, so ranking on it orders designs by a quantity the
+    biology does not have one for. The orchestrator ranked on it anyway for
+    several rounds, and every multi-objective test in this suite was
+    multi-objective only because of it.
+
+    The guard had no test of its own until a negative control went silent
+    against it - the fixtures had all moved to genuine axes, so nothing
+    exercised the demotion path.
+    """
+    result = design(
+        request_for(objectives=["usage.cai", "usage.gc_content"]), store
+    )
+
+    assert "usage.gc_content" not in result.front["objective_order"], (
+        "a term whose provider says it must not be ranked on must not appear in "
+        "the order the front is sorted by"
+    )
+    assert result.front["objective_order"] == ["usage.cai"]
+
+    demoted = [w for w in result.status["warnings"] if w["code"] == "CF-LAND-014"]
+    assert len(demoted) == 1, "the demotion must be stated, not silent"
+    assert demoted[0]["subject"] == "usage.gc_content"
+    assert demoted[0]["stage"] == "tier_plan"
+    assert "no meaningful direction" in demoted[0]["detail"]
+
+    # And a term that *can* be ranked on still is, so this is a guard rather
+    # than a blanket refusal.
+    assert not [
+        w
+        for w in result.status["warnings"]
+        if w["code"] == "CF-LAND-014" and w["subject"] == "usage.cai"
+    ]

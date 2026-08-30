@@ -61,7 +61,7 @@ new='            if False:'
 assert old in s, "anchor 5"; open(p,'w').write(s.replace(old,new,1))
 PYEOF
 control "C/5: the not-rankable guard is removed" \
-  "$PY python/tests/test_orchestrator.py -q"
+  "$PY python/tests/test_cli.py -q -k land_014"
 
 # 6. the structure term is scored in core by a cheap proxy.
 python3 - <<'PYEOF'
@@ -111,7 +111,7 @@ new=')'
 assert old in s, "anchor 10"; open(p,'w').write(s.replace(old,new,1))
 PYEOF
 control "C/10: the CLI advertises a term the resolver rejects" \
-  "$PY python/tests/test_cli.py -q -k cli_010"
+  "$PY python/tests/test_cli.py -q -k 'cli_010 or p2_11'"
 
 # ---- validators, unchanged obligations ----
 
