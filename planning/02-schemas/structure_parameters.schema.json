@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "structure_parameters.schema.json",
+  "$id": "https://codonforge.org/schemas/v1/structure_parameters.schema.json",
   "title": "StructureParameters",
   "description": "A nearest-neighbour thermodynamic parameter set for the native structure kernel.\n\nDEP-STRU-001. AMD-009 verified the licence position of the folding *code* and prescribed a permissively-licensed kernel; it said nothing about the parameter set that kernel needs to compute anything. Published sets are embedded in tools whose licences are exactly what AMD-009 rejects, so a kernel shipping a table would either carry fabricated values - which the no-fabricated-constants rule forbids - or redistribute data whose terms nobody on the project has verified.\n\nSo parameters are input data, following the host-profile and model-artifact pattern: the user supplies a document, it carries its own provenance, and its digest is recorded in the landscape lockfile so two runs cannot silently use different thermodynamics. A run with no parameter set is refused with CF-STRU-001 rather than falling back to a default.\n\nThe schema deliberately cannot tell a real parameter set from a well-formed invented one - no schema can. What it *can* do is refuse a set that does not say where it came from, which is why `provenance` is required and its fields are not nullable.",
   "type": "object",

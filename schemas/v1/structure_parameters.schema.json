@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/structure_parameters.schema.json",
+  "title": "StructureParameters",
+  "description": "A nearest-neighbour thermodynamic parameter set for the native structure kernel.\n\nDEP-STRU-001. AMD-009 verified the licence position of the folding *code* and prescribed a permissively-licensed kernel; it said nothing about the parameter set that kernel needs to compute anything. Published sets are embedded in tools whose licences are exactly what AMD-009 rejects, so a kernel shipping a table would either carry fabricated values - which the no-fabricated-constants rule forbids - or redistribute data whose terms nobody on the project has verified.\n\nSo parameters are input data, following the host-profile and model-artifact pattern: the user supplies a document, it carries its own provenance, and its digest is recorded in the landscape lockfile so two runs cannot silently use different thermodynamics. A run with no parameter set is refused with CF-STRU-001 rather than falling back to a default.\n\nThe schema deliberately cannot tell a real parameter set from a well-formed invented one - no schema can. What it *can* do is refuse a set that does not say where it came from, which is why `provenance` is required and its fields are not nullable.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "parameter_set_id": {
+      "type": "string",
+      "pattern": "^param_[a-z0-9_]+_v[0-9]+$",
+      "description": "Stable identifier, versioned. Changing any energy changes every fold, so a new set is a new id rather than an edit."
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Where these numbers came from. Required, and required to be specific: 'a schema that validates a well-formed but fabricated parameter set' is the failure this document exists to prevent, and the only defence a machine can offer is refusing a set that declines to say.",
+      "properties": {
+        "citation": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Full bibliographic citation of the measurements. A DOI alone is not enough for a reader with no network."
+        },
+        "doi": { "type": ["string", "null"] },
+        "source_digest": {
+          "allOf": [{ "$ref": "common.schema.json#/$defs/Sha256Digest" }],
+          "description": "Digest of the source file the values were transcribed from, so a transcription can be re-checked against the thing it came from."
+        },
+        "licence": {
+          "type": "string",
+          "minLength": 2,
+          "description": "The licence the supplier holds these values under. Recorded rather than assumed: AMD-009 exists because a licence nobody checked turned out to forbid the distribution the project assumed."
+        },
+        "redistributable": {
+          "type": "boolean",
+          "description": "Whether the supplier believes this set may be redistributed. CodonForge records the claim and never acts on it by vendoring - the set stays user-supplied either way."
+        },
+        "transcribed_by": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      },
+      "required": ["citation", "source_digest", "licence", "redistributable"],
+      "additionalProperties": false
+    },
+    "temperature_k": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Temperature the parameters were measured at, in kelvin. The kernel is temperature-parameterized, and extrapolating from an unrecorded reference temperature is how a fold becomes confidently wrong."
+    },
+    "stack": {
+      "type": "object",
+      "description": "Nearest-neighbour stacking free energies in kcal/mol, keyed by the two base pairs as '5'XY3'/3'WZ5''. No default: an absent entry is refused at use, naming the pair.",
+      "additionalProperties": { "type": "number" }
+    },
+    "hairpin_loop": {
+      "type": "object",
+      "description": "Hairpin initiation free energies by unpaired loop length.",
+      "additionalProperties": { "type": "number" }
+    },
+    "bulge_loop": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "internal_loop": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "terminal_au_penalty": { "type": "number" },
+    "digest": {
+      "allOf": [{ "$ref": "common.schema.json#/$defs/Sha256Digest" }],
+      "description": "Digest of this document with `digest` omitted, and with `created_at` omitted per DEP-VER-003. This is the value recorded in the landscape lockfile."
+    }
+  },
+  "required": [
+    "schema_version",
+    "parameter_set_id",
+    "provenance",
+    "temperature_k",
+    "stack",
+    "digest"
+  ],
+  "additionalProperties": false
+}

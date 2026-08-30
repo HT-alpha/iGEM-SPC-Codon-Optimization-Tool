@@ -686,3 +686,34 @@ def test_dep_det_003_every_stage_derives_from_a_distinct_reserved_root(
     assert all(_core.tier3_root_seed(value) == tier3 for value in seen), (
         f"the seed reaching tier 3 does not derive the reserved root {tier3}"
     )
+
+
+def test_tst_srch_021_the_deferral_gap_surfaces_in_job_status_warnings(store, tmp_path):
+    """P2-06 / CF-SRCH-016: a budget-stranded individual is visible, not silent.
+
+    Rationing models deferral correctly in the Rust core. The risk this test
+    covers is the other half: that it is modelled correctly and reported
+    nowhere, which is the same shape as a tier being silently skipped.
+    """
+    job = make_job(store, tmp_path)
+
+    # Nothing stranded: no warning. Without this branch the test could pass
+    # against an implementation that warns unconditionally.
+    assert job._deferral_warnings([]) == []
+
+    warnings = job._deferral_warnings([3, 1, 2])
+    assert len(warnings) == 1
+    warning = warnings[0]
+    assert warning["code"] == "CF-SRCH-016"
+    assert warning["stage"] == "tier3_moea", "stage provenance, per DEP-ORCH-001"
+    assert warning["subject"] == "1,2,3", "subject names which individuals"
+    assert "never scored" in warning["detail"]
+
+    # And it reaches job_status.warnings through the same absorber every other
+    # warning uses, rather than a parallel path that could drift.
+    job._absorb_warnings(warnings)
+    assert any(w["code"] == "CF-SRCH-016" for w in job.warnings)
+    job._absorb_warnings(warnings)
+    assert sum(1 for w in job.warnings if w["code"] == "CF-SRCH-016") == 1, (
+        "de-duplicated like every other repeated warning"
+    )

@@ -296,6 +296,9 @@ class Job:
                 self.budget.spend(result["generations_run"])
                 self.generations_run += result["generations_run"]
                 self._absorb_warnings(result.get("warnings", []))
+                self._absorb_warnings(
+                    self._deferral_warnings(result.get("deferred_unevaluated", []))
+                )
                 self.tier3 = result
                 for member in result["front"]:
                     # Every front member is recorded, not just one. The archive
@@ -402,6 +405,42 @@ class Job:
             digest=self.sequence_digest(cds),
             objectives=objectives,
         )
+
+    def _deferral_warnings(self, stranded: list[int]) -> list[dict[str, Any]]:
+        """Report individuals the L0 evaluation budget never reached.
+
+        `CF-SRCH-016`, P2-06. Rationing defers rather than discards, and the
+        deferral is modelled correctly in `cf_search::rationing` — but modelling
+        it correctly is not the same as making it visible. An individual that
+        stays `UNKNOWN` to the end because `E_max` never reached it leaves a job
+        that searched less than its budget plan describes, with nothing in the
+        output saying so. That is structurally the same problem `CF-ORCH-006`
+        exists to solve for skipped tiers, so it gets the same treatment: a
+        warning carrying (code, stage, subject) provenance.
+
+        Empty in this build, because no L0 term exists yet to ration - the
+        structure kernel is blocked on `DEP-STRU-001` and the LM is Phase 3. The
+        path is wired and tested now rather than after the first L0 term lands,
+        since the failure it guards against is silence, and silence is exactly
+        what an unwired path produces.
+        """
+        if not stranded:
+            return []
+        return [
+            Warning_(
+                code="CF-SRCH-016",
+                title="Some individuals were never exactly evaluated",
+                detail=(
+                    f"{len(stranded)} individual(s) were deferred by the L0 evaluation "
+                    f"budget (E_max) and reached the end of the run with UNKNOWN "
+                    f"objectives. They were not discarded and not imputed, but they were "
+                    f"also never scored, so the front was selected over less of the "
+                    f"population than the plan describes"
+                ),
+                stage="tier3_moea",
+                subject=",".join(str(index) for index in sorted(stranded)[:16]),
+            ).to_problem_details()
+        ]
 
     def is_feasible(self, cds: str) -> bool:
         """Whether a sequence has any *actionable* blocking violation.

@@ -150,6 +150,10 @@ EVALUATE_GENERATION(offspring, surrogate ĝ, budget E_max) -> evaluated offsprin
   refit ĝ every G_s = 10 generations on all (x, true f_L0) pairs seen
 ```
 
+**Truncation order is priority order.** `DEP-SRCH-010`. `TRUNCATE(chosen, E_max)` above is not an arbitrary cut of the union: it keeps (d) deferred first, then (b) the uniform sample, then (a) non-dominated, then (c) expected-gain. A plain truncation defeats two of this section's own guarantees — it drops the uniform sample exactly when the front is large, which is the case the sample exists for, and it drops deferred individuals every generation under a budget that is always full, which makes "defers rather than discards" false in the only case where it matters. Both were live defects in the first implementation and were caught by `TST-SRCH-020`/`TST-SRCH-021`.
+
+**A stranded individual is a reported one.** An individual that reaches the end of a run still `UNKNOWN` because `E_max` never reached it means the front was selected over less of the population than the budget plan describes. `CF-SRCH-016` says so in `job_status.warnings`, with stage and subject provenance — the same treatment `CF-ORCH-006` gives a skipped tier, for structurally the same problem.
+
 Component (b) — the uniform random sample — is not optional: without it the surrogate is only ever trained on points the surrogate already likes, and it drifts. It is the same failure mode as the active-learning feedback loop in `AMD-004`, at a smaller scale.
 
 **Certification.** No candidate may appear in a `ParetoFront` with a surrogate-derived objective. After termination, `cf-search` exactly evaluates every member of the reduced front and re-sorts; if certification changes the front, the certified front is what is emitted and `summary.termination_reason` is unchanged but a `warnings` entry records the correction. `TST-SRCH-005` asserts that every emitted candidate's provenance shows an exact evaluation.

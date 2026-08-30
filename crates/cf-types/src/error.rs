@@ -118,6 +118,7 @@ codes! {
     // ---- CF-STRU: structure kernel ------------------------------------------
     SRCH_SURROGATE_UNFIT   => ("CF-SRCH-015", 500, "The surrogate was used before it was fit, or fit on inconsistent features", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
     SRCH_BUDGET_DEFERRED   => ("CF-SRCH-016", 200, "Individuals were deferred by the L0 evaluation budget and never exactly evaluated", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
+    BURD_NO_CAPACITY_DATA  => ("CF-BURD-004", 422, "The host lacks the data its capacity tier requires", "planning/03-algorithms/05-burden-penalty-and-capacity.md"),
     STRU_NO_PARAMETERS     => ("CF-STRU-001", 422, "No thermodynamic parameter set was supplied", "planning/00-scope/03-architecture-amendments.md"),
     STRU_BAD_PARAMETERS    => ("CF-STRU-002", 422, "The supplied thermodynamic parameter set is unusable or unattributed", "planning/02-schemas/structure_parameters.schema.json"),
 

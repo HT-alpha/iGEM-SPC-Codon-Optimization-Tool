@@ -148,7 +148,9 @@ fn tst_stru_005_an_edited_set_does_not_keep_its_old_digest() {
 #[test]
 fn tst_stru_005_a_run_without_parameters_is_refused_not_defaulted() {
     let empty = ParameterSource::none();
-    let error = empty.require().expect_err("a build with no table must refuse");
+    let error = empty
+        .require()
+        .expect_err("a build with no table must refuse");
     assert_eq!(error.code, "CF-STRU-001");
     assert!(
         empty.lockfile_digest().is_none(),

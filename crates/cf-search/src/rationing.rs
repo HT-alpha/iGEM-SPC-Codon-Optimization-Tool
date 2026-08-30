@@ -147,12 +147,7 @@ impl Surrogate {
             };
         }
 
-        self.intercept = mean_y
-            - weights
-                .iter()
-                .zip(&means)
-                .map(|(w, m)| w * m)
-                .sum::<f64>();
+        self.intercept = mean_y - weights.iter().zip(&means).map(|(w, m)| w * m).sum::<f64>();
         self.weights = weights;
         self.trained_on = observations.len();
         Ok(())

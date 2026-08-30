@@ -184,9 +184,7 @@ impl StructureParameters {
             .map(|table| {
                 table
                     .iter()
-                    .filter_map(|(key, value)| {
-                        Some((key.parse::<usize>().ok()?, value.as_f64()?))
-                    })
+                    .filter_map(|(key, value)| Some((key.parse::<usize>().ok()?, value.as_f64()?)))
                     .collect()
             })
             .unwrap_or_default();
@@ -262,8 +260,10 @@ impl StructureParameters {
         self.hairpin_loop.get(&length).copied().ok_or_else(|| {
             CfError::new(
                 code::STRU_BAD_PARAMETERS,
-                format!("the supplied parameter set has no hairpin initiation energy for a \
-                         loop of {length}"),
+                format!(
+                    "the supplied parameter set has no hairpin initiation energy for a \
+                         loop of {length}"
+                ),
             )
         })
     }

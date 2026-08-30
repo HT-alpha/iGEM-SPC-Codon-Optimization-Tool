@@ -10,8 +10,13 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod capacity;
 pub mod ledger;
 pub mod wobble;
 
+pub use capacity::{
+    fit_capacity_tier1, fit_capacity_tier2, fit_capacity_tier3, CapacityEstimate, DataCompleteness,
+    ThetaUnit,
+};
 pub use ledger::DemandLedger;
 pub use wobble::{decoders, Decoder, DecodingWeights, Pairing, CRICK_WOBBLE_V1};

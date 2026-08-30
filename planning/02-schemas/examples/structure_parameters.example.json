@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "parameter_set_id": "param_example_placeholder_v1",
+  "provenance": {
+    "citation": "PLACEHOLDER - not a real parameter set. These values are invented for schema illustration and must never be used for design. A real document cites the published measurements the energies were transcribed from; see DEP-STRU-001 for why CodonForge ships no table of its own.",
+    "doi": null,
+    "source_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "licence": "NOT-A-LICENCE-PLACEHOLDER",
+    "redistributable": false,
+    "transcribed_by": null,
+    "notes": "Round numbers, chosen so no reader mistakes this for measured data. The schema cannot tell a real set from a well-formed invented one - that is precisely why provenance is required and why this example announces itself as fake."
+  },
+  "temperature_k": 310.15,
+  "stack": {
+    "AU/UA": -1.0,
+    "CG/GC": -2.0,
+    "GC/CG": -2.0,
+    "GU/UG": -0.5
+  },
+  "hairpin_loop": {
+    "3": 5.0,
+    "4": 4.5,
+    "5": 4.0
+  },
+  "bulge_loop": {
+    "1": 3.5
+  },
+  "internal_loop": {
+    "4": 1.5
+  },
+  "terminal_au_penalty": 0.5,
+  "digest": "sha256:ae4e936bea72728eb9aaf5831fbedecdd653182c26aa7ea4695862a015d312ff"
+}
