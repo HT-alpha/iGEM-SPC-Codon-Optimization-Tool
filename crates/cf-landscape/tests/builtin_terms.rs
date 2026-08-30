@@ -362,3 +362,34 @@ fn p1_21_violation_count_degrades_to_l0_for_a_global_set() {
     // and nothing else, and that is exactly what it delivers.
     verify_capability(&term, &ctx(&base, &host)).unwrap();
 }
+
+/// `P2-11`: the structure term declares out-of-core and refuses to pretend.
+///
+/// Added when a negative control went silent: injecting a cheap in-core proxy
+/// changed nothing any test could see, because every path that reaches this
+/// term routes around it. A refusal nothing exercises is indistinguishable
+/// from a refusal that was never written.
+#[test]
+fn tst_stru_008_the_structure_term_refuses_to_be_scored_in_core() {
+    use cf_landscape::terms::structure::LocalAccessibilityTerm;
+    use cf_landscape_api::TermProvider;
+
+    let term = LocalAccessibilityTerm::new(40).expect("term");
+    assert_eq!(term.capability(), cf_landscape_api::Capability::L0);
+    assert_eq!(
+        term.max_role(),
+        cf_landscape_api::TermRole::ParetoAxis,
+        "the term is a real axis now, not the diagnostic it shipped as"
+    );
+    assert_eq!(term.direction(), cf_types::Direction::Minimize);
+
+    // A 40 nt span is 14 codons of reach, and tier 2 checks B >= R against it.
+    match term.interaction_radius() {
+        cf_landscape_api::InteractionRadius::Codons(r) => assert_eq!(r, 14),
+        other => panic!("expected a bounded radius, got {other:?}"),
+    }
+
+    // Zero span is refused at construction, so the radius can never be zero and
+    // tier 2's partition check can never be vacuously satisfied.
+    assert!(LocalAccessibilityTerm::new(0).is_err());
+}

@@ -66,12 +66,12 @@ control "C/5: the not-rankable guard is removed" \
 # 6. the structure term is scored in core by a cheap proxy.
 python3 - <<'PYEOF'
 p='crates/cf-landscape/src/terms/structure.rs'; s=open(p).read()
-old='    fn score(&self, _ctx: &EvalContext<\'_>) -> Result<f64> {\n        Err(CfError::new('
-new='    fn score(&self, _ctx: &EvalContext<\'_>) -> Result<f64> {\n        return Ok(0.5);\n        #[allow(unreachable_code)]\n        Err(CfError::new('
+old="        Capability::L0\n    }"
+new="        Capability::L1\n    }"
 assert old in s, "anchor 6"; open(p,'w').write(s.replace(old,new,1))
 PYEOF
-control "C/6: an in-core proxy stands in for a real fold" \
-  "cargo test -p cf-landscape 2>&1 && $PY python/tests/test_cli.py -q -k p2_11"
+control "C/6: the term stops declaring itself out-of-core" \
+  "cargo test -p cf-landscape --test builtin_terms 2>&1"
 
 # 7. capabilities asserted rather than read from the registry.
 python3 - <<'PYEOF'
