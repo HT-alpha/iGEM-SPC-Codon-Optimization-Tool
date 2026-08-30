@@ -121,7 +121,11 @@ def test_p1_31_fasta_reports_the_sense_the_front_recorded(result) -> None:
     flipped["objective_sense"] = ["minimize", "maximize"]
     emitted = writers.to_fasta(flipped)
     assert "usage.cai=" in emitted
-    assert emitted.count("(minimize)") == 1
+    # One label per record now that the front carries the whole non-dominated
+    # set, so the count is per candidate rather than a constant.
+    records = [line for line in emitted.splitlines() if line.startswith(">")]
+    assert len(records) == len(flipped["candidates"])
+    assert emitted.count("(minimize)") == len(records)
     assert emitted.split("usage.cai=")[1].split(" ")[0].endswith("(minimize)"), (
         "the FASTA header did not follow objective_sense; the writer is deriving its own direction"
     )

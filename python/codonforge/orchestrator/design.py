@@ -340,7 +340,7 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     best = job.best_candidate()
     if best is None:
         raise DesignError("CF-CLI-002", "the job produced no candidates", exit_code=1)
-    origin, cds = best.origin, best.cds
+    cds = best.cds
 
     document = json.loads(
         _core.sequence_document(
@@ -350,11 +350,45 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
             request.three_prime_flank,
         )
     )
-    scores = json.loads(_core.term_scores(_directions_request(request), cds))
+    _ = document
+    reason = _termination_reason(job, best)
 
-    reason = "user_cancel" if job.state == "cancelled" else "generation_limit"
-    if not best.feasible:
-        reason = "no_feasible_solution"
+    # Every non-dominated candidate, not just the best-scored one. Emitting a
+    # single design from a document named `pareto_front` was defensible while
+    # the pipeline was single-objective and produced one; now that tier 3
+    # produces a trade-off set, reporting one point of it would discard the
+    # thing the whole tier exists to compute - and would do it in the document
+    # a user actually reads. `DEP-CLI-003`, updated.
+    #
+    # The best-scored candidate is listed first so a caller reading
+    # `candidates[0]` gets what `best()` reports and the two answers agree on
+    # a single-objective job, where the front has one member anyway.
+    members = job.archive.front()
+    ordered = [c for c in members if c.digest == best.digest]
+    ordered += [c for c in members if c.digest != best.digest]
+
+    candidates = []
+    for member in ordered:
+        member_document = json.loads(
+            _core.sequence_document(
+                member.cds,
+                request.translation_table,
+                request.five_prime_flank,
+                request.three_prime_flank,
+            )
+        )
+        member_scores = json.loads(_core.term_scores(_directions_request(request), member.cds))
+        candidates.append(
+            front_module.candidate(
+                candidate_id=f"cand_{member_document['digest'].split(':')[1][:16]}",
+                cds=member.cds,
+                sequence_digest=member_document["digest"],
+                objective_vector=[member_scores[t] for t in job.plan.scored],
+                origin=member.origin,
+                feasible=member.feasible,
+                generation_found=job.generations_run,
+            )
+        )
 
     return front_module.build(
         job_id=job.job_id,
@@ -362,22 +396,27 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
         lockfile_digest=job.lockfile.digest or "",
         objective_order=list(job.plan.scored),
         objective_sense=[directions[t] for t in job.plan.scored],
-        candidates=[
-            front_module.candidate(
-                candidate_id=f"cand_{document['digest'].split(':')[1][:16]}",
-                cds=cds,
-                sequence_digest=document["digest"],
-                objective_vector=[scores[t] for t in job.plan.scored],
-                origin=origin,
-                feasible=best.feasible,
-                generation_found=job.generations_run,
-            )
-        ],
+        candidates=candidates,
         budget_tier=request.budget,
         termination_reason=reason,
         n_evaluations=job.generations_run,
         input_sequence=_baseline(job, request),
     )
+
+
+def _termination_reason(job: Job, best: Any) -> str:
+    """The `pareto_front.summary.termination_reason`, from the run.
+
+    Read from tier 3's own report where there is one, so the document says why
+    the search stopped rather than restating why the *budget* ended.
+    """
+    if job.state == "cancelled":
+        return "user_cancel"
+    if not best.feasible:
+        return "no_feasible_solution"
+    if job.tier3 is not None:
+        return str(job.tier3["termination"])
+    return "generation_limit"
 
 
 def _baseline(job: Job, request: DesignRequest) -> dict[str, Any] | None:
