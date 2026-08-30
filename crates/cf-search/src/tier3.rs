@@ -30,7 +30,10 @@
 
 use cf_constraints::repair::{ActionableViolation, RepairTarget};
 use cf_constraints::{ConstraintChecker, ConstructView, KmerMasking, TabuLedger};
-use cf_metrics::{crowding_distance, fast_nondominated_sort, Ranked};
+use cf_metrics::{
+    associate, crowding_distance, das_dennis, das_dennis_two_layer, fast_nondominated_sort,
+    niching_select, normalize, placeable, Ranked,
+};
 use cf_types::{code, CfError, Codon, Result};
 
 use crate::context::CodonWeights;
@@ -70,6 +73,36 @@ pub trait ObjectiveEvaluator {
 
     /// How many objectives `evaluate` returns.
     fn objective_count(&self) -> usize;
+}
+
+/// Which environmental-selection rule the splitting front uses.
+///
+/// §2's switch. Crowding distance degrades badly as `M` grows — nearly every
+/// individual becomes non-dominated, so selection pressure comes almost
+/// entirely from the diversity operator, and a sum of per-axis spacings stops
+/// discriminating once most points sit on the front's boundary. Reference-
+/// direction niching supplies structured coverage instead.
+///
+/// This decides *survival* only. It is deliberately not a ranking: introducing
+/// a second notion of "best" here is how the archive's `front()` and `best()`
+/// would come to disagree, and they are the only two answers the system gives.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Selection {
+    /// NSGA-II crowding distance. `M ≤ 3`.
+    CrowdingDistance,
+    /// NSGA-III reference-direction niching. `M ≥ 4`.
+    ReferenceDirections,
+}
+
+impl Selection {
+    /// §2's rule, in one place so the switch cannot be spelled twice.
+    pub fn for_objectives(objectives: usize) -> Self {
+        if objectives >= 4 {
+            Self::ReferenceDirections
+        } else {
+            Self::CrowdingDistance
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -119,6 +152,9 @@ pub struct Tier3Checkpoint {
 #[derive(Clone, Debug)]
 pub struct Tier3Report {
     pub checkpoint: Tier3Checkpoint,
+    /// Which selection rule ran. Reported rather than inferred, so a test can
+    /// assert the `M ≥ 4` switch happened instead of guessing from behaviour.
+    pub selection: Selection,
     /// The non-dominated set, best front first, in a stable order.
     pub front: Vec<Individual>,
     pub generations_run: u32,
@@ -228,17 +264,8 @@ pub fn run_generations(
     request: &Tier3Request<'_>,
     generations: u32,
 ) -> Result<Tier3Report> {
-    if request.evaluator.objective_count() > 3 {
-        return Err(CfError::new(
-            code::SRCH_TIER3_CONFIG,
-            format!(
-                "tier 3's NSGA-II path handles at most 3 objectives, not {}; \
-                 crowding distance degrades badly as M grows and reference-direction \
-                 niching (P2-03) is what handles it",
-                request.evaluator.objective_count()
-            ),
-        ));
-    }
+    let objectives = request.evaluator.objective_count();
+    let selection = Selection::for_objectives(objectives);
 
     let mut ledger = TabuLedger::new(request.config.tabu_leak);
     for (region, index, codon, remaining) in &checkpoint.tabu {
@@ -292,7 +319,7 @@ pub fn run_generations(
 
         let mut combined = members;
         combined.extend(offspring);
-        members = select(combined, request.config.population);
+        members = select(combined, request.config.population, selection);
         ledger.tick();
     }
 
@@ -307,6 +334,7 @@ pub fn run_generations(
             repairs_succeeded,
         },
         front,
+        selection,
         generations_run: generations,
         warnings: request.mix.warnings(),
     })
@@ -419,9 +447,13 @@ impl cf_constraints::repair::ObjectiveDelta for NoObjective {
     }
 }
 
-/// NSGA-II environmental selection: fronts in order, crowding within the
-/// splitting front.
-fn select(combined: Vec<Individual>, keep: usize) -> Vec<Individual> {
+/// Environmental selection: whole fronts in order, then the splitting front.
+///
+/// The two strategies differ only in how the splitting front is cut. Front
+/// order itself is non-domination and is the same for both, which is what
+/// keeps `M ≥ 4` from being a different algorithm rather than a different
+/// diversity operator.
+fn select(combined: Vec<Individual>, keep: usize, selection: Selection) -> Vec<Individual> {
     let ranked: Vec<Ranked> = combined.iter().map(Individual::ranked).collect();
     let fronts = fast_nondominated_sort(&ranked);
 
@@ -431,25 +463,132 @@ fn select(combined: Vec<Individual>, keep: usize) -> Vec<Individual> {
             chosen.extend(front.iter().copied());
             continue;
         }
-        // The splitting front: take the least crowded, ties by index so the
-        // result is a function of the population rather than of the sort's
-        // internals.
-        let distance = crowding_distance(&ranked, front);
-        let mut order: Vec<usize> = (0..front.len()).collect();
-        order.sort_by(|&a, &b| {
-            distance[b]
-                .partial_cmp(&distance[a])
-                .unwrap_or(std::cmp::Ordering::Equal)
-                .then_with(|| front[a].cmp(&front[b]))
-        });
-        for &position in order.iter().take(keep - chosen.len()) {
-            chosen.push(front[position]);
-        }
+        let slots = keep - chosen.len();
+        let cut = match selection {
+            Selection::CrowdingDistance => by_crowding(&ranked, front, slots),
+            Selection::ReferenceDirections => {
+                by_reference_directions(&ranked, &chosen, front, slots)
+            }
+        };
+        chosen.extend(cut);
         break;
     }
 
     chosen.sort_unstable();
     chosen.into_iter().map(|i| combined[i].clone()).collect()
+}
+
+/// NSGA-II: take the least crowded, ties by index.
+fn by_crowding(ranked: &[Ranked], front: &[usize], slots: usize) -> Vec<usize> {
+    let distance = crowding_distance(ranked, front);
+    let mut order: Vec<usize> = (0..front.len()).collect();
+    order.sort_by(|&a, &b| {
+        distance[b]
+            .partial_cmp(&distance[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| front[a].cmp(&front[b]))
+    });
+    order.iter().take(slots).map(|&p| front[p]).collect()
+}
+
+/// NSGA-III: normalize, associate with reference directions, fill the
+/// emptiest niches first.
+///
+/// Members with an `UNKNOWN` term cannot be placed in objective space at all,
+/// so they are not associated with a direction — associating them would be
+/// inventing the coordinate. They are taken last, in index order, which is §4's
+/// "back of its feasibility class" applied to the splitting front. They are not
+/// *dropped*: an individual whose provider missed a budget has not been shown
+/// to be bad, only unmeasured.
+fn by_reference_directions(
+    ranked: &[Ranked],
+    already: &[usize],
+    front: &[usize],
+    slots: usize,
+) -> Vec<usize> {
+    let (placeable_admitted, _) = placeable(ranked, already);
+    let (placeable_front, unplaceable) = placeable(ranked, front);
+
+    let objectives = ranked.first().map(|r| r.objectives.len()).unwrap_or(0);
+    let directions = reference_directions(objectives, front.len().max(1));
+
+    // Normalized over the admitted members and the splitting front together:
+    // the hyperplane is a property of the generation, not of the slice being
+    // cut, and normalizing the slice alone would rescale every generation
+    // differently.
+    let considered: Vec<usize> = placeable_admitted
+        .iter()
+        .chain(placeable_front.iter())
+        .copied()
+        .collect();
+    let raw: Vec<Vec<f64>> = considered
+        .iter()
+        .map(|&i| {
+            ranked[i]
+                .objectives
+                .iter()
+                .map(|v| v.unwrap_or(0.0))
+                .collect()
+        })
+        .collect();
+    let normalization = normalize(&raw, None);
+    let points: Vec<Vec<f64>> = raw.iter().map(|p| normalization.apply(p)).collect();
+
+    let associations_by_position = associate(&points, &directions);
+    // Re-indexed onto the population, so `niching_select` speaks the same
+    // indices as everything else here.
+    let mut associations = vec![
+        cf_metrics::Association {
+            reference: 0,
+            distance: f64::INFINITY,
+        };
+        ranked.len()
+    ];
+    for (position, &index) in considered.iter().enumerate() {
+        associations[index] = associations_by_position[position];
+    }
+
+    let mut cut = niching_select(
+        &associations,
+        &placeable_admitted,
+        &placeable_front,
+        directions.len(),
+        slots,
+    );
+    for index in unplaceable {
+        if cut.len() >= slots {
+            break;
+        }
+        cut.push(index);
+    }
+    cut.sort_unstable();
+    cut
+}
+
+/// Reference directions sized to the population, per §3's table.
+///
+/// `p` is the smallest number of divisions giving at least as many directions
+/// as there are slots to fill, and `M ≥ 6` uses the two-layer construction
+/// because a single layer then puts almost every direction on the simplex
+/// boundary, leaving the interior — where balanced trade-offs live —
+/// uncovered.
+fn reference_directions(objectives: usize, target: usize) -> Vec<Vec<f64>> {
+    if objectives == 0 {
+        return vec![vec![1.0]];
+    }
+    for divisions in 1..=30usize {
+        let single = das_dennis(objectives, divisions).unwrap_or_default();
+        if single.len() >= target {
+            if objectives >= 6 {
+                let inner = divisions.saturating_sub(2).max(1);
+                if let Ok(two_layer) = das_dennis_two_layer(objectives, divisions, inner) {
+                    return two_layer;
+                }
+            }
+            return single;
+        }
+    }
+    das_dennis(objectives, 30).unwrap_or_else(|_| vec![vec![1.0; objectives]])
 }
 
 /// The mutually non-dominated members, in ascending member order.

@@ -14,11 +14,16 @@
 
 pub mod dominance;
 pub mod indicators;
+pub mod niching;
 
 pub use dominance::{
     constraint_dominance, crowding_distance, fast_nondominated_sort, Dominance, Ranked,
 };
 pub use indicators::{das_dennis, das_dennis_two_layer, epsilon_additive, hypervolume, igd_plus};
+pub use niching::{
+    associate, niching_select, normalize, perpendicular_distance, placeable, Association,
+    Normalization,
+};
 
 /// This crate's error type.
 ///

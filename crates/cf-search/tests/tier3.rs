@@ -11,8 +11,8 @@ use cf_constraints::spec::{Constraint, ConstraintClass, ConstraintSet, Rule, Sco
 use cf_constraints::{ConstraintChecker, KmerMasking};
 use cf_metrics::{constraint_dominance, Dominance, Ranked};
 use cf_search::tier3::{
-    nondominated, run_generations, seed_population, Individual, ObjectiveEvaluator, Tier3Config,
-    Tier3Request,
+    nondominated, run_generations, seed_population, Individual, ObjectiveEvaluator, Selection,
+    Tier3Config, Tier3Request,
 };
 use cf_search::{CodonWeights, Genotype, OperatorMix};
 use cf_types::{CodonSequence, Result};
@@ -378,31 +378,145 @@ fn tst_srch_016_the_generation_index_is_absolute_not_per_segment() {
 // refusals
 // --------------------------------------------------------------------------- //
 
+// --------------------------------------------------------------------------- //
+// TST-SRCH-018 — the M >= 4 switch
+// --------------------------------------------------------------------------- //
+
+/// `M` conflicting objectives, so the front has real structure at any width.
+#[derive(Debug)]
+struct ManyWay(usize);
+
+impl ObjectiveEvaluator for ManyWay {
+    fn evaluate(&self, genotype: &Genotype) -> Result<Vec<Option<f64>>> {
+        let codons = genotype.codons();
+        // Each objective reads a different residue class, so they conflict
+        // rather than being transforms of one another - a fixture whose
+        // objectives all agreed would make every member non-dominated for the
+        // wrong reason and say nothing about niching.
+        Ok((0..self.0)
+            .map(|axis| {
+                let total: usize = codons
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| index % self.0 == axis)
+                    .map(|(_, c)| c.index_usize())
+                    .sum();
+                Some(total as f64 / codons.len() as f64)
+            })
+            .collect())
+    }
+    fn objective_count(&self) -> usize {
+        self.0
+    }
+}
+
+fn run_with(objectives: usize, generations: u32) -> cf_search::tier3::Tier3Report {
+    let checker = checker();
+    let mix = OperatorMix::without_context_model();
+    let weights = CodonWeights::uniform();
+    let evaluator = ManyWay(objectives);
+    let config = config(12);
+    let request = request(&checker, &mix, &weights, &evaluator, &config);
+    let start = seed_population(&[base()], &request).unwrap();
+    run_generations(&start, &request, generations).unwrap()
+}
+
 #[test]
-fn p2_02_more_than_three_objectives_is_refused_not_approximated() {
+fn tst_srch_018_the_selection_rule_switches_at_four_objectives() {
+    // The rule lives in one place, so it cannot be spelled differently in two.
+    assert_eq!(Selection::for_objectives(1), Selection::CrowdingDistance);
+    assert_eq!(Selection::for_objectives(3), Selection::CrowdingDistance);
+    assert_eq!(Selection::for_objectives(4), Selection::ReferenceDirections);
+    assert_eq!(Selection::for_objectives(7), Selection::ReferenceDirections);
+
+    // And the run reports which one it used, rather than leaving a caller to
+    // infer it from behaviour.
+    assert_eq!(run_with(2, 3).selection, Selection::CrowdingDistance);
+    assert_eq!(run_with(5, 3).selection, Selection::ReferenceDirections);
+}
+
+#[test]
+fn tst_srch_018_a_five_objective_run_keeps_its_population_and_front() {
+    let report = run_with(5, 4);
+
+    assert_eq!(report.checkpoint.members.len(), 12, "niching lost members");
+    assert!(!report.front.is_empty());
+    // Mutually non-dominated by construction, checked rather than assumed.
+    for (i, a) in report.front.iter().enumerate() {
+        for (j, b) in report.front.iter().enumerate() {
+            if i != j {
+                assert_eq!(
+                    constraint_dominance(&a.ranked(), &b.ranked()),
+                    Dominance::Neither
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn tst_srch_018_niching_selection_is_reproducible() {
+    // The whole point of DEP-SRCH-009: with no randomness in the tie-breaks,
+    // two runs of the same seed plan agree, and so do two splits of one run.
+    let whole = run_with(5, 4);
+    let a: Vec<Vec<Option<f64>>> = whole
+        .checkpoint
+        .members
+        .iter()
+        .map(|m| m.objectives.clone())
+        .collect();
+    let again = run_with(5, 4);
+    let b: Vec<Vec<Option<f64>>> = again
+        .checkpoint
+        .members
+        .iter()
+        .map(|m| m.objectives.clone())
+        .collect();
+    assert_eq!(a, b);
+}
+
+#[test]
+fn tst_srch_018_a_single_objective_run_still_agrees_with_a_scalar_best() {
+    // front()/best() agreement, at the tier-3 level. With one objective the
+    // non-dominated set is the minimum, so the front must be exactly the
+    // members attaining it - a second ranking notion introduced by NSGA-III
+    // would show up here as a front that disagrees.
     #[derive(Debug)]
-    struct FourWay;
-    impl ObjectiveEvaluator for FourWay {
-        fn evaluate(&self, _g: &Genotype) -> Result<Vec<Option<f64>>> {
-            Ok(vec![Some(1.0); 4])
+    struct OneWay;
+    impl ObjectiveEvaluator for OneWay {
+        fn evaluate(&self, genotype: &Genotype) -> Result<Vec<Option<f64>>> {
+            let total: usize = genotype.codons().iter().map(|c| c.index_usize()).sum();
+            Ok(vec![Some(total as f64)])
         }
         fn objective_count(&self) -> usize {
-            4
+            1
         }
     }
 
     let checker = checker();
     let mix = OperatorMix::without_context_model();
     let weights = CodonWeights::uniform();
-    let evaluator = FourWay;
-    let config = config(4);
+    let evaluator = OneWay;
+    let config = config(10);
     let request = request(&checker, &mix, &weights, &evaluator, &config);
-
     let start = seed_population(&[base()], &request).unwrap();
-    let error = run_generations(&start, &request, 1)
-        .expect_err("M > 3 must be refused; crowding distance degrades badly as M grows");
-    assert_eq!(error.code, "CF-SRCH-014");
-    assert!(error.detail.contains("P2-03"), "{}", error.detail);
+    let report = run_generations(&start, &request, 4).unwrap();
+
+    let best = report
+        .checkpoint
+        .members
+        .iter()
+        .filter(|m| m.is_feasible())
+        .map(|m| m.objectives[0].unwrap())
+        .fold(f64::INFINITY, f64::min);
+    for member in &report.front {
+        assert_eq!(
+            member.objectives[0].unwrap(),
+            best,
+            "the front contains a member that is not the scalar minimum"
+        );
+    }
+    assert!(!report.front.is_empty());
 }
 
 #[test]
