@@ -130,3 +130,25 @@ Every entry names **the bet** (a falsifiable claim), **the falsifier** (what obs
 | `RISK-UX-001` | The many-objective front is unusable: hundreds of equally-good candidates | `M ≥ 5` on any real job | `AMD-008`: role demotion to ε-constraints and diagnostics, ≤4 default axes, mandatory reduction, uncertainty-aware selection | Default to 3 axes with the rest as ε-constraints, and surface a preference-articulation step |
 | `RISK-UX-002` | Users treat a tier-3 burden number or a fallback-host prediction as authoritative | Any tier-3 or fallback job | Different unit, `calibrated: false`, `low_confidence_host` tag, structured warnings, `TST-BURD-005` | Refuse to offer the term rather than qualify it, if the qualification proves ineffective |
 | `RISK-UX-003` | The tool returns nothing for over-constrained inputs, with no explanation | Any conflicting constraint set | `AMD-010`: the five-check feasibility analyser, run at submission and available as its own endpoint, always naming a constraint to relax | — |
+
+---
+
+## 7. Latent hazards — correct today, wrong under a change that has not happened yet
+
+These are not open bugs. Each is a working implementation whose correctness rests
+on a condition the code does not enforce, so the failure arrives with a *future*
+change rather than with the next test run. They are recorded here rather than
+only in a source comment because the engineer who trips one will be working on
+something else entirely and will not know to look at the class that carries the
+caveat.
+
+| Id | What is true today | What would break it | Where the caveat lives now |
+| --- | --- | --- | --- |
+| `RISK-LAT-001` | ViennaRNA's temperature is a **process global** (`RNA.cvar.temperature`). The binding sets it on every call, and the structure term runs outside the parallel block sweep, so nothing races. | **Parallelizing structure evaluation inside one process.** Two threads folding at different temperatures would interleave their writes to that global and each would silently fold at the other's temperature — producing plausible energies, no error, and a `GATE-DET-001` violation that only appears as irreproducibility. A worker *process* per thread is safe; threads are not. | `ViennaRNAEngine` docstring |
+| `RISK-LAT-002` | `accessibility_penalty` floors accessibility at `1e-300` before taking a log, so a fully-paired window has a large finite cost rather than infinity. | **Treating the floor as a physical constant.** It is a numerical choice with no derivation behind it: it sets how much worse "completely inaccessible" is than "nearly inaccessible", which is a real modelling decision about how hard the objective pushes on the worst window. Anyone tuning structure weight is implicitly tuning against this number and should know it was picked, not measured. | `accessibility_penalty` docstring |
+| `RISK-LAT-003` | Tier 1's `half_maximal_expression` locates `θ` by **linear interpolation** between measured panel points, not by fitting the saturating curve `ADR-0004` §2.1 describes. Defensible for the ≥20-point, ≥1-decade panel the tier requires. | **Any host actually reaching tier 1.** No host does today, so the approximation has never been exercised against real data. The interpolation is sensitive to point spacing near the half-maximum in a way a fitted curve is not, and tier 1 is the tier whose whole value is that it rests on measurement. | `capacity.rs`, `fit_capacity_tier1` |
+| `RISK-LAT-004` | `expected_gain` approximates expected hypervolume gain by distance past the current best in an individual's strongest objective. Exact EHVI is exponential in objective count and would cost more than the L0 calls it saves. | **A dense front, or many objectives.** The approximation is good when the front is sparse and degrades as it fills in — which is exactly the late-run regime where rationing matters most. It is component (c) of four, so its errors are bounded by the other three components, but it is not what the name implies. | `rationing.rs`, `expected_gain` |
+
+A hazard leaves this table when the condition becomes enforced rather than
+assumed — a thread-safety guard, a fitted curve, a derived constant — not when
+someone decides it is unlikely.
