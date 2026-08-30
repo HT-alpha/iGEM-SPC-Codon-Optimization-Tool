@@ -14,8 +14,29 @@ on:
     - cron: "0 4 * * 1"
 
 jobs:
+  # AMD-013. A release that ships structure-kernel functionality needs a human
+  # with actual authority to have reviewed the licence and patent position
+  # first. This job runs before anything is built, and blocks the release when
+  # no sign-off is on file - which is the state today, deliberately.
+  #
+  # It is first in the file and a `needs:` of every other job because a gate
+  # that runs alongside the build is a gate that gets ignored when the build
+  # succeeds.
+  legal-clearance:
+    name: legal clearance (AMD-013)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: require sign-off before a structure-kernel release
+        run: python tools/check_release_clearance.py
+
   build:
     name: ${{ matrix.platform.os }} ${{ matrix.platform.target }}
+    needs: legal-clearance
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false

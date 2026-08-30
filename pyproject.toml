@@ -21,17 +21,29 @@ dependencies = [
   "pyyaml>=6",
 ]
 
-# Dependency policy (AMD-009, RISK-DEP-001/002): every dependency must be
-# redistributable under Apache-2.0. There is deliberately NO `nonfree` extra.
-# ViennaRNA and LinearFold forbid redistribution for a fee, and LinearDesign is
-# patent-encumbered; an extra that installed them would make this wheel
-# non-redistributable. Alternative structure engines are detected at runtime if
-# the user has installed them themselves, behind the StructureEngine seam.
+# Dependency policy (AMD-013, superseding AMD-009's stricter reading).
+#
+# The runtime dependencies above must stay redistributable under Apache-2.0.
+# There is still deliberately NO extra that installs a structure engine, and the
+# reason has changed: it is no longer that ViennaRNA's licence forbids it - it
+# does not, for a free distribution - but that a runtime dependency declared
+# here is one CodonForge's own wheel asserts a relationship with. Detection at
+# runtime keeps the wheel's dependency set entirely Apache-2.0 and keeps the
+# user, not CodonForge, the party who installed ViennaRNA.
+#
+# LinearDesign's method stays excluded on patent grounds regardless (AMD-013).
 [project.optional-dependencies]
 dev = [
   "pytest>=8",
   "maturin>=1.5,<2",
   "ruff>=0.5",
+]
+# Test-only. Installed in CI so the structure-engine reference checks actually
+# run: a suite where TST-STRU-001 silently skips proves nothing about the
+# binding, which is why CF_REQUIRE_STRUCTURE_ENGINE turns those skips into
+# failures. Not a runtime dependency and not shipped.
+structure-tests = [
+  "ViennaRNA>=2.6",
 ]
 
 [project.scripts]

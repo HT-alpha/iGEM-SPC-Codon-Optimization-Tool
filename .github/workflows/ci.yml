@@ -103,10 +103,17 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - uses: Swatinem/rust-cache@v2
-      - run: pip install maturin pytest jsonschema pyyaml biopython
+      # ViennaRNA is a test-only install here, never a shipped dependency
+      # (AMD-013). Without it the structure-engine reference checks would skip
+      # and the suite would be green without testing the binding at all.
+      - run: pip install maturin pytest jsonschema pyyaml biopython ViennaRNA
       - name: build the core into the environment
         run: maturin develop
       - run: pytest -q
+        env:
+          # Turns a skipped structure-engine check into a failure, so CI cannot
+          # go green by not running the checks that matter most.
+          CF_REQUIRE_STRUCTURE_ENGINE: "1"
 
   # The vendored NCBI tables are generated, not hand-written. If regenerating
   # them changes the file, either upstream changed or somebody edited the

@@ -356,12 +356,24 @@ impl BatchProtocol {
             stranded: map
                 .get("stranded")
                 .and_then(serde_json::Value::as_array)
-                .map(|items| items.iter().filter_map(serde_json::Value::as_u64).map(|n| n as usize).collect())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(serde_json::Value::as_u64)
+                        .map(|n| n as usize)
+                        .collect()
+                })
                 .unwrap_or_default(),
             in_flight: map
                 .get("in_flight")
                 .and_then(serde_json::Value::as_array)
-                .map(|items| items.iter().filter_map(serde_json::Value::as_u64).map(|n| n as usize).collect())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(serde_json::Value::as_u64)
+                        .map(|n| n as usize)
+                        .collect()
+                })
                 .unwrap_or_default(),
         })
     }

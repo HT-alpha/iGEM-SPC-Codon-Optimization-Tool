@@ -296,9 +296,7 @@ class Job:
                 self.budget.spend(result["generations_run"])
                 self.generations_run += result["generations_run"]
                 self._absorb_warnings(result.get("warnings", []))
-                self._absorb_warnings(
-                    self._deferral_warnings(result.get("stranded", []))
-                )
+                self._absorb_warnings(self._deferral_warnings(result.get("stranded", [])))
                 self.tier3 = result
                 for member in result["front"]:
                     # Every front member is recorded, not just one. The archive

@@ -550,7 +550,9 @@ fn tst_srch_021_items_the_budget_never_reached_are_reported() {
         })
         .expect("absorb");
     assert!(
-        second.iter().all(|index| protocol.stranded().contains(index)),
+        second
+            .iter()
+            .all(|index| protocol.stranded().contains(index)),
         "a None result leaves the item stranded; UNKNOWN is not an evaluation"
     );
 }

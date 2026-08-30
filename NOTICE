@@ -1,0 +1,113 @@
+CodonForge
+Copyright (c) the CodonForge contributors.
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+================================================================================
+Third-party attribution
+================================================================================
+
+CodonForge does not bundle, vendor, or redistribute any of the software named
+below. Each is an optional backend that the user installs themselves, detected
+at runtime behind the StructureEngine seam. The credits here are given because
+the licences require credit from anyone who uses the software, and because the
+work deserves it.
+
+Recorded per AMD-013 (planning/00-scope/03-architecture-amendments.md), which
+verified each licence against its primary source rather than its reputation.
+
+--------------------------------------------------------------------------------
+ViennaRNA Package
+--------------------------------------------------------------------------------
+
+Used as an optional structure-prediction backend for windowed local
+accessibility, via the RNAplfold sliding-window partition function.
+
+Credit is given, as its licence requires, to the authors of the ViennaRNA
+Package and to the Institute for Theoretical Chemistry of the University of
+Vienna.
+
+The ViennaRNA Package's licence (COPYING / license.txt in its source
+distribution) states:
+
+    The programs, library and source code of the Vienna RNA Package are free
+    software. They are distributed in the hope that they will be useful
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+    Permission is granted for research, educational, and commercial use
+    and modification so long as 1) the package and any derived works are not
+    redistributed for any fee, other than media costs, 2) proper credit is
+    given to the authors and the Institute for Theoretical Chemistry of the
+    University of Vienna.
+
+    If you want to include this software in a commercial product, please contact
+    the authors.
+
+    Note that the file ./src/ViennaRNA/plotting/naview.c has its own copyright
+    attached.
+
+Two consequences CodonForge holds itself to:
+
+  * Condition 1 is satisfied by construction. CodonForge is distributed free of
+    charge and does not redistribute ViennaRNA at all - the user installs it -
+    so no fee attaches to any copy of the package or to a derived work. If
+    CodonForge is ever distributed for a fee, this arrangement must be
+    re-examined before that release ships.
+
+  * The naview.c carve-out does not apply while CodonForge only depends on
+    ViennaRNA. It would apply immediately to anyone proposing to vendor
+    ViennaRNA source into this repository, and such a proposal needs its own
+    licence check before proceeding.
+
+ViennaRNA's bundled thermodynamic parameter files (misc/*.par) carry no licence
+header of their own. CodonForge does not redistribute them either: ViennaRNA
+loads its own tables. Any proposal to bundle or redistribute those files
+directly reopens a question this project has not resolved and must not assume.
+
+--------------------------------------------------------------------------------
+LinearFold
+--------------------------------------------------------------------------------
+
+Supported as an optional structure-prediction backend on the same
+user-installed, never-vendored terms.
+
+Its licence requires the following citation, which is reproduced as its LICENSE
+file gives it:
+
+    Liang Huang, He Zhang, Dezhong Deng, Kai Zhao, Kaibo Liu, David Hendrix,
+    and David Mathews (2019). LinearFold: Linear-Time Approximate RNA Folding
+    by 5'-to-3' Dynamic Programming and Beam Search. Bioinformatics, Vol. 35,
+    July 2019, Special Issue of ISMB 2019 Proceedings.
+
+The LinearFold LICENSE file states:
+
+    Permission is granted for research, educational, and commercial use
+    and modification so long as 1) the package and any derived works are not
+    redistributed for any fee, other than media costs, 2) proper credit is
+    given to the authors.
+
+A note on a correction, kept because the mistake is an easy one to repeat:
+LinearFold's *paper* is CC BY-NC 4.0, and this project once recorded that as the
+code's licence. The LICENSE file above governs the code, and it permits
+commercial use. Code licence and paper licence are separate questions.
+
+--------------------------------------------------------------------------------
+LinearDesign - deliberately not used
+--------------------------------------------------------------------------------
+
+LinearDesign is not a dependency, is not called, and its method is not
+implemented. This is a patent question rather than a licensing one: US
+2022/0269951 A1 and EP 4 030 438 A1 (applicant Baidu USA LLC) claim, as a
+required element of every independent claim, intersecting a context-free grammar
+with a deterministic finite automaton over synonymous codon choices and
+searching the result.
+
+CodonForge contains no context-free grammar. That exclusion is enforced by a
+test rather than by intention alone - see
+test_amd_013_no_grammar_intersection_reaches_the_search_layer.
+
+See AMD-013 for the full analysis, including what it does not establish: grant
+status was not confirmed, and claim scope outside the US and EP was not
+examined. Release of structure-kernel functionality is gated on sign-off from a
+faculty advisor, PI, or institutional technology-transfer contact.

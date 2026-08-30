@@ -57,30 +57,66 @@ def test_repository_invariant(argv: list[str]) -> None:
 
 
 def test_no_forbidden_structure_dependency() -> None:
-    """AMD-009 / RISK-DEP-001 / RISK-DEP-002, enforced rather than documented.
+    """`AMD-013`, correcting `AMD-009`'s stricter rule. Enforced, not documented.
 
-    ViennaRNA, LinearFold and LinearDesign forbid redistribution for a fee, and
-    LinearDesign is patent-encumbered, so none of them may appear in the
-    dependency tree — not as an optional extra, not behind a feature flag. This
-    test reads the manifests directly, because the failure mode it guards
-    against is somebody adding one "just for benchmarking".
+    The rule moved rather than disappeared. `AMD-009` banned these names
+    everywhere; `AMD-013` established that ViennaRNA's and LinearFold's licences
+    permit use and restrict only charging a fee for redistribution, which a free
+    distribution satisfies. What still must not happen:
+
+    * a **runtime** dependency on a structure engine, which would make
+      CodonForge's wheel assert a relationship with software it does not ship;
+    * **any** appearance of LinearDesign, whose exclusion is a patent question
+      that no licence finding touches;
+    * any of them in a **Rust** manifest, which is where vendoring would begin
+      and where ViennaRNA's naview.c carve-out would immediately apply.
+
+    A test-only extra is allowed: installing something to check a binding
+    against it is not redistributing it.
     """
-    forbidden = ("viennarna", "vienna-rna", "linearfold", "lineardesign", "rnastructure")
-    manifests = [ROOT / "pyproject.toml", ROOT / "Cargo.toml"]
-    manifests += sorted(ROOT.glob("crates/*/Cargo.toml"))
+    import tomllib
 
+    engines = ("viennarna", "vienna-rna", "linearfold", "rnastructure")
+    patent_encumbered = ("lineardesign",)
     offenders = []
-    for manifest in manifests:
+
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    for dependency in (d.lower() for d in pyproject["project"].get("dependencies", [])):
+        for name in engines + patent_encumbered:
+            if name in dependency:
+                offenders.append(
+                    f"pyproject.toml runtime dependency {dependency!r} pulls in "
+                    f"{name!r}; engines are user-installed and detected at runtime"
+                )
+
+    for extra, entries in pyproject["project"].get("optional-dependencies", {}).items():
+        for dependency in (d.lower() for d in entries):
+            for name in patent_encumbered:
+                if name in dependency:
+                    offenders.append(
+                        f"pyproject.toml extra {extra!r} pulls in {name!r}; the "
+                        "LinearDesign exclusion is a patent matter no extra clears"
+                    )
+            for name in engines:
+                if name in dependency and extra != "structure-tests":
+                    offenders.append(
+                        f"pyproject.toml extra {extra!r} pulls in {name!r}; only the "
+                        "test-only 'structure-tests' extra may, and it is never shipped"
+                    )
+
+    for manifest in sorted(ROOT.glob("crates/*/Cargo.toml")) + [ROOT / "Cargo.toml"]:
         text = manifest.read_text(encoding="utf-8").lower()
-        # Skip comment lines: the policy is *stated* in comments in several
-        # manifests, and matching those would make the test unfalsifiable.
         body = "\n".join(line for line in text.splitlines() if not line.strip().startswith("#"))
-        for name in forbidden:
+        for name in engines + patent_encumbered:
             if name in body:
-                offenders.append(f"{manifest.relative_to(ROOT)} references {name!r}")
+                offenders.append(
+                    f"{manifest.relative_to(ROOT)} references {name!r}; a Rust "
+                    "dependency means linking or vendoring, which AMD-013 does not "
+                    "permit and which triggers ViennaRNA's naview.c carve-out"
+                )
 
     assert not offenders, (
-        "forbidden structure-prediction dependency found; see AMD-009:\n  " + "\n  ".join(offenders)
+        "structure-engine dependency policy violated; see AMD-013:\n  " + "\n  ".join(offenders)
     )
 
 
@@ -154,9 +190,7 @@ def test_amd_013_no_grammar_intersection_reaches_the_search_layer():
     ):
         if "target" in path.parts or path.name == "test_repo_invariants.py":
             continue
-        for number, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1
-        ):
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             if forbidden.search(line):
                 offenders.append(f"{path.relative_to(root)}:{number}: {line.strip()}")
 
