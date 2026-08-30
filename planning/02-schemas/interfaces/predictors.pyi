@@ -259,28 +259,56 @@ class GradientPredictor(ScalarPredictor, Protocol):
 
 @runtime_checkable
 class StructureEngine(Protocol):
-    """The seam that keeps CodonForge's own licence clean.
+    """A folding backend. Stateless and pure.
 
-    The default engine is a permissively-licensed windowed-accessibility kernel
-    shipped with CodonForge. ViennaRNA and LinearFold back ends are detected at
-    runtime if the user has installed them; they are never vendored, because
-    neither is redistributable under Apache-2.0 terms (RISK-DEP-001).
+    AMD-013 / DEP-STRU-002. CodonForge ships no folding engine: ViennaRNA and
+    LinearFold are user-installed and detected at runtime, never vendored. Since
+    CodonForge redistributes neither, their licences' no-fee-redistribution
+    condition is satisfied by construction.
+
+    Three things this protocol deliberately lacks, each removed for a reason:
+
+      * `local_accessibility_incremental` - it took a changed range and no
+        sequence, which only means anything if the engine retains state between
+        calls. That assumed CodonForge's own kernel, which AMD-013 removed.
+        A stateless C library cannot implement it, and requiring it would put a
+        cache inside every future engine instead of once in P2-10.
+      * `global_mfe` - AMD-001 keeps global MFE off the per-move path, and the
+        cheapest enforcement is to leave the search loop nothing to call. An
+        exact-tier re-ranking path needs a separate interface.
+      * `supports_*` capability flags - for methods that no longer exist.
+
+    Engines are called from the Python side as an L0 term through P2-05's batch
+    protocol, so the Rust hot path never crosses the boundary per move.
+    """
+
+    def identity(self) -> EngineIdentity: ...
+
+    def local_accessibility(
+        self, seq: str, window_nt: int, span_nt: int, temperature_c: float
+    ) -> Sequence[float]:
+        """One value per window *end* position, not per sequence position.
+
+        A window shorter than its own length cannot end near the 5' edge, and
+        engines report exactly 0.0 there. Returning that verbatim would claim
+        those positions are maximally inaccessible when the question was never
+        asked, so undefined positions have no entry at all.
+        """
+        ...
+
+
+@dataclass(frozen=True)
+class EngineIdentity:
+    """What the lockfile records about the engine that produced the energies.
+
+    DEP-STRU-001's reproducibility half, which survives the AMD-013 licence
+    correction unchanged: which engine, version and parameter table were in
+    force decides every number a run reported.
     """
 
     name: str
     version: str
-    supports_global_mfe: bool
-    supports_incremental: bool
-
-    def local_accessibility(
-        self, seq: str, window_nt: int, max_span_nt: int, temperature_c: float
-    ) -> Sequence[float]: ...
-
-    def local_accessibility_incremental(
-        self, changed_nt_range: tuple[int, int]
-    ) -> Sequence[float]: ...
-
-    def global_mfe(self, seq: str, temperature_c: float) -> tuple[float, str]: ...
+    parameter_set: str
 
 
 @runtime_checkable

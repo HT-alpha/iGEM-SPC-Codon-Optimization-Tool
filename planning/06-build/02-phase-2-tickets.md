@@ -75,4 +75,6 @@
 - [ ] `GATE-BEN-001`, `GATE-BEN-002`, `GATE-BURD-001` pass
 - [ ] `EXP-04` decided; the tier-3 burden term's role is settled
 - [ ] `P2-23` licence review complete with no unresolved item
+- [ ] **Release gate live**: `tools/check_release_clearance.py` runs as the `legal-clearance` job in `.github/workflows/wheels.yml`, blocking every tagged release until `docs/legal-clearance.yaml` records sign-off from a faculty advisor, PI, or institutional tech-transfer/legal contact. Expected to *fail* until someone signs; that is the gate working, not a defect to route around. `AMD-013`.
+- [ ] `NOTICE` credits ViennaRNA (authors and the Institute for Theoretical Chemistry, University of Vienna) and LinearFold (its required paper citation), quoting both licences rather than paraphrasing them
 - [ ] Kinetics term ships as `diagnostic`, never as a Pareto axis (`AMD-002`)

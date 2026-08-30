@@ -5,7 +5,7 @@ VENV ?= .venv
 PY   := $(VENV)/bin/python
 PIP  := $(VENV)/bin/pip
 
-.PHONY: help setup build test check fmt lint invariants rust python assets clean
+.PHONY: release-check help setup build test check fmt lint invariants rust python assets clean
 
 help:
 	@echo "setup      create the venv and install dev dependencies"
@@ -58,6 +58,10 @@ invariants:
 assets:
 	$(PY) tools/generate_genetic_codes.py
 	@git diff --stat -- crates/cf-types/data/genetic_codes.json
+
+release-check:
+	@# AMD-013: the same gate CI runs before building a release wheel.
+	$(PY) tools/check_release_clearance.py
 
 check: invariants lint test
 
