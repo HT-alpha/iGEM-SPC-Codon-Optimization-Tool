@@ -37,6 +37,9 @@ version = "0.1.0"
 [[package]]
 name = "cf-burden"
 version = "0.1.0"
+dependencies = [
+ "cf-types",
+]
 
 [[package]]
 name = "cf-constraints"

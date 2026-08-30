@@ -107,6 +107,14 @@ codes! {
     SRCH_TIER3_CONFIG      => ("CF-SRCH-014", 422, "Tier 3 configuration is unusable", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
     SRCH_DETERMINISM       => ("CF-SRCH-013", 500, "A run is not reproducible across thread counts or segment splits", "planning/05-testing/02-acceptance-thresholds.md"),
 
+    // ---- CF-BURD: resource ledger ------------------------------------------
+    BURD_WOBBLE_PARAMETER  => ("CF-BURD-001", 422, "A wobble decoding parameter is missing or out of range", "planning/02-schemas/host_profile.schema.json"),
+    BURD_NON_SYNONYMOUS    => ("CF-BURD-002", 500, "The demand ledger was updated through a non-synonymous substitution", "planning/03-algorithms/05-burden-penalty-and-capacity.md"),
+    BURD_LEDGER_UNDERFLOW  => ("CF-BURD-003", 500, "The demand ledger has drifted from the sequence it describes", "planning/03-algorithms/05-burden-penalty-and-capacity.md"),
+
+    // ---- CF-STRU: structure kernel ------------------------------------------
+    STRU_NO_PARAMETERS     => ("CF-STRU-001", 422, "No thermodynamic parameter set was supplied", "planning/00-scope/03-architecture-amendments.md"),
+
     // ---- CF-METR: indicator math -------------------------------------------
     //
     // `cf-metrics` is rank 0 with no dependencies, so it carries its own error
