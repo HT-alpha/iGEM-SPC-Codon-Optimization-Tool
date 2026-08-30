@@ -383,13 +383,23 @@ fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
     population,
     generations,
     stagnation_window,
+    l0_scorer=None,
+    l0_axis=0,
+    l0_budget=0,
 ))]
+// The signature *is* the Python API. Grouping these into a struct would move
+// the argument list into a dict the caller has to build, which is worse at the
+// call site and no clearer here.
+#[allow(clippy::too_many_arguments)]
 fn search_tier3_segment(
     request_json: &str,
     checkpoint_json: Option<&str>,
     population: usize,
     generations: u32,
     stagnation_window: usize,
+    l0_scorer: Option<Bound<'_, PyAny>>,
+    l0_axis: usize,
+    l0_budget: usize,
 ) -> PyResult<String> {
     let checkpoint: Option<serde_json::Value> = match checkpoint_json {
         None | Some("null") => None,
@@ -397,6 +407,7 @@ fn search_tier3_segment(
             Some(serde_json::from_str(text).map_err(|e| PyValueError::new_err(e.to_string()))?)
         }
     };
+    let scorer = l0_scorer.map(|callable| pipeline::PyL0Scorer::new(callable, l0_axis, l0_budget));
     with_tier_inputs(request_json, |inputs| {
         pipeline::run_tier3_segment(
             inputs,
@@ -404,6 +415,9 @@ fn search_tier3_segment(
             population,
             generations,
             stagnation_window,
+            scorer
+                .as_ref()
+                .map(|s| s as &dyn cf_search::tier3::L0Scorer),
         )
     })
 }

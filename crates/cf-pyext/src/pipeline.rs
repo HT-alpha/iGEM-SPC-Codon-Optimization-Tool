@@ -27,14 +27,15 @@ use cf_landscape_api::provider::TermRegistry;
 use cf_landscape_api::query::Budget;
 use cf_landscape_api::HostContext;
 use cf_search::tier3::{
-    seed_population, Individual, ObjectiveEvaluator, Selection, Tier3Checkpoint, Tier3Config,
-    Tier3Request,
+    seed_population, Individual, L0Scorer, ObjectiveEvaluator, Selection, Tier3Checkpoint,
+    Tier3Config, Tier3Request,
 };
 use cf_search::{
     tier1_seed, tier2_block_ca, CodonWeights, Genotype, OperatorMix, SearchRng, Tier1Config,
     Tier1Request, Tier2Config, Tier2Plan, Tier2Request,
 };
 use cf_types::{code, CfError, CodonSequence, Digest, HostId, Result, TermId};
+use pyo3::types::PyAnyMethods;
 use serde_json::{json, Value};
 
 /// Build a registry holding exactly the terms a job asked for.
@@ -341,6 +342,7 @@ pub fn run_tier3_segment(
     population: usize,
     generations: u32,
     stagnation_window: usize,
+    l0: Option<&dyn L0Scorer>,
 ) -> Result<Value> {
     let registry = build_registry(
         inputs.terms,
@@ -371,6 +373,11 @@ pub fn run_tier3_segment(
         evaluator: &evaluator,
         config: &config,
         root_seed: tier3_seed(inputs.root_seed),
+        // No L0 term reaches the registry by default: the structure term ships
+        // as a diagnostic (`DEP-STRU-003`) and the LM is Phase 3. `P2-05a`
+        // builds the path and proves it with a real crossing; wiring a term
+        // onto it permanently is `P2-11`.
+        l0,
     };
 
     let start = match checkpoint {
@@ -396,7 +403,9 @@ pub fn run_tier3_segment(
             Selection::ReferenceDirections => "reference_directions",
         },
         "generations_run": report.generations_run,
+        "stranded": report.stranded,
         "hypervolume_history": report.checkpoint.hypervolume_history,
+        "batch": report.checkpoint.batch,
         "evaluations": report.checkpoint.evaluations,
         "warnings": report.warnings.iter().map(|w| {
             let mut problem = w.to_problem_details();
@@ -475,6 +484,7 @@ fn checkpoint_to_json(checkpoint: &Tier3Checkpoint) -> Result<Value> {
         "repairs_attempted": checkpoint.repairs_attempted,
         "repairs_succeeded": checkpoint.repairs_succeeded,
         "hypervolume_history": checkpoint.hypervolume_history,
+        "batch": checkpoint.batch,
     }))
 }
 
@@ -569,5 +579,71 @@ fn checkpoint_from_json(document: &Value, request: &Tier3Request<'_>) -> Result<
             .and_then(Value::as_array)
             .map(|a| a.iter().filter_map(Value::as_f64).collect())
             .unwrap_or_default(),
+        batch: map.get("batch").filter(|v| !v.is_null()).cloned(),
     })
+}
+
+/// An L0 scorer that is a Python callable. `P2-05a`.
+///
+/// This is where `ADR-0001`'s boundary actually is: PyO3, not an OS process.
+/// `DEP-LAND-004` deferred the out-of-process worker and that stays deferred —
+/// the transport changes only *where* a scorer runs, and the crossing budget is
+/// about how often Rust hands control to Python, which is measurable today and
+/// is what the rule caps.
+///
+/// The counter that proves the rule cannot live here. A count kept on the Rust
+/// side would tally this type's own bookkeeping and could read one while the
+/// callable was invoked sixty-four times. It has to be kept by the callable,
+/// which is the only thing that knows it was called.
+pub struct PyL0Scorer<'py> {
+    callable: pyo3::Bound<'py, pyo3::PyAny>,
+    axis: usize,
+    budget: usize,
+}
+
+impl<'py> PyL0Scorer<'py> {
+    pub fn new(callable: pyo3::Bound<'py, pyo3::PyAny>, axis: usize, budget: usize) -> Self {
+        Self {
+            callable,
+            axis,
+            budget,
+        }
+    }
+}
+
+impl L0Scorer for PyL0Scorer<'_> {
+    fn axis(&self) -> usize {
+        self.axis
+    }
+
+    fn budget(&self) -> usize {
+        self.budget
+    }
+
+    fn score_batch(&self, genotypes: &[&Genotype]) -> Result<Vec<Option<f64>>> {
+        let sequences: Vec<String> = genotypes
+            .iter()
+            .map(|g| g.sequence().cds_string())
+            .collect();
+        let returned = self
+            .callable
+            .call1((sequences.clone(),))
+            .map_err(|e| CfError::new(code::LAND_BATCH_UNEXPECTED, e.to_string()))?;
+        let values: Vec<Option<f64>> = returned
+            .extract()
+            .map_err(|e| CfError::new(code::LAND_BATCH_UNEXPECTED, e.to_string()))?;
+        if values.len() != sequences.len() {
+            return Err(CfError::new(
+                code::LAND_BATCH_UNEXPECTED,
+                format!(
+                    "the scorer was given {} sequences and returned {} values; \
+                     aligning them by position would attribute one sequence's score \
+                     to another and every value would still look plausible",
+                    sequences.len(),
+                    values.len()
+                ),
+            ));
+        }
+        Ok(values)
+    }
 }

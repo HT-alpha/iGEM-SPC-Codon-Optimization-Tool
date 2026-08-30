@@ -28,6 +28,10 @@
 //! per-individual indices `0..N` are exactly the index space the generation
 //! loop already uses off the job root.
 
+use cf_landscape_api::batch::{BatchProtocol, BatchResults};
+
+use crate::rationing::{Observation, Rationer};
+
 use cf_constraints::repair::{ActionableViolation, RepairTarget};
 use cf_constraints::{ConstraintChecker, ConstructView, KmerMasking, TabuLedger};
 use cf_metrics::{
@@ -174,6 +178,8 @@ pub struct Tier3Config {
     pub tabu_leak: f64,
     pub region: usize,
     pub masking: KmerMasking,
+    /// `G_s` in §6 — generations between surrogate refits.
+    pub surrogate_refit_period: u64,
 }
 
 impl Tier3Config {
@@ -188,6 +194,7 @@ impl Tier3Config {
             tabu_leak: 0.0,
             region: 0,
             masking: KmerMasking::default(),
+            surrogate_refit_period: 10,
         }
     }
 }
@@ -215,6 +222,12 @@ pub struct Tier3Checkpoint {
     /// the whole window again, so a job checkpointed near convergence would
     /// keep going where an uninterrupted one stopped.
     pub hypervolume_history: Vec<f64>,
+    /// The batch protocol's snapshot, when an L0 term is running.
+    ///
+    /// `P2-05a`. Carries the deferral queue and the stranded set, so a resumed
+    /// run still knows which individuals the budget never reached and
+    /// `CF-SRCH-016` survives an interruption.
+    pub batch: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug)]
@@ -229,6 +242,8 @@ pub struct Tier3Report {
     pub termination: Termination,
     pub generations_run: u32,
     pub warnings: Vec<CfError>,
+    /// Individuals the L0 budget never reached. Drives `CF-SRCH-016`.
+    pub stranded: Vec<usize>,
 }
 
 pub struct Tier3Request<'a> {
@@ -239,6 +254,36 @@ pub struct Tier3Request<'a> {
     pub config: &'a Tier3Config,
     /// Already namespaced to tier 3 by the caller. `DEP-DET-003`.
     pub root_seed: u64,
+    /// The out-of-core term, scored once per generation. `P2-05a`.
+    ///
+    /// `None` when every objective is in-core, which is the case tier 3 ran
+    /// under until this ticket: `evaluate_one` computed everything per
+    /// individual and `BatchProtocol` was never reached.
+    pub l0: Option<&'a dyn L0Scorer>,
+}
+
+/// An objective too expensive to evaluate per move.
+///
+/// `ADR-0001` caps boundary crossings at one per generation, so this trait has
+/// exactly one method and it takes the whole batch. A per-item method would
+/// invite a caller to loop, and a loop over `N = 64` is a 64x budget violation
+/// that nothing would report — the run would simply be slow, and the cause
+/// would be invisible.
+pub trait L0Scorer {
+    /// Which objective index this scorer fills.
+    fn axis(&self) -> usize;
+
+    /// The evaluation budget for one generation (`E_max`).
+    fn budget(&self) -> usize;
+
+    /// Score every genotype handed over, in order.
+    ///
+    /// `None` for an item the scorer could not evaluate — `UNKNOWN`, never a
+    /// placeholder. Must return one value per item: the protocol refuses a
+    /// length mismatch rather than aligning by position, because a shifted
+    /// alignment attributes one sequence's score to another and every value
+    /// still looks plausible.
+    fn score_batch(&self, genotypes: &[&Genotype]) -> Result<Vec<Option<f64>>>;
 }
 
 impl std::fmt::Debug for Tier3Request<'_> {
@@ -284,14 +329,33 @@ fn assemble(genotype: &Genotype) -> Vec<u8> {
 
 /// Score a genotype into an `Individual`.
 pub fn evaluate_one(genotype: Genotype, request: &Tier3Request<'_>) -> Result<Individual> {
-    let objectives = request.evaluator.evaluate(&genotype)?;
-    if objectives.len() != request.evaluator.objective_count() {
+    let mut objectives = request.evaluator.evaluate(&genotype)?;
+    // An L0 term is an *additional* objective: the evaluator supplies the
+    // in-core axes and the scorer supplies one more. The slot is created here,
+    // as `UNKNOWN`, rather than by the batch step — a slot that appeared only
+    // once a batch had been scored would make the vector's width depend on
+    // whether the budget happened to reach an individual.
+    if let Some(scorer) = request.l0 {
+        let axis = scorer.axis();
+        if axis < request.evaluator.objective_count() {
+            return Err(CfError::new(
+                code::SRCH_TIER3_CONFIG,
+                format!(
+                    "the L0 scorer claims axis {axis}, which the evaluator already \
+                     fills; an out-of-core term overwriting an in-core one would \
+                     silently discard the in-core value"
+                ),
+            ));
+        }
+        objectives.resize(axis + 1, None);
+    }
+    if objectives.len() != objective_width(request) {
         return Err(CfError::new(
             code::SRCH_TIER3_CONFIG,
             format!(
-                "evaluator returned {} objectives but declares {}",
+                "evaluator returned {} objectives but tier 3 expects {}",
                 objectives.len(),
-                request.evaluator.objective_count()
+                objective_width(request)
             ),
         ));
     }
@@ -325,6 +389,7 @@ pub fn seed_population(seeds: &[Genotype], request: &Tier3Request<'_>) -> Result
         evaluations: request.config.population as u64,
         repairs_attempted: 0,
         repairs_succeeded: 0,
+        batch: None,
         hypervolume_history: Vec::new(),
     })
 }
@@ -335,7 +400,7 @@ pub fn run_generations(
     request: &Tier3Request<'_>,
     generations: u32,
 ) -> Result<Tier3Report> {
-    let objectives = request.evaluator.objective_count();
+    let objectives = objective_width(request);
     let selection = Selection::for_objectives(objectives);
 
     let mut ledger = TabuLedger::new(request.config.tabu_leak);
@@ -345,6 +410,18 @@ pub fn run_generations(
 
     let mut members = checkpoint.members.clone();
     let mut history = checkpoint.hypervolume_history.clone();
+    // Both travel in the checkpoint. The protocol carries the deferral queue
+    // and the stranded set behind `CF-SRCH-016`; losing either on resume would
+    // make a long job's warning quietly disappear at exactly the point it is
+    // most likely to be interrupted.
+    let mut protocol = match &checkpoint.batch {
+        Some(document) => BatchProtocol::resume(document)?,
+        None => BatchProtocol::new(),
+    };
+    let mut rationer = Rationer::new(
+        request.l0.map(|s| s.budget()).unwrap_or(0),
+        request.config.surrogate_refit_period,
+    );
     let mut termination = Termination::SegmentComplete;
     let mut ran = 0u32;
     let mut evaluations = checkpoint.evaluations;
@@ -404,6 +481,23 @@ pub fn run_generations(
 
         let mut combined = members;
         combined.extend(offspring);
+
+        // The one crossing this generation gets. `P2-05a`.
+        //
+        // Placed before selection, not after: selection ranks on the objective
+        // vector, so scoring afterwards would rank the population on a
+        // dimension that was still `UNKNOWN` when the ranking happened, and the
+        // scores would describe survivors chosen without them.
+        if let Some(scorer) = request.l0 {
+            score_l0_batch(
+                &mut combined,
+                scorer,
+                &mut protocol,
+                &mut rationer,
+                &mut rng,
+            )?;
+        }
+
         members = select(combined, request.config.population, selection);
         ledger.tick();
         ran += 1;
@@ -433,10 +527,12 @@ pub fn run_generations(
             repairs_attempted,
             repairs_succeeded,
             hypervolume_history: history,
+            batch: request.l0.map(|_| protocol.snapshot()),
         },
         front,
         termination,
         selection,
+        stranded: request.l0.map(|_| protocol.stranded()).unwrap_or_default(),
         generations_run: ran,
         warnings: request.mix.warnings(),
     })
@@ -733,5 +829,92 @@ pub fn nondominated(members: &[Individual]) -> Vec<Individual> {
     match fast_nondominated_sort(&ranked).first() {
         Some(front) => front.iter().map(|&i| members[i].clone()).collect(),
         None => Vec::new(),
+    }
+}
+
+/// Score the L0 axis for one generation: rank, cut, cross once, absorb.
+///
+/// `P2-05a`. This is the function that joins three pieces built separately and
+/// never connected — `P2-06`'s ranker, `P2-05`'s protocol, and the generation
+/// loop — and the order matters at every step:
+///
+/// * the **ranker** decides priority and nothing else (`DEP-SRCH-011`);
+/// * the **protocol** applies `E_max`, puts last generation's deferred items at
+///   the head, and refuses a second crossing in the same generation;
+/// * the **scorer** is called exactly once, with the chosen genotypes.
+///
+/// Individuals not in the batch keep `None` on that axis. `UNKNOWN` is a
+/// first-class value in constraint-domination, so they are ranked honestly
+/// rather than imputed — which is what makes rationing sound rather than a
+/// silent approximation.
+fn score_l0_batch(
+    population: &mut [Individual],
+    scorer: &dyn L0Scorer,
+    protocol: &mut BatchProtocol,
+    rationer: &mut Rationer,
+    rng: &mut SearchRng,
+) -> Result<()> {
+    let axis = scorer.axis();
+    if population.is_empty() {
+        return Ok(());
+    }
+
+    // Rank on what is known so far: the in-core objectives, with the L0 axis
+    // dropped rather than filled in. Ranking on a placeholder would let the
+    // placeholder choose who gets evaluated.
+    let known: Vec<Vec<f64>> = population
+        .iter()
+        .map(|individual| {
+            individual
+                .objectives
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index != axis)
+                .filter_map(|(_, value)| *value)
+                .collect()
+        })
+        .collect();
+    let violations: Vec<f64> = population.iter().map(|i| i.violation).collect();
+
+    let ranked = rationer.rank(&known, &violations, rng);
+    let (_, chosen) = protocol.step(&ranked.ranked, scorer.budget())?;
+
+    if !chosen.is_empty() {
+        let genotypes: Vec<&Genotype> = chosen
+            .iter()
+            .map(|index| &population[*index].genotype)
+            .collect();
+
+        // The crossing.
+        let values = scorer.score_batch(&genotypes)?;
+
+        protocol.absorb(&BatchResults {
+            generation: protocol.generation(),
+            values: values.clone(),
+        })?;
+
+        for (index, value) in chosen.iter().zip(&values) {
+            population[*index].objectives[axis] = *value;
+            if let Some(exact) = value {
+                rationer.absorb(Observation::from_exact(known[*index].clone(), *exact));
+            }
+        }
+    }
+
+    protocol.advance()?;
+    Ok(())
+}
+
+/// How many objectives an individual carries, in-core plus out-of-core.
+///
+/// `Selection::for_objectives` reads this rather than the evaluator's own
+/// count: an L0 term is a real dimension of the front, and a run that switched
+/// from crowding distance to reference directions only when the in-core count
+/// crossed the threshold would pick the wrong rule for a job whose fourth axis
+/// happens to be the expensive one.
+fn objective_width(request: &Tier3Request<'_>) -> usize {
+    match request.l0 {
+        Some(scorer) => request.evaluator.objective_count().max(scorer.axis() + 1),
+        None => request.evaluator.objective_count(),
     }
 }

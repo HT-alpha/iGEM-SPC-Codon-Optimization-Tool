@@ -118,6 +118,7 @@ fn request<'a>(
         weights,
         evaluator,
         config,
+        l0: None,
         root_seed: ROOT_SEED,
     }
 }
