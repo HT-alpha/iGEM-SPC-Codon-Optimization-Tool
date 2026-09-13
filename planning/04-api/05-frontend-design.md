@@ -42,6 +42,12 @@ the document it renders.
 
 Weights are 400 and 600 only. No display italics, no light/thin.
 
+Mockup HTML does not fetch those faces from Google Fonts. This environment's
+headless Chrome hangs on `fonts.googleapis.com` TLS; the named stack still
+resolves locally when the faces are installed, and otherwise to Noto / system
+as already listed in `codonforge-ui.css`. The design language is the named
+faces. The mockup files stay inspectable offline.
+
 ### Named colour system
 
 Named after the *state*, not after a palette step. None of these are Tailwind
