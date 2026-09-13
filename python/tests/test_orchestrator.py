@@ -13,13 +13,14 @@ than checking that resume merely produces something.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from codonforge import _core
 from codonforge.modelreg import ArtifactStore, Pin, ResolutionRequest, resolve, seal
-from codonforge.orchestrator import ComputeBudget, Job, JobInputs, TierPlanError
+from codonforge.orchestrator import ComputeBudget, Job, JobInputs
 
 HOST = "escherichia_coli:511145/BL21"
 
@@ -206,15 +207,14 @@ def make_job(
     job_id: str = "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
     terms: list[str] | None = None,
     capabilities: dict[str, str] | None = None,
-    radii: dict[str, int | None] | None = None,
-    block_size: int | None = None,
     directions: dict[str, str] | None = None,
     roles: dict[str, str] | None = None,
     root_seed: int = ROOT_SEED,
+    job_inputs: JobInputs | None = None,
 ) -> Job:
     return Job.submit(
         job_id=job_id,
-        inputs=inputs(),
+        inputs=job_inputs if job_inputs is not None else inputs(),
         budget=ComputeBudget(tier="standard", total_generations=total, segment=segment),
         lockfile=sealed_lockfile(store, root_seed),
         store=store,
@@ -228,9 +228,7 @@ def make_job(
         # exact delta and tiers 1 and 2 cannot score it. Claiming L1 here put an
         # out-of-core term into tier 1's DP and produced CF-LAND-002.
         capabilities=capabilities or {"usage.cai": "L1", "structure.local_accessibility": "L0"},
-        radii=radii or {"usage.cai": 0, "structure.local_accessibility": 14},
         roles=roles or {"usage.cai": "pareto_axis", "structure.local_accessibility": "pareto_axis"},
-        block_size=block_size,
         directions=directions
         or {
             "usage.cai": "maximize",
@@ -471,7 +469,6 @@ def test_p1_29_tier_capability_warnings_reach_job_status(
         segment=4,
         terms=["usage.cai", "structure.local_accessibility"],
         capabilities={"usage.cai": "L1", "structure.local_accessibility": "L0"},
-        radii={"usage.cai": 0, "structure.local_accessibility": 14},
     )
     # P2-11 changed what this test is about, and the change is the point. An
     # L0 term used to be dropped from the search entirely, because nothing could
@@ -505,7 +502,6 @@ def test_p1_29_every_warning_is_attributable_to_a_stage_and_subject(
         # provider and is refused before any warning could be attributed.
         terms=["usage.cai", "structure.local_accessibility"],
         capabilities={"usage.cai": "L1", "structure.local_accessibility": "L0"},
-        radii={"usage.cai": 0, "structure.local_accessibility": 14},
     ).run()
     status = job.status()
 
@@ -536,20 +532,29 @@ def test_p1_29_a_term_wider_than_the_block_fails_rather_than_warns(
     Stated explicitly because it is sometimes listed alongside the warning
     codes. A term wider than the block does not degrade the search; it makes
     tier 2's independence claim false, so it belongs in `problem`.
+
+    The gate is `Tier2Plan::check` in Rust (`DEP-ORCH-002`), not a Python copy
+    of the same comparison. `constraint.violation_count` is L1; the fixture's
+    forbidden motif is 4 nt so R = 2 codons; `tier2_block=1` makes B < R on a
+    real provider radius rather than a dict the caller asserted.
     """
-    with pytest.raises(TierPlanError) as excinfo:
-        make_job(
-            store,
-            tmp_path,
-            terms=["usage.cai", "structure.mfe_global"],
-            capabilities={"usage.cai": "L1", "structure.mfe_global": "L1"},
-            radii={"usage.cai": 0, "structure.mfe_global": None},
-            block_size=30,
-        )
-    problem = excinfo.value.to_problem_details()
+    job = make_job(
+        store,
+        tmp_path,
+        total=4,
+        segment=4,
+        terms=["usage.cai", "constraint.violation_count"],
+        capabilities={"usage.cai": "L1", "constraint.violation_count": "L1"},
+        directions={"usage.cai": "maximize", "constraint.violation_count": "minimize"},
+        roles={"usage.cai": "pareto_axis", "constraint.violation_count": "pareto_axis"},
+        job_inputs=replace(inputs(), tier2_block=1),
+    ).run()
+    assert job.state == "failed"
+    problem = job.problem
+    assert problem is not None
     assert problem["code"] == "CF-SRCH-008"
-    assert problem["stage"] == "tier_plan"
-    assert problem["subject"] == "structure.mfe_global"
+    assert problem["stage"] == "tier2"
+    assert problem["subject"] == "constraint.violation_count"
     assert "P1-26" in problem["detail"]
 
 
@@ -573,7 +578,6 @@ def test_p1_29_the_status_document_validates(store: ArtifactStore, tmp_path: Pat
         segment=4,
         terms=["usage.cai", "structure.local_accessibility"],
         capabilities={"usage.cai": "L1", "structure.local_accessibility": "L0"},
-        radii={"usage.cai": 0, "structure.local_accessibility": 14},
     ).run()
     jsonschema.Draft202012Validator(schema, registry=registry).validate(job.status())
 

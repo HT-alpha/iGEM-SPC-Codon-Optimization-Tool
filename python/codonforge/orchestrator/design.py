@@ -18,6 +18,7 @@ test is `TST-CLI-003`, which asserts the pipeline *ran* what the budget planned.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -224,7 +225,6 @@ def design(
         # asserted L1 for everything, which was invisible while every built-in
         # was L1 and wrong the moment one was not.
         capabilities=json.loads(_core.term_capabilities(_directions_request(request))),
-        radii={term: 0 for term in request.objectives},
         directions=directions,
         # From the registry's own registrations, so a term that cannot be
         # ranked on is demoted here rather than silently optimized.
@@ -275,8 +275,14 @@ def _directions_request(request: DesignRequest) -> str:
     )
 
 
-#: Crockford base32, the alphabet ULIDs use: no I, L, O or U.
+#: Crockford base32, the alphabet ULIDs use. I, L, O and U are excluded.
+#: Y is included: the schema class `[0-9A-HJKMNP-TV-Z]` has `V-Z`. A previous
+#: reading treated Y as out of alphabet; the official examples already contain
+#: it (`job_01JBQ8Z4K7M2N3P5R6T7V8W9XY`). This string is the only encoder;
+#: `_ID_BODY` is the schema pattern applied to the 26-character body so an
+#: alphabet edit cannot emit a document the schema would reject.
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+_ID_BODY = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
 
 def _derived_id(prefix: str, material: str) -> str:
@@ -300,7 +306,13 @@ def _derived_id(prefix: str, material: str) -> str:
     for _ in range(26):
         out.append(_CROCKFORD[value % 32])
         value //= 32
-    return f"{prefix}_" + "".join(reversed(out))
+    body = "".join(reversed(out))
+    if not _ID_BODY.match(body):
+        raise RuntimeError(
+            f"derived {prefix} id body {body!r} is outside the schema Crockford "
+            "class [0-9A-HJKMNP-TV-Z]{{26}}"
+        )
+    return f"{prefix}_{body}"
 
 
 def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
