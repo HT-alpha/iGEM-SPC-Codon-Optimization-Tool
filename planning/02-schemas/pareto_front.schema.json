@@ -10,7 +10,8 @@
     },
     "front_id": {
       "type": "string",
-      "pattern": "^front_[0-9A-HJKMNP-TV-Z]{26}$"
+      "pattern": "^front_[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID-shaped. Body is Crockford base32 (I, L, O, U excluded; Y is in V-Z), matching JobId."
     },
     "job_id": {
       "$ref": "common.schema.json#/$defs/JobId"
