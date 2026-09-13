@@ -46,5 +46,13 @@ PYEOF
 control "R/3: explain swaps not_informed_by for informed_by" \
   "$PY python/tests/test_writers.py -q -k recommendation_axes"
 
-control_summary
-exit 0
+# 4. objective_vector stays in-core-only, so a scored L0 axis is null
+#    in the vector while unknown_terms is empty.
+python3 - <<'PYEOF'
+p='python/codonforge/orchestrator/design.py'; s=open(p).read()
+old='                objective_vector=vector,'
+new='                objective_vector=[member_scores.get(t) for t in job.plan.scored],'
+assert old in s, "anchor 4"; open(p,'w').write(s.replace(old,new,1))
+PYEOF
+control "R/4: objective_vector ignores the archive's L0 scores" \
+  "$PY python/tests/test_cli.py -q -k cli_009"

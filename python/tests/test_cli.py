@@ -940,6 +940,18 @@ def test_tst_cli_009_the_front_states_its_answer_rather_than_implying_it(
                 "an unknown term must be one of the objectives, or the list is "
                 "reporting on something the front does not rank"
             )
+            axis = front["objective_order"].index(term)
+            assert candidate["objective_vector"][axis] is None, (
+                "the schema says a term in unknown_terms is UNKNOWN in the "
+                "vector; a number there would make the two fields disagree"
+            )
+        for index, term in enumerate(front["objective_order"]):
+            value = candidate["objective_vector"][index]
+            unknown = term in candidate["unknown_terms"]
+            assert (value is None) == unknown, (
+                f"{term}: vector={value!r} unknown={unknown}; the vector and "
+                "unknown_terms must describe the same fact"
+            )
 
 
 def test_tst_cli_012_a_recommendation_names_the_axes_it_ignored(

@@ -419,12 +419,23 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
             )
         )
         member_scores = json.loads(_core.term_scores(_directions_request(request), member.cds))
+        vector = [
+            _axis_value(member.objectives, index, member_scores.get(term))
+            for index, term in enumerate(job.plan.scored)
+        ]
         candidates.append(
             front_module.candidate(
                 candidate_id=f"cand_{member_document['digest'].split(':')[1][:16]}",
                 cds=member.cds,
                 sequence_digest=member_document["digest"],
-                objective_vector=[member_scores[t] for t in job.plan.scored],
+                # Same `_axis_value` as `unknown_terms` and `objective_detail`.
+                # Building the vector from in-core `term_scores` alone left a
+                # scored L0 axis as `null` in the vector while `unknown_terms`
+                # was empty and `objective_detail` carried the number — three
+                # fields describing one fact, two of them lying. The schema
+                # says a term in `unknown_terms` is UNKNOWN in the vector;
+                # the converse has to hold too.
+                objective_vector=vector,
                 origin=member.origin,
                 feasible=member.feasible,
                 generation_found=job.generations_run,
@@ -438,7 +449,7 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
                 unknown_terms=[
                     term
                     for index, term in enumerate(job.plan.scored)
-                    if _axis_value(member.objectives, index, member_scores.get(term)) is None
+                    if vector[index] is None
                 ],
             )
         )
