@@ -159,6 +159,8 @@ Red-black removes reconciliation whenever `B ≥ W`. Two situations break that c
 - **`L < 2W`** — the sequence is shorter than two windows, so no useful partition exists. Handled by optimizing the whole sequence as one block; no reconciliation needed either.
 - **A term with an effective interaction radius larger than `B`.** Long-range RNA base pairing is the real instance: two codons 400 nt apart can pair. Enlarging `B` to cover it would defeat the point of blocking.
 
+`DEP-SRCH-013` — `P2-11`'s `structure.local_accessibility` is not this instance. It is windowed (`span_nt = 40` → `R = 14` codons) and **L0**, so tier 2 never scores it. The overlapping-block fallback stays unbuilt until a term that is actually in the tier-2 objective needs it.
+
 For that second case the design keeps a fallback: overlapping blocks plus an **exact chain reconciliation**.
 
 Blocks `Bₖ = [k(B−O), k(B−O)+B)` with overlap `O ≥ W`. Each block is optimized independently from the same base, producing proposal `Pₖ`. Consecutive proposals disagree on the overlap region `Sₖ = Bₖ ∩ Bₖ₊₁`.
