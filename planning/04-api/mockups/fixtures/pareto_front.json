@@ -1,0 +1,654 @@
+{
+  "candidates": [
+    {
+      "candidate_id": "cand_43de72047904238f",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.8643218823997147
+        }
+      },
+      "objective_vector": [
+        0.8643218823997147,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "tier1_dp",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTAGCACCTACTAAGCTTAGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:43de72047904238fe0e399cc1c6662544c563d76dc5a0cbc2116fb9454a72188"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_0ac43b96c6f4beb2",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.7122057865182186
+        }
+      },
+      "objective_vector": [
+        0.7122057865182186,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGAGTGGAGTAGCCCCTACTAAGCTTAGGTCCTAA",
+          "cistron_id": null,
+          "digest": "sha256:0ac43b96c6f4beb2d417c22e9d32c2cbf1b99f3ed96a47082df831b38eeb27e5"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_26ec0e62c3248636",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.5704216260544105
+        }
+      },
+      "objective_vector": [
+        0.5704216260544105,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTGAGGTCTGGAGTAGCACCTACTAAGCTTAGATCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:26ec0e62c3248636fa97d710380491564d10a8dd72b5f8ca1bec9971f6ee0d83"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_2f5485633ad828dc",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.4344112737592186
+        }
+      },
+      "objective_vector": [
+        0.4344112737592186,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGATCTGGAGTCGCACCCACAAAGCTGAGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:2f5485633ad828dc25a2f5dc76917fbb005f3ccf856f7f07519d557218eb5631"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_47c04c6dc80d8484",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "structure.local_accessibility": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 5.932406053743436
+        },
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.8429894534616924
+        }
+      },
+      "objective_vector": [
+        0.8429894534616924,
+        5.932406053743436
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTAGCACCTACTAAGCTTAGGTCCTAA",
+          "cistron_id": null,
+          "digest": "sha256:47c04c6dc80d848465fca1abcf6eae278970d16758cdfe87bbda5e8327b35bdb"
+        }
+      ],
+      "unknown_terms": []
+    },
+    {
+      "candidate_id": "cand_5dde621498282411",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.6357674177294702
+        }
+      },
+      "objective_vector": [
+        0.6357674177294702,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCGGGAGTAGCACCTACTAAACTTAGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:5dde621498282411d43a5ff3f21011a70845d9e9cf25fa3733a286585e3c7468"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_80ffc6c2e0e1e8bd",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.7161668846382694
+        }
+      },
+      "objective_vector": [
+        0.7161668846382694,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTCCGATCTGGAGTTGCACCTACTAAGCTTAGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:80ffc6c2e0e1e8bd8ba2831a65c714e0283ac13807298462a622d819b526c1cc"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_89ff578385238e9e",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "structure.local_accessibility": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 4.980564206122844
+        },
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.8191349385910897
+        }
+      },
+      "objective_vector": [
+        0.8191349385910897,
+        4.980564206122844
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTTGCACCTACTAAGCTTAGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:89ff578385238e9ef77e450ba6df3d30f89ee7b365d7dbaa17d86f74977da0cb"
+        }
+      ],
+      "unknown_terms": []
+    },
+    {
+      "candidate_id": "cand_8b8231a1509a91ec",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.4725716395281378
+        }
+      },
+      "objective_vector": [
+        0.4725716395281378,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTCGCACCAACTAAACTTAGATCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:8b8231a1509a91ec2f30b68b5401dda6428fb354c3b68a1f16c38dd736eef337"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_94346e3ba8bf5162",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.6446575416737637
+        }
+      },
+      "objective_vector": [
+        0.6446575416737637,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTGAGGTCCGGAGTAGCACCAACTAAGCTTAGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:94346e3ba8bf51629b07d0fb6d97c44e87a290b08b52c5648da30ee674453213"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_96f5c03f6ab22f82",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.507317350627415
+        }
+      },
+      "objective_vector": [
+        0.507317350627415,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTAGCCCCTACTAAACTTAGATCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:96f5c03f6ab22f82464b272ac14017d49f3a30aa3db5489b8a3957bd55215b5b"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_a0246c57fe681f2f",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.3825386807274489
+        }
+      },
+      "objective_vector": [
+        0.3825386807274489,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGTTGCGCTCAGGAGTAGCCCCAACTAAACTTAGATCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:a0246c57fe681f2fc62026810c9524e74193f4dd65955a9213d3606ccf158233"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_a5213675c4ca192e",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.5728463209588089
+        }
+      },
+      "objective_vector": [
+        0.5728463209588089,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTAGCACCTACTAAACTTAGATCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:a5213675c4ca192e7f13f85a2c62f83f2c5c0d550578c8e444d1016c4a545bb5"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    },
+    {
+      "candidate_id": "cand_f33f34950ccc4e5a",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "structure.local_accessibility": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 5.154923580684102
+        },
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.8376810522284466
+        }
+      },
+      "objective_vector": [
+        0.8376810522284466,
+        5.154923580684102
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTAGCACCCACTAAGCTTAGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:f33f34950ccc4e5afe41f2992aa7678b707af4278b73a37841f158d8026990d0"
+        }
+      ],
+      "unknown_terms": []
+    },
+    {
+      "candidate_id": "cand_f65bc87b4ba42abe",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "structure.local_accessibility": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 2.596852826740495
+        },
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.7960837907629226
+        }
+      },
+      "objective_vector": [
+        0.7960837907629226,
+        2.596852826740495
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTTAGGTCTGGAGTAGCACCTACTAAGTTGCGGTCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:f65bc87b4ba42abed911488bad5d710337d30f60ae7eaec705b3ed05fe214c40"
+        }
+      ],
+      "unknown_terms": []
+    },
+    {
+      "candidate_id": "cand_fe33892b27695c35",
+      "cistron_id": null,
+      "constraint_report": {
+        "feasible": true,
+        "n_blocking_violations": 0,
+        "violations": []
+      },
+      "nondomination_rank": 0,
+      "objective_detail": {
+        "usage.cai": {
+          "role": "pareto_axis",
+          "unit": "dimensionless",
+          "value": 0.41727027646814047
+        }
+      },
+      "objective_vector": [
+        0.41727027646814047,
+        null
+      ],
+      "provenance": {
+        "generation_found": 8,
+        "origin": "mutation",
+        "parents": [],
+        "seed_source": null
+      },
+      "sequences": [
+        {
+          "cds": "ATGCTGAGGTCTGGAGTAGCACCTACAAAACTTAGATCTTAA",
+          "cistron_id": null,
+          "digest": "sha256:fe33892b27695c3568e5cdd0746ad537f803f9f6b8c8de47ad9e542e0cc9c23e"
+        }
+      ],
+      "unknown_terms": [
+        "structure.local_accessibility"
+      ]
+    }
+  ],
+  "created_at": "2026-09-13T04:52:16Z",
+  "digest": "sha256:5cb753b8533752fb3e61c19cd38e5f3e5e4e0ab38ecebf6522b8b98e80e25ebc",
+  "front_id": "front_RY98JE4G16N72REXHK8S0QKZX9",
+  "input_sequence": {
+    "digest": "sha256:403cad70c2cfb65e870e0a554ced3b7f52de74b4bd8f9280725947d7b3250cb6",
+    "feasible": true,
+    "objective_vector": [
+      0.24985823996247614,
+      null
+    ]
+  },
+  "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+  "landscape_lockfile_digest": "sha256:c9635d4eaf77f5810ca85776ca89cf7716eadeb0ff3c42769aef8bf5e760b0a5",
+  "objective_order": [
+    "usage.cai",
+    "structure.local_accessibility"
+  ],
+  "objective_sense": [
+    "maximize",
+    "minimize"
+  ],
+  "recommended": {
+    "candidate_id": "cand_43de72047904238f",
+    "differs_from_last_stage": true,
+    "informed_by": [
+      "usage.cai"
+    ],
+    "not_informed_by": [
+      "structure.local_accessibility"
+    ],
+    "rule": "feasible_then_score_then_digest"
+  },
+  "reduction": {
+    "method": "none",
+    "presented_count": 16,
+    "raw_nondominated_count": 16
+  },
+  "schema_version": "1.0.0",
+  "summary": {
+    "budget_tier": "standard",
+    "hypervolume": null,
+    "hypervolume_normalized": null,
+    "n_evaluations": 8,
+    "n_feasible": 16,
+    "termination_reason": "generation_limit"
+  }
+}

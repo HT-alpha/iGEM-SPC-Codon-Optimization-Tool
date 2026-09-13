@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CodonForge — warnings and status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<link rel="stylesheet" href="codonforge-ui.css">
+</head>
+<body>
+<nav class="nav">
+  <a href="pareto_front.html">Pareto front</a>
+  <a href="warnings_status.html">Warnings / status</a>
+  <span class="note">Design-phase mockup. Not a production component. Values from fixtures/ (a real design() document).</span>
+</nav>
+
+<header class="mast">
+  <div class="k">Document</div>
+  <div class="v">
+    <h1>Job status</h1>
+    <p class="sub">
+      <code>job_01JBQ8Z4K7M2N3P5R6T7V8W9XY</code>
+      · <span class="chip feasible">succeeded</span>
+      · started 2026-09-13T04:52:15Z
+      · finished 2026-09-13T04:52:16Z
+    </p>
+  </div>
+</header>
+<div class="page">
+  <p class="note">
+    Provenance is a row, not a tooltip. A warning without
+    <code>(code, stage, subject)</code> is the same failure as a skipped
+    tier reported as success. This job has no checkpoint URI because the
+    run did not pass <code>--checkpoint-dir</code>; the capability exists
+    in the job lifecycle and is not invented here.
+  </p>
+
+  <h2>Identity</h2>
+  <div class="rail"><div class="k">lockfile</div><div class="v mono">sha256:c9635d4eaf77f5810ca85776ca89cf7716eadeb0ff3c42769aef8bf5e760b0a5</div></div>
+  <div class="rail"><div class="k">budget_tier</div><div class="v mono">standard</div></div>
+  <div class="rail"><div class="k">termination</div><div class="v mono">generation_limit</div></div>
+  <div class="rail"><div class="k">evaluations</div><div class="v mono">8</div></div>
+  <div class="rail"><div class="k">feasibility</div><div class="v">
+    <span class="chip feasible">16 feasible</span>
+    of 16 presented.
+    Two-valued: constraint checking is in-core. UNKNOWN terms are listed
+    per candidate, not as a third feasibility state.
+  </div></div>
+
+  <h2>Tier plan</h2>
+  <p class="note">Each tier is a track. A percentage cannot distinguish a job that ran two tiers from one that skipped one.</p>
+  <div class="rail"><div class="k">tier / state / fill / gen</div><div class="v"><div class="tier-track"><span>tier1_seed</span><span>done</span><div class="bar"><span style="width:100%"></span></div><span>—</span></div><div class="tier-track"><span>tier2_block_ca</span><span>done</span><div class="bar"><span style="width:100%"></span></div><span>—</span></div><div class="tier-track"><span>tier3_moea</span><span>done</span><div class="bar"><span style="width:100%"></span></div><span>8/8</span></div></div></div>
+
+  <h2>Resolved objectives</h2>
+  <table class="data">
+    <thead><tr><th>term_id</th><th>role</th><th>direction</th></tr></thead>
+    <tbody><tr><td class="mono">usage.cai</td><td class="mono">pareto_axis</td><td class="mono">maximize</td></tr><tr><td class="mono">structure.local_accessibility</td><td class="mono">pareto_axis</td><td class="mono">minimize</td></tr></tbody>
+  </table>
+  <p class="note">
+    <code>role</code> is the effective registration, not <code>max_role</code>.
+    Both terms here are <code>pareto_axis</code>. Diagnostic-only is a real
+    token in the design language; this job does not have one.
+  </p>
+
+  <h2>Warnings</h2>
+  <div class="warn-row"><div class="code">CF-SRCH-010</div><div><span class="mono">tier_plan</span></div><div><span class="mono">structure.local_accessibility</span></div><div><strong>A term is scored by the population loop only</strong><br><span class="note">structure.local_accessibility's provider is L0, so it has no exact delta and cannot be scored by the seeding DP or the block ascent. Tier 3 scores it once per generation on the whole population; the seeds those earlier tiers produce were chosen without it</span></div></div><div class="warn-row"><div class="code">CF-SRCH-001</div><div><span class="mono">operators</span></div><div><span class="mono">potts_guided</span></div><div><strong>A specified variation operator is unavailable and the mix was renormalized</strong><br><span class="note">mutation operator potts_guided is not available in this build (no epistatic context model is registered); it arrives with P3-05. The remaining operators' weights are renormalized, which changes how the search explores</span></div></div><div class="warn-row"><div class="code">CF-SRCH-001</div><div><span class="mono">operators</span></div><div><span class="mono">block_gibbs</span></div><div><strong>A specified variation operator is unavailable and the mix was renormalized</strong><br><span class="note">mutation operator block_gibbs is not available in this build (no epistatic context model is registered); it arrives with P3-05. The remaining operators' weights are renormalized, which changes how the search explores</span></div></div><div class="warn-row"><div class="code">CF-ORCH-007</div><div><span class="mono">tier_plan</span></div><div><span class="mono">mutation</span></div><div><strong>A later stage did not improve on an earlier one</strong><br><span class="note">the reported candidate came from tier1_dp, which scored 0.864322; the last stage to produce one was mutation, at 0.644658. Stages are not required to improve on each other - exploration is not monotone - so the job reports the best candidate any stage produced rather than the most recent one</span></div></div>
+
+  <div class="callout warning">
+    <strong>CF-ORCH-007</strong> is why the recommended candidate can come from
+    tier 1 while the last stage was mutation. The Pareto-front view names that
+    candidate and the axes that did (and did not) inform it.
+  </div>
+
+  <h2>Hypervolume history (from current_front_summary)</h2>
+  <p class="mono">4.855, 5.28, 5.944, 5.944, 5.944, 5.957, 5.566, 5.566</p>
+  <p class="note">
+    <code>best_per_objective.usage.cai</code> in the status document is
+    <code>-0.8643218823997147</code>
+    — negated, because the population loop minimizes. This view does not plot
+    that number as CAI. The front document's <code>objective_vector</code> plus
+    <code>objective_sense</code> is the presentation source.
+  </p>
+
+  <h2>Colour tokens not observed in this job</h2>
+  <div class="legend">
+    <span class="chip infeasible">infeasible</span>
+    <span class="chip diagnostic">diagnostic-only</span>
+    <span class="chip refusal">hard-refusal</span>
+  </div>
+  <p class="note">
+    Shown as tokens, not as fabricated rows. A succeeded job does not get a
+    fake problem block to exercise the refusal colour.
+  </p>
+
+<p class="fixture">
+Source: <code>planning/04-api/mockups/fixtures/pareto_front.json</code>
+and <code>job_status.json</code>, emitted by
+<code>design(request_for(objectives=['usage.cai','structure.local_accessibility']))</code>
+on 2026-09-13. No values were edited.
+</p>
+</div>
+</body>
+</html>

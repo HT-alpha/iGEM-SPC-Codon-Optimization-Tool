@@ -1,0 +1,303 @@
+/* CodonForge design-phase tokens.
+   Not Tailwind. Spacing is 5/10/20/40 (IGV track padding), not 4/8/16.
+   Colour is named after the state it means, not after a palette step. */
+
+:root {
+  --ink: #1c1917;
+  --ink-dim: #5c574e;
+  --paper: #f3efe4;
+  --track: #e6e0d2;
+  --rule: #b7ae9c;
+  --label: #3f3a34;
+
+  --feasible: #2c5f4a;
+  --feasible-wash: #d5e4db;
+  --infeasible: #8f2d2d;
+  --infeasible-wash: #f0d4d0;
+
+  --unknown-a: #c9c3b6;
+  --unknown-b: #ddd8cc;
+  --unknown-ink: #5c574e;
+
+  --diagnostic: #8d6b24;
+  --diagnostic-wash: #efe3c4;
+
+  --refusal-ink: #5c1515;
+  --refusal-wash: #f4d6d0;
+
+  --warning-ink: #6b4a10;
+  --warning-rule: #c4922a;
+  --warning-wash: #f5ead0;
+
+  --recommended: #1a4a73;
+  --recommended-wash: #d5e2ee;
+  --structure-opt: #3a5f4d;
+  --structure-opt-wash: #d7e4db;
+
+  --space-1: 5px;
+  --space-2: 10px;
+  --space-3: 20px;
+  --space-4: 40px;
+
+  --font-ui: "IBM Plex Sans", "Noto Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans Mono", ui-monospace, monospace;
+  --font-title: "Source Serif 4", "Source Serif Pro", "Noto Serif", serif;
+
+  --label-col: 13.5rem;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+body {
+  /* Full-bleed lab-bench layout, not a centered card. */
+  max-width: none;
+}
+
+h1 {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 1.7rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-1) 0;
+}
+
+h2 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  margin: var(--space-3) 0 var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-1);
+}
+
+a { color: var(--recommended); }
+
+.mast {
+  display: grid;
+  grid-template-columns: var(--label-col) 1fr;
+  border-bottom: 2px solid var(--ink);
+  background: var(--track);
+}
+
+.mast .k {
+  padding: var(--space-3);
+  border-right: 1px solid var(--rule);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.mast .v { padding: var(--space-3) var(--space-3) var(--space-3) var(--space-3); }
+
+.sub {
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+  max-width: 52rem;
+}
+
+.mono, code, .id {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+.rail {
+  display: grid;
+  grid-template-columns: var(--label-col) 1fr;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rail .k {
+  padding: var(--space-2) var(--space-3);
+  border-right: 1px solid var(--rule);
+  color: var(--label);
+  font-size: 0.82rem;
+}
+
+.rail .v { padding: var(--space-2) var(--space-3); }
+
+.page {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  /* Square. Genome-browser tracks are not pills. */
+  border-radius: 0;
+}
+
+.chip.feasible { color: var(--feasible); background: var(--feasible-wash); }
+.chip.infeasible { color: var(--infeasible); background: var(--infeasible-wash); }
+.chip.unknown {
+  color: var(--unknown-ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--unknown-a),
+    var(--unknown-a) 4px,
+    var(--unknown-b) 4px,
+    var(--unknown-b) 8px
+  );
+}
+.chip.diagnostic { color: var(--diagnostic); background: var(--diagnostic-wash); }
+.chip.refusal { color: var(--refusal-ink); background: var(--refusal-wash); }
+.chip.warning { color: var(--warning-ink); background: var(--warning-wash); border-color: var(--warning-rule); }
+.chip.recommended { color: var(--recommended); background: var(--recommended-wash); }
+.chip.structure { color: var(--structure-opt); background: var(--structure-opt-wash); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+table.data th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  border-bottom: 2px solid var(--ink);
+  padding: var(--space-1) var(--space-2);
+}
+
+table.data td {
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-1) var(--space-2);
+  vertical-align: top;
+}
+
+table.data tr.rec td { background: var(--recommended-wash); }
+table.data tr.sopt td { background: var(--structure-opt-wash); }
+
+td.unk {
+  color: var(--unknown-ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--unknown-a),
+    var(--unknown-a) 4px,
+    var(--unknown-b) 4px,
+    var(--unknown-b) 8px
+  );
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.plot {
+  background: var(--track);
+  border: 1px solid var(--ink);
+  padding: var(--space-2);
+}
+
+.seq {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  background: var(--track);
+  border: 1px solid var(--rule);
+  padding: var(--space-2);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.callout {
+  border-left: 4px solid var(--recommended);
+  background: var(--recommended-wash);
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.callout.structure {
+  border-left-color: var(--structure-opt);
+  background: var(--structure-opt-wash);
+}
+
+.callout.warning {
+  border-left-color: var(--warning-rule);
+  background: var(--warning-wash);
+}
+
+.note {
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  max-width: 48rem;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.86rem;
+}
+
+.tier-track {
+  display: grid;
+  grid-template-columns: 11rem 6rem 1fr 8rem;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.bar {
+  height: 10px;
+  background: var(--unknown-a);
+  border: 1px solid var(--ink);
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--feasible);
+}
+
+.warn-row {
+  display: grid;
+  grid-template-columns: 9rem 8rem 16rem 1fr;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+  border-left: 4px solid var(--warning-rule);
+  padding-left: var(--space-2);
+  background: var(--warning-wash);
+  margin-bottom: var(--space-1);
+}
+
+.warn-row .code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.fixture {
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-2);
+}

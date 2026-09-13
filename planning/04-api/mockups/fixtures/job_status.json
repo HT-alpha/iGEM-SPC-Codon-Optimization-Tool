@@ -1,0 +1,105 @@
+{
+  "created_at": "2026-09-13T04:52:15Z",
+  "current_front_summary": {
+    "best_per_objective": {
+      "structure.local_accessibility": 2.596852826740495,
+      "usage.cai": -0.8643218823997147
+    },
+    "hypervolume": 5.565592525797133,
+    "hypervolume_history": [
+      4.855123604104736,
+      5.279904135651042,
+      5.944090937308648,
+      5.944090937308648,
+      5.944090937308648,
+      5.957136104583634,
+      5.565592525797133,
+      5.565592525797133
+    ],
+    "n_feasible": 12,
+    "n_nondominated": 12
+  },
+  "finished_at": "2026-09-13T04:52:16Z",
+  "job_id": "job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
+  "landscape_lockfile_digest": "sha256:c9635d4eaf77f5810ca85776ca89cf7716eadeb0ff3c42769aef8bf5e760b0a5",
+  "links": {
+    "self": "/v1/jobs/job_01JBQ8Z4K7M2N3P5R6T7V8W9XY"
+  },
+  "progress": {
+    "current_tier": "none",
+    "tiers": [
+      {
+        "fraction": 1.0,
+        "state": "done",
+        "tier": "tier1_seed"
+      },
+      {
+        "fraction": 1.0,
+        "state": "done",
+        "tier": "tier2_block_ca"
+      },
+      {
+        "fraction": 1.0,
+        "generation": 8,
+        "max_generations": 8,
+        "state": "done",
+        "tier": "tier3_moea"
+      }
+    ]
+  },
+  "resolved_objectives": [
+    {
+      "direction": "maximize",
+      "role": "pareto_axis",
+      "term_id": "usage.cai"
+    },
+    {
+      "direction": "minimize",
+      "role": "pareto_axis",
+      "term_id": "structure.local_accessibility"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "started_at": "2026-09-13T04:52:15Z",
+  "state": "succeeded",
+  "warnings": [
+    {
+      "code": "CF-SRCH-010",
+      "detail": "structure.local_accessibility's provider is L0, so it has no exact delta and cannot be scored by the seeding DP or the block ascent. Tier 3 scores it once per generation on the whole population; the seeds those earlier tiers produce were chosen without it",
+      "stage": "tier_plan",
+      "status": 200,
+      "subject": "structure.local_accessibility",
+      "title": "A term is scored by the population loop only",
+      "type": "https://codonforge.org/problems/cf-srch-010"
+    },
+    {
+      "code": "CF-SRCH-001",
+      "detail": "mutation operator potts_guided is not available in this build (no epistatic context model is registered); it arrives with P3-05. The remaining operators' weights are renormalized, which changes how the search explores",
+      "specification": "planning/03-algorithms/03-nsga-loop-and-operators.md",
+      "stage": "operators",
+      "status": 200,
+      "subject": "potts_guided",
+      "title": "A specified variation operator is unavailable and the mix was renormalized",
+      "type": "https://codonforge.org/problems/cf-srch-001"
+    },
+    {
+      "code": "CF-SRCH-001",
+      "detail": "mutation operator block_gibbs is not available in this build (no epistatic context model is registered); it arrives with P3-05. The remaining operators' weights are renormalized, which changes how the search explores",
+      "specification": "planning/03-algorithms/03-nsga-loop-and-operators.md",
+      "stage": "operators",
+      "status": 200,
+      "subject": "block_gibbs",
+      "title": "A specified variation operator is unavailable and the mix was renormalized",
+      "type": "https://codonforge.org/problems/cf-srch-001"
+    },
+    {
+      "code": "CF-ORCH-007",
+      "detail": "the reported candidate came from tier1_dp, which scored 0.864322; the last stage to produce one was mutation, at 0.644658. Stages are not required to improve on each other - exploration is not monotone - so the job reports the best candidate any stage produced rather than the most recent one",
+      "stage": "tier_plan",
+      "status": 200,
+      "subject": "mutation",
+      "title": "A later stage did not improve on an earlier one",
+      "type": "https://codonforge.org/problems/cf-orch-007"
+    }
+  ]
+}
