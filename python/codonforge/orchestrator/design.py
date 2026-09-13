@@ -367,6 +367,13 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     _ = document
     reason = _termination_reason(job, best)
 
+    # Axes `best()` considered. The lists are a byproduct of the same
+    # scalarization loop that produced `best.score` — not a second pass over
+    # capabilities that could drift from it. `TST-CLI-012`.
+    scalarization = json.loads(
+        _core.scalarized_score_report(job._tier_request(best.cds), best.cds)
+    )
+
     # Every non-dominated candidate, not just the best-scored one. Emitting a
     # single design from a document named `pareto_front` was defensible while
     # the pipeline was single-objective and produced one; now that tier 3
@@ -457,6 +464,10 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
                 job.archive.last_recorded() is not None
                 and job.archive.last_recorded().digest != best.digest
             ),
+            # Same discipline CF-ORCH-006 applies to a skipped tier: when the
+            # scalarization excludes an axis that is on the front, say so.
+            "informed_by": list(scalarization["informed_by"]),
+            "not_informed_by": list(scalarization["not_informed_by"]),
         },
     )
 

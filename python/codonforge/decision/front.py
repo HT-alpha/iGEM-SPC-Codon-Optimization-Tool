@@ -76,10 +76,12 @@ def build(
         },
         "digest": "sha256:" + "0" * 64,
     }
-    # Which candidate is the answer. Not recomputed here: the caller passes the
-    # outcome of `CandidateArchive.best()`, which is the only implementation of
-    # the feasible-then-score-then-digest rule. Deriving it a second time at the
-    # serialization boundary is the pattern this project has found five times.
+    # Which candidate is the answer, and which axes informed that choice.
+    # Not recomputed here: the caller passes the outcome of
+    # `CandidateArchive.best()` and the axis lists from the same
+    # `scalarized_score_report` loop that produced its score. Deriving either
+    # a second time at the serialization boundary is the pattern this project
+    # has found five times.
     document["recommended"] = recommended
     if input_sequence is not None:
         # "Present so every improvement claim has a baseline in the same

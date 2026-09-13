@@ -883,6 +883,25 @@ def test_tst_cli_009_the_front_states_its_answer_rather_than_implying_it(
         "candidates[0] and a reader taking recommended get different designs"
     )
 
+    # TST-CLI-012: the axes that informed that choice are named, from the same
+    # loop as the scalar, not from a second pass over capabilities.
+    report = json.loads(
+        _core.scalarized_score_report(result.job._tier_request(best.cds), best.cds)
+    )
+    assert recommended["informed_by"] == report["informed_by"]
+    assert recommended["not_informed_by"] == report["not_informed_by"]
+    assert structure_diag.TERM_ID in front["objective_order"]
+    assert structure_diag.TERM_ID in recommended["not_informed_by"], (
+        "an out-of-core axis on the front must be named as excluded from the "
+        "recommendation; silence is the gap this field exists to close"
+    )
+    assert structure_diag.TERM_ID not in recommended["informed_by"]
+    assert "usage.cai" in recommended["informed_by"]
+    assert set(recommended["informed_by"]) | set(recommended["not_informed_by"]) == set(
+        result.job.plan.scored
+    )
+    assert not (set(recommended["informed_by"]) & set(recommended["not_informed_by"]))
+
     # 2. Every objective_detail entry states its role rather than implying it.
     for candidate in front["candidates"]:
         for term, entry in candidate.get("objective_detail", {}).items():
@@ -921,6 +940,36 @@ def test_tst_cli_009_the_front_states_its_answer_rather_than_implying_it(
                 "an unknown term must be one of the objectives, or the list is "
                 "reporting on something the front does not rank"
             )
+
+
+def test_tst_cli_012_a_recommendation_names_the_axes_it_ignored(
+    store: ArtifactStore,
+) -> None:
+    """An out-of-core axis on the front cannot be silently dropped from `best()`.
+
+    `best()` excludes terms the in-core scalarization never saw, which is
+    correct: the search tiers cannot be second-guessed by an axis they never
+    optimized against. Silence around that exclusion is not correct. The
+    lists come from `scalarized_score_report`, the same loop as the score —
+    a second list built from capabilities would be the duplicated-rule
+    pattern this project keeps finding.
+    """
+    from codonforge.orchestrator import structure_diag
+
+    result = design(request_for(objectives=["usage.cai", structure_diag.TERM_ID]), store)
+    recommended = result.front["recommended"]
+    assert "informed_by" in recommended
+    assert "not_informed_by" in recommended
+    assert structure_diag.TERM_ID in recommended["not_informed_by"]
+    assert structure_diag.TERM_ID not in recommended["informed_by"]
+    assert "usage.cai" in recommended["informed_by"]
+
+    # A job whose every axis is in-core still emits both lists, so "nothing
+    # was excluded" and "the writer forgot" stay distinguishable.
+    cai_only = design(request_for(objectives=["usage.cai"]), store)
+    only = cai_only.front["recommended"]
+    assert only["informed_by"] == ["usage.cai"]
+    assert only["not_informed_by"] == []
 
 
 def test_tst_cli_010_the_two_term_whitelists_agree(store: ArtifactStore) -> None:

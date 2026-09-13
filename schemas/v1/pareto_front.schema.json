@@ -524,7 +524,7 @@
         "object",
         "null"
       ],
-      "description": "Which candidate CodonForge reports as its answer, and why.\n\nEvery member of a Pareto front is non-dominated, so the front alone does not name one. The orchestrator does have a total order - feasible over infeasible, then higher scalarized score, then smallest digest - and it is the rule CF-ORCH-007 uses to guarantee that a later stage regressing never changes the reported answer. Exposing the outcome here means a caller reads that decision instead of re-deriving it, which is the P1-31 'consume emitted documents, never recompute them' discipline applied to the front.\n\nNull when the job produced no candidates.",
+      "description": "Which candidate CodonForge reports as its answer, and why.\n\nEvery member of a Pareto front is non-dominated, so the front alone does not name one. The orchestrator does have a total order - feasible over infeasible, then higher scalarized score, then smallest digest - and it is the rule CF-ORCH-007 uses to guarantee that a later stage regressing never changes the reported answer. Exposing the outcome here means a caller reads that decision instead of re-deriving it, which is the P1-31 'consume emitted documents, never recompute them' discipline applied to the front.\n\nThe scalarization can exclude axes that are still on the front (an out-of-core term scored only by tier 3). `informed_by` / `not_informed_by` name that exclusion rather than leaving a reader to discover it. Both lists are produced by the same loop as the score.\n\nNull when the job produced no candidates.",
       "properties": {
         "candidate_id": {
           "type": "string"
@@ -538,11 +538,27 @@
         "differs_from_last_stage": {
           "type": "boolean",
           "description": "True when the recommended candidate did not come from the stage that ran last. CF-ORCH-007 exists because a pipeline can move away from an optimum it already found; when that happens the answer is an earlier candidate, and saying so is the difference between a guarantee and a coincidence."
+        },
+        "informed_by": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/TermId"
+          },
+          "description": "Axes that entered the scalarization `best()` used. Produced by the same loop as the scalar itself, not by a second pass over capabilities that could drift from it. Order is the job's term order, filtered to terms that contributed a number."
+        },
+        "not_informed_by": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/TermId"
+          },
+          "description": "Axes present in the request that the scalarization skipped. An out-of-core term is the case this exists for: it can appear in `objective_order` and on some members' vectors while never entering `best()`'s score, because tiers 1 and 2 never saw it. Empty when every requested axis informed the recommendation. Always emitted, including when empty, so silence and 'nothing was excluded' stay distinguishable — the same discipline `unknown_terms` and `CF-ORCH-006` apply to skipped work."
         }
       },
       "required": [
         "candidate_id",
-        "rule"
+        "rule",
+        "informed_by",
+        "not_informed_by"
       ],
       "additionalProperties": false
     }

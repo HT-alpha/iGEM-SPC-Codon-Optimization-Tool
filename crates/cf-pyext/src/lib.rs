@@ -457,6 +457,18 @@ fn scalarized_score(request_json: &str, cds: &str) -> PyResult<f64> {
         .map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// The same scalarization, plus which axes entered it. `TST-CLI-012`.
+///
+/// One loop produces the score and the two axis lists. The front's
+/// `recommended.informed_by` / `not_informed_by` are this document, not a
+/// second pass over capabilities.
+#[pyfunction]
+fn scalarized_score_report(request_json: &str, cds: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, |inputs| {
+        pipeline::scalarized_score_report(inputs, cds)
+    })
+}
+
 /// Decode the shared tier request document and hand it to a runner.
 fn with_tier_inputs(
     request_json: &str,
@@ -621,6 +633,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(term_capabilities, m)?)?;
     m.add_function(wrap_pyfunction!(term_scores, m)?)?;
     m.add_function(wrap_pyfunction!(scalarized_score, m)?)?;
+    m.add_function(wrap_pyfunction!(scalarized_score_report, m)?)?;
     m.add_function(wrap_pyfunction!(tier3_root_seed, m)?)?;
     m.add_function(wrap_pyfunction!(search_tier3_segment, m)?)?;
     Ok(())

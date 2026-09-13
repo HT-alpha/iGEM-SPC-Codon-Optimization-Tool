@@ -204,6 +204,17 @@ def explain(front: dict[str, Any], status: dict[str, Any], candidate_index: int 
     out.append(f"origin     {candidate['provenance']['origin']}")
     out.append("")
 
+    recommended = front.get("recommended")
+    if recommended:
+        out.append(
+            f"recommended  {recommended['candidate_id']}  rule={recommended['rule']}"
+        )
+        informed = ", ".join(recommended.get("informed_by") or []) or "(none)"
+        excluded = ", ".join(recommended.get("not_informed_by") or []) or "(none)"
+        out.append(f"  informed_by      {informed}")
+        out.append(f"  not_informed_by  {excluded}")
+        out.append("")
+
     width = max((len(term) for term in front["objective_order"]), default=0)
     out.append("objectives")
     for term, value, direction in zip(
@@ -212,7 +223,8 @@ def explain(front: dict[str, Any], status: dict[str, Any], candidate_index: int 
         front["objective_sense"],
         strict=True,
     ):
-        out.append(f"  {term:<{width}}  {_number(value):>14}  {direction}")
+        display = "UNKNOWN" if value is None else _number(value)
+        out.append(f"  {term:<{width}}  {display:>14}  {direction}")
     out.append("")
 
     out.append("tiers")

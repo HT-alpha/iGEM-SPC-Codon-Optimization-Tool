@@ -56,6 +56,9 @@ Three keys, in order:
    win on score.
 2. **Higher scalarized score**, under the same scalarization the optimizing
    tiers maximize, so "better" means here what it meant during the search.
+   Out-of-core axes present on the front are skipped by that formula; the
+   front document names which axes informed the recommendation and which
+   did not, rather than leaving a reader to discover the exclusion.
 3. **Lexicographically smallest sequence digest.** Genuine ties happen, and a
    tie broken by list position makes the reported answer depend on the order
    stages were recorded in — reintroducing the order-dependence the whole

@@ -407,10 +407,11 @@ class Job:
         `verify_capability` exists to refuse elsewhere.
         """
         probe = self._tier_request(cds)
+        report = json.loads(_core.scalarized_score_report(probe, cds))
         self.archive.record(
             origin=origin,
             cds=cds,
-            score=_core.scalarized_score(probe, cds),
+            score=report["score"],
             feasible=self.is_feasible(cds),
             digest=self.sequence_digest(cds),
             objectives=objectives,

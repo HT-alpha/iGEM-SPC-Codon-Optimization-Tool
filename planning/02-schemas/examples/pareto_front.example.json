@@ -315,10 +315,17 @@
       "igd_plus": "1.0"
     }
   },
-  "digest": "sha256:590033d4ecb7ba83127c18e8e7148d4ada7416723108b5f7acd906b203a245ae",
+  "digest": "sha256:95fd3459f4648202a9f1b04027de1c56d0f63e2fe9fa8ae2f99a3cd8f34e59ea",
   "recommended": {
     "candidate_id": "cand_a1b2c3d4",
     "rule": "feasible_then_score_then_digest",
-    "differs_from_last_stage": false
+    "differs_from_last_stage": false,
+    "informed_by": [
+      "epistasis.dwell_deviation",
+      "structure.local_accessibility",
+      "burden.growth_cost",
+      "usage.cai"
+    ],
+    "not_informed_by": []
   }
 }

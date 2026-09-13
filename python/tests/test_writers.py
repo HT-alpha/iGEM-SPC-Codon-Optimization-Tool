@@ -180,6 +180,32 @@ def test_p1_31_explain_renders_the_tier_structure_rather_than_flattening_it(
     assert "skipped" in writers.explain(result.front, skipped)
 
 
+def test_p1_31_explain_renders_recommendation_axes_from_the_document(result) -> None:
+    """The writer consumes `informed_by` / `not_informed_by`; it does not derive them.
+
+    Mutating the document must change the rendering. A writer that rebuilt the
+    lists from the job's capabilities would emit the same bytes either way.
+    """
+    recommended = result.front["recommended"]
+    rendered = writers.explain(result.front, result.status)
+    assert recommended["candidate_id"] in rendered
+    assert "informed_by" in rendered
+    assert "not_informed_by" in rendered
+    for term in recommended["informed_by"]:
+        assert term in rendered
+    for term in recommended["not_informed_by"]:
+        assert f"not_informed_by  {term}" in rendered or term in rendered
+
+    silenced = copy.deepcopy(result.front)
+    silenced["recommended"]["not_informed_by"] = []
+    silenced["recommended"]["informed_by"] = list(silenced["objective_order"])
+    silent = writers.explain(silenced, result.status)
+    assert "not_informed_by  (none)" in silent
+    original_excluded = ", ".join(recommended["not_informed_by"])
+    if original_excluded:
+        assert f"not_informed_by  {original_excluded}" not in silent
+
+
 def test_p1_31_explain_keeps_warning_provenance_intact(result) -> None:
     """`(code, stage, subject)` survives rendering.
 

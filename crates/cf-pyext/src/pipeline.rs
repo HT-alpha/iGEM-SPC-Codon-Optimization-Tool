@@ -255,16 +255,32 @@ pub fn score_terms(inputs: &TierInputs<'_>, cds: &str) -> Result<Value> {
     Ok(Value::Object(out))
 }
 
+/// One scalarization: the number `best()` ranks on, and the axes that made it.
+///
+/// The two lists are not a second computation. They are a byproduct of the
+/// same loop that produces the score: a term that contributed a number is
+/// `informed_by`, a term that had none (an L0 / out-of-core term, today) is
+/// `not_informed_by`. A caller that built those lists from capabilities
+/// instead would drift the moment the skip condition here changed.
+#[derive(Debug)]
+pub struct Scalarization {
+    pub score: f64,
+    pub informed_by: Vec<String>,
+    pub not_informed_by: Vec<String>,
+}
+
 /// The scalarized objective tier 1 and tier 2 maximize, for one sequence.
 ///
 /// The same formula the tiers use, including reading `provider.direction()` for
 /// the sense — so a caller comparing two sequences with this is comparing them
 /// the way the search did, rather than by a second convention that could
 /// disagree with it.
-pub fn scalarized_score(inputs: &TierInputs<'_>, cds: &str) -> Result<f64> {
+pub fn scalarize(inputs: &TierInputs<'_>, cds: &str) -> Result<Scalarization> {
     let scores = score_terms(inputs, cds)?;
     let directions = declared_directions(inputs)?;
     let mut total = 0.0;
+    let mut informed_by = Vec::new();
+    let mut not_informed_by = Vec::new();
     for (index, term) in inputs.terms.iter().enumerate() {
         // Out-of-core terms are absent from the scalar, and that is a real
         // limitation rather than an oversight: this formula is what tiers 1
@@ -273,6 +289,7 @@ pub fn scalarized_score(inputs: &TierInputs<'_>, cds: &str) -> Result<f64> {
         // search that produced the candidates. The full objective vector,
         // which does carry the out-of-core axis, is what tier 3 ranks on.
         let Some(value) = scores.get(term).and_then(Value::as_f64) else {
+            not_informed_by.push(term.clone());
             continue;
         };
         let sense = match directions.get(term).and_then(Value::as_str) {
@@ -280,8 +297,26 @@ pub fn scalarized_score(inputs: &TierInputs<'_>, cds: &str) -> Result<f64> {
             _ => -1.0,
         };
         total += sense * inputs.weights.get(index).copied().unwrap_or(1.0) * value;
+        informed_by.push(term.clone());
     }
-    Ok(total)
+    Ok(Scalarization {
+        score: total,
+        informed_by,
+        not_informed_by,
+    })
+}
+
+pub fn scalarized_score(inputs: &TierInputs<'_>, cds: &str) -> Result<f64> {
+    Ok(scalarize(inputs, cds)?.score)
+}
+
+pub fn scalarized_score_report(inputs: &TierInputs<'_>, cds: &str) -> Result<Value> {
+    let scalarization = scalarize(inputs, cds)?;
+    Ok(json!({
+        "score": scalarization.score,
+        "informed_by": scalarization.informed_by,
+        "not_informed_by": scalarization.not_informed_by,
+    }))
 }
 
 pub struct TierInputs<'a> {
