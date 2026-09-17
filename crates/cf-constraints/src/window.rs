@@ -75,11 +75,11 @@ pub fn find_runs_near(
     let hi = (offset + n + min_len).min(seq.len());
     // Extend to full run boundaries so a run is never reported truncated.
     let mut lo = lo;
-    while lo > 0 && seq[lo - 1].to_ascii_uppercase() == seq[lo].to_ascii_uppercase() {
+    while lo > 0 && seq[lo - 1].eq_ignore_ascii_case(&seq[lo]) {
         lo -= 1;
     }
     let mut hi = hi;
-    while hi < seq.len() && seq[hi - 1].to_ascii_uppercase() == seq[hi].to_ascii_uppercase() {
+    while hi < seq.len() && seq[hi - 1].eq_ignore_ascii_case(&seq[hi]) {
         hi += 1;
     }
     find_runs(&seq[lo..hi], min_len, base_filter)

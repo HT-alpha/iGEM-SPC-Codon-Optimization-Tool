@@ -107,16 +107,16 @@ jobs:
       # (AMD-013). Without it the structure-engine reference checks would skip
       # and the suite would be green without testing the binding at all.
       #
-      # `maturin develop` refuses to install into a bare interpreter — it wants
-      # a virtualenv named `.venv` or `VIRTUAL_ENV`. `pip install maturin &&
-      # maturin develop` against setup-python's prefix therefore fails before
-      # pytest runs, which is what the 3.11/3.12 jobs did this round. Create
-      # the venv first; `python -m venv` is fine on this runner (setup-python
-      # ships `ensurepip`). Locally, `make setup` still prefers `virtualenv`
-      # because Debian/Ubuntu often lack that package.
+      # `maturin develop` needs a virtualenv (`.venv` or `VIRTUAL_ENV`). A
+      # `pip install maturin && maturin develop` against setup-python's prefix
+      # therefore dies before pytest runs. Create the env with `virtualenv`,
+      # the same tool `make setup` prefers, rather than a bare stdlib venv
+      # (that module needs `ensurepip` / `python3-venv`, which is not always
+      # installable).
       - name: virtualenv and Python test dependencies
         run: |
-          python -m venv .venv
+          python -m pip install -q virtualenv
+          python -m virtualenv .venv
           .venv/bin/pip install -q maturin pytest jsonschema pyyaml biopython ViennaRNA
       - name: build the core into the environment
         run: .venv/bin/maturin develop

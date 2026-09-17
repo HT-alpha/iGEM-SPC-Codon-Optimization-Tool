@@ -15,6 +15,11 @@
 //! engine is reproducible from a captured batch, which is the property the
 //! batch-yield protocol depends on.
 
+// Clippy 1.98 flags `?` on every `PyResult<T>` as converting `PyErr` into
+// itself (`useless_conversion`). That is PyO3's type alias, not a real
+// conversion we added. Local 1.83 does not emit this.
+#![allow(clippy::useless_conversion)]
+
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
