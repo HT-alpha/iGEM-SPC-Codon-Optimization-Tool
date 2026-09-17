@@ -382,9 +382,7 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     # Axes `best()` considered. The lists are a byproduct of the same
     # scalarization loop that produced `best.score` — not a second pass over
     # capabilities that could drift from it. `TST-CLI-012`.
-    scalarization = json.loads(
-        _core.scalarized_score_report(job._tier_request(best.cds), best.cds)
-    )
+    scalarization = json.loads(_core.scalarized_score_report(job._tier_request(best.cds), best.cds))
 
     # Every non-dominated candidate, not just the best-scored one. Emitting a
     # single design from a document named `pareto_front` was defensible while
@@ -459,9 +457,7 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
                     member.objectives,
                 ),
                 unknown_terms=[
-                    term
-                    for index, term in enumerate(job.plan.scored)
-                    if vector[index] is None
+                    term for index, term in enumerate(job.plan.scored) if vector[index] is None
                 ],
             )
         )

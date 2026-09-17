@@ -885,9 +885,7 @@ def test_tst_cli_009_the_front_states_its_answer_rather_than_implying_it(
 
     # TST-CLI-012: the axes that informed that choice are named, from the same
     # loop as the scalar, not from a second pass over capabilities.
-    report = json.loads(
-        _core.scalarized_score_report(result.job._tier_request(best.cds), best.cds)
-    )
+    report = json.loads(_core.scalarized_score_report(result.job._tier_request(best.cds), best.cds))
     assert recommended["informed_by"] == report["informed_by"]
     assert recommended["not_informed_by"] == report["not_informed_by"]
     assert structure_diag.TERM_ID in front["objective_order"]
@@ -1028,9 +1026,7 @@ def test_cf_land_014_a_term_that_declares_it_cannot_be_ranked_on_is_not_ranked_o
     against it - the fixtures had all moved to genuine axes, so nothing
     exercised the demotion path.
     """
-    result = design(
-        request_for(objectives=["usage.cai", "usage.gc_content"]), store
-    )
+    result = design(request_for(objectives=["usage.cai", "usage.gc_content"]), store)
 
     assert "usage.gc_content" not in result.front["objective_order"], (
         "a term whose provider says it must not be ranked on must not appear in "

@@ -206,9 +206,7 @@ def explain(front: dict[str, Any], status: dict[str, Any], candidate_index: int 
 
     recommended = front.get("recommended")
     if recommended:
-        out.append(
-            f"recommended  {recommended['candidate_id']}  rule={recommended['rule']}"
-        )
+        out.append(f"recommended  {recommended['candidate_id']}  rule={recommended['rule']}")
         informed = ", ".join(recommended.get("informed_by") or []) or "(none)"
         excluded = ", ".join(recommended.get("not_informed_by") or []) or "(none)"
         out.append(f"  informed_by      {informed}")
