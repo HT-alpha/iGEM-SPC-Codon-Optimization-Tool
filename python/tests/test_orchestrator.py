@@ -21,6 +21,8 @@ import pytest
 from codonforge import _core
 from codonforge.modelreg import ArtifactStore, Pin, ResolutionRequest, resolve, seal
 from codonforge.orchestrator import ComputeBudget, Job, JobInputs
+from codonforge.orchestrator.budget import TierPlanError
+from codonforge.orchestrator.job import _tier2_engine_refusal
 
 HOST = "escherichia_coli:511145/BL21"
 
@@ -555,7 +557,71 @@ def test_p1_29_a_term_wider_than_the_block_fails_rather_than_warns(
     assert problem["code"] == "CF-SRCH-008"
     assert problem["stage"] == "tier2"
     assert problem["subject"] == "constraint.violation_count"
+    assert problem["title"] == "A term couples positions more widely than the tier 2 block size"
     assert "P1-26" in problem["detail"]
+
+
+def test_p1_29_a_zero_block_fails_as_srch_009_not_a_raw_exception(
+    store: ArtifactStore, tmp_path: Path
+) -> None:
+    """CF-SRCH-009 is configuration malformation and belongs in `problem`.
+
+    `DEP-ORCH-003` / `TST-ORCH-012`. A zero block is the independent `009`
+    path: no single term is wider than a block that does not exist, so
+    `CF-SRCH-008` does not fire, and `partition_is_valid` cannot fail on a
+    plan `check` never built. Mapping only `008` let this escape as a raw
+    `ValueError`. The title must be the `009` title, not the `008` one
+    `TierPlanError` used to hardcode.
+    """
+    job = make_job(
+        store,
+        tmp_path,
+        total=4,
+        segment=4,
+        job_inputs=replace(inputs(), tier2_block=0),
+    ).run()
+    assert job.state == "failed"
+    problem = job.problem
+    assert problem is not None
+    assert problem["code"] == "CF-SRCH-009"
+    assert problem["stage"] == "tier2"
+    assert problem["subject"] == "tier2_block"
+    assert problem["title"] == "Tier 2 configuration is malformed"
+    assert problem["status"] == 422
+    assert "at least one codon" in problem["detail"]
+
+
+def test_tier2_engine_refusal_maps_any_cf_code_and_leaves_noise_alone() -> None:
+    """The mapper is the contract, not just the two production fixtures.
+
+    A future engine code on this path must land in `problem` without a second
+    orchestrator edit. A programming error that is not a problem document
+    must still crash.
+    """
+    mapped = _tier2_engine_refusal(
+        ValueError(
+            '{"code":"CF-SRCH-009","title":"Tier 2 configuration is malformed",'
+            '"status":422,"detail":"block size must be at least one codon"}'
+        )
+    )
+    assert isinstance(mapped, TierPlanError)
+    assert mapped.code == "CF-SRCH-009"
+    assert mapped.title == "Tier 2 configuration is malformed"
+    assert mapped.subject == "tier2_block"
+
+    mapped_008 = _tier2_engine_refusal(
+        ValueError(
+            '{"code":"CF-SRCH-008","title":"A term couples positions more widely '
+            'than the tier 2 block size","status":422,'
+            '"detail":"constraint.violation_count couples positions"}'
+        )
+    )
+    assert isinstance(mapped_008, TierPlanError)
+    assert mapped_008.code == "CF-SRCH-008"
+    assert mapped_008.subject == "constraint.violation_count"
+
+    noise = ValueError("not a problem document")
+    assert _tier2_engine_refusal(noise) is noise
 
 
 def test_p1_29_the_status_document_validates(store: ArtifactStore, tmp_path: Path) -> None:

@@ -593,10 +593,11 @@ class Job:
                     )
                 )
             except ValueError as exc:
-                # `Tier2Plan::check` is the sole CF-SRCH-008 gate (`DEP-ORCH-002`).
-                # The extension raises the problem-detail JSON; map it onto the
-                # status document rather than letting a raw ValueError escape.
-                raise _tier2_partition_refusal(exc) from exc
+                # `DEP-ORCH-003`: any CF-* problem detail the engine raises on
+                # this path lands in `job_status.problem`. Mapping only
+                # `CF-SRCH-008` left `CF-SRCH-009` (and would leave any future
+                # engine code) as a raw ValueError.
+                raise _tier2_engine_refusal(exc) from exc
             cds = _cds_of(report["incumbent"])
             self.record_candidate("tier2_block_ca", cds)
             self.stage_reports["tier2_block_ca"] = report
@@ -825,21 +826,52 @@ class Job:
         return [w for w in self.warnings if w.get("stage") == stage]
 
 
-def _tier2_partition_refusal(exc: ValueError) -> Exception:
-    """Lift a CF-SRCH-008 from the extension into `TierPlanError`.
+def _tier2_engine_refusal(exc: ValueError) -> Exception:
+    """Lift a CF-* problem detail from the extension into `TierPlanError`.
 
-    Any other ValueError is returned unchanged so programming mistakes still
-    surface as crashes rather than as a forged partition refusal.
+    Programming mistakes that are not RFC 9457 documents still surface as
+    crashes rather than as a forged refusal. Every caller-facing code from
+    this path — `CF-SRCH-008`, `CF-SRCH-009`, and any other `CF-*` the engine
+    emits — lands in `job_status.problem`. `DEP-ORCH-003`.
     """
     try:
         payload = json.loads(str(exc))
     except json.JSONDecodeError:
         return exc
-    if not isinstance(payload, dict) or payload.get("code") != "CF-SRCH-008":
+    if not isinstance(payload, dict):
+        return exc
+    code = payload.get("code")
+    if not isinstance(code, str) or not code.startswith("CF-"):
         return exc
     detail = str(payload.get("detail") or exc)
-    subject = detail.split(" ", 1)[0]
-    return TierPlanError(code="CF-SRCH-008", detail=detail, subject=subject, stage="tier2")
+    title = str(payload.get("title") or "")
+    status = payload.get("status")
+    if not isinstance(status, int):
+        status = 422
+    return TierPlanError(
+        code=code,
+        detail=detail,
+        subject=_subject_of(code, detail),
+        stage="tier2",
+        title=title,
+        status=status,
+    )
+
+
+def _subject_of(code: str, detail: str) -> str:
+    """A machine-comparable subject for `DEP-ORCH-001`.
+
+    `CF-SRCH-008` names a term; the term id is the first token of the detail.
+    `CF-SRCH-009` names a configuration field.
+    """
+    if code == "CF-SRCH-009":
+        if detail.startswith("block size"):
+            return "tier2_block"
+        if "weights" in detail:
+            return "weights"
+        return "tier2"
+    token = detail.split(" ", 1)[0]
+    return token
 
 
 def _cds_of(document: dict[str, Any]) -> str:

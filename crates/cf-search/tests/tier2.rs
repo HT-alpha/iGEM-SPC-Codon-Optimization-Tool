@@ -549,7 +549,59 @@ fn p1_25_a_term_wider_than_the_block_is_refused() {
     )
     .unwrap();
     assert_eq!(plan.radius(), 9);
+    assert_eq!(plan.block(), 9);
     assert!(plan.partition_is_valid());
+}
+
+/// `CF-SRCH-009` is configuration malformation, not a second `B ≥ R` gate.
+///
+/// `DEP-SRCH-014`. A plan that survived `check` always satisfies `B ≥ R`: the
+/// fields are private and `check` refuses `R > B` before constructing one.
+/// There is no independent `partition_is_valid` failure to refuse under `009`.
+/// The two `009` cases that remain are a term/weight count mismatch and a
+/// zero block — genuinely different from any single term's radius.
+#[test]
+fn p1_25_malformed_config_is_srch_009_not_a_second_radius_gate() {
+    let calls = Calls::default();
+    let registry = registry_with(vec![Box::new(Additive::new("usage.cai", calls.clone(), 0))]);
+
+    let err = Tier2Plan::check(
+        &registry,
+        &terms(&["usage.cai"]),
+        &[1.0, 0.5],
+        &Tier2Config::from_planning(4),
+    )
+    .unwrap_err();
+    assert_eq!(err.code, "CF-SRCH-009");
+    assert!(
+        err.detail.contains("1 terms and 2 weights"),
+        "{}",
+        err.detail
+    );
+
+    let err = Tier2Plan::check(
+        &registry,
+        &terms(&["usage.cai"]),
+        &[1.0],
+        &Tier2Config::from_planning(0),
+    )
+    .unwrap_err();
+    assert_eq!(err.code, "CF-SRCH-009");
+    assert!(err.detail.contains("at least one codon"), "{}", err.detail);
+
+    let plan = Tier2Plan::check(
+        &registry,
+        &terms(&["usage.cai"]),
+        &[1.0],
+        &Tier2Config::from_planning(4),
+    )
+    .unwrap();
+    assert!(
+        plan.partition_is_valid(),
+        "a plan that check() returned cannot fail B≥R; that inequality is 008"
+    );
+    assert_eq!(plan.block(), 4);
+    assert_eq!(plan.radius(), 0);
 }
 
 // --------------------------------------------------------------------------- //

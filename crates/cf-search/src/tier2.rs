@@ -14,12 +14,17 @@
 //!
 //! §3.1 states the condition as `B ≥ W`. That is the condition only if `W` is
 //! the largest interaction radius among the scored terms, and §4 exists
-//! precisely because a term can have a larger one. So [`Tier2Plan`] checks
-//! `B ≥ R` against radii the *providers* declare, not against a configured
-//! `W`. A term that declares [`InteractionRadius::Unbounded`] is refused with
-//! `CF-SRCH-008`, naming `P1-26`: the overlapping-block fallback is the answer
-//! for that case, it is not built, and a silent assumption that blocks are
-//! independent would be worse than a refusal.
+//! precisely because a term can have a larger one. So [`Tier2Plan::check`]
+//! refuses `B < R` against radii the *providers* declare, not against a
+//! configured `W`. A term that declares [`InteractionRadius::Unbounded`], or a
+//! radius above `B`, is `CF-SRCH-008`, naming `P1-26`: the overlapping-block
+//! fallback is the answer for that case, it is not built, and a silent
+//! assumption that blocks are independent would be worse than a refusal.
+//! `DEP-SRCH-014`: that is the only `B ≥ R` check. `CF-SRCH-009` is
+//! configuration malformation (a zero block, a term/weight count mismatch),
+//! not a second copy of the same inequality. `tier2_block_ca` used to repeat
+//! `B ≥ R` under `009`; the orchestrator mapped only `008`, so the copy leaked
+//! as a raw `ValueError`.
 //!
 //! **The partition is over codon positions, not editable positions.** §3.1's
 //! prose says "partition the editable positions" while its diagram shows codon
@@ -134,6 +139,8 @@ impl Tier2Config {
 /// produced here, which is what "the planner drops the term with a warning, or
 /// fails" in [`04-model-resolution.md`](../../../planning/04-api/04-model-resolution.md)
 /// §2.1 requires — discovering an L0 term mid-run wastes the whole tier.
+/// `B ≥ R` is decided here as `CF-SRCH-008` (`DEP-SRCH-014`); a plan that
+/// exists already satisfies it.
 #[derive(Debug)]
 pub struct Tier2Plan {
     /// Terms tier 2 will score, in the caller's order.
@@ -262,7 +269,16 @@ impl Tier2Plan {
         self.radius
     }
 
+    /// The block size `check` admitted. The run partitions against this, not
+    /// against a request that might have drifted.
+    pub fn block(&self) -> usize {
+        self.block
+    }
+
     /// Whether the partition is valid: `B ≥ R`.
+    ///
+    /// An invariant of any plan that `check` returned, not a second gate.
+    /// `tier2_block_ca` debug-asserts it; it does not refuse again.
     pub fn partition_is_valid(&self) -> bool {
         self.block >= self.radius
     }
@@ -356,26 +372,29 @@ pub fn tier2_block_ca_with_order(
         config,
     } = *request;
 
-    if !plan.partition_is_valid() {
-        return Err(CfError::new(
-            code::SRCH_TIER2_CONFIG,
-            format!(
-                "block size {} is below the largest declared interaction radius {}",
-                config.block,
-                plan.radius()
-            ),
-        ));
-    }
+    // `DEP-SRCH-014`: `B ≥ R` was already decided by `Tier2Plan::check` as
+    // `CF-SRCH-008`. Repeating it here under `CF-SRCH-009` was the same
+    // inequality twice, and only `008` was mapped onto `job_status.problem`.
+    debug_assert!(
+        plan.partition_is_valid(),
+        "Tier2Plan::check is the sole B≥R gate; a plan that fails it must not reach the run"
+    );
+    debug_assert_eq!(
+        plan.block(),
+        config.block,
+        "the run must use the block size check() already admitted"
+    );
 
     let mut notes = Vec::new();
-    let blocks = partition(seed.len(), config.block);
+    let block = plan.block();
+    let blocks = partition(seed.len(), block);
     if blocks.len() < 2 {
         // §4: `L < 2W` leaves no useful partition, so the whole sequence is one
         // block. No reconciliation is needed either — there are no seams.
         notes.push(format!(
             "sequence is {} codons against a block size of {}; optimized as a single block",
             seed.len(),
-            config.block
+            block
         ));
     }
 

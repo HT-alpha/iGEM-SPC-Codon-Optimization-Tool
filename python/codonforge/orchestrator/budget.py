@@ -180,6 +180,8 @@ class TierPlan:
         Python copy of that check was permanently inert. Wiring it would have
         been a second comparison of the same rule (`DEP-SRCH-011`); removing it
         is `DEP-ORCH-002`. Do not re-add a radii/`block_size` pair here.
+        `DEP-SRCH-014` is the same rule one layer down: `tier2_block_ca` does
+        not repeat `B ≥ R` under `CF-SRCH-009`.
         """
         directions = directions or {}
         roles = roles or {}
@@ -279,20 +281,34 @@ class TierPlanError(Exception):
     `job_status.problem` and stops the job. The check that produces it lives in
     Rust (`Tier2Plan::check`); this type is how that refusal reaches the
     status document. `DEP-ORCH-002`.
+
+    Titles and status codes come from the engine's problem detail, not from
+    this type. Hardcoding the `008` title here is how a `CF-SRCH-009` would
+    have been documented as an unbounded term. `DEP-ORCH-003`.
     """
 
-    def __init__(self, code: str, detail: str, subject: str, stage: str = "tier2") -> None:
+    def __init__(
+        self,
+        code: str,
+        detail: str,
+        subject: str,
+        stage: str = "tier2",
+        title: str = "",
+        status: int = 422,
+    ) -> None:
         self.code = code
         self.detail = detail
         self.subject = subject
         self.stage = stage
+        self.title = title or "Tier 2 refused the job"
+        self.status = status
         super().__init__(f"{code}: {detail}")
 
     def to_problem_details(self) -> dict[str, Any]:
         return {
             "type": f"https://codonforge.org/problems/{self.code.lower()}",
-            "title": "A term couples positions more widely than the tier 2 block size",
-            "status": 422,
+            "title": self.title,
+            "status": self.status,
             "code": self.code,
             "detail": self.detail,
             "stage": self.stage,
