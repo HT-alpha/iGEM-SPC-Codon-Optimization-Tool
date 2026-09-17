@@ -106,10 +106,21 @@ jobs:
       # ViennaRNA is a test-only install here, never a shipped dependency
       # (AMD-013). Without it the structure-engine reference checks would skip
       # and the suite would be green without testing the binding at all.
-      - run: pip install maturin pytest jsonschema pyyaml biopython ViennaRNA
+      #
+      # `maturin develop` refuses to install into a bare interpreter — it wants
+      # a virtualenv named `.venv` or `VIRTUAL_ENV`. `pip install maturin &&
+      # maturin develop` against setup-python's prefix therefore fails before
+      # pytest runs, which is what the 3.11/3.12 jobs did this round. Create
+      # the venv first; `python -m venv` is fine on this runner (setup-python
+      # ships `ensurepip`). Locally, `make setup` still prefers `virtualenv`
+      # because Debian/Ubuntu often lack that package.
+      - name: virtualenv and Python test dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -q maturin pytest jsonschema pyyaml biopython ViennaRNA
       - name: build the core into the environment
-        run: maturin develop
-      - run: pytest -q
+        run: .venv/bin/maturin develop
+      - run: .venv/bin/pytest -q
         env:
           # Turns a skipped structure-engine check into a failure, so CI cannot
           # go green by not running the checks that matter most.

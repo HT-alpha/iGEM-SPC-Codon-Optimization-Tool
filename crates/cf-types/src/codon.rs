@@ -16,7 +16,7 @@ use crate::error::{code, CfError, Result};
 
 /// Bases in index order. The order is load-bearing; changing it changes every
 /// vendored genetic-code table.
-pub const BASES: [u8; 4] = [b'A', b'C', b'G', b'T'];
+pub const BASES: [u8; 4] = *b"ACGT";
 
 /// Number of distinct codons.
 pub const CODON_COUNT: usize = 64;

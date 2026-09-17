@@ -196,8 +196,12 @@ fn solve_intercepts(extremes: &[Vec<f64>]) -> Option<Vec<f64>> {
 
         for row in (column + 1)..n {
             let factor = matrix[row][column] / matrix[column][column];
-            for k in column..n {
-                matrix[row][k] -= factor * matrix[column][k];
+            // Two different rows; `split_at_mut` so the zip does not alias.
+            let (head, tail) = matrix.split_at_mut(row);
+            let pivot = &head[column];
+            let dest = &mut tail[0];
+            for (cell, &pv) in dest.iter_mut().zip(pivot.iter()).skip(column) {
+                *cell -= factor * pv;
             }
             rhs[row] -= factor * rhs[column];
         }
