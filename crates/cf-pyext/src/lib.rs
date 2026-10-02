@@ -429,7 +429,9 @@ fn search_tier3_segment(
         }
     };
     let scorer = l0_scorer.map(|callable| pipeline::PyL0Scorer::new(callable, l0_axis, l0_budget));
-    with_tier_inputs(request_json, |inputs| {
+    // Drop a stash left by an earlier call on this thread before this one runs.
+    pipeline::clear_escaped_scorer_error();
+    let result = with_tier_inputs(request_json, |inputs| {
         pipeline::run_tier3_segment(
             inputs,
             checkpoint.as_ref(),
@@ -440,7 +442,13 @@ fn search_tier3_segment(
                 .as_ref()
                 .map(|s| s as &dyn cf_search::tier3::L0Scorer),
         )
-    })
+    });
+    // `DEP-ORCH-004`. A non-problem exception from the scorer was stashed so
+    // it would not be published as `CF-LAND-012`. Return that exception.
+    if let Some(escaped) = pipeline::take_escaped_scorer_error() {
+        return Err(escaped);
+    }
+    result
 }
 
 /// The RNG root tier 3 and the generation loop derive from. `DEP-DET-003`.

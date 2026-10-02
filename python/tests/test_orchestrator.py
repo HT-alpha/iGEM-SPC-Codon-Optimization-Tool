@@ -22,7 +22,8 @@ from codonforge import _core
 from codonforge.modelreg import ArtifactStore, Pin, ResolutionRequest, resolve, seal
 from codonforge.orchestrator import ComputeBudget, Job, JobInputs
 from codonforge.orchestrator.budget import TierPlanError
-from codonforge.orchestrator.job import _tier2_engine_refusal
+from codonforge.orchestrator.job import _engine_refusal
+from codonforge.predictors.structure import StructureEngineError
 
 HOST = "escherichia_coli:511145/BL21"
 
@@ -596,32 +597,124 @@ def test_tier2_engine_refusal_maps_any_cf_code_and_leaves_noise_alone() -> None:
 
     A future engine code on this path must land in `problem` without a second
     orchestrator edit. A programming error that is not a problem document
-    must still crash.
+    must still crash. `DEP-ORCH-004` is the same function for every stage.
     """
-    mapped = _tier2_engine_refusal(
+    mapped = _engine_refusal(
         ValueError(
             '{"code":"CF-SRCH-009","title":"Tier 2 configuration is malformed",'
             '"status":422,"detail":"block size must be at least one codon"}'
-        )
+        ),
+        "tier2",
     )
     assert isinstance(mapped, TierPlanError)
     assert mapped.code == "CF-SRCH-009"
     assert mapped.title == "Tier 2 configuration is malformed"
     assert mapped.subject == "tier2_block"
+    assert mapped.stage == "tier2"
 
-    mapped_008 = _tier2_engine_refusal(
+    mapped_008 = _engine_refusal(
         ValueError(
             '{"code":"CF-SRCH-008","title":"A term couples positions more widely '
             'than the tier 2 block size","status":422,'
             '"detail":"constraint.violation_count couples positions"}'
-        )
+        ),
+        "tier2",
     )
     assert isinstance(mapped_008, TierPlanError)
     assert mapped_008.code == "CF-SRCH-008"
     assert mapped_008.subject == "constraint.violation_count"
 
+    mapped_012 = _engine_refusal(
+        ValueError(
+            '{"code":"CF-LAND-012","title":"Batch results do not match the outstanding batch",'
+            '"status":500,"detail":"batch had 4 items and 3 results arrived"}'
+        ),
+        "tier3",
+    )
+    assert isinstance(mapped_012, TierPlanError)
+    assert mapped_012.code == "CF-LAND-012"
+    assert mapped_012.stage == "tier3"
+    assert mapped_012.subject == "batch"
+    assert mapped_012.status == 500
+
     noise = ValueError("not a problem document")
-    assert _tier2_engine_refusal(noise) is noise
+    assert _engine_refusal(noise, "tier3") is noise
+
+
+def test_p1_29_a_short_l0_batch_fails_as_land_012_not_a_raw_exception(
+    store: ArtifactStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`CF-LAND-012` from the tier-3 batch path lands in `problem`.
+
+    `DEP-ORCH-004` / `TST-ORCH-013`. A short return is the real batch-mismatch
+    refusal (`BatchProtocol::absorb`), not a missing install and not a forged
+    JSON string. Mapping only the tier-2 catch left this as a raw `ValueError`.
+    """
+
+    def short(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
+        del temperature_c
+        return [0.5] * (len(sequences) - 1)
+
+    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", short)
+    job = make_job(store, tmp_path, total=2, segment=2).run()
+    assert job.state == "failed"
+    problem = job.problem
+    assert problem is not None
+    assert problem["code"] == "CF-LAND-012"
+    assert problem["stage"] == "tier3"
+    assert problem["subject"] == "batch"
+    assert problem["status"] == 500
+    assert "aligning" in problem["detail"]
+
+
+def test_p1_29_a_missing_structure_engine_fails_as_stru_003(
+    store: ArtifactStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A coded engine failure keeps its code through the batch boundary.
+
+    Missing ViennaRNA raises `StructureEngineError(CF-STRU-003)` from
+    `evaluate`. The binding used to relabel every scorer exception
+    `CF-LAND-012`. The simulation raises that exception directly, so the
+    check does not depend on uninstalling ViennaRNA.
+    """
+
+    def missing(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
+        del sequences, temperature_c
+        raise StructureEngineError(
+            "CF-STRU-003",
+            "no structure engine is installed, and CodonForge ships none",
+        )
+
+    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", missing)
+    job = make_job(store, tmp_path, total=2, segment=2).run()
+    assert job.state == "failed"
+    problem = job.problem
+    assert problem is not None
+    assert problem["code"] == "CF-STRU-003"
+    assert problem["stage"] == "tier3"
+    assert problem["subject"] == "structure.local_accessibility"
+    assert "ships none" in problem["detail"]
+    assert problem["title"] == "No structure engine is installed and CodonForge ships none"
+
+
+def test_p1_29_a_non_problem_scorer_error_still_crashes(
+    store: ArtifactStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A programming error on the tier-3 scorer path is not a problem document.
+
+    The same standard `DEP-ORCH-003` kept for tier 2. Forging `CF-LAND-012`
+    around this would hide the bug inside `job_status.problem`.
+    """
+
+    def broken(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
+        del sequences, temperature_c
+        raise ValueError("not a problem document")
+
+    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", broken)
+    job = make_job(store, tmp_path, total=2, segment=2)
+    with pytest.raises(ValueError, match="not a problem document"):
+        job.run()
+    assert job.problem is None
 
 
 def test_p1_29_the_status_document_validates(store: ArtifactStore, tmp_path: Path) -> None:

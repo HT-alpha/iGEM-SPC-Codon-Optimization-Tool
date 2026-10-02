@@ -240,6 +240,7 @@ Two supporting units the architecture implies but does not name, added here beca
 | `TST-ORCH-007` | unit | A malformed checkpoint is refused with `CF-ORCH-001` naming the missing field, rather than partly believed. |
 | `TST-ORCH-008` | integration | Every `job_status.warnings` entry carries a `stage` and a `subject`, and the three obligation sources remain separable in one document. |
 | `TST-ORCH-012` | integration | A `CF-SRCH-009` from the engine (zero `tier2_block`) lands in `job_status.problem` with the `009` title, not as a raw `ValueError` and not under the `008` title. `CF-SRCH-008` still lands the same way. The mapper lifts any `CF-*` problem detail and leaves a non-document `ValueError` unchanged. `DEP-ORCH-003`. |
+| `TST-ORCH-013` | integration | A short L0 batch from the tier-3 scorer lands as `CF-LAND-012` in `job_status.problem` (stage `tier3`, subject `batch`), not as a raw `ValueError`. A scorer that raises `StructureEngineError` with `CF-STRU-003` keeps that code. A scorer `ValueError` that is not a problem document still propagates, and `problem` stays unset. `DEP-ORCH-004`. |
 | `TST-ORCH-009` | integration | A job checkpointed across a model promotion resumes on its sealed digests. The promotion is published *while the job is stopped*, which is the case the non-blocking-recalibration guarantee has to survive and a continuous run never exercises. |
 | `TST-ORCH-003` | integration | `codonforge replay --assert-identical` reproduces a front exactly. |
 

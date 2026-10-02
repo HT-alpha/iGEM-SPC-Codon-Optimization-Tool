@@ -46,7 +46,7 @@ control "R/3: mapper lifts only CF-SRCH-008, so a zero block is unstructured" \
 #    be documented as an unbounded term.
 python3 - <<'PYEOF'
 p='python/codonforge/orchestrator/budget.py'; s=open(p).read()
-old='        self.title = title or "Tier 2 refused the job"'
+old='        self.title = title or "The search engine refused the job"'
 new='        self.title = "A term couples positions more widely than the tier 2 block size"'
 assert old in s, "anchor 4"; open(p,'w').write(s.replace(old,new,1))
 PYEOF

@@ -284,7 +284,9 @@ class TierPlanError(Exception):
 
     Titles and status codes come from the engine's problem detail, not from
     this type. Hardcoding the `008` title here is how a `CF-SRCH-009` would
-    have been documented as an unbounded term. `DEP-ORCH-003`.
+    have been documented as an unbounded term. `DEP-ORCH-003`. The same type
+    carries a tier-3 refusal (`CF-LAND-012`, `CF-STRU-003`); the fallback
+    title is therefore not the tier-2 sentence. `DEP-ORCH-004`.
     """
 
     def __init__(
@@ -300,7 +302,7 @@ class TierPlanError(Exception):
         self.detail = detail
         self.subject = subject
         self.stage = stage
-        self.title = title or "Tier 2 refused the job"
+        self.title = title or "The search engine refused the job"
         self.status = status
         super().__init__(f"{code}: {detail}")
 

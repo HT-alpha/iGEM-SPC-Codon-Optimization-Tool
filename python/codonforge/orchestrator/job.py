@@ -142,6 +142,10 @@ class Job:
     archive: CandidateArchive = field(default_factory=CandidateArchive)
     #: Set to request a clean stop at the next segment boundary.
     cancel_requested: bool = False
+    #: Which engine call `run` is inside. The single `ValueError` handler
+    #: reads it so a problem document is attributed without a per-tier copy
+    #: of the lifting logic. `DEP-ORCH-004`.
+    _engine_stage: str = "job"
 
     # ----------------------------------------------------------------- #
     # submission
@@ -275,6 +279,7 @@ class Job:
             if self.checkpoint is None:
                 self._run_seeding_tiers()
 
+            self._engine_stage = "tier3"
             while not self.budget.exhausted:
                 if self.cancel_requested:
                     raise Cancelled()
@@ -348,6 +353,19 @@ class Job:
             self.state = "failed"
             self.finished_at = _now()
             self.problem = error.to_problem_details()
+            return self
+        except ValueError as exc:
+            # `DEP-ORCH-004`: one lift for every engine call inside this try —
+            # tier 1, tier 2, and the tier-3 L0 scorer. A second catch beside
+            # `search_tier3_segment` would be another copy of `DEP-ORCH-003`.
+            # A `ValueError` that is not a `CF-*` problem document is the
+            # original exception, and it still crashes.
+            refusal = _engine_refusal(exc, self._engine_stage)
+            if refusal is exc:
+                raise
+            self.state = "failed"
+            self.finished_at = _now()
+            self.problem = refusal.to_problem_details()
             return self
 
         self.state = "succeeded"
@@ -567,6 +585,7 @@ class Job:
         self.record_candidate("input", cds)
 
         if "tier1_seed" in stages:
+            self._engine_stage = "tier1"
             report = json.loads(
                 _core.search_tier1_seed(
                     self._tier_request(cds, self.plan.tier1),
@@ -584,20 +603,17 @@ class Job:
             self._absorb_warnings(report.get("warnings", []))
 
         if "tier2_block_ca" in stages:
-            try:
-                report = json.loads(
-                    _core.search_tier2_polish(
-                        self._tier_request(cds, self.plan.tier2),
-                        self.inputs.tier2_block,
-                        self.inputs.tier2_sweeps,
-                    )
+            # No catch here. `run` lifts every `CF-*` problem document once.
+            # A tier-2-only handler was how tier 3's `CF-LAND-012` stayed a
+            # raw `ValueError`. `DEP-ORCH-004`.
+            self._engine_stage = "tier2"
+            report = json.loads(
+                _core.search_tier2_polish(
+                    self._tier_request(cds, self.plan.tier2),
+                    self.inputs.tier2_block,
+                    self.inputs.tier2_sweeps,
                 )
-            except ValueError as exc:
-                # `DEP-ORCH-003`: any CF-* problem detail the engine raises on
-                # this path lands in `job_status.problem`. Mapping only
-                # `CF-SRCH-008` left `CF-SRCH-009` (and would leave any future
-                # engine code) as a raw ValueError.
-                raise _tier2_engine_refusal(exc) from exc
+            )
             cds = _cds_of(report["incumbent"])
             self.record_candidate("tier2_block_ca", cds)
             self.stage_reports["tier2_block_ca"] = report
@@ -826,13 +842,14 @@ class Job:
         return [w for w in self.warnings if w.get("stage") == stage]
 
 
-def _tier2_engine_refusal(exc: ValueError) -> Exception:
+def _engine_refusal(exc: ValueError, stage: str) -> Exception:
     """Lift a CF-* problem detail from the extension into `TierPlanError`.
 
     Programming mistakes that are not RFC 9457 documents still surface as
-    crashes rather than as a forged refusal. Every caller-facing code from
-    this path — `CF-SRCH-008`, `CF-SRCH-009`, and any other `CF-*` the engine
-    emits — lands in `job_status.problem`. `DEP-ORCH-003`.
+    crashes rather than as a forged refusal. One function serves every tier:
+    copying it beside each engine call is how tier 3's `CF-LAND-012` stayed
+    unstructured after tier 2 was fixed. `DEP-ORCH-003`, generalized by
+    `DEP-ORCH-004`. `stage` is whichever call `run` was inside.
     """
     try:
         payload = json.loads(str(exc))
@@ -852,7 +869,7 @@ def _tier2_engine_refusal(exc: ValueError) -> Exception:
         code=code,
         detail=detail,
         subject=_subject_of(code, detail),
-        stage="tier2",
+        stage=stage,
         title=title,
         status=status,
     )
@@ -870,6 +887,10 @@ def _subject_of(code: str, detail: str) -> str:
         if "weights" in detail:
             return "weights"
         return "tier2"
+    if code in ("CF-LAND-011", "CF-LAND-012"):
+        return "batch"
+    if code.startswith("CF-STRU-"):
+        return "structure.local_accessibility"
     token = detail.split(" ", 1)[0]
     return token
 

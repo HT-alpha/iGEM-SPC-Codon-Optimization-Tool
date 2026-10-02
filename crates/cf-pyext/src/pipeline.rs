@@ -36,9 +36,11 @@ use cf_search::{
     tier1_seed, tier2_block_ca, CodonWeights, Genotype, OperatorMix, SearchRng, Tier1Config,
     Tier1Request, Tier2Config, Tier2Plan, Tier2Request,
 };
+use cf_types::error::lookup;
 use cf_types::{code, CfError, CodonSequence, Digest, HostId, Result, TermId};
 use pyo3::types::PyAnyMethods;
 use serde_json::{json, Value};
+use std::cell::RefCell;
 
 /// The folding span the structure term declares, in nucleotides.
 ///
@@ -780,10 +782,13 @@ impl L0Scorer for PyL0Scorer<'_> {
             .iter()
             .map(|g| g.sequence().cds_string())
             .collect();
-        let returned = self
-            .callable
-            .call1((sequences.clone(),))
-            .map_err(|e| CfError::new(code::LAND_BATCH_UNEXPECTED, e.to_string()))?;
+        // A raised scorer is not a batch-shape mismatch. `call1` failing used
+        // to be relabeled `CF-LAND-012`, so a missing engine (`CF-STRU-003`)
+        // and a programming error arrived as the same document, and the
+        // orchestrator could not tell them apart. A registered `code`
+        // attribute keeps its own code. Anything else is stashed and
+        // re-raised by `search_tier3_segment` unchanged. `DEP-ORCH-004`.
+        let returned = self.callable.call1((sequences,)).map_err(scorer_raised)?;
         let values: Vec<Option<f64>> = returned
             .extract()
             .map_err(|e| CfError::new(code::LAND_BATCH_UNEXPECTED, e.to_string()))?;
@@ -795,4 +800,51 @@ impl L0Scorer for PyL0Scorer<'_> {
         // its job on code written the same afternoon it was applied elsewhere.
         Ok(values)
     }
+}
+
+thread_local! {
+    static ESCAPED_SCORER_ERROR: RefCell<Option<pyo3::PyErr>> = const { RefCell::new(None) };
+}
+
+pub fn clear_escaped_scorer_error() {
+    ESCAPED_SCORER_ERROR.with(|slot| *slot.borrow_mut() = None);
+}
+
+/// The scorer exception `score_batch` refused to relabel as `CF-LAND-012`.
+///
+/// `search_tier3_segment` returns this instead of the sentinel `CfError`.
+/// A caller that ignores it would publish that sentinel, which is the forge
+/// this exists to prevent.
+pub fn take_escaped_scorer_error() -> Option<pyo3::PyErr> {
+    ESCAPED_SCORER_ERROR.with(|slot| slot.borrow_mut().take())
+}
+
+fn stash_escaped_scorer_error(err: pyo3::PyErr) {
+    ESCAPED_SCORER_ERROR.with(|slot| *slot.borrow_mut() = Some(err));
+}
+
+/// A scorer that raised. Keep a registered CodonForge code; do not invent one.
+fn scorer_raised(err: pyo3::PyErr) -> CfError {
+    if let Some(coded) = problem_code_from_python(&err) {
+        return coded;
+    }
+    stash_escaped_scorer_error(err);
+    // Sentinel only. `search_tier3_segment` discards it when the stash is set.
+    CfError::new(
+        code::LAND_BATCH_UNEXPECTED,
+        "the L0 scorer raised an exception that is not a CodonForge problem",
+    )
+}
+
+fn problem_code_from_python(err: &pyo3::PyErr) -> Option<CfError> {
+    pyo3::Python::with_gil(|py| {
+        let value = err.value_bound(py);
+        let code: String = value.getattr("code").ok()?.extract().ok()?;
+        let entry = lookup(&code)?;
+        let detail: String = match value.getattr("detail") {
+            Ok(detail) => detail.extract().unwrap_or_else(|_| err.to_string()),
+            Err(_) => err.to_string(),
+        };
+        Some(CfError::new(entry.code, detail))
+    })
 }
