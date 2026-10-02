@@ -45,8 +45,8 @@ control "R/3: a missing engine is reported as CF-LAND-012" \
 # 4. THE MAPPER FORGES A DOCUMENT. Noise becomes TierPlanError.
 python3 - <<'PYEOF'
 p='python/codonforge/orchestrator/job.py'; s=open(p).read()
-old='    if not isinstance(code, str) or not code.startswith("CF-"):\n        return exc'
-new='    if not isinstance(code, str) or not code.startswith("CF-"):\n        return TierPlanError(code="CF-LAND-012", detail=str(exc), subject="batch", stage=stage, title="forged", status=500)'
+old='    except json.JSONDecodeError:\n        return exc'
+new='    except json.JSONDecodeError:\n        return TierPlanError(code="CF-LAND-012", detail=str(exc), subject="batch", stage=stage, title="forged", status=500)'
 assert old in s, "anchor 4"; open(p,'w').write(s.replace(old,new,1))
 PYEOF
 control "R/4: the mapper forges a problem for a non-document ValueError" \
