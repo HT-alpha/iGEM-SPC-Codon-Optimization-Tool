@@ -1,0 +1,9 @@
+# The rustc GitHub Actions clippy runs. A floating `@stable` and a local
+# 1.83 install disagreed: 1.98.1 failed `-D warnings` on lints 1.83 does not
+# emit. `cargo` in this tree uses this file. CI passes the same version to
+# `dtolnay/rust-toolchain` (the action's `@stable` ref is the action, not the
+# compiler, and an omitted `toolchain` input does not always read this file).
+[toolchain]
+channel = "1.98.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

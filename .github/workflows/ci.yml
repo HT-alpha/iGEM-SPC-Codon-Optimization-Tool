@@ -13,6 +13,15 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
 
+# Rust is 1.98.1 in rust-toolchain.toml and in every `toolchain:` input below.
+# `@stable` on the action's `uses:` line is the action's version, not the
+# compiler. Passing `toolchain: stable` is how a local 1.83 install stayed
+# green while CI's newer clippy failed. Keep the two pins the same.
+#
+# RISK-LAT-005: checkout@v4 and setup-python@v5 still target Node 20. The
+# runner warns and forces Node 24. Not failing today. When GitHub turns the
+# warning into an error, bump those actions; do not silence the warning.
+
 jobs:
   # Repository invariants first: they are seconds-fast, and a layering or
   # schema-sync failure makes every other job's result uninteresting.
@@ -40,6 +49,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          toolchain: "1.98.1"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -72,6 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.98.1"
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.crate }}
@@ -86,6 +98,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.98.1"
       - uses: Swatinem/rust-cache@v2
       - run: cargo build -p cf-pyext --all-targets
 
@@ -99,6 +113,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.98.1"
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
