@@ -1,0 +1,45 @@
+{
+  "id": "bm_ecoli_characterized_13",
+  "claim": "13 proteins, two deterministic arms (native and CAI-greedy). Not GATE-BEN-001: that gate needs at least 50 proteins and a LinearDesign or CDSfold arm scored on structure.mfe_global and usage.cai.",
+  "assembly": "GCF_000005845.2",
+  "accession": "NC_000913.3",
+  "organism": "Escherichia coli str. K-12 substr. MG1655",
+  "taxon_id": 511145,
+  "translation_table": 11,
+  "cds_gzip_sha256": "72b9a16f2c6c48ac021288ad6922b8b7ccf608e31e4ae807eea65b2cdce64e1a",
+  "retrieved_on": "2026-10-03",
+  "retrieved_from": "https://raw.githubusercontent.com/igemsoftware2018/Rice_2018_iGEM_Software_PORTAL/4337d757da6b54cb3a0d937a422f26a1bd713953/E%20coli%20K-12%20MG1655%20CDSs.fasta",
+  "header_format": "NCBI nuccore fasta_cds_na (lcl|NC_000913.3_cds_<protein_id>)",
+  "cross_check": "thrL location 190..255 matches the prefix of an independent file headed '>NC_000913.3 Escherichia coli str. K-12 substr. MG1655, complete genome' (beiko-lab/Expositor GCF_000005845.2_ASM584v2_genomic.fna). That file is truncated at 11680 nt, so later genes were checked only against their own location spans.",
+  "expression_evidence": {
+    "citation": "Li GW, Burkhardt D, Gross C, Weissman JS. Quantifying absolute protein synthesis rates reveals principles underlying allocation of cellular resources. Cell. 2014;157(3):624-635. doi:10.1016/j.cell.2014.02.033",
+    "geo": "GSE53767",
+    "measured": "absolute protein synthesis rate by ribosome profiling, covering more than 96% of proteins synthesized in that experiment",
+    "value": null,
+    "why_null": "The measurement exists for these genes. This file does not transcribe a number from the paper."
+  },
+  "usage_reference": {
+    "subset": "ribosomal_protein_cds",
+    "rule": "Every CDS whose gene name starts with rpl, rps, or rpm. A class, not a numeric expression cutoff.",
+    "not": "This is not the engine's usage.cai. That term refuses a genome-wide table, and this build does not invent the elongation rate a HostProfile would need in order to score the sequences through the landscape."
+  },
+  "excluded": {
+    "tufA": "Annotated start is GTG. This build's translate() reads internal GTG as valine, so the panel keeps ATG-start CDS only.",
+    "gfp": "No nucleotide CDS with an INSDC accession was reachable from this environment. A protein sequence was not reverse-translated."
+  },
+  "genes": [
+    "lacZ",
+    "gapA",
+    "eno",
+    "pykF",
+    "pfkA",
+    "adk",
+    "dnaK",
+    "tufB",
+    "rpsA",
+    "rplA",
+    "rplL",
+    "rpsL",
+    "rpsJ"
+  ]
+}
