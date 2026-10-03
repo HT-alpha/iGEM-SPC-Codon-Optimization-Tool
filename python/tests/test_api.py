@@ -97,6 +97,39 @@ def test_an_unimplemented_route_is_cf_cli_003(base: str) -> None:
     assert kind.startswith("application/problem+json")
     assert payload["code"] == "CF-CLI-003"
     assert payload["status"] == 501
+    assert "catalog" in payload["detail"]
+    status, kind, feasibility = _call("POST", f"{base}/v1/feasibility", _headers(), {})
+    assert status == 501
+    assert kind.startswith("application/problem+json")
+    assert feasibility["code"] == "CF-CLI-003"
+    assert "constraint_report.feasible" in feasibility["detail"]
+
+
+def test_a_protein_body_is_not_a_stub_design(base: str) -> None:
+    status, kind, payload = _call(
+        "POST",
+        f"{base}/v1/jobs",
+        _headers(),
+        {"input": {"kind": "protein", "protein": "MKT"}},
+    )
+    assert status == 501
+    assert kind.startswith("application/problem+json")
+    assert payload["code"] == "CF-CLI-003"
+    assert "protein" in payload["detail"]
+
+
+def test_the_page_is_the_api_shell(base: str) -> None:
+    with urllib.request.urlopen(f"{base}/") as response:
+        page = response.read().decode()
+        assert response.status == 200
+        assert response.headers.get("Content-Type", "").startswith("text/html")
+    assert "Pareto front" in page
+    with urllib.request.urlopen(f"{base}/app.js") as response:
+        script = response.read().decode()
+    assert "constraint_report" in script
+    assert "unknown_terms" in script
+    assert "not_informed_by" in script
+    assert "UNKNOWN" in script
 
 
 def test_idempotency_replays_and_a_different_body_conflicts(base: str) -> None:

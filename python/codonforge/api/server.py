@@ -18,6 +18,7 @@ import subprocess
 import threading
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -33,13 +34,31 @@ from codonforge.orchestrator import (
 )
 
 _SCHEMA = "1.0.0"
+# Reasons are the product. An empty 200 would look implemented.
 _UNBUILT = {
-    "/v1/hosts",
-    "/v1/models",
-    "/v1/observations",
-    "/v1/recalibrations",
-    "/v1/seeds:import",
-    "/v1/feasibility",
+    "/v1/hosts": (
+        "No host catalog is installed. A job carries the caller's host_profile; "
+        "an empty list would look like a catalog."
+    ),
+    "/v1/models": (
+        "Public model channels are not this build (P3-15). This route does not "
+        "list the local store as if it were a catalog."
+    ),
+    "/v1/observations": "Wet-lab observation ingestion is not implemented.",
+    "/v1/recalibrations": "Recalibration jobs are not implemented.",
+    "/v1/seeds:import": "Importing an external tool's output is not wired on this route.",
+    "/v1/feasibility": (
+        "The five-check analyser is not this build. Feasibility of a finished "
+        "candidate is constraint_report.feasible on the front, a boolean, with "
+        "unknown_terms beside it."
+    ),
+}
+_STATIC = Path(__file__).resolve().parent / "static"
+_STATIC_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/codonforge-ui.css": ("codonforge-ui.css", "text/css; charset=utf-8"),
 }
 
 
@@ -112,6 +131,14 @@ class Api:
     def submit(
         self, tenant: str, body: dict[str, Any], idempotency_key: str | None
     ) -> tuple[int, dict[str, Any]]:
+        refused = _unbuilt_job_body(body)
+        if refused:
+            return 501, problem(
+                "CF-CLI-003",
+                "A requested surface needs a capability this build does not have",
+                501,
+                refused,
+            )
         try:
             request = DesignRequest.from_json(json.dumps(body))
         except (TypeError, json.JSONDecodeError) as exc:
@@ -297,6 +324,43 @@ class Api:
         return record
 
 
+def _unbuilt_reason(path: str) -> str | None:
+    if path in _UNBUILT:
+        return f"{path}: {_UNBUILT[path]}"
+    for prefix, key in (
+        ("/v1/hosts/", "/v1/hosts"),
+        ("/v1/models/", "/v1/models"),
+        ("/v1/observations/", "/v1/observations"),
+    ):
+        if path.startswith(prefix):
+            return f"{path}: {_UNBUILT[key]}"
+    return None
+
+
+def _unbuilt_job_body(body: dict[str, Any]) -> str | None:
+    """OpenAPI shapes this build does not translate into a DesignRequest.
+
+    Returning 400 would call a documented shape a typo. Returning a stub
+    document would look like the shape had been designed.
+    """
+    incoming = body.get("input")
+    if isinstance(incoming, dict):
+        kind = incoming.get("kind")
+        if kind in {"protein", "construct", "single_cds"}:
+            return (
+                f"input.kind {kind!r} is not accepted. This build designs a "
+                "library DesignRequest (host, cds, host_profile). A protein is "
+                "not reverse-translated, and a construct is not expanded."
+            )
+    preset = body.get("objectives_preset")
+    if preset not in (None, "none"):
+        return (
+            f"objectives_preset {preset!r} is not expanded in this build. "
+            "Send objectives as a list of term ids."
+        )
+    return None
+
+
 def _queued(job_id: str) -> dict[str, Any]:
     from datetime import UTC, datetime
 
@@ -338,19 +402,24 @@ class Handler(BaseHTTPRequestHandler):
     def _dispatch(self, method: str) -> None:
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
-        if (
-            path in _UNBUILT
-            or path.startswith("/v1/hosts/")
-            or path.startswith("/v1/models/")
-            or path.startswith("/v1/observations/")
-        ):
+        if method == "GET" and path in _STATIC_FILES:
+            name, content_type = _STATIC_FILES[path]
+            payload = (_STATIC / name).read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+        reason = _unbuilt_reason(path)
+        if reason:
             self._send(
                 501,
                 problem(
                     "CF-CLI-003",
                     "A requested surface needs a capability this build does not have",
                     501,
-                    f"{path} is not implemented in this build",
+                    reason,
                 ),
                 problem_body=True,
             )

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CodonForge</title>
+<link rel="stylesheet" href="/codonforge-ui.css">
+</head>
+<body>
+<nav class="nav">
+  <a href="#submit">Submit</a>
+  <a href="#status">Status</a>
+  <a href="#front">Pareto front</a>
+  <span class="note">Renders the job and front documents the API returns. No scores are stored in this page. Faces: IBM Plex Sans / Mono and Source Serif 4 when installed; Noto / system otherwise. Tokens from the Part D brief (IGV hatch, Jalview gap, NCBI header blue).</span>
+</nav>
+
+<header class="mast">
+  <div class="k">Document</div>
+  <div class="v">
+    <h1>CodonForge</h1>
+    <p class="sub">A design is a lab result. Missing scores stay missing. Feasibility is the boolean on the candidate, not a third state.</p>
+  </div>
+</header>
+
+<div class="page">
+  <h2 id="submit">Submit</h2>
+  <div class="rail">
+    <div class="k">Bearer token</div>
+    <div class="v"><input id="token" class="seq" value="" placeholder="t_ and 8–32 letters or digits" autocomplete="off"></div>
+  </div>
+  <div class="rail">
+    <div class="k">DesignRequest JSON</div>
+    <div class="v">
+      <textarea id="request" class="seq" rows="8" spellcheck="false" placeholder='{"host":"…","cds":"ATG…","host_profile":{…},"objectives":["usage.cai"]}'></textarea>
+      <p class="note">The body is the library DesignRequest. A protein sequence, a construct, or an objectives preset is refused with CF-CLI-003. This page does not fill in a host profile.</p>
+      <button id="submit" type="button">POST /v1/jobs</button>
+      <p id="submit-error" class="note"></p>
+    </div>
+  </div>
+
+  <h2 id="status">Status</h2>
+  <div id="status-root"></div>
+
+  <h2 id="front">Pareto front</h2>
+  <div id="front-root"></div>
+
+  <h2>Not in this build</h2>
+  <div id="unbuilt-root" class="note">Hosts, models, observations, presets, protein input, and the five-check feasibility route answer CF-CLI-003. The front's constraint_report is what this page shows.</div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
