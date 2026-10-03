@@ -38,7 +38,10 @@ def test_the_panel_is_thirteen_real_cds_and_does_not_claim_the_gate(tmp_path: Pa
 
 def test_a_sequence_without_the_accession_is_refused(tmp_path: Path) -> None:
     fasta = tmp_path / "fake.fa.gz"
-    record = ">lcl|invented_cds_none [gene=lacZ] [protein=made up] [location=1..12]\nATGACCATGATT\n"
+    record = (
+        ">lcl|invented_cds_none [gene=lacZ] [protein=made up] "
+        "[protein_id=NP_000000.1] [location=1..12]\nATGACCATGATT\n"
+    )
     with gzip.open(fasta, "wt", encoding="utf-8") as handle:
         handle.write(record)
     with pytest.raises(BenchError, match="accession"):
