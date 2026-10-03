@@ -17,7 +17,15 @@ cf-constraints, cf-decision, cf-modelreg.
 """
 
 from .budget import ComputeBudget, TierPlan, TierPlanError, Warning_
-from .design import BUILTIN_TERMS, DesignError, DesignRequest, DesignResult, design
+from .design import (
+    BUILTIN_TERMS,
+    DesignError,
+    DesignRequest,
+    DesignResult,
+    assigned_job_id,
+    design,
+    score_sequences,
+)
 from .job import Cancelled, Job, JobInputs
 
 __all__ = [
@@ -26,7 +34,9 @@ __all__ = [
     "DesignError",
     "DesignRequest",
     "DesignResult",
+    "assigned_job_id",
     "design",
+    "score_sequences",
     "ComputeBudget",
     "Job",
     "JobInputs",

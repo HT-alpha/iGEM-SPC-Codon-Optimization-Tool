@@ -342,13 +342,15 @@ modules:
     runtime: python-orchestration
     path: python/codonforge/api
     responsibility: >-
-      FastAPI application implementing the REST surface, auth/tenancy
-      middleware, idempotency keys, and the OpenAPI document.
-    depends_on: [cf-types, cf-orchestrator, cf-active, cf-modelreg]
+      REST surface, auth/tenancy, idempotency keys, and the OpenAPI document.
+      This build is the standard-library server in `DEP-API-001`, and front
+      presentation calls `cf-decision` rather than reducing inside the handler.
+    depends_on: [cf-types, cf-orchestrator, cf-decision, cf-active, cf-modelreg]
     public_contract: planning/04-api/openapi.yaml
     tests:
       - TST-API-001
       - TST-API-002
+      - TST-API-004
 
   - name: cf-cli
     rank: 6

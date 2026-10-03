@@ -119,4 +119,6 @@ benchmarks/results/<run_id>/
 └── report.html          # rendered comparison, generated from the above
 ```
 
-Nothing in `report.html` is computed during rendering. Every number comes from `metrics.parquet`, which comes from replayable jobs. A reviewer can recompute the entire report from the raw artifacts, which is the property that makes the benchmark claims checkable rather than merely stated.
+Nothing in `report.html` is computed during rendering. Every number comes from the tidy metric table, which comes from replayable jobs. A reviewer can recompute the entire report from the raw artifacts, which is the property that makes the benchmark claims checkable rather than merely stated.
+
+`DEP-BEN-001`. This build writes that table as `metrics.json`, not `metrics.parquet`. The reference point is the nadir end of each published range and is not derived from the front under comparison. A comparison across budget tier, lockfile digest or reference point is refused (`TST-BEN-002`). External baselines run a user-installed executable whose argv the user supplied; the binary is not vendored (`AMD-013`).

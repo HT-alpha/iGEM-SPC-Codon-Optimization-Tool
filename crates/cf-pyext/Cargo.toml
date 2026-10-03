@@ -36,6 +36,7 @@ doctest = false
 pyo3 = { version = "0.22", features = ["abi3-py311", "extension-module"] }
 serde_json = { workspace = true }
 cf-types = { path = "../cf-types" }
+cf-metrics = { path = "../cf-metrics" }
 cf-constraints = { path = "../cf-constraints" }
 cf-landscape-api = { path = "../cf-landscape-api" }
 cf-search = { path = "../cf-search" }

@@ -467,6 +467,24 @@ fn tier3_root_seed(root_seed: u64) -> u64 {
     pipeline::tier3_seed(root_seed)
 }
 
+/// Exact hypervolume of a minimized front. `P2-01`, exposed for `P2-15`/`P2-19`.
+///
+/// The reference point is the caller's. This function does not invent one:
+/// the search loop's own nadir-plus-one is a within-run stagnation signal and
+/// is not comparable across runs.
+#[pyfunction]
+fn indicator_hypervolume(points: Vec<Vec<f64>>, reference: Vec<f64>) -> PyResult<f64> {
+    cf_metrics::hypervolume(&points, &reference)
+        .map_err(|err| PyValueError::new_err(err.to_string()))
+}
+
+/// Das–Dennis directions, in the crate's fixed order. `P2-01`.
+#[pyfunction]
+fn indicator_das_dennis(objectives: usize, divisions: usize) -> PyResult<Vec<Vec<f64>>> {
+    cf_metrics::das_dennis(objectives, divisions)
+        .map_err(|err| PyValueError::new_err(err.to_string()))
+}
+
 /// The scalarized objective the tiers maximize, for one sequence. `P1-30`.
 #[pyfunction]
 fn scalarized_score(request_json: &str, cds: &str) -> PyResult<f64> {
@@ -652,6 +670,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(term_roles, m)?)?;
     m.add_function(wrap_pyfunction!(term_capabilities, m)?)?;
     m.add_function(wrap_pyfunction!(term_scores, m)?)?;
+    m.add_function(wrap_pyfunction!(indicator_hypervolume, m)?)?;
+    m.add_function(wrap_pyfunction!(indicator_das_dennis, m)?)?;
     m.add_function(wrap_pyfunction!(scalarized_score, m)?)?;
     m.add_function(wrap_pyfunction!(scalarized_score_report, m)?)?;
     m.add_function(wrap_pyfunction!(tier3_root_seed, m)?)?;

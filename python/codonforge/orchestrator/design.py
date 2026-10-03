@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -145,6 +145,27 @@ class DesignResult:
         return json.dumps(
             {"status": self.status, "front": self.front}, indent=indent, sort_keys=True
         )
+
+
+def score_sequences(request: DesignRequest, sequences: list[str]) -> list[dict[str, Any]]:
+    """Score existing CDS strings on this request's landscape.
+
+    The same `_directions_request` a job builds, with only the CDS swapped.
+    `/v1/score` and the benchmark harness both call this, so a competitor
+    sequence and a user's sequence are not scored by two implementations.
+    """
+    scored: list[dict[str, Any]] = []
+    for cds in sequences:
+        document = json.loads(
+            _core.term_scores(_directions_request(replace(request, cds=cds)), cds)
+        )
+        scored.append(document)
+    return scored
+
+
+def assigned_job_id(request: DesignRequest) -> str:
+    """The id `design` will use: the caller's, or the one derived from the request."""
+    return request.job_id or _derived_id("job", request.identity())
 
 
 def design(

@@ -105,7 +105,11 @@ Design jobs are the expensive resource, so limits are expressed in job-seconds r
 
 ---
 
-## 6. Tests
+## 6. This build
+
+`DEP-API-001`. The server is the Python standard library. `POST /v1/jobs` takes the library `DesignRequest`. Routes with no backing module return `CF-CLI-003`. A job id the caller cannot see is `CF-AUTH-003` for both a missing id and another tenant's id.
+
+## 7. Tests
 
 | Test | Assertion |
 | --- | --- |

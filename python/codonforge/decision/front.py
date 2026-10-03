@@ -6,13 +6,10 @@ in whichever surface happens to want one.
 
 Contract: `schemas/v1/pareto_front.schema.json`.
 
-`DEP-CLI-003` — what a Phase 1 front is. The population loop that produces a
-genuinely multi-objective front is `P2-02`/`P2-03`. What Phase 1 emits is the
-assembled tier-1/tier-2/generation-loop output in the front's document shape,
-with `reduction.method: "none"`. The shape, the objective order and the
-objective senses are real and end-to-end; the content is single-objective, and
-a single-objective job yields a front of one. Saying so here is cheaper than
-having someone infer a capability from a filename.
+`DEP-CLI-003` records what a Phase 1 front was. A job still stores the full
+non-dominated set with `reduction.method: "none"`. `P2-15` reduces a copy for
+presentation (`reduce.present`); the stored document stays the one replay
+compares.
 """
 
 from __future__ import annotations
