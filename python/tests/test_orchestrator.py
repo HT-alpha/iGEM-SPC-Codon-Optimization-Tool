@@ -702,8 +702,14 @@ def test_p1_29_a_non_problem_scorer_error_still_crashes(
 ) -> None:
     """A programming error on the tier-3 scorer path is not a problem document.
 
-    The same standard `DEP-ORCH-003` kept for tier 2. Forging `CF-LAND-012`
-    around this would hide the bug inside `job_status.problem`.
+    This is the regression for the stash/sentinel invariant (`DEP-ORCH-004` /
+    `TST-ORCH-013`). The exception is stashed and a sentinel `CfError` shaped
+    as `CF-LAND-012` is what crosses `L0Scorer`. `search_tier3_segment` must
+    call `take_escaped_scorer_error` and return this `ValueError`. Skipping
+    that call makes `Job.run` lift the sentinel, so this assertion fails
+    because the job records `CF-LAND-012` instead of raising. A control that
+    forges a document on a nearby branch (after a successful JSON parse, or
+    on the short-batch `extract` arm) does not hit this path.
     """
 
     def broken(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
@@ -715,6 +721,39 @@ def test_p1_29_a_non_problem_scorer_error_still_crashes(
     with pytest.raises(ValueError, match="not a problem document"):
         job.run()
     assert job.problem is None
+
+
+def test_p1_29_an_ill_typed_l0_return_is_land_012_even_with_a_code_attribute(
+    store: ArtifactStore, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A return-value shape mismatch is `CF-LAND-012` whatever `code` it carries.
+
+    `DEP-ORCH-004` / `TST-ORCH-013`. `call1` succeeded; `extract` could not
+    read the value as a score list. That arm does not classify by a `code`
+    attribute. The attribute here is the structure-engine code, on the
+    returned object, which is the plausible "simplification" (treat `extract`
+    like a raised scorer). The short-batch fixture never reaches `extract`'s
+    failure: its list is well typed and `BatchProtocol::absorb` writes the
+    `012` detail that contains "aligning". This fixture must not.
+    """
+
+    class CodedReturn:
+        code = "CF-STRU-003"
+        detail = "no structure engine is installed, and CodonForge ships none"
+
+    def coded_shape(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
+        del sequences, temperature_c
+        return CodedReturn()  # type: ignore[return-value]
+
+    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", coded_shape)
+    job = make_job(store, tmp_path, total=2, segment=2).run()
+    assert job.state == "failed"
+    problem = job.problem
+    assert problem is not None
+    assert problem["code"] == "CF-LAND-012"
+    assert problem["stage"] == "tier3"
+    assert problem["subject"] == "batch"
+    assert "aligning" not in problem["detail"]
 
 
 def test_p1_29_the_status_document_validates(store: ArtifactStore, tmp_path: Path) -> None:

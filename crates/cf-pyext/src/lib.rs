@@ -443,8 +443,15 @@ fn search_tier3_segment(
                 .map(|s| s as &dyn cf_search::tier3::L0Scorer),
         )
     });
-    // `DEP-ORCH-004`. A non-problem exception from the scorer was stashed so
-    // it would not be published as `CF-LAND-012`. Return that exception.
+    // `DEP-ORCH-004`. `with_tier_inputs` already ran the scorer's `CfError`
+    // through `to_py_err`, which publishes every `CfError` as a problem
+    // document and does not consult the stash. When the stash is set, that
+    // document is the sentinel (`CF-LAND-012` with no problem behind it).
+    //
+    // Any caller on this path MUST call `take_escaped_scorer_error` before
+    // treating that error as real. Skipping it returns the sentinel, and
+    // `Job.run` records a forged `CF-LAND-012`. This is the only production
+    // caller, and the only recovery: do not add another inside `to_py_err`.
     if let Some(escaped) = pipeline::take_escaped_scorer_error() {
         return Err(escaped);
     }

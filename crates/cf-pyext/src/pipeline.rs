@@ -789,6 +789,15 @@ impl L0Scorer for PyL0Scorer<'_> {
         // attribute keeps its own code. Anything else is stashed and
         // re-raised by `search_tier3_segment` unchanged. `DEP-ORCH-004`.
         let returned = self.callable.call1((sequences,)).map_err(scorer_raised)?;
+        // A raised exception is classified by its `code` attribute, and that
+        // decision happens only in `scorer_raised` above. This arm is the
+        // other failure: `call1` returned, and the value is not
+        // `Vec<Option<f64>>`. That is a shape mismatch, so it is
+        // `CF-LAND-012` unconditionally. PyO3 builds the `extract` error
+        // itself; a `code` attribute on the returned value, or one that
+        // happens to sit on that conversion error, is not consulted. Routing
+        // this arm through `scorer_raised` would reclassify a bad return as
+        // whatever that attribute said, or stash it and crash.
         let values: Vec<Option<f64>> = returned
             .extract()
             .map_err(|e| CfError::new(code::LAND_BATCH_UNEXPECTED, e.to_string()))?;
@@ -803,6 +812,28 @@ impl L0Scorer for PyL0Scorer<'_> {
 }
 
 thread_local! {
+    /// The real scorer exception, beside the sentinel `CfError`.
+    ///
+    /// `L0Scorer::score_batch` (in `cf-search`) returns `CfError`. This crate
+    /// is the only one allowed to name `PyErr`, so the exception cannot travel
+    /// inside that `CfError`. `scorer_raised` stashes it here and returns a
+    /// sentinel whose code is `CF-LAND-012`.
+    ///
+    /// Any caller on this path MUST call [`take_escaped_scorer_error`] before
+    /// treating that `CfError` as real. `to_py_err` publishes every `CfError`
+    /// as a problem document and does not look at this stash, so skipping the
+    /// take silently republishes the sentinel as `CF-LAND-012`.
+    /// `search_tier3_segment` is the only caller, and it takes.
+    /// `test_p1_29_a_non_problem_scorer_error_still_crashes` is that call's
+    /// regression: drop the take and the test records the sentinel instead of
+    /// raising.
+    ///
+    /// A type that cannot be published (the `Observation::from_exact` shape)
+    /// does not fit. The trait erases the value back to `CfError`, and
+    /// `CfError::to_problem_details` is how every registered code crosses this
+    /// boundary. A second recovery inside `to_py_err` would run first, empty
+    /// the stash, and make the take dead — a control that deleted only the
+    /// take would then stay silent. One recovery, at the take.
     static ESCAPED_SCORER_ERROR: RefCell<Option<pyo3::PyErr>> = const { RefCell::new(None) };
 }
 
@@ -812,9 +843,10 @@ pub fn clear_escaped_scorer_error() {
 
 /// The scorer exception `score_batch` refused to relabel as `CF-LAND-012`.
 ///
-/// `search_tier3_segment` returns this instead of the sentinel `CfError`.
-/// A caller that ignores it would publish that sentinel, which is the forge
-/// this exists to prevent.
+/// Callers on this path MUST call this before treating the returned `CfError`
+/// as real. The sentinel is a `CF-LAND-012`-shaped `CfError` with no problem
+/// behind it; `to_py_err` will publish that shape. Skipping this take is how
+/// the sentinel becomes a forged `CF-LAND-012`.
 pub fn take_escaped_scorer_error() -> Option<pyo3::PyErr> {
     ESCAPED_SCORER_ERROR.with(|slot| slot.borrow_mut().take())
 }
@@ -829,7 +861,10 @@ fn scorer_raised(err: pyo3::PyErr) -> CfError {
         return coded;
     }
     stash_escaped_scorer_error(err);
-    // Sentinel only. `search_tier3_segment` discards it when the stash is set.
+    // Sentinel only. Code `CF-LAND-012`, and not a problem document. The
+    // caller MUST `take_escaped_scorer_error` before publishing this value.
+    // Treating it as a real `CfError` republishes the sentinel as
+    // `CF-LAND-012`.
     CfError::new(
         code::LAND_BATCH_UNEXPECTED,
         "the L0 scorer raised an exception that is not a CodonForge problem",
