@@ -402,6 +402,10 @@ class Handler(BaseHTTPRequestHandler):
     def _dispatch(self, method: str) -> None:
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
+        if method == "GET" and path == "/favicon.ico":
+            self.send_response(204)
+            self.end_headers()
+            return
         if method == "GET" and path in _STATIC_FILES:
             name, content_type = _STATIC_FILES[path]
             payload = (_STATIC / name).read_bytes()

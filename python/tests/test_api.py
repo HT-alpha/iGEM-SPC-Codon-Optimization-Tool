@@ -130,6 +130,8 @@ def test_the_page_is_the_api_shell(base: str) -> None:
     assert "unknown_terms" in script
     assert "not_informed_by" in script
     assert "UNKNOWN" in script
+    with urllib.request.urlopen(f"{base}/favicon.ico") as response:
+        assert response.status == 204
 
 
 def test_idempotency_replays_and_a_different_body_conflicts(base: str) -> None:

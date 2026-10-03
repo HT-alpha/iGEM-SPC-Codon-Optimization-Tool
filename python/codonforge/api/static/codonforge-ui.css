@@ -223,6 +223,25 @@ td.unk {
   white-space: nowrap;
 }
 
+/* The request editor is a document, not a sequence track. The mockup's
+   nowrap track style would hide the JSON on one clipped line. */
+textarea.seq, input.seq {
+  width: min(52rem, 100%);
+  white-space: pre-wrap;
+}
+textarea.seq { min-height: 9rem; display: block; }
+
+button {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
 .callout {
   border-left: 4px solid var(--recommended);
   background: var(--recommended-wash);

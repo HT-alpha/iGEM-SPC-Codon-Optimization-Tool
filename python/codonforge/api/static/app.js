@@ -229,6 +229,32 @@ async function poll(jobId) {
   else submitError.textContent = `${front.status} ${front.payload && front.payload.code}`;
 }
 
+async function showJob(jobId) {
+  const status = await call("GET", `/v1/jobs/${jobId}`);
+  if (!status.payload) return;
+  if (status.payload.code) {
+    submitError.textContent = `${status.status} ${status.payload.code}: ${status.payload.detail || ""}`;
+    return;
+  }
+  renderStatus(status.payload);
+  if (status.payload.state !== "succeeded") return;
+  const front = await call(
+    "GET",
+    `/v1/jobs/${jobId}/front?reduction=default&max_candidates=20`,
+  );
+  if (front.status === 200) renderFront(front.payload);
+  else submitError.textContent = `${front.status} ${front.payload && front.payload.code}`;
+}
+
+function jobFromHash() {
+  const hash = location.hash.replace(/^#/, "");
+  if (!hash.startsWith("job_") || !tokenInput.value.trim()) return;
+  showJob(hash);
+}
+
+window.addEventListener("hashchange", jobFromHash);
+jobFromHash();
+
 submitButton.addEventListener("click", async () => {
   submitError.textContent = "";
   let body;
@@ -238,12 +264,17 @@ submitButton.addEventListener("click", async () => {
     submitError.textContent = "The request is not JSON.";
     return;
   }
-  const posted = await call("POST", "/v1/jobs", body);
-  if (!posted.payload) return;
-  if (posted.payload.code) {
-    submitError.textContent = `${posted.status} ${posted.payload.code}: ${posted.payload.detail || ""}`;
-    return;
+  try {
+    const posted = await call("POST", "/v1/jobs", body);
+    if (!posted.payload) return;
+    if (posted.payload.code) {
+      submitError.textContent = `${posted.status} ${posted.payload.code}: ${posted.payload.detail || ""}`;
+      return;
+    }
+    history.replaceState(null, "", `#${posted.payload.job_id}`);
+    renderStatus(posted.payload);
+    poll(posted.payload.job_id);
+  } catch (error) {
+    submitError.textContent = String(error);
   }
-  renderStatus(posted.payload);
-  poll(posted.payload.job_id);
 });
