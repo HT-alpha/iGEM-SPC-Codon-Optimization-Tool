@@ -6,6 +6,10 @@ name: wheels
 
 on:
   push:
+    # Stable tags only. A pre-release such as v0.1.0-igem documents an iGEM
+    # snapshot and must not start legal-clearance: that job blocks every
+    # build it is a `needs` of, and the sign-off file is still absent.
+    # The hyphen is the pre-release mark. v1.2.3 still enters the gate.
     tags: ["v*"]
   workflow_dispatch:
   schedule:
@@ -24,6 +28,10 @@ jobs:
   # succeeds.
   legal-clearance:
     name: legal clearance (AMD-013)
+    # Pre-release tags contain a hyphen (v0.1.0-igem). They push, and they
+    # skip this job, so the wheel build that `needs` it is skipped too.
+    # schedule and workflow_dispatch are not tag pushes and still run the gate.
+    if: github.event_name != 'push' || !contains(github.ref_name, '-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

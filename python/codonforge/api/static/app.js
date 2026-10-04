@@ -299,14 +299,21 @@ async function loadCalibration() {
   const response = await fetch("/v1/calibration");
   const payload = await response.json();
   if (payload.state === "fitted") {
+    const held = Number(payload.held_out_nats_per_codon).toFixed(4).replace("-", "");
+    const baseline = Number(payload.baseline_nats_per_codon).toFixed(4).replace("-", "");
+    const stop = payload.converged
+      ? "converged in " + payload.iteration_count + " iterations"
+      : payload.iteration_count + "-iteration early stop";
     note.textContent =
-      "epistasis.context_naturalness fitted. W=" +
+      "epistasis.context_naturalness W=" +
       payload.window +
-      ". Held-out " +
-      payload.held_out_nats_per_codon +
-      " nats/codon. Codon-usage baseline " +
-      payload.baseline_nats_per_codon +
-      " nats/codon.";
+      ", −" +
+      held +
+      " nats/codon vs −" +
+      baseline +
+      " baseline, " +
+      stop +
+      ".";
     return;
   }
   note.textContent = "epistasis.context_naturalness absent";
