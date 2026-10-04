@@ -240,6 +240,7 @@ fn tst_srch_017_the_reported_front_is_independent_of_member_order() {
         genotype: base(),
         objectives,
         violation,
+        inherited: None,
     })
     .collect();
     let _ = evaluator;
@@ -544,6 +545,7 @@ fn p2_02_infeasible_individuals_are_kept_not_discarded() {
             genotype: base(),
             objectives,
             violation,
+            inherited: None,
         })
         .collect();
     assert_eq!(nondominated(&population).len(), 1);

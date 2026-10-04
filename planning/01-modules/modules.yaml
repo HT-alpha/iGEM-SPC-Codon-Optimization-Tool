@@ -374,7 +374,7 @@ modules:
       Benchmark harness: reference datasets, baseline adapters, indicator
       computation, threshold gates, and the regression-performance suite.
       Test-only target; never a runtime dependency of the shipped library.
-    depends_on: [cf-types, cf-metrics, cf-orchestrator, cf-testkit, cf-ingest]
+    depends_on: [cf-types, cf-metrics, cf-orchestrator, cf-testkit, cf-ingest, cf-modelreg]
     public_contract: planning/05-testing/04-benchmark-harness.md
     tests:
       - TST-BEN-001

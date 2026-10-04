@@ -1,0 +1,60 @@
+{
+  "proteins": [
+    "rpsJ",
+    "rplL",
+    "rpsL"
+  ],
+  "seeds_per_arm": 20,
+  "budget": {
+    "tier": "standard",
+    "generations": 4,
+    "segment": 4
+  },
+  "reference_point": [
+    0.0
+  ],
+  "senses": [
+    "maximize"
+  ],
+  "elapsed_seconds": 3.4003566269993826,
+  "outcome": "keep_lamarckian",
+  "per_protein": [
+    {
+      "gene": "rpsJ",
+      "codons": 104,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": 1.0,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.0011217948717948717,
+      "mean_repairs_lamarckian": 3.35,
+      "mean_repairs_baldwinian": 3.35
+    },
+    {
+      "gene": "rplL",
+      "codons": 122,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": null,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.0,
+      "mean_repairs_lamarckian": 0.0,
+      "mean_repairs_baldwinian": 0.0
+    },
+    {
+      "gene": "rpsL",
+      "codons": 125,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": 1.0444444444444445,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.0004000000000000001,
+      "mean_repairs_lamarckian": 2.25,
+      "mean_repairs_baldwinian": 2.35
+    }
+  ],
+  "default_changed": false
+}

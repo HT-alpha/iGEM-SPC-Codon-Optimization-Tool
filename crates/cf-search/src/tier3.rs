@@ -54,6 +54,13 @@ pub struct Individual {
     pub objectives: Vec<Option<f64>>,
     /// Total *actionable* violation. `DEP-SRCH-008`.
     pub violation: f64,
+    /// Genome transmitted to offspring when it is not the scored sequence.
+    ///
+    /// `None` is Lamarckian: repair replaces the genotype, and that genotype
+    /// is what was scored. `Some` is Baldwinian: `genotype` is the repaired
+    /// sequence that was scored, and this is the unrepaired genome the next
+    /// generation breeds from.
+    pub inherited: Option<Genotype>,
 }
 
 impl Individual {
@@ -364,7 +371,12 @@ pub fn evaluate_one(genotype: Genotype, request: &Tier3Request<'_>) -> Result<In
         genotype,
         objectives,
         violation,
+        inherited: None,
     })
+}
+
+fn breeding_genotype(individual: &Individual) -> &Genotype {
+    individual.inherited.as_ref().unwrap_or(&individual.genotype)
 }
 
 /// Start a run from a seed population.
@@ -461,19 +473,27 @@ pub fn run_generations(
             let b = tournament(&members, &mut pair_rng);
 
             let bred = breed(
-                &members[a].genotype,
-                &members[b].genotype,
+                breeding_genotype(&members[a]),
+                breeding_genotype(&members[b]),
                 request,
                 &ledger,
                 &mut pair_rng,
             )?;
             for child in bred {
+                let original = child.clone();
                 let (repaired, attempted, succeeded) =
                     repair_child(child, request, &mut ledger, &mut pair_rng)?;
                 repairs_attempted += attempted;
                 repairs_succeeded += succeeded;
                 if offspring.len() < request.config.population {
-                    offspring.push(evaluate_one(repaired, request)?);
+                    let mut individual = evaluate_one(repaired, request)?;
+                    // The flag is on the constraint set the job already parsed.
+                    // Reading it here is the first time it changes a genotype.
+                    // Leaving it unread made both arms of EXP-05 the same run.
+                    if !request.checker.set().repair_policy.lamarckian && succeeded > 0 {
+                        individual.inherited = Some(original);
+                    }
+                    offspring.push(individual);
                     evaluations += 1;
                 }
             }

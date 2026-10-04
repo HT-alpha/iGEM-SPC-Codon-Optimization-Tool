@@ -622,11 +622,15 @@ fn term_senses(registry: &TermRegistry, terms: &[String]) -> Result<Vec<f64>> {
 fn checkpoint_to_json(checkpoint: &Tier3Checkpoint) -> Result<Value> {
     let mut members = Vec::with_capacity(checkpoint.members.len());
     for member in &checkpoint.members {
-        members.push(json!({
+        let mut encoded = json!({
             "sequence": member.genotype.sequence().to_json()?,
             "objectives": member.objectives,
             "violation": member.violation,
-        }));
+        });
+        if let Some(inherited) = &member.inherited {
+            encoded["inherited"] = inherited.sequence().to_json()?;
+        }
+        members.push(encoded);
     }
     Ok(json!({
         "generation": checkpoint.generation,
@@ -662,8 +666,15 @@ fn checkpoint_from_json(document: &Value, request: &Tier3Request<'_>) -> Result<
         let entry = entry.as_object().ok_or_else(|| bad("member"))?;
         let sequence =
             CodonSequence::from_json(entry.get("sequence").ok_or_else(|| bad("sequence"))?)?;
+        let inherited = match entry.get("inherited") {
+            Some(value) if !value.is_null() => {
+                Some(Genotype::new(CodonSequence::from_json(value)?))
+            }
+            _ => None,
+        };
         members.push(Individual {
             genotype: Genotype::new(sequence),
+            inherited,
             // Restored, never recomputed: an `UNKNOWN` is a fact about a
             // budget already spent, and re-running evaluation could turn it
             // into a value and change the ranking.
