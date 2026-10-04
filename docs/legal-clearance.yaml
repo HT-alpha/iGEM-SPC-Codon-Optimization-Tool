@@ -1,0 +1,16 @@
+reviewer_name:   NG Chi Hong
+role:            Biology Teacher
+institution:     St. Paul's College
+date:            2026-10-04
+amendment:       AMD-013
+scope_confirmed: true
+scope_summary: >
+  Reviewer confirmed that ViennaRNA and LinearFold are used as
+  user-installed dependencies only and are not bundled; that
+  LinearDesign's patented CFG x DFA intersection method is not
+  implemented and is enforced by a software test; and that this
+  analysis is accepted for a non-commercial iGEM educational project,
+  with the understanding that wider commercial distribution would
+  require a separate legal review.
+conditions:      none
+evidence:        email reply from reviewer dated 2026-10-04
