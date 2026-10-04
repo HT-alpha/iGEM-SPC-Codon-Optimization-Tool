@@ -16,7 +16,7 @@
   "senses": [
     "maximize"
   ],
-  "elapsed_seconds": 3.4003566269993826,
+  "elapsed_seconds": 3.423063148999063,
   "outcome": "keep_lamarckian",
   "per_protein": [
     {
@@ -25,11 +25,11 @@
       "switch_to_baldwinian": false,
       "hv_margin": 0.0,
       "hv_standard_deviation": 0.0,
-      "repair_ratio": 1.0,
+      "repair_ratio": 1.4179104477611941,
       "mean_diversity_lamarckian": 0.0,
       "mean_diversity_baldwinian": 0.0011217948717948717,
       "mean_repairs_lamarckian": 3.35,
-      "mean_repairs_baldwinian": 3.35
+      "mean_repairs_baldwinian": 4.75
     },
     {
       "gene": "rplL",
@@ -49,11 +49,11 @@
       "switch_to_baldwinian": false,
       "hv_margin": 0.0,
       "hv_standard_deviation": 0.0,
-      "repair_ratio": 1.0444444444444445,
+      "repair_ratio": 1.2444444444444445,
       "mean_diversity_lamarckian": 0.0,
       "mean_diversity_baldwinian": 0.0004000000000000001,
       "mean_repairs_lamarckian": 2.25,
-      "mean_repairs_baldwinian": 2.35
+      "mean_repairs_baldwinian": 2.8
     }
   ],
   "default_changed": false

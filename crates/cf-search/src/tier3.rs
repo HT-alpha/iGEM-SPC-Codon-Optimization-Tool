@@ -461,6 +461,39 @@ pub fn run_generations(
         // fiftieth of an uninterrupted run.
         let mut rng = SearchRng::stream(request.root_seed, u64::from(generation));
 
+        // Baldwinian genomes stay unrepaired, so the same individual is
+        // repaired again at the start of the next generation. Lamarckian
+        // genomes were replaced, so this loop does not see them. The repair
+        // count is the evidence the two arms took different paths.
+        if !repairs_are_lamarckian(request) {
+            let due: Vec<usize> = members
+                .iter()
+                .enumerate()
+                .filter(|(_, member)| {
+                    member
+                        .inherited
+                        .as_ref()
+                        .is_some_and(|genome| actionable_violation(genome, request.checker) > 0.0)
+                })
+                .map(|(index, _)| index)
+                .collect();
+            for index in due {
+                let genome = members[index].inherited.clone().expect("filtered above");
+                let mut repair_rng = SearchRng::stream(
+                    request.root_seed,
+                    10_000_000 + u64::from(generation) * 1_000 + index as u64,
+                );
+                let choice = repair_child(genome, request, &mut ledger, &mut repair_rng)?;
+                repairs_attempted += choice.attempted;
+                repairs_succeeded += choice.succeeded;
+                if choice.succeeded > 0 {
+                    let mut scored = evaluate_one(choice.phenotype, request)?;
+                    scored.inherited = members[index].inherited.clone();
+                    members[index] = scored;
+                }
+            }
+        }
+
         let mut offspring: Vec<Individual> = Vec::new();
         let mut pair = 0u64;
         while offspring.len() < request.config.population {
@@ -483,18 +516,13 @@ pub fn run_generations(
                 &mut pair_rng,
             )?;
             for child in bred {
-                let original = child.clone();
-                let (repaired, attempted, succeeded) =
-                    repair_child(child, request, &mut ledger, &mut pair_rng)?;
-                repairs_attempted += attempted;
-                repairs_succeeded += succeeded;
+                let choice = repair_child(child, request, &mut ledger, &mut pair_rng)?;
+                repairs_attempted += choice.attempted;
+                repairs_succeeded += choice.succeeded;
                 if offspring.len() < request.config.population {
-                    let mut individual = evaluate_one(repaired, request)?;
-                    // The flag is on the constraint set the job already parsed.
-                    // Reading it here is the first time it changes a genotype.
-                    // Leaving it unread made both arms of EXP-05 the same run.
-                    if !request.checker.set().repair_policy.lamarckian && succeeded > 0 {
-                        individual.inherited = Some(original);
+                    let mut individual = evaluate_one(choice.phenotype, request)?;
+                    if choice.succeeded > 0 && !repairs_are_lamarckian(request) {
+                        individual.inherited = Some(choice.breed);
                     }
                     offspring.push(individual);
                     evaluations += 1;
@@ -615,14 +643,34 @@ fn breed(
     Ok(children)
 }
 
+struct RepairedChild {
+    /// Sequence that was scored. The repaired form when repair succeeded.
+    phenotype: Genotype,
+    /// Sequence the next generation mutates. The unrepaired genome when
+    /// Baldwinian repair succeeded; otherwise the phenotype.
+    breed: Genotype,
+    attempted: u64,
+    succeeded: u64,
+}
+
+/// The policy flag, read in one place so a control can silence it.
+fn repairs_are_lamarckian(request: &Tier3Request<'_>) -> bool {
+    request.checker.set().repair_policy.lamarckian
+}
+
 fn repair_child(
     genotype: Genotype,
     request: &Tier3Request<'_>,
     ledger: &mut TabuLedger,
     rng: &mut SearchRng,
-) -> Result<(Genotype, u64, u64)> {
+) -> Result<RepairedChild> {
     if actionable_violation(&genotype, request.checker) <= 0.0 {
-        return Ok((genotype, 0, 0));
+        return Ok(RepairedChild {
+            phenotype: genotype.clone(),
+            breed: genotype,
+            attempted: 0,
+            succeeded: 0,
+        });
     }
 
     let mut target = RepairTarget::new(
@@ -640,17 +688,32 @@ fn repair_child(
     )?;
 
     if outcome.residual.is_empty() {
-        // Lamarckian: the genotype is replaced by its repaired form, which is
-        // `EXIT-003`'s standing default until `EXP-05` decides otherwise. The
-        // Baldwinian alternative evaluates the repaired form while inheriting
-        // the original, and choosing between them is what `P1-34` exists for.
-        Ok((Genotype::new(target.regions()[0].1.clone()), 1, 1))
+        let phenotype = Genotype::new(target.regions()[0].1.clone());
+        // Lamarckian writes the repair back. Baldwinian scores `phenotype`
+        // and breeds from the genome repair did not replace, so the same
+        // violation is repaired again next generation.
+        let breed = if repairs_are_lamarckian(request) {
+            phenotype.clone()
+        } else {
+            genotype
+        };
+        Ok(RepairedChild {
+            phenotype,
+            breed,
+            attempted: 1,
+            succeeded: 1,
+        })
     } else {
         // Repair could not clear every blocking violation. The individual is
         // kept, not discarded: §4 is explicit that infeasible individuals
         // survive as stepping stones across a constraint barrier, and
         // constraint-domination is what applies the pressure instead.
-        Ok((genotype, 1, 0))
+        Ok(RepairedChild {
+            phenotype: genotype.clone(),
+            breed: genotype,
+            attempted: 1,
+            succeeded: 0,
+        })
     }
 }
 

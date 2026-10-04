@@ -263,7 +263,14 @@ pub fn run_generations_with_objective(
             gave_up.extend(outcome.gave_up.iter().cloned());
             if outcome.residual.is_empty() {
                 repairs_succeeded += 1;
-                next = Genotype::new(target.regions()[0].1.clone());
+                // Same split as tier 3. The default stays Lamarckian. Baldwinian
+                // keeps the pre-repair genome, so the next generation repairs
+                // it again instead of mutating the already-feasible sequence.
+                next = if checker.set().repair_policy.lamarckian {
+                    Genotype::new(target.regions()[0].1.clone())
+                } else {
+                    mutated
+                };
             } else {
                 // Repair could not clear every blocking violation, so the
                 // proposal is abandoned and the incumbent stands. Keeping the
