@@ -55,6 +55,7 @@ html, body {
   font-family: var(--font-ui);
   font-size: 14px;
   line-height: 1.4;
+  overflow-x: clip;
 }
 
 body {
@@ -294,6 +295,11 @@ button {
   display: block;
   height: 100%;
   background: var(--feasible);
+  /* Carbon productive standard easing (cubic-bezier(0.2, 0, 0.38, 0.9)).
+     Duration is the requested ~300ms, between Carbon duration-moderate-02
+     (240ms) and duration-slow-01 (400ms). Productive motion only: the bar
+     width changes with the generation count. */
+  transition: width 300ms cubic-bezier(0.2, 0, 0.38, 0.9);
 }
 
 .warn-row {
@@ -329,4 +335,158 @@ button {
   margin-top: var(--space-4);
   border-top: 1px solid var(--rule);
   padding-top: var(--space-2);
+}
+
+/* Motion follows IBM Carbon Design System productive tokens, the motion
+   reference for the IBM Plex family already used here:
+   https://carbondesignsystem.com/guidelines/motion/overview/
+   - standard productive easing: cubic-bezier(0.2, 0, 0.38, 0.9)
+   - entrance productive easing: cubic-bezier(0, 0, 0.38, 0.9)
+   - duration-moderate-01: 150ms (warning group max-height)
+   - entrance at the requested ~200ms (result reveal)
+   Productive motion is for frequent, utilitarian changes. It must not block
+   the content, and it must not loop under something the reader is using. */
+
+.callout.refusal {
+  border-left-color: var(--infeasible);
+  background: var(--refusal-wash);
+}
+
+.callout.pulse-once {
+  animation: cf-pulse 400ms cubic-bezier(0.2, 0, 0.38, 0.9) 1;
+}
+
+.callout.structure.pulse-once {
+  animation: cf-pulse-structure 400ms cubic-bezier(0.2, 0, 0.38, 0.9) 1;
+}
+
+@keyframes cf-pulse {
+  0% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 2px var(--recommended); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+@keyframes cf-pulse-structure {
+  0% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 2px var(--structure-opt); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+.reveal {
+  animation: cf-reveal 200ms cubic-bezier(0, 0, 0.38, 0.9) both;
+}
+
+@keyframes cf-reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.hscroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.hscroll > table.data {
+  width: max-content;
+  min-width: 100%;
+}
+
+table.data tr.is-hot td {
+  box-shadow: inset 0 -2px 0 var(--ink);
+}
+
+.plot rect.is-hot {
+  stroke: var(--ink);
+  stroke-width: 2px;
+}
+
+.plot-readout {
+  min-height: 1.4em;
+}
+
+.seq-block {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  background: var(--track);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: var(--space-2);
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.codon {
+  margin-right: 0.4em;
+}
+
+.codon.top {
+  background: var(--recommended-wash);
+}
+
+button.warn-toggle {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--warning-wash);
+  color: var(--warning-ink);
+  border: 1px solid var(--warning-rule);
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.warn-group.refusal button.warn-toggle {
+  background: var(--refusal-wash);
+  color: var(--refusal-ink);
+  border-color: var(--infeasible);
+}
+
+.warn-body {
+  max-height: 0;
+  overflow: hidden;
+  /* Carbon duration-moderate-01. */
+  transition: max-height 150ms cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+.seq-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-1) 0;
+}
+
+@media (max-width: 720px) {
+  .tier-track,
+  .mast,
+  .rail,
+  .warn-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mast .k,
+  .rail .k {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .page {
+    padding: var(--space-3);
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar > span,
+  .warn-body,
+  .reveal,
+  .callout.pulse-once,
+  .callout.structure.pulse-once {
+    transition: none;
+    animation: none;
+  }
 }

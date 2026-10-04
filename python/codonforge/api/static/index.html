@@ -34,15 +34,15 @@
       <textarea id="request" class="seq" rows="8" spellcheck="false" placeholder='{"host":"…","cds":"ATG…","host_profile":{…},"objectives":["usage.cai"]}'></textarea>
       <p class="note">The body is the library DesignRequest. A protein sequence, a construct, or an objectives preset is refused with CF-CLI-003. This page does not fill in a host profile.</p>
       <button id="submit" type="button">POST /v1/jobs</button>
-      <p id="submit-error" class="note"></p>
+      <div id="submit-error"></div>
     </div>
   </div>
 
   <h2 id="status">Status</h2>
-  <div id="status-root"></div>
+  <div id="status-root"><p class="note">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p></div>
 
   <h2 id="front">Pareto front</h2>
-  <div id="front-root"></div>
+  <div id="front-root"><p class="note">No front yet. A finished job fills this panel. A failure names its CF-* code here.</p></div>
 
   <h2>Not in this build</h2>
   <div id="unbuilt-root" class="note">Hosts, models, observations, presets, protein input, and the five-check feasibility route answer CF-CLI-003. The front's constraint_report is what this page shows.</div>

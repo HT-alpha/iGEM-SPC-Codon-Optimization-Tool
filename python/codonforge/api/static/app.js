@@ -1,4 +1,8 @@
-/* Renders job_status and pareto_front documents. Numbers come from the API. */
+/* Renders job_status and pareto_front documents. Numbers come from the API.
+   Polls GET /v1/jobs/{id} while a job is running. Codon tints, when shown,
+   use relative_adaptiveness from the submitted host profile. The front
+   document's objective_vector, unknown_terms, and objective_sense are per
+   term, not per codon, so this page does not invent a position mask. */
 
 const tokenInput = document.getElementById("token");
 const requestInput = document.getElementById("request");
@@ -7,11 +11,22 @@ const submitError = document.getElementById("submit-error");
 const statusRoot = document.getElementById("status-root");
 const frontRoot = document.getElementById("front-root");
 
+const tierFraction = new Map();
+const openStages = new Set();
+let tierJobId = "";
+let lastSubmitted = null;
+const POLL_MS = 2000;
+const READOUT_IDLE = "Coordinates are read here, under the plot, so a label never covers a point or a row.";
+
 function escapeText(value) {
   return String(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
+}
+
+function escapeAttr(value) {
+  return escapeText(value).replaceAll('"', "&quot;");
 }
 
 async function call(method, path, body) {
@@ -39,17 +54,108 @@ function roleChip(role) {
   return `<span class="mono">${escapeText(role || "")}</span>`;
 }
 
+function codeLink(problem) {
+  const code = (problem && problem.code) || "";
+  if (!code) return "";
+  const href = (problem && problem.type) || `https://codonforge.org/problems/${String(code).toLowerCase()}`;
+  return `<a href="${escapeAttr(href)}">${escapeText(code)}</a>`;
+}
+
+function problemCallout(problem) {
+  if (!problem || !problem.code) {
+    return `<div class="callout refusal"><strong>No CF-* code.</strong> <span class="note">The response did not name a registered code.</span></div>`;
+  }
+  return `<div class="callout refusal"><strong>${codeLink(problem)}</strong> ${escapeText(problem.title || "")}<div class="note">${escapeText(problem.detail || "")}</div></div>`;
+}
+
+function isRefusal(item) {
+  return typeof item.status === "number" && item.status >= 400;
+}
+
+function captureOpenStages() {
+  openStages.clear();
+  statusRoot.querySelectorAll(".warn-group.open").forEach((group) => {
+    if (group.dataset.stage) openStages.add(group.dataset.stage);
+  });
+}
+
+function renderWarnings(document) {
+  const items = [...(document.warnings || [])];
+  if (document.problem && document.problem.code) items.push(document.problem);
+  if (!items.length) return '<p class="note">No warnings on this status.</p>';
+  const groups = new Map();
+  for (const item of items) {
+    const stage = item.stage || "unspecified";
+    if (!groups.has(stage)) groups.set(stage, []);
+    groups.get(stage).push(item);
+  }
+  return [...groups.entries()]
+    .map(([stage, group]) => {
+      const refusal = group.some(isRefusal);
+      const open = openStages.has(stage);
+      const codes = [...new Set(group.map((item) => item.code).filter(Boolean))].join(", ");
+      const rows = group
+        .map(
+          (warning) =>
+            `<div class="warn-row"><div class="code">${codeLink(warning)}</div><div class="mono">${escapeText(warning.stage || "")}</div><div class="mono">${escapeText(warning.subject || "")}</div><div><strong>${escapeText(warning.title || "")}</strong><div class="note">${escapeText(warning.detail || "")}</div></div></div>`,
+        )
+        .join("");
+      const kind = refusal ? "refusal" : "notice";
+      const label = refusal ? "hard refusal" : "notice";
+      return `<section class="warn-group ${kind}${open ? " open" : ""}" data-stage="${escapeAttr(stage)}">
+        <button type="button" class="warn-toggle" aria-expanded="${open ? "true" : "false"}">${escapeText(stage)} · ${group.length} · ${escapeText(label)}${codes ? ` · ${escapeText(codes)}` : ""}</button>
+        <div class="warn-body">
+          <div class="warn-row head"><div>code</div><div>stage</div><div>subject</div><div>title</div></div>
+          ${rows}
+        </div>
+      </section>`;
+    })
+    .join("");
+}
+
+function bindWarnings() {
+  statusRoot.querySelectorAll(".warn-group").forEach((group) => {
+    const body = group.querySelector(".warn-body");
+    const button = group.querySelector("button");
+    if (!body || !button) return;
+    const apply = (open, animate) => {
+      if (!animate) body.style.transition = "none";
+      body.style.maxHeight = open ? `${body.scrollHeight}px` : "0px";
+      if (!animate) {
+        body.offsetHeight;
+        body.style.transition = "";
+      }
+    };
+    apply(group.classList.contains("open"), false);
+    button.addEventListener("click", () => {
+      const open = !group.classList.contains("open");
+      group.classList.toggle("open", open);
+      button.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) openStages.add(group.dataset.stage);
+      else openStages.delete(group.dataset.stage);
+      apply(open, true);
+    });
+  });
+}
+
 function renderStatus(document) {
+  captureOpenStages();
+  if (tierJobId !== (document.job_id || "")) {
+    tierFraction.clear();
+    tierJobId = document.job_id || "";
+  }
   const progress = document.progress || { tiers: [] };
   const tiers = (progress.tiers || [])
     .map((tier) => {
       const fraction = typeof tier.fraction === "number" ? tier.fraction : null;
       const width = fraction === null ? 0 : Math.max(0, Math.min(1, fraction)) * 100;
+      const start = tierFraction.has(tier.tier) ? tierFraction.get(tier.tier) : width;
+      tierFraction.set(tier.tier, width);
       const generation =
         tier.generation === undefined || tier.generation === null
           ? ""
           : `${tier.generation}/${tier.max_generations ?? "—"}`;
-      return `<div class="tier-track"><span>${escapeText(tier.tier)}</span><span>${escapeText(tier.state)}</span><div class="bar"><span style="width:${width}%"></span></div><span>${escapeText(generation)}</span></div>`;
+      return `<div class="tier-track"><span>${escapeText(tier.tier)}</span><span>${escapeText(tier.state)}</span><div class="bar"><span style="width:${start}%" data-target="${width}"></span></div><span>${escapeText(generation)}</span></div>`;
     })
     .join("");
   const objectives = (document.resolved_objectives || [])
@@ -58,26 +164,25 @@ function renderStatus(document) {
         `<tr><td class="mono">${escapeText(term.term_id)}</td><td>${roleChip(term.role)}</td><td class="mono">${escapeText(term.direction)}</td></tr>`,
     )
     .join("");
-  const warnings = (document.warnings || [])
-    .map(
-      (warning) =>
-        `<div class="warn-row"><div class="code">${escapeText(warning.code || "")}</div><div class="mono">${escapeText(warning.stage || "")}</div><div class="mono">${escapeText(warning.subject || "")}</div><div><strong>${escapeText(warning.title || "")}</strong><div class="note">${escapeText(warning.detail || "")}</div></div></div>`,
-    )
-    .join("");
-  const warningBlock = warnings
-    ? `<div class="warn-row head"><div>code</div><div>stage</div><div>subject</div><div>title</div></div>${warnings}`
-    : '<p class="note">No warnings on this status.</p>';
+  const failed = document.state === "failed" ? problemCallout(document.problem) : document.problem && document.problem.code ? problemCallout(document.problem) : "";
   const stateKind = document.state === "succeeded" ? "feasible" : document.state === "failed" ? "refusal" : "warning";
   statusRoot.innerHTML = `
     <div class="rail"><div class="k">Job</div><div class="v mono">${escapeText(document.job_id || "")}</div></div>
     <div class="rail"><div class="k">State</div><div class="v">${chip(stateKind, document.state || "")}</div></div>
+    ${failed}
     <h2>Tiers</h2>
     ${tiers || '<p class="note">No tier has been reported.</p>'}
     <h2>Resolved objectives</h2>
     <table class="data"><thead><tr><th>term</th><th>role</th><th>direction</th></tr></thead><tbody>${objectives}</tbody></table>
     <h2>Warnings</h2>
-    ${warningBlock}
+    ${renderWarnings(document)}
   `;
+  bindWarnings();
+  requestAnimationFrame(() => {
+    statusRoot.querySelectorAll(".bar > span").forEach((span) => {
+      span.style.width = `${span.dataset.target}%`;
+    });
+  });
 }
 
 function termValue(candidate, term, order) {
@@ -125,7 +230,7 @@ function optimalCallout(item) {
   const title = structure
     ? "Structure-optimal among members scored on an axis the recommendation did not use"
     : "Best scored member on an axis the recommendation did not use";
-  const klass = structure ? "callout structure" : "callout";
+  const klass = structure ? "callout structure pulse-once" : "callout";
   return `<div class="${klass}"><strong>${escapeText(title)}</strong> <code>${escapeText(item.candidate.candidate_id)}</code> · <code>${escapeText(item.term)}</code> ${escapeText(item.value)} (${escapeText(item.sense)}). This is not a second recommended candidate.</div>`;
 }
 
@@ -145,61 +250,94 @@ function feasibleCell(candidate) {
   return `<td>${report.feasible ? chip("feasible", "true") : chip("infeasible", "false")}</td>`;
 }
 
-function renderFront(front) {
-  const recommended = front.recommended || {};
-  const order = front.objective_order || [];
-  const senses = front.objective_sense || [];
-  const optimal = structureOptimal(front);
-  const optimalIds = new Set(
-    optimal.found
-      .filter((item) => isStructureTerm(item.term))
-      .map((item) => item.candidate.candidate_id),
-  );
-  const informed = (recommended.informed_by || []).map((term) => `<code>${escapeText(term)}</code>`).join(" ");
-  const excluded = (recommended.not_informed_by || []).map((term) => `<code>${escapeText(term)}</code>`).join(" ");
-  const optimalText = optimal.found.length
-    ? optimal.found.map((item) => optimalCallout(item)).join("")
-    : `<div class="callout"><strong>No scored member on an excluded axis.</strong> ${excluded || "not_informed_by is empty."} UNKNOWN is not placed on the numeric axis.</div>`;
-  const rows = (front.candidates || [])
-    .map((candidate) => {
-      const cells = order
-        .map((term, index) => {
-          const value = (candidate.objective_vector || [])[index];
-          if (value === null || value === undefined) return `<td class="unk">UNKNOWN</td>`;
-          const detail = (candidate.objective_detail || {})[term];
-          const role = detail && detail.role ? ` ${roleChip(detail.role)}` : "";
-          return `<td class="mono">${escapeText(value)}${role}</td>`;
+function codonWeights(request) {
+  const table = request && request.host_profile && request.host_profile.codon_usage && request.host_profile.codon_usage.table;
+  if (!table || typeof table !== "object") return null;
+  const weights = {};
+  for (const [codon, entry] of Object.entries(table)) {
+    if (entry && typeof entry.relative_adaptiveness === "number") weights[codon] = entry.relative_adaptiveness;
+  }
+  return Object.keys(weights).length ? weights : null;
+}
+
+function activeWeights() {
+  if (lastSubmitted) return codonWeights(lastSubmitted);
+  try {
+    return codonWeights(JSON.parse(requestInput.value));
+  } catch (error) {
+    return null;
+  }
+}
+
+function topQuartileThreshold(weights) {
+  const values = Object.values(weights).filter((value) => typeof value === "number").sort((a, b) => a - b);
+  if (!values.length) return null;
+  const index = Math.min(values.length - 1, Math.ceil(0.75 * values.length) - 1);
+  return values[index];
+}
+
+function caiUnknown(candidate, front) {
+  if ((candidate.unknown_terms || []).includes("usage.cai")) return true;
+  const index = (front.objective_order || []).indexOf("usage.cai");
+  if (index < 0) return false;
+  const value = (candidate.objective_vector || [])[index];
+  return value === null || value === undefined;
+}
+
+function colourCodons(cds, weights, threshold, withhold) {
+  if (cds.length % 3 !== 0) return escapeText(cds);
+  let html = "";
+  for (let index = 0; index + 3 <= cds.length; index += 3) {
+    const codon = cds.slice(index, index + 3);
+    const weight = weights ? weights[codon] : undefined;
+    const high = !withhold && weights && threshold !== null && typeof weight === "number" && weight >= threshold;
+    html += `<span class="codon${high ? " top" : ""}">${escapeText(codon)}</span>`;
+  }
+  return html;
+}
+
+function renderSequences(front, recommendedId, optimalIds) {
+  const weights = activeWeights();
+  const threshold = weights ? topQuartileThreshold(weights) : null;
+  const wanted = [];
+  for (const candidate of front.candidates || []) {
+    const id = candidate.candidate_id;
+    if (id === recommendedId) wanted.push({ candidate, role: "recommended" });
+    else if (optimalIds.has(id)) wanted.push({ candidate, role: "structure-optimal" });
+  }
+  if (!wanted.length) return "";
+  return wanted
+    .map(({ candidate, role }) => {
+      const withhold = caiUnknown(candidate, front);
+      const unknown = (candidate.unknown_terms || []).join(", ");
+      const blocks = (candidate.sequences || [])
+        .map((sequence) => {
+          const cds = sequence.cds || "";
+          const note = withhold
+            ? "usage.cai is UNKNOWN for this candidate, so codon tints are withheld."
+            : weights
+              ? `Top-quartile relative adaptiveness from the submitted codon table (threshold ${threshold}). The front document has no per-codon score.`
+              : "No codon tint. objective_vector, unknown_terms, and objective_sense do not name codons, and this page has no submitted codon table.";
+          return `<div class="seq-actions"><span class="mono">${escapeText(sequence.cistron_id || "cds")}</span><button type="button" data-copy="${escapeAttr(cds)}">Copy raw sequence</button></div>
+            <div class="seq-block">${colourCodons(cds, weights, threshold, withhold)}</div>
+            <p class="note">${escapeText(note)}</p>`;
         })
         .join("");
-      const extra = Object.entries(candidate.objective_detail || {})
-        .filter(([term]) => !order.includes(term))
-        .map(([term, detail]) => {
-          const role = detail.role || "";
-          const shown = detail.value === null || detail.value === undefined ? "UNKNOWN" : detail.value;
-          const shownClass = shown === "UNKNOWN" ? "unk" : "mono";
-          return `<div>${escapeText(term)} ${roleChip(role)} <span class="${shownClass}">${escapeText(shown)}</span></div>`;
-        })
-        .join("");
-      const klass = candidate.candidate_id === recommended.candidate_id ? "rec" : optimalIds.has(candidate.candidate_id) ? "sopt" : "";
-      const unknown = (candidate.unknown_terms || []).join(", ") || "—";
-      return `<tr class="${klass}"><td class="mono">${escapeText(candidate.candidate_id)}</td>${feasibleCell(candidate)}<td class="mono">${escapeText(unknown)}</td>${cells}<td>${extra}</td></tr>`;
+      const unknownLine = unknown
+        ? `<p class="note"><span class="unk">UNKNOWN</span> ${escapeText(unknown)}. These are unscored terms, not codon positions. This document has no position mask, so codons are not hatched.</p>`
+        : "";
+      return `<h2>Sequence · ${escapeText(role)}</h2><p class="mono">${escapeText(candidate.candidate_id)}</p>${unknownLine}${blocks}`;
     })
     .join("");
-  const plot = renderPlot(front, recommended.candidate_id, optimalIds);
-  frontRoot.innerHTML = `
-    <p class="note">reduction.method <code>${escapeText((front.reduction || {}).method || "")}</code> · presented ${(front.reduction || {}).presented_count ?? ""} of ${(front.reduction || {}).raw_nondominated_count ?? ""}</p>
-    <div class="legend">${chip("feasible", "feasible")}${chip("infeasible", "infeasible")}${chip("unknown", "UNKNOWN")}${chip("recommended", "recommended")}${chip("structure", "structure-optimal among scored")}${chip("diagnostic", "diagnostic-only")}</div>
-    <div class="callout"><strong>Recommended</strong> <code>${escapeText(recommended.candidate_id || "")}</code> · rule <code>${escapeText(recommended.rule || "")}</code><br>informed_by ${informed || "—"}<br>not_informed_by ${excluded || "—"}</div>
-    ${optimalText}
-    ${plot}
-    <p class="note">A column in this table is a Pareto axis. A diagnostic term is in the last column and is not an axis. UNKNOWN is the word in the hatched cell, not a number.</p>
-    <table class="data"><thead><tr><th>candidate</th><th>constraint_report.feasible</th><th>unknown_terms</th>${order
-      .map((term) => {
-        const role = roleFor(front, term);
-        return `<th>${escapeText(term)}${role ? ` ${roleChip(role)}` : ""}</th>`;
-      })
-      .join("")}<th>other terms</th></tr></thead><tbody>${rows}</tbody></table>
-  `;
+}
+
+function readoutFor(candidate, order) {
+  const parts = order.map((term, index) => {
+    const value = (candidate.objective_vector || [])[index];
+    const shown = value === null || value === undefined ? "UNKNOWN" : value;
+    return `${term} ${shown}`;
+  });
+  return `${candidate.candidate_id} · ${parts.join(" · ")}`;
 }
 
 function renderPlot(front, recommendedId, optimalIds) {
@@ -227,18 +365,16 @@ function renderPlot(front, recommendedId, optimalIds) {
   const maxY = ys.length ? Math.max(...ys) : 1;
   const scaleX = (value) => 40 + ((value - minX) / (maxX - minX || 1)) * 640;
   const scaleY = (value) => 20 + (1 - (value - minY) / (maxY - minY || 1)) * 220;
-  const marks = points
-    .map((point) => {
-      const id = point.candidate.candidate_id;
-      const fill = id === recommendedId ? "#1a4a73" : optimalIds.has(id) ? "#3a5f4d" : "#1c1917";
-      return `<rect x="${scaleX(point.x) - 4}" y="${scaleY(point.y) - 4}" width="8" height="8" fill="${fill}"/>`;
-    })
-    .join("");
+  const mark = (id, x, y) => {
+    const fill = id === recommendedId ? "#1a4a73" : optimalIds.has(id) ? "#3a5f4d" : "#1c1917";
+    return `<rect data-candidate="${escapeAttr(id)}" x="${x - 8}" y="${y - 8}" width="16" height="16" fill="transparent"/><rect data-candidate="${escapeAttr(id)}" x="${x - 4}" y="${y - 4}" width="8" height="8" fill="${fill}"/>`;
+  };
+  const marks = points.map((point) => mark(point.candidate.candidate_id, scaleX(point.x), scaleY(point.y))).join("");
   const rail = unknown.length
     ? `<rect x="20" y="250" width="680" height="40" fill="url(#hatch)"/>${unknown
         .map((point, index) => {
           const xPos = point.x === null ? 40 + index * 16 : scaleX(point.x);
-          return `<rect x="${xPos - 4}" y="266" width="8" height="8" fill="#1c1917"/>`;
+          return mark(point.candidate.candidate_id, xPos, 270);
         })
         .join("")}`
     : "";
@@ -249,42 +385,179 @@ function renderPlot(front, recommendedId, optimalIds) {
   return `<svg class="plot" viewBox="0 0 720 300" width="100%" role="img" aria-label="First axis versus second. UNKNOWN members sit in a hatched rail, not at a worst-case score.">
     <defs><pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8"><rect width="8" height="8" fill="#ddd8cc"/><path d="M0 8 L8 0" stroke="#c9c3b6" stroke-width="2"/></pattern></defs>
     ${marks}${rail}
-  </svg>${caption}`;
+  </svg>${caption}<p id="plot-readout" class="note plot-readout">${escapeText(READOUT_IDLE)}</p>`;
 }
 
-async function poll(jobId) {
-  const deadline = Date.now() + 60000;
-  let status = await call("GET", `/v1/jobs/${jobId}`);
-  while (status.payload && ["queued", "running"].includes(status.payload.state) && Date.now() < deadline) {
-    renderStatus(status.payload);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    status = await call("GET", `/v1/jobs/${jobId}`);
+function renderFront(front) {
+  const candidates = front.candidates || [];
+  if (!candidates.length) {
+    const reason = (front.summary && front.summary.termination_reason) || "";
+    const match = String(reason).match(/CF-[A-Z]{3,8}-[0-9]{3}/);
+    const problem = match
+      ? { code: match[0], type: `https://codonforge.org/problems/${match[0].toLowerCase()}`, title: "The front has no candidates", detail: reason }
+      : null;
+    frontRoot.innerHTML = `<div class="reveal">${problem ? problemCallout(problem) : `<div class="callout refusal"><strong>Empty front.</strong> <span class="note">No candidates were returned${reason ? `: ${escapeText(reason)}` : ""}. The document did not name a CF-* code for this outcome.</span></div>`}</div>`;
+    return;
   }
-  if (status.payload) renderStatus(status.payload);
-  if (!status.payload || status.payload.state !== "succeeded") return;
-  const front = await call(
-    "GET",
-    `/v1/jobs/${jobId}/front?reduction=default&max_candidates=20`,
+  const recommended = front.recommended || {};
+  const order = front.objective_order || [];
+  const optimal = structureOptimal(front);
+  const optimalIds = new Set(
+    optimal.found
+      .filter((item) => isStructureTerm(item.term))
+      .map((item) => item.candidate.candidate_id),
   );
-  if (front.status === 200) renderFront(front.payload);
-  else submitError.textContent = `${front.status} ${front.payload && front.payload.code}`;
+  const informed = (recommended.informed_by || []).map((term) => `<code>${escapeText(term)}</code>`).join(" ");
+  const excluded = (recommended.not_informed_by || []).map((term) => `<code>${escapeText(term)}</code>`).join(" ");
+  const optimalText = optimal.found.length
+    ? optimal.found.map((item) => optimalCallout(item)).join("")
+    : `<div class="callout"><strong>No scored member on an excluded axis.</strong> ${excluded || "not_informed_by is empty."} UNKNOWN is not placed on the numeric axis.</div>`;
+  const rows = candidates
+    .map((candidate) => {
+      const cells = order
+        .map((term, index) => {
+          const value = (candidate.objective_vector || [])[index];
+          if (value === null || value === undefined) return `<td class="unk">UNKNOWN</td>`;
+          const detail = (candidate.objective_detail || {})[term];
+          const role = detail && detail.role ? ` ${roleChip(detail.role)}` : "";
+          return `<td class="mono">${escapeText(value)}${role}</td>`;
+        })
+        .join("");
+      const extra = Object.entries(candidate.objective_detail || {})
+        .filter(([term]) => !order.includes(term))
+        .map(([term, detail]) => {
+          const role = detail.role || "";
+          const shown = detail.value === null || detail.value === undefined ? "UNKNOWN" : detail.value;
+          const shownClass = shown === "UNKNOWN" ? "unk" : "mono";
+          return `<div>${escapeText(term)} ${roleChip(role)} <span class="${shownClass}">${escapeText(shown)}</span></div>`;
+        })
+        .join("");
+      const klass = candidate.candidate_id === recommended.candidate_id ? "rec" : optimalIds.has(candidate.candidate_id) ? "sopt" : "";
+      const unknown = (candidate.unknown_terms || []).join(", ") || "—";
+      const readout = escapeAttr(readoutFor(candidate, order));
+      return `<tr class="${klass}" data-candidate="${escapeAttr(candidate.candidate_id)}" data-readout="${readout}"><td class="mono">${escapeText(candidate.candidate_id)}</td>${feasibleCell(candidate)}<td class="mono">${escapeText(unknown)}</td>${cells}<td>${extra}</td></tr>`;
+    })
+    .join("");
+  const plot = renderPlot(front, recommended.candidate_id, optimalIds);
+  const sequences = renderSequences(front, recommended.candidate_id, optimalIds);
+  frontRoot.innerHTML = `
+    <div class="reveal">
+    <p class="note">reduction.method <code>${escapeText((front.reduction || {}).method || "")}</code> · presented ${(front.reduction || {}).presented_count ?? ""} of ${(front.reduction || {}).raw_nondominated_count ?? ""}</p>
+    <div class="legend">${chip("feasible", "feasible")}${chip("infeasible", "infeasible")}${chip("unknown", "UNKNOWN")}${chip("recommended", "recommended")}${chip("structure", "structure-optimal among scored")}${chip("diagnostic", "diagnostic-only")}</div>
+    <div class="callout pulse-once"><strong>Recommended</strong> <code>${escapeText(recommended.candidate_id || "")}</code> · rule <code>${escapeText(recommended.rule || "")}</code><br>informed_by ${informed || "—"}<br>not_informed_by ${excluded || "—"}</div>
+    ${optimalText}
+    ${sequences}
+    ${plot}
+    <p class="note">A column in this table is a Pareto axis. A diagnostic term is in the last column and is not an axis. UNKNOWN is the word in the hatched cell, not a number.</p>
+    <div class="hscroll"><table class="data"><thead><tr><th>candidate</th><th>constraint_report.feasible</th><th>unknown_terms</th>${order
+      .map((term) => {
+        const role = roleFor(front, term);
+        return `<th>${escapeText(term)}${role ? ` ${roleChip(role)}` : ""}</th>`;
+      })
+      .join("")}<th>other terms</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>
+  `;
+}
+
+function clearHot() {
+  frontRoot.querySelectorAll(".is-hot").forEach((node) => node.classList.remove("is-hot"));
+  const readout = document.getElementById("plot-readout");
+  if (readout) readout.textContent = READOUT_IDLE;
+}
+
+function setHot(id) {
+  frontRoot.querySelectorAll("[data-candidate]").forEach((node) => {
+    node.classList.toggle("is-hot", node.dataset.candidate === id);
+  });
+  const readout = document.getElementById("plot-readout");
+  const row = frontRoot.querySelector(`tr[data-candidate="${id}"]`);
+  if (readout && row && row.dataset.readout) readout.textContent = row.dataset.readout;
+}
+
+async function copyRaw(text, button) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) await navigator.clipboard.writeText(text);
+    else throw new Error("clipboard unavailable");
+  } catch (error) {
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand("copy");
+    area.remove();
+  }
+  if (button) button.textContent = "Copied raw sequence";
+}
+
+function showFrontFailure(response) {
+  const payload = (response && response.payload) || {};
+  const body = payload.code
+    ? problemCallout(payload)
+    : `<div class="callout refusal"><strong>Front request failed.</strong> <span class="note">HTTP ${escapeText(response.status)}. The body did not name a CF-* code.</span></div>`;
+  frontRoot.innerHTML = `<div class="reveal">${body}</div>`;
+}
+
+async function loadFront(jobId) {
+  const front = await call("GET", `/v1/jobs/${jobId}/front?reduction=default&max_candidates=20`);
+  if (front.status === 200 && front.payload && !front.payload.code) renderFront(front.payload);
+  else showFrontFailure(front);
+}
+
+let pollToken = 0;
+
+async function poll(jobId) {
+  const token = ++pollToken;
+  try {
+    let status = await call("GET", `/v1/jobs/${jobId}`);
+    while (
+      token === pollToken &&
+      status.payload &&
+      status.payload.job_id &&
+      ["queued", "running"].includes(status.payload.state)
+    ) {
+      renderStatus(status.payload);
+      await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+      if (token !== pollToken) return;
+      status = await call("GET", `/v1/jobs/${jobId}`);
+    }
+    if (token !== pollToken || !status.payload) return;
+    if (status.payload.code && !status.payload.job_id) {
+      submitError.innerHTML = problemCallout(status.payload);
+      frontRoot.innerHTML = `<div class="reveal">${problemCallout(status.payload)}</div>`;
+      return;
+    }
+    renderStatus(status.payload);
+    if (status.payload.state !== "succeeded") {
+      const problem = status.payload.problem || { code: "", title: "", detail: "" };
+      frontRoot.innerHTML = `<div class="reveal">${status.payload.problem ? problemCallout(problem) : `<div class="callout refusal"><strong>Job ${escapeText(status.payload.state || "unfinished")}.</strong> <span class="note">No front was requested, because the job did not succeed. The status document did not include a problem code.</span></div>`}</div>`;
+      return;
+    }
+    await loadFront(jobId);
+  } catch (error) {
+    if (token !== pollToken) return;
+    submitError.innerHTML = `<div class="callout refusal"><strong>The status request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`;
+  }
 }
 
 async function showJob(jobId) {
   const status = await call("GET", `/v1/jobs/${jobId}`);
   if (!status.payload) return;
-  if (status.payload.code) {
-    submitError.textContent = `${status.status} ${status.payload.code}: ${status.payload.detail || ""}`;
+  if (status.payload.code && !status.payload.job_id) {
+    submitError.innerHTML = problemCallout(status.payload);
+    frontRoot.innerHTML = `<div class="reveal">${problemCallout(status.payload)}</div>`;
     return;
   }
   renderStatus(status.payload);
-  if (status.payload.state !== "succeeded") return;
-  const front = await call(
-    "GET",
-    `/v1/jobs/${jobId}/front?reduction=default&max_candidates=20`,
-  );
-  if (front.status === 200) renderFront(front.payload);
-  else submitError.textContent = `${front.status} ${front.payload && front.payload.code}`;
+  if (status.payload.state === "queued" || status.payload.state === "running") {
+    poll(jobId);
+    return;
+  }
+  if (status.payload.state !== "succeeded") {
+    frontRoot.innerHTML = `<div class="reveal">${status.payload.problem ? problemCallout(status.payload.problem) : `<div class="callout refusal"><strong>Job ${escapeText(status.payload.state || "unfinished")}.</strong> <span class="note">No front is available.</span></div>`}</div>`;
+    return;
+  }
+  await loadFront(jobId);
 }
 
 function jobFromHash() {
@@ -324,26 +597,50 @@ loadCalibration();
 window.addEventListener("hashchange", jobFromHash);
 jobFromHash();
 
+frontRoot.addEventListener("pointerover", (event) => {
+  const node = event.target.closest("[data-candidate]");
+  if (!node) return;
+  setHot(node.dataset.candidate);
+});
+
+frontRoot.addEventListener("pointerout", (event) => {
+  const node = event.target.closest("[data-candidate]");
+  if (!node) return;
+  const related = event.relatedTarget;
+  const element = related && related.nodeType === 1 ? related : related && related.parentElement;
+  const next = element && element.closest ? element.closest("[data-candidate]") : null;
+  if (next) return;
+  clearHot();
+});
+
+frontRoot.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-copy]");
+  if (!button) return;
+  copyRaw(button.dataset.copy || "", button);
+});
+
 submitButton.addEventListener("click", async () => {
-  submitError.textContent = "";
+  submitError.innerHTML = "";
   let body;
   try {
     body = JSON.parse(requestInput.value);
   } catch (error) {
-    submitError.textContent = "The request is not JSON.";
+    submitError.innerHTML = `<div class="callout refusal"><strong>The request is not JSON.</strong> <span class="note">Nothing was posted.</span></div>`;
     return;
   }
+  lastSubmitted = body;
   try {
     const posted = await call("POST", "/v1/jobs", body);
     if (!posted.payload) return;
-    if (posted.payload.code) {
-      submitError.textContent = `${posted.status} ${posted.payload.code}: ${posted.payload.detail || ""}`;
+    if (posted.payload.code && !posted.payload.job_id) {
+      submitError.innerHTML = problemCallout(posted.payload);
+      frontRoot.innerHTML = `<div class="reveal">${problemCallout(posted.payload)}</div>`;
       return;
     }
     history.replaceState(null, "", `#${posted.payload.job_id}`);
     renderStatus(posted.payload);
     poll(posted.payload.job_id);
   } catch (error) {
-    submitError.textContent = String(error);
+    submitError.innerHTML = `<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`;
   }
 });
