@@ -434,6 +434,25 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/v1/healthz" and method == "GET":
             self._send(200, self.server.api.health())
             return
+        if path == "/v1/calibration" and method == "GET":
+            from codonforge.epistasis.artifact import ArtifactError, load_calibration
+
+            try:
+                payload = load_calibration()
+            except (ArtifactError, json.JSONDecodeError, OSError) as exc:
+                self._send(
+                    500,
+                    problem(
+                        "CF-RESOLVE-006",
+                        "Artifact content does not match its digest",
+                        500,
+                        str(exc),
+                    ),
+                    problem_body=True,
+                )
+                return
+            self._send(200, payload)
+            return
         tenant = _tenant(self.headers.get("Authorization"))
         if tenant is None:
             self._send(

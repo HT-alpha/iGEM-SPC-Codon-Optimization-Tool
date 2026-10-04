@@ -16,7 +16,34 @@ happens if you try.
 
 ## Quickstart
 
-### 1. Build
+### Install a wheel
+
+ViennaRNA is optional and installed by the user. CodonForge does not vendor it.
+
+```sh
+pip install ViennaRNA
+pip install codonforge
+```
+
+`rpsL` below is the *E. coli* K-12 MG1655 CDS `NP_417801.1` from `NC_000913.3`,
+125 codons. The usage table is the relative adaptiveness counted from the
+ribosomal-protein CDS in that same file (`rpl`/`rps`/`rpm`), labelled
+`user_supplied`.
+
+```sh
+python -m codonforge.cli.main design \
+    --host escherichia_coli:511145/MG1655 \
+    --cds "$(tr -d '\n' < examples/rpsL.cds)" \
+    --host-profile examples/mg1655_ribosomal_usage.json \
+    --constraints examples/rpsL_constraints.json \
+    --objectives usage.cai \
+    --budget fast \
+    --generations 4 \
+    --seed 7 \
+    --output explain
+```
+
+### 1. Build from a checkout
 
 CodonForge is a Rust core with a Python extension, so a build needs both
 toolchains. `make setup` creates a virtualenv and installs the Python side;
@@ -168,7 +195,9 @@ so. Bound GC as a *constraint* instead, with `Rule::GcWindow`.
 scored out of core, once per generation on the whole population, so tiers 1 and
 2 do not see it — `CF-SRCH-010` says so on every job that asks for it.
 
-**A REST server.** `codonforge serve` is specified and not built.
+**A REST server.** `codonforge.api.serve` serves the job routes. Hosts, models,
+observations, presets, protein input, construct input, and the five-check
+feasibility route answer `CF-CLI-003`.
 
 ---
 

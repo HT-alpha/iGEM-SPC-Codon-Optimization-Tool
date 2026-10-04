@@ -118,6 +118,19 @@ def test_a_protein_body_is_not_a_stub_design(base: str) -> None:
     assert "protein" in payload["detail"]
 
 
+def test_calibration_is_fitted_or_absent(base: str) -> None:
+    status, kind, payload = _call("GET", f"{base}/v1/calibration", {})
+    assert status == 200
+    assert kind.startswith("application/json")
+    assert payload["state"] in {"fitted", "absent"}
+    if payload["state"] == "absent":
+        assert "nats" not in payload
+    else:
+        assert payload["window"] in {5, 10}
+        assert isinstance(payload["held_out_nats_per_codon"], float)
+        assert isinstance(payload["baseline_nats_per_codon"], float)
+
+
 def test_the_page_is_the_api_shell(base: str) -> None:
     with urllib.request.urlopen(f"{base}/") as response:
         page = response.read().decode()
@@ -131,6 +144,8 @@ def test_the_page_is_the_api_shell(base: str) -> None:
     assert "not_informed_by" in script
     assert "UNKNOWN" in script
     assert 'startsWith("structure.")' in script
+    assert "epistasis.context_naturalness absent" in page
+    assert "held_out_nats_per_codon" in script
     assert "constraint_report.feasible absent" in script
     with urllib.request.urlopen(f"{base}/favicon.ico") as response:
         assert response.status == 204

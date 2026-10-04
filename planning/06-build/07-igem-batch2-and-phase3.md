@@ -101,7 +101,12 @@ member is named, but it is not painted as structure-optimal.
 
 ## 2. Phase 3 plan
 
-No Phase 3 code is in this batch.
+The pairwise fit described below was run after this note. The dwell head
+was not. Training used 4127 CDS; the 13 panel genes were removed first.
+At 40 L-BFGS iterations the gradient was still above the convergence
+tolerance. Held-out nats per codon: W=5 −0.9005, W=10 −0.8712, codon-usage
+baseline −0.9917. The one-standard-error rule selected W=10. The digest
+and the parameters are in `benchmarks/epistasis/manifest.json`.
 
 ### 2.1 One host, one Ribo-seq dataset
 

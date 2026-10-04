@@ -293,6 +293,27 @@ function jobFromHash() {
   showJob(hash);
 }
 
+async function loadCalibration() {
+  const note = document.getElementById("calibration");
+  if (!note) return;
+  const response = await fetch("/v1/calibration");
+  const payload = await response.json();
+  if (payload.state === "fitted") {
+    note.textContent =
+      "epistasis.context_naturalness fitted. W=" +
+      payload.window +
+      ". Held-out " +
+      payload.held_out_nats_per_codon +
+      " nats/codon. Codon-usage baseline " +
+      payload.baseline_nats_per_codon +
+      " nats/codon.";
+    return;
+  }
+  note.textContent = "epistasis.context_naturalness absent";
+}
+
+loadCalibration();
+
 window.addEventListener("hashchange", jobFromHash);
 jobFromHash();
 
