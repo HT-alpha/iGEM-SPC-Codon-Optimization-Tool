@@ -153,3 +153,19 @@ caveat.
 A hazard leaves this table when the condition becomes enforced rather than
 assumed — a thread-safety guard, a fitted curve, a derived constant — not when
 someone decides it is unlikely.
+
+---
+
+## 8. Timeline risks for the iGEM build
+
+These are the claims that would make the submission false if they were stated
+as finished. Each one is a current fact about this build, not a forecast.
+
+| Id | Risk | Trigger | Mitigation | Fallback |
+| --- | --- | --- | --- | --- |
+| `RISK-TIME-001` | `GATE-BEN-001` is reported as passed | `gates.json` has `claimed: true`, or a write-up says the 50-protein threshold was met | The panel is 13 CDS. The gate record is `claimed: false` and names the missing competitor arm. `DEP-BEN-002` | The submission says "13 proteins, two deterministic arms, gate not claimed" |
+| `RISK-TIME-002` | A tagged build ships before legal sign-off | Any tag, or a wheel job that skips `legal-clearance` | `tools/check_release_clearance.py` blocks tagged wheels. No tag in this batch | The gate stays red until a faculty advisor, PI, or tech-transfer contact signs `docs/legal-clearance.yaml` |
+| `RISK-TIME-003` | `P3-14` (LM scoring) is pulled onto the iGEM critical path | `lm.naturalness` becomes a default objective, or weights are vendored to make a demo | Cut. Recorded in [`07-igem-batch2-and-phase3.md`](07-igem-batch2-and-phase3.md). An unregistered term is `CF-LAND-001` | The pairwise Potts surface is the Phase 3 minimum. The LM term waits until that surface is scored and the legal gate is signed |
+| `RISK-TIME-004` | `/v1/feasibility` looks implemented | A `200` whose body is a stub, or a tri-state boolean | The route is `501` `CF-CLI-003` and names the five checks it is not. `DEP-API-001` | The page reads `constraint_report.feasible` on the front, which is a boolean, plus `unknown_terms` |
+| `RISK-TIME-005` | The `EXP-05` repair default flips before the 20-seed campaign | A change to the shipped repair rule justified by fewer than 20 seeds per arm | `exp05.decide` refuses a shorter campaign and does not write the search default | Lamarckian stays the default |
+| `RISK-TIME-006` | A protein or an expression number is invented to fill the panel | A CDS with no accession, a reverse-translated GFP, or a synthesis rate typed out of a figure | The accession guard, the `value: null` refusal, and the GFP exclusion in the panel | The protein stays off the list. The citation (`GSE53767`) is the evidence, not a transcribed rate |
