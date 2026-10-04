@@ -1,7 +1,10 @@
 # CodonForge — iGEM submission notes
 
-This is the state of the tree at the `v0.1.0-igem` pre-release. It is a
-snapshot for the submission, not a claim that the release gate has been signed.
+This is the state of the tree at the `v1.0.0` stable release. The
+`v0.1.0-igem` pre-release is the parent snapshot. `docs/legal-clearance.yaml`
+records the AMD-013 sign-off (NG Chi Hong, 2026-10-04). The review accepts
+this analysis for a non-commercial iGEM educational project. Wider commercial
+distribution still needs a separate legal review.
 
 ## What it does
 
@@ -36,8 +39,10 @@ consume those read counts. There is no dwell head.
 - `P1-26` (`DEP-SRCH-013`) is held.
 - `EXP-06`, bundled thermodynamic tables, and a dwell head are not in this
   snapshot.
-- Legal clearance for a full wheel release is not signed. `docs/legal-clearance.yaml`
-  is absent. A stable tag still fails `wheels.yml`.
+- AMD-013 sign-off is recorded in `docs/legal-clearance.yaml`. The scope is a
+  non-commercial iGEM educational project. Wider commercial distribution needs
+  a separate legal review. The wheel gate is unchanged: a stable tag runs
+  `legal-clearance`; a hyphenated pre-release tag does not build wheels.
 
 ## What is novel here
 
@@ -124,4 +129,4 @@ is the evidence Baldwinian is repairing the unrepaired genome again.
 - The epistatic surface is that same host only.
 - The Potts numbers are an early stop, as above.
 - EXP-05 at this budget does not separate the arms on hypervolume.
-- Distribution of a full release wheel waits on legal sign-off.
+- Wider commercial distribution is outside the AMD-013 sign-off on file.
