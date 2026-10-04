@@ -1,10 +1,9 @@
-reviewer_name:   NG Chi Hong
+signed_off_by:   NG Chi Hong
 role:            Biology Teacher
 institution:     St. Paul's College
 date:            2026-10-04
 amendment:       AMD-013
-scope_confirmed: true
-scope_summary: >
+scope: >
   Reviewer confirmed that ViennaRNA and LinearFold are used as
   user-installed dependencies only and are not bundled; that
   LinearDesign's patented CFG x DFA intersection method is not
