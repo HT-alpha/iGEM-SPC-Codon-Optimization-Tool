@@ -211,6 +211,10 @@ td.unk {
   background: var(--track);
   border: 1px solid var(--ink);
   padding: var(--space-2);
+  width: 100%;
+  height: auto;
+  aspect-ratio: 720 / 300;
+  display: block;
 }
 
 .seq {

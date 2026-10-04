@@ -173,7 +173,7 @@ function renderStatus(document) {
     <h2>Tiers</h2>
     ${tiers || '<p class="note">No tier has been reported.</p>'}
     <h2>Resolved objectives</h2>
-    <table class="data"><thead><tr><th>term</th><th>role</th><th>direction</th></tr></thead><tbody>${objectives}</tbody></table>
+    <div class="hscroll"><table class="data"><thead><tr><th>term</th><th>role</th><th>direction</th></tr></thead><tbody>${objectives}</tbody></table></div>
     <h2>Warnings</h2>
     ${renderWarnings(document)}
   `;
@@ -571,25 +571,31 @@ async function loadCalibration() {
   if (!note) return;
   const response = await fetch("/v1/calibration");
   const payload = await response.json();
-  if (payload.state === "fitted") {
-    const held = Number(payload.held_out_nats_per_codon).toFixed(4).replace("-", "");
-    const baseline = Number(payload.baseline_nats_per_codon).toFixed(4).replace("-", "");
-    const stop = payload.converged
-      ? "converged in " + payload.iteration_count + " iterations"
-      : payload.iteration_count + "-iteration early stop";
-    note.textContent =
-      "epistasis.context_naturalness W=" +
-      payload.window +
-      ", −" +
-      held +
-      " nats/codon vs −" +
-      baseline +
-      " baseline, " +
-      stop +
-      ".";
+  if (!response.ok || !payload || (payload.state !== "fitted" && payload.state !== "absent")) {
+    const code = payload && payload.code ? payload.code : "calibration";
+    const detail = payload && payload.detail ? payload.detail : "The calibration response was not fitted or absent.";
+    note.textContent = code + ": " + detail;
     return;
   }
-  note.textContent = "epistasis.context_naturalness absent";
+  if (payload.state !== "fitted") {
+    note.textContent = "epistasis.context_naturalness absent";
+    return;
+  }
+  const held = Number(payload.held_out_nats_per_codon).toFixed(4).replace("-", "");
+  const baseline = Number(payload.baseline_nats_per_codon).toFixed(4).replace("-", "");
+  const stop = payload.converged
+    ? "converged in " + payload.iteration_count + " iterations"
+    : payload.iteration_count + "-iteration early stop";
+  note.textContent =
+    "epistasis.context_naturalness W=" +
+    payload.window +
+    ", −" +
+    held +
+    " nats/codon vs −" +
+    baseline +
+    " baseline, " +
+    stop +
+    ".";
 }
 
 loadCalibration();
