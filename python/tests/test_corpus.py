@@ -12,7 +12,13 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.bench.corpus import BenchError, load_panel, run_baselines, select_genes
+from codonforge.bench.corpus import (
+    BenchError,
+    load_panel,
+    run_baselines,
+    select_genes,
+    verify_shipped_cds,
+)
 
 
 def test_the_panel_is_thirteen_real_cds_and_does_not_claim_the_gate(tmp_path: Path) -> None:
@@ -31,6 +37,8 @@ def test_the_panel_is_thirteen_real_cds_and_does_not_claim_the_gate(tmp_path: Pa
     metrics = json.loads((tmp_path / "metrics.json").read_text(encoding="utf-8"))
     assert len(metrics) == 13
     assert all(row["translation_match"] is True for row in metrics)
+    fasta = (tmp_path / "baselines.fasta").read_text(encoding="utf-8")
+    assert fasta.count(">") == 26
     gates = json.loads((tmp_path / "gates.json").read_text(encoding="utf-8"))
     assert gates[0]["gate"] == "GATE-BEN-001"
     assert gates[0]["claimed"] is False
@@ -52,3 +60,13 @@ def test_a_sequence_without_the_accession_is_refused(tmp_path: Path) -> None:
         handle.write("".join(records))
     with pytest.raises(BenchError, match="accession"):
         select_genes(panel, fasta)
+
+
+def test_a_replaced_corpus_file_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    panel = load_panel()
+    fake = tmp_path / "other.fna.gz"
+    with gzip.open(fake, "wt", encoding="utf-8") as handle:
+        handle.write(">not-the-cited-dump\nATG\n")
+    monkeypatch.setattr("codonforge.bench.corpus.CDS_PATH", fake)
+    with pytest.raises(BenchError, match="sha256"):
+        verify_shipped_cds(panel)

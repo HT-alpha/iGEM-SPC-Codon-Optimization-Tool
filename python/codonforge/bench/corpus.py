@@ -17,6 +17,7 @@ here and is not reported as `usage.cai`.
 from __future__ import annotations
 
 import gzip
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,24 @@ def load_panel(path: Path | None = None) -> dict[str, Any]:
     if evidence.get("value") is not None:
         raise BenchError("panel carries an expression number; this build does not transcribe those")
     return document
+
+
+def verify_shipped_cds(panel: dict[str, Any], path: Path | None = None) -> None:
+    """The gzip on disk is the file the panel names.
+
+    A panel that records a digest and never checks it accepts a replaced
+    file. The accession guard does not catch that: another file can still
+    carry `NC_000913.3` in a header someone wrote.
+    """
+    expected = panel.get("cds_gzip_sha256")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise BenchError("panel has no cds_gzip_sha256; the file's identity is unchecked")
+    digest = hashlib.sha256((path or CDS_PATH).read_bytes()).hexdigest()
+    if digest != expected:
+        raise BenchError(
+            "corpus gzip sha256 does not match the panel; "
+            "this file is not the cited NC_000913.3 CDS dump"
+        )
 
 
 def iter_cds(path: Path | None = None):
@@ -116,6 +135,8 @@ def select_genes(
 ) -> list[dict[str, Any]]:
     """The named genes, each checked against its header."""
     panel = panel if panel is not None else load_panel()
+    if cds_path is None:
+        verify_shipped_cds(panel)
     wanted = list(panel["genes"])
     found: dict[str, dict[str, Any]] = {}
     for header, sequence in iter_cds(cds_path):
@@ -169,6 +190,7 @@ def run_baselines(directory: Path, cds_path: Path | None = None) -> dict[str, An
     genes = select_genes(panel, cds_path)
     usage = ribosomal_usage(cds_path)
     rows = []
+    fasta_records: list[str] = []
     for gene in genes:
         cds = gene["cds"]
         kept = native(cds)
@@ -192,7 +214,11 @@ def run_baselines(directory: Path, cds_path: Path | None = None) -> dict[str, An
                 "translation_match": True,
             }
         )
+        fasta_records.append(
+            f">{gene['gene']}|native\n{kept}\n>{gene['gene']}|cai_greedy\n{greedy}\n"
+        )
     directory.mkdir(parents=True, exist_ok=True)
+    (directory / "baselines.fasta").write_text("".join(fasta_records), encoding="utf-8")
     manifest = {
         "panel": panel["id"],
         "accession": panel["accession"],
