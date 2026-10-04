@@ -1,0 +1,27 @@
+{
+  "state": "fitted",
+  "window": 10,
+  "held_out_nats_per_codon": -0.8711749285771091,
+  "baseline_nats_per_codon": -0.991738843659599,
+  "windows": [
+    {
+      "window": 5,
+      "held_out_nats_per_codon": -0.900526979129995,
+      "train_nats_per_codon": -1.0173669736304969,
+      "iterations": 40,
+      "gradient_norm": 828.0428062985421,
+      "converged": false
+    },
+    {
+      "window": 10,
+      "held_out_nats_per_codon": -0.8711749285771091,
+      "train_nats_per_codon": -1.0042573341737642,
+      "iterations": 40,
+      "gradient_norm": 1139.537776475773,
+      "converged": false
+    }
+  ],
+  "digest": "sha256:00386f5faf7167cb1386db4932623678777db96abd8d73cd568c53643c58c932",
+  "n_train": 4127,
+  "n_held_out": 13
+}

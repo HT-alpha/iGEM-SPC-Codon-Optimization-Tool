@@ -57,6 +57,9 @@ dependencies = [
 [[package]]
 name = "cf-epistasis"
 version = "0.1.0"
+dependencies = [
+ "cf-types",
+]
 
 [[package]]
 name = "cf-landscape"
@@ -86,6 +89,7 @@ name = "cf-pyext"
 version = "0.1.0"
 dependencies = [
  "cf-constraints",
+ "cf-epistasis",
  "cf-landscape",
  "cf-landscape-api",
  "cf-metrics",

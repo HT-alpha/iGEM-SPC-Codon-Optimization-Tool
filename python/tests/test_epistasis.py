@@ -1,0 +1,34 @@
+"""Held-out split, artifact digest, and the calibration note."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from codonforge.epistasis.artifact import ArtifactError, load_calibration, verify_artifact
+from codonforge.epistasis.train import held_out_split
+from codonforge.modelreg.manifest import digest_of
+
+
+def test_the_panel_genes_are_removed_before_the_fit() -> None:
+    panel = json.loads((Path("benchmarks/corpus/panel.json")).read_text(encoding="utf-8"))
+    train, held = held_out_split(list(panel["genes"]))
+    assert len(held) == 13
+    assert len(train) == 4127
+    assert {row["gene"] for row in held} == set(panel["genes"])
+    assert not ({row["gene"] for row in train} & set(panel["genes"]))
+
+
+def test_the_artifact_digest_covers_a_coupling(tmp_path: Path) -> None:
+    document = {
+        "schema_version": "1.0.0",
+        "parameters": {"models": [{"window": 5, "couplings": [0.0, 1.25]}]},
+    }
+    document["digest"] = digest_of(document)
+    verify_artifact(document)
+    document["parameters"]["models"][0]["couplings"][1] = 9.0
+    with pytest.raises(ArtifactError, match="digest"):
+        verify_artifact(document)
+    assert load_calibration(tmp_path / "missing.json") == {"state": "absent"}

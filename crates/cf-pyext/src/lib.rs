@@ -676,5 +676,123 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(scalarized_score_report, m)?)?;
     m.add_function(wrap_pyfunction!(tier3_root_seed, m)?)?;
     m.add_function(wrap_pyfunction!(search_tier3_segment, m)?)?;
+    m.add_function(wrap_pyfunction!(fit_potts_context, m)?)?;
+    m.add_function(wrap_pyfunction!(score_potts_context, m)?)?;
+    m.add_function(wrap_pyfunction!(score_codon_usage_baseline, m)?)?;
     Ok(())
+}
+
+fn json_strings(value: &serde_json::Value, key: &str) -> PyResult<Vec<String>> {
+    value
+        .get(key)
+        .and_then(|item| item.as_array())
+        .ok_or_else(|| PyValueError::new_err(format!("{key} must be a list of sequences")))?
+        .iter()
+        .map(|item| {
+            item.as_str()
+                .map(str::to_string)
+                .ok_or_else(|| PyValueError::new_err(format!("{key} contains a non-string")))
+        })
+        .collect()
+}
+
+/// Fit the synonymous Potts model. One crossing for the whole fit.
+///
+/// The dwell head is not on this surface. A request for it is not answered
+/// here with zeros.
+#[pyfunction]
+fn fit_potts_context(request_json: &str) -> PyResult<String> {
+    let request: serde_json::Value =
+        serde_json::from_str(request_json).map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let sequences = json_strings(&request, "sequences")?;
+    let window = request
+        .get("window")
+        .and_then(|item| item.as_u64())
+        .ok_or_else(|| PyValueError::new_err("window must be an integer"))? as usize;
+    let lambda_h = request
+        .get("lambda_h")
+        .and_then(|item| item.as_f64())
+        .unwrap_or(1e-3);
+    let lambda_j = request
+        .get("lambda_j")
+        .and_then(|item| item.as_f64())
+        .unwrap_or(1e-3);
+    let max_iterations = request
+        .get("max_iterations")
+        .and_then(|item| item.as_u64())
+        .unwrap_or(25) as u32;
+    let report = cf_epistasis::fit_potts(&sequences, window, lambda_h, lambda_j, max_iterations)
+        .map_err(PyValueError::new_err)?;
+    Ok(serde_json::json!({
+        "window": report.model.window,
+        "h": report.model.h,
+        "couplings": report.model.couplings,
+        "nats_per_codon": report.nats_per_codon,
+        "n_positions": report.n_positions,
+        "iterations": report.iterations,
+        "gradient_norm": report.gradient_norm,
+        "converged": report.converged,
+        "lambda_h": report.lambda_h,
+        "lambda_j": report.lambda_j,
+    })
+    .to_string())
+}
+
+#[pyfunction]
+fn score_potts_context(request_json: &str) -> PyResult<String> {
+    let request: serde_json::Value =
+        serde_json::from_str(request_json).map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let sequences = json_strings(&request, "sequences")?;
+    let window = request
+        .get("window")
+        .and_then(|item| item.as_u64())
+        .ok_or_else(|| PyValueError::new_err("window must be an integer"))? as usize;
+    let h = request
+        .get("h")
+        .and_then(|item| item.as_array())
+        .ok_or_else(|| PyValueError::new_err("h must be an array"))?
+        .iter()
+        .map(|item| {
+            item.as_f64()
+                .ok_or_else(|| PyValueError::new_err("h contains a non-number"))
+        })
+        .collect::<PyResult<Vec<f64>>>()?;
+    let couplings = request
+        .get("couplings")
+        .and_then(|item| item.as_array())
+        .ok_or_else(|| PyValueError::new_err("couplings must be an array"))?
+        .iter()
+        .map(|item| {
+            item.as_f64()
+                .ok_or_else(|| PyValueError::new_err("couplings contains a non-number"))
+        })
+        .collect::<PyResult<Vec<f64>>>()?;
+    let model = cf_epistasis::PottsModel {
+        window,
+        h,
+        couplings,
+    };
+    let (nats, positions) =
+        cf_epistasis::score_naturalness(&sequences, &model).map_err(PyValueError::new_err)?;
+    Ok(serde_json::json!({
+        "nats_per_codon": nats,
+        "n_positions": positions,
+    })
+    .to_string())
+}
+
+#[pyfunction]
+fn score_codon_usage_baseline(request_json: &str) -> PyResult<String> {
+    let request: serde_json::Value =
+        serde_json::from_str(request_json).map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let train = json_strings(&request, "train")?;
+    let held_out = json_strings(&request, "held_out")?;
+    let baseline =
+        cf_epistasis::score_codon_usage(&train, &held_out).map_err(PyValueError::new_err)?;
+    Ok(serde_json::json!({
+        "nats_per_codon": baseline.nats_per_codon,
+        "n_scored": baseline.n_scored,
+        "n_unseen": baseline.n_unseen,
+    })
+    .to_string())
 }
