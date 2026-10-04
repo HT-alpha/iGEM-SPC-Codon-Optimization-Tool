@@ -708,7 +708,8 @@ fn fit_potts_context(request_json: &str) -> PyResult<String> {
     let window = request
         .get("window")
         .and_then(|item| item.as_u64())
-        .ok_or_else(|| PyValueError::new_err("window must be an integer"))? as usize;
+        .ok_or_else(|| PyValueError::new_err("window must be an integer"))?
+        as usize;
     let lambda_h = request
         .get("lambda_h")
         .and_then(|item| item.as_f64())
@@ -746,7 +747,8 @@ fn score_potts_context(request_json: &str) -> PyResult<String> {
     let window = request
         .get("window")
         .and_then(|item| item.as_u64())
-        .ok_or_else(|| PyValueError::new_err("window must be an integer"))? as usize;
+        .ok_or_else(|| PyValueError::new_err("window must be an integer"))?
+        as usize;
     let h = request
         .get("h")
         .and_then(|item| item.as_array())

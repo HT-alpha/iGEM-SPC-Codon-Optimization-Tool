@@ -376,7 +376,10 @@ pub fn evaluate_one(genotype: Genotype, request: &Tier3Request<'_>) -> Result<In
 }
 
 fn breeding_genotype(individual: &Individual) -> &Genotype {
-    individual.inherited.as_ref().unwrap_or(&individual.genotype)
+    individual
+        .inherited
+        .as_ref()
+        .unwrap_or(&individual.genotype)
 }
 
 /// Start a run from a seed population.

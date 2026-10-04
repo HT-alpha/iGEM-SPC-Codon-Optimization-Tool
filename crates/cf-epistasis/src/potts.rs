@@ -50,13 +50,7 @@ impl Families {
         let mut members = Vec::with_capacity(64);
         for index in 0..64 {
             let codon = Codon::from_index(index as u8).expect("0..64");
-            members.push(
-                table
-                    .synonyms(codon)
-                    .iter()
-                    .map(|c| c.index())
-                    .collect(),
-            );
+            members.push(table.synonyms(codon).iter().map(|c| c.index()).collect());
         }
         Self { members }
     }
