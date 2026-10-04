@@ -39,7 +39,7 @@
       "pattern": "^t_[A-Za-z0-9]{8,32}$",
       "description": "Opaque tenant identifier. Appears in every artifact manifest and every observation; the isolation invariant in ADR-0006 is stated over this field."
     },
-    "JobId": { "type": "string", "pattern": "^job_[0-9A-HJKMNP-TV-Z]{26}$", "description": "ULID-based, lexicographically sortable by submission time." },
+    "JobId": { "type": "string", "pattern": "^job_[0-9A-HJKMNP-TV-Z]{26}$", "description": "ULID-based, lexicographically sortable by submission time. The body is Crockford base32: I, L, O and U are excluded; Y is included (`V-Z`)." },
     "ArtifactId": {
       "type": "string",
       "pattern": "^cf:(epistasis_potts|epistasis_dwell|burden_capacity|lm_naturalness|structure_params|kinetics_domainmap|calibrator|host_profile):(?:[a-z0-9_]+:[0-9]+(?:/[A-Za-z0-9._-]+)?|host_agnostic):[0-9]+\\.[0-9]+\\.[0-9]+$",

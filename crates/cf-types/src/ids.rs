@@ -233,7 +233,7 @@ mod tests {
         assert!(HostId::new("Escherichia_coli:562").is_err());
         // Missing taxid.
         assert!(HostId::new("escherichia_coli").is_err());
-        // ULID alphabet excludes I, L, O and U.
+        // ULID alphabet excludes I, L, O and U. Y is included (Crockford `V-Z`).
         assert!(JobId::new("job_01JBQ8Z4K7M2N3P5R6T7V8W9XI").is_err());
         // Too short.
         assert!(JobId::new("job_01JBQ8Z4K7M2N3P5R6T7V8W9X").is_err());

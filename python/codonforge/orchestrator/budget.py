@@ -164,19 +164,23 @@ class TierPlan:
         budget: ComputeBudget,
         terms: Iterable[str],
         capabilities: dict[str, str],
-        radii: dict[str, int | None] | None = None,
-        block_size: int | None = None,
         directions: dict[str, str] | None = None,
         roles: dict[str, str] | None = None,
     ) -> TierPlan:
         """Decide which terms each tier scores.
 
-        `capabilities` maps a term id to `L0`, `L1` or `L2`; `radii` maps it to
-        an interaction radius in codons, or `None` for unbounded. Both come from
+        `capabilities` maps a term id to `L0`, `L1` or `L2`. They come from
         the registry rather than from configuration, because a capability a
         caller asserts is not a capability.
+
+        Interaction radius is not decided here. `CF-SRCH-008` is `Tier2Plan::check`
+        in Rust, which reads `TermProvider::interaction_radius` — the value the
+        provider declared — rather than a dict this layer could zero out.
+        `design()` used to pass `radii={term: 0, ...}` and no `block_size`, so a
+        Python copy of that check was permanently inert. Wiring it would have
+        been a second comparison of the same rule (`DEP-SRCH-011`); removing it
+        is `DEP-ORCH-002`. Do not re-add a radii/`block_size` pair here.
         """
-        radii = radii or {}
         directions = directions or {}
         roles = roles or {}
         plan = cls(budget=budget)
@@ -251,22 +255,6 @@ class TierPlan:
                 )
                 continue
 
-            radius = radii.get(term, 0)
-            if block_size is not None and (radius is None or radius > block_size):
-                # Not a warning: tier 2's partition is unsound under such a
-                # term, and running anyway would produce a plausible answer
-                # that is not the coordinate-ascent step it claims to be.
-                raise TierPlanError(
-                    code="CF-SRCH-008",
-                    detail=(
-                        f"{term} couples positions "
-                        + ("without bound" if radius is None else f"up to {radius} codons apart")
-                        + f", against a tier 2 block size of {block_size}. Raise the block "
-                        "size or drop the term; the overlapping-block reconciliation that "
-                        "answers this case arrives with P1-26"
-                    ),
-                    subject=term,
-                )
             direction = directions.get(term)
             if direction not in ("minimize", "maximize"):
                 raise ValueError(
@@ -288,13 +276,16 @@ class TierPlanError(Exception):
     Kept distinct from `Warning_` on purpose. `CF-SRCH-008` is sometimes
     described alongside the warning codes, but a term wider than the block does
     not degrade the search — it invalidates the partition, so it belongs in
-    `job_status.problem` and stops the job.
+    `job_status.problem` and stops the job. The check that produces it lives in
+    Rust (`Tier2Plan::check`); this type is how that refusal reaches the
+    status document. `DEP-ORCH-002`.
     """
 
-    def __init__(self, code: str, detail: str, subject: str) -> None:
+    def __init__(self, code: str, detail: str, subject: str, stage: str = "tier2") -> None:
         self.code = code
         self.detail = detail
         self.subject = subject
+        self.stage = stage
         super().__init__(f"{code}: {detail}")
 
     def to_problem_details(self) -> dict[str, Any]:
@@ -304,6 +295,6 @@ class TierPlanError(Exception):
             "status": 422,
             "code": self.code,
             "detail": self.detail,
-            "stage": "tier_plan",
+            "stage": self.stage,
             "subject": self.subject,
         }

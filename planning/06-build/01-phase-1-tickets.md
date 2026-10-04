@@ -32,6 +32,8 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 | `P1-07` | Canonical serialization and digests | `cf-types` | RFC 8785 canonical JSON; sha256 digests; stable across key order, float formatting and platform | `TST-CORE-003` | `P1-06` | S |
 | `P1-08` | Identifiers and units | `cf-types` | `HostId`, `TenantId`, `JobId` (ULID), `ArtifactId`, `TermId` newtypes with the schema's regex validation; unit vocabulary; objective vector type | `contract_*` for `common.schema.json` | `P1-05` | S |
 
+Python `_derived_id` (job/lock/front) uses the same Crockford class as `JobId`: `[0-9A-HJKMNP-TV-Z]`. **Y is legal** (`V-Z`). I, L, O and U are not. `TST-CLI-013` generates a batch and matches each id against the schema pattern on disk. There is no second encoder in Rust; `JobId::new` only validates.
+
 ---
 
 ## Ingest
@@ -89,6 +91,12 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 
 These are properties of the contract, so they belong to `P1-20` rather than to its consumers. No resequencing is needed — `P1-20` already precedes `P1-21`/`P1-22` — but the acceptance criteria gain `TST-LAPI-003`. This is the `P1-17`/`P1-19` pattern again: declared tests that pass without the guarantee the ticket actually owes its consumers.
 
+**Control A/2 lives here, not only in the test plan.** `TermRegistry::register` is the call that can place a term below `TermProvider::max_role`. `register_default` uses the ceiling, which is why every current built-in keeps Control A/2 silent. When a future term is registered below its ceiling, re-examine Control A/2 in [`../05-testing/01-test-plan.md`](../05-testing/01-test-plan.md) §1a before treating that silence as redundancy. `DEP-STRU-004`.
+
+### `P1-21` — adding a built-in term
+
+A new built-in is registered through `TermRegistry::register` / `register_default` (and the match arm in `cf-pyext`'s `build_registry`). If it is registered below its `max_role` ceiling, Control A/2 in the test plan §1a becomes newly exercisable and must be re-run; until then its silence is expected, not a reason to delete it.
+
 ### `P1-22` — what "black-box oracle" costs the composition layer
 
 Two audit findings, one an architecture defect and one an acceptance gap.
@@ -133,7 +141,7 @@ It also carries the tier-planning refusal that the `P1-25` note describes, one t
 
 ### `P1-25` — four things the specification leaves to the implementation
 
-**The partition condition is `B ≥ R`, not `B ≥ W`.** §3.1 states it as `B ≥ W`, which is the condition only when `W` is the largest interaction radius among the *scored terms* — and §4 exists precisely because a term can have a larger one. Nothing declared a radius, so the assertion could only have compared one configured number against another and would have passed while the premise was false. `TermProvider::interaction_radius` is now required, and `Tier2Plan` checks the block size against what providers declare. A term declaring `Unbounded`, or a radius above `B`, is refused with `CF-SRCH-008` naming `P1-26` — the fallback that answers that case is not built, and assuming independence silently would be worse than refusing.
+**The partition condition is `B ≥ R`, not `B ≥ W`.** §3.1 states it as `B ≥ W`, which is the condition only when `W` is the largest interaction radius among the *scored terms* — and §4 exists precisely because a term can have a larger one. Nothing declared a radius, so the assertion could only have compared one configured number against another and would have passed while the premise was false. `TermProvider::interaction_radius` is now required, and `Tier2Plan` checks the block size against what providers declare. A term declaring `Unbounded`, or a radius above `B`, is refused with `CF-SRCH-008` naming `P1-26` — the fallback that answers that case is not built, and assuming independence silently would be worse than refusing. **`DEP-ORCH-002`:** that check is `Tier2Plan::check` alone. Python `TierPlan` does not copy it. A radii dict the orchestrator filled with zeros was not a second line of defense; it was a dead one.
 
 **The partition is over codon positions, not editable positions.** §3.1's prose says "partition the editable positions" while its diagram shows codon ranges, and they differ on a sequence with locks. Codon positions are used, because the independence argument is about codon distance: two positions in different same-colour blocks are then at least `B` codons apart directly, with no reasoning about how many locked positions sit between them. A block containing only locked codons is a no-op.
 
@@ -153,7 +161,7 @@ It also carries the tier-planning refusal that the `P1-25` note describes, one t
 > **Re-read after `P2-11` (implementation, 2026-09). Not activated.** `P2-11` was the named trigger and has landed. It is not the trigger the ticket was scoped against.
 >
 > - **Numeric relationship.** `structure.local_accessibility` declares `InteractionRadius::Codons(span_nt.div_ceil(3))` with `STRUCTURE_SPAN_NT = 40`, so `R = 14`. The planning cost model and `job_request.example.json` use `B = 30`; `14 ≤ 30`, so `B ≥ R` holds. The current `JobInputs.tier2_block` default is `8`, where `14 > 8` — a radius bigger than *that* `B`, but not the §4 case. §4's instance is pairing 400 nt apart (`R ≈ 134` codons), where enlarging `B` would defeat blocking. Raising `B` from 8 to 14, or to the planning 30, is the ticket's own first remedy (`raise the block size to at least {codons} or wait for P1-26`) and does not defeat blocking.
-> - **Capability.** The term is **L0** (`DEP-STRU-003`). `TierPlan` routes it to tier 3 with `CF-SRCH-010` and never reaches the radius check; `Tier2Plan::check` drops it for lacking an exact delta, also before `CF-SRCH-008`. P1-26 is a fallback for a term *inside* the tier-2 objective whose radius makes red-black independence false. This term is not inside that objective. `score()` / `delta()` refuse with `CF-STRU-006`, so `EXACT_OBJECTIVE_CONTRIBUTION(seam, neighbours)` still cannot be served by the real term. A synthetic L1 long-range term would prove chain-DP arithmetic and nothing about reconciliation — the placeholder the original hold forbade.
+> - **Capability.** The term is **L0** (`DEP-STRU-003`). `TierPlan` routes it to tier 3 with `CF-SRCH-010`; `Tier2Plan::check` drops it for lacking an exact delta, also before `CF-SRCH-008`. P1-26 is a fallback for a term *inside* the tier-2 objective whose radius makes red-black independence false. This term is not inside that objective. `score()` / `delta()` refuse with `CF-STRU-006`, so `EXACT_OBJECTIVE_CONTRIBUTION(seam, neighbours)` still cannot be served by the real term. A synthetic L1 long-range term would prove chain-DP arithmetic and nothing about reconciliation — the placeholder the original hold forbade.
 > - **Tier-2 changes since the hold do not invert this.** `DEP-SRCH-007` (codon partition, `B ≥ R` not `B ≥ W`), rayon same-colour sweeps, the capability precheck lifting into `TierPlan`, the right-edge motif walk, and the incumbent as the `b+1`th beam state all still describe the red-black path. None of them creates a scored-by-tier-2 term with `R > B` where enlarging `B` is the wrong answer. They also do not invalidate the §4 DP *if* such a term arrives; they are not a reason to build it against the wrong term.
 >
 > What would still need modification before activation: an in-core-scoreable (L1) term whose declared radius exceeds a block size that cannot honestly be raised, so that overlapping blocks are the residual case rather than a substitute for `B ≥ R`; and a seam-evaluation that the real provider can answer. `CF-SRCH-008` remains the refusal. See `DEP-SRCH-013`.

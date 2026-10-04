@@ -67,6 +67,8 @@ pub fn build_registry(
             "usage.cai" => {
                 let table =
                     CodonUsageTable::from_host_profile(host_profile, sequence.table().id())?;
+                // `register_default` uses `max_role`. A lower role here would
+                // make Control A/2 (test plan §1a) newly exercisable.
                 registry.register_default(Box::new(CaiTerm::new(table)?))?;
             }
             "usage.gc_content" => {

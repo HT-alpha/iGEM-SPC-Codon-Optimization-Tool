@@ -409,7 +409,11 @@ impl TermRegistry {
     /// Register a provider in a role.
     ///
     /// Refuses a role stronger than the provider permits (`CF-LAND-004`) and a
-    /// duplicate term id (`CF-LAND-005`).
+    /// duplicate term id (`CF-LAND-005`). A role *weaker* than
+    /// [`TermProvider::max_role`] is legal — that is the case Control A/2 in
+    /// `planning/05-testing/01-test-plan.md` §1a is waiting on. Re-examine that
+    /// control when registering below the ceiling; until then its silence is
+    /// expected (`DEP-STRU-004`).
     pub fn register(&mut self, provider: Box<dyn TermProvider>, role: TermRole) -> Result<()> {
         let term = provider.term_id().clone();
         if self.by_term.contains_key(term.as_str()) {
@@ -433,6 +437,9 @@ impl TermRegistry {
     }
 
     /// Register in the provider's own strongest permitted role.
+    ///
+    /// This is why Control A/2 is currently silent: every production
+    /// registration goes through here, so effective role equals the ceiling.
     pub fn register_default(&mut self, provider: Box<dyn TermProvider>) -> Result<()> {
         let role = provider.max_role();
         self.register(provider, role)

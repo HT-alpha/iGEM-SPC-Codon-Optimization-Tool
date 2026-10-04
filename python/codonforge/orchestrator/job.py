@@ -157,8 +157,6 @@ class Job:
         store: ArtifactStore,
         terms: list[str],
         capabilities: dict[str, str],
-        radii: dict[str, int | None] | None = None,
-        block_size: int | None = None,
         directions: dict[str, str] | None = None,
         roles: dict[str, str] | None = None,
         checkpoint_dir: Path | None = None,
@@ -175,7 +173,7 @@ class Job:
                 "an unsealed lockfile cannot pin anything"
             )
 
-        plan = TierPlan.plan(budget, terms, capabilities, radii, block_size, directions, roles)
+        plan = TierPlan.plan(budget, terms, capabilities, directions, roles)
         unwired = [tier for tier in budget.stages() if tier not in EXECUTED_TIERS]
         job = cls(
             job_id=job_id,
@@ -586,13 +584,19 @@ class Job:
             self._absorb_warnings(report.get("warnings", []))
 
         if "tier2_block_ca" in stages:
-            report = json.loads(
-                _core.search_tier2_polish(
-                    self._tier_request(cds, self.plan.tier2),
-                    self.inputs.tier2_block,
-                    self.inputs.tier2_sweeps,
+            try:
+                report = json.loads(
+                    _core.search_tier2_polish(
+                        self._tier_request(cds, self.plan.tier2),
+                        self.inputs.tier2_block,
+                        self.inputs.tier2_sweeps,
+                    )
                 )
-            )
+            except ValueError as exc:
+                # `Tier2Plan::check` is the sole CF-SRCH-008 gate (`DEP-ORCH-002`).
+                # The extension raises the problem-detail JSON; map it onto the
+                # status document rather than letting a raw ValueError escape.
+                raise _tier2_partition_refusal(exc) from exc
             cds = _cds_of(report["incumbent"])
             self.record_candidate("tier2_block_ca", cds)
             self.stage_reports["tier2_block_ca"] = report
@@ -819,6 +823,23 @@ class Job:
     def warnings_from(self, stage: str) -> list[dict[str, Any]]:
         """Warnings a given stage produced. `DEP-ORCH-001`'s whole point."""
         return [w for w in self.warnings if w.get("stage") == stage]
+
+
+def _tier2_partition_refusal(exc: ValueError) -> Exception:
+    """Lift a CF-SRCH-008 from the extension into `TierPlanError`.
+
+    Any other ValueError is returned unchanged so programming mistakes still
+    surface as crashes rather than as a forged partition refusal.
+    """
+    try:
+        payload = json.loads(str(exc))
+    except json.JSONDecodeError:
+        return exc
+    if not isinstance(payload, dict) or payload.get("code") != "CF-SRCH-008":
+        return exc
+    detail = str(payload.get("detail") or exc)
+    subject = detail.split(" ", 1)[0]
+    return TierPlanError(code="CF-SRCH-008", detail=detail, subject=subject, stage="tier2")
 
 
 def _cds_of(document: dict[str, Any]) -> str:

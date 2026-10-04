@@ -10,7 +10,8 @@
     },
     "lockfile_id": {
       "type": "string",
-      "pattern": "^lock_[0-9A-HJKMNP-TV-Z]{26}$"
+      "pattern": "^lock_[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "ULID-shaped. Body is Crockford base32 (I, L, O, U excluded; Y is in V-Z), matching JobId."
     },
     "created_at": {
       "$ref": "common.schema.json#/$defs/Iso8601"
