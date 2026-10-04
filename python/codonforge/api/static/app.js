@@ -64,6 +64,9 @@ function renderStatus(document) {
         `<div class="warn-row"><div class="code">${escapeText(warning.code || "")}</div><div class="mono">${escapeText(warning.stage || "")}</div><div class="mono">${escapeText(warning.subject || "")}</div><div><strong>${escapeText(warning.title || "")}</strong><div class="note">${escapeText(warning.detail || "")}</div></div></div>`,
     )
     .join("");
+  const warningBlock = warnings
+    ? `<div class="warn-row head"><div>code</div><div>stage</div><div>subject</div><div>title</div></div>${warnings}`
+    : '<p class="note">No warnings on this status.</p>';
   const stateKind = document.state === "succeeded" ? "feasible" : document.state === "failed" ? "refusal" : "warning";
   statusRoot.innerHTML = `
     <div class="rail"><div class="k">Job</div><div class="v mono">${escapeText(document.job_id || "")}</div></div>
@@ -73,7 +76,7 @@ function renderStatus(document) {
     <h2>Resolved objectives</h2>
     <table class="data"><thead><tr><th>term</th><th>role</th><th>direction</th></tr></thead><tbody>${objectives}</tbody></table>
     <h2>Warnings</h2>
-    ${warnings || '<p class="note">No warnings on this status.</p>'}
+    ${warningBlock}
   `;
 }
 
@@ -84,6 +87,10 @@ function termValue(candidate, term, order) {
   if (index < 0) return null;
   const vector = candidate.objective_vector || [];
   return vector[index] === undefined ? null : vector[index];
+}
+
+function isStructureTerm(term) {
+  return String(term).startsWith("structure.");
 }
 
 function structureOptimal(front) {
@@ -113,25 +120,48 @@ function structureOptimal(front) {
   return { excluded, found };
 }
 
+function optimalCallout(item) {
+  const structure = isStructureTerm(item.term);
+  const title = structure
+    ? "Structure-optimal among members scored on an axis the recommendation did not use"
+    : "Best scored member on an axis the recommendation did not use";
+  const klass = structure ? "callout structure" : "callout";
+  return `<div class="${klass}"><strong>${escapeText(title)}</strong> <code>${escapeText(item.candidate.candidate_id)}</code> · <code>${escapeText(item.term)}</code> ${escapeText(item.value)} (${escapeText(item.sense)}). This is not a second recommended candidate.</div>`;
+}
+
+function roleFor(front, term) {
+  for (const candidate of front.candidates || []) {
+    const detail = (candidate.objective_detail || {})[term];
+    if (detail && detail.role) return detail.role;
+  }
+  return "";
+}
+
+function feasibleCell(candidate) {
+  const report = candidate.constraint_report;
+  if (!report || typeof report.feasible !== "boolean") {
+    return `<td class="note">constraint_report.feasible absent</td>`;
+  }
+  return `<td>${report.feasible ? chip("feasible", "true") : chip("infeasible", "false")}</td>`;
+}
+
 function renderFront(front) {
   const recommended = front.recommended || {};
   const order = front.objective_order || [];
   const senses = front.objective_sense || [];
   const optimal = structureOptimal(front);
-  const optimalIds = new Set(optimal.found.map((item) => item.candidate.candidate_id));
+  const optimalIds = new Set(
+    optimal.found
+      .filter((item) => isStructureTerm(item.term))
+      .map((item) => item.candidate.candidate_id),
+  );
   const informed = (recommended.informed_by || []).map((term) => `<code>${escapeText(term)}</code>`).join(" ");
   const excluded = (recommended.not_informed_by || []).map((term) => `<code>${escapeText(term)}</code>`).join(" ");
   const optimalText = optimal.found.length
-    ? optimal.found
-        .map(
-          (item) =>
-            `<div class="callout structure"><strong>Structure-optimal among members scored on an axis the recommendation did not use</strong> <code>${escapeText(item.candidate.candidate_id)}</code> · <code>${escapeText(item.term)}</code> ${escapeText(item.value)} (${escapeText(item.sense)}). This is not a second recommended candidate.</div>`,
-        )
-        .join("")
-    : `<div class="callout structure"><strong>No scored member on an excluded axis.</strong> ${excluded || "not_informed_by is empty."} UNKNOWN is not placed on the numeric axis.</div>`;
+    ? optimal.found.map((item) => optimalCallout(item)).join("")
+    : `<div class="callout"><strong>No scored member on an excluded axis.</strong> ${excluded || "not_informed_by is empty."} UNKNOWN is not placed on the numeric axis.</div>`;
   const rows = (front.candidates || [])
     .map((candidate) => {
-      const feasible = candidate.constraint_report && candidate.constraint_report.feasible;
       const cells = order
         .map((term, index) => {
           const value = (candidate.objective_vector || [])[index];
@@ -152,7 +182,7 @@ function renderFront(front) {
         .join("");
       const klass = candidate.candidate_id === recommended.candidate_id ? "rec" : optimalIds.has(candidate.candidate_id) ? "sopt" : "";
       const unknown = (candidate.unknown_terms || []).join(", ") || "—";
-      return `<tr class="${klass}"><td class="mono">${escapeText(candidate.candidate_id)}</td><td>${feasible === true ? chip("feasible", "feasible") : feasible === false ? chip("infeasible", "infeasible") : ""}</td><td class="mono">${escapeText(unknown)}</td>${cells}<td>${extra}</td></tr>`;
+      return `<tr class="${klass}"><td class="mono">${escapeText(candidate.candidate_id)}</td>${feasibleCell(candidate)}<td class="mono">${escapeText(unknown)}</td>${cells}<td>${extra}</td></tr>`;
     })
     .join("");
   const plot = renderPlot(front, recommended.candidate_id, optimalIds);
@@ -162,7 +192,13 @@ function renderFront(front) {
     <div class="callout"><strong>Recommended</strong> <code>${escapeText(recommended.candidate_id || "")}</code> · rule <code>${escapeText(recommended.rule || "")}</code><br>informed_by ${informed || "—"}<br>not_informed_by ${excluded || "—"}</div>
     ${optimalText}
     ${plot}
-    <table class="data"><thead><tr><th>candidate</th><th>constraint_report.feasible</th><th>unknown_terms</th>${order.map((term) => `<th>${escapeText(term)}</th>`).join("")}<th>other terms</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="note">A column in this table is a Pareto axis. A diagnostic term is in the last column and is not an axis. UNKNOWN is the word in the hatched cell, not a number.</p>
+    <table class="data"><thead><tr><th>candidate</th><th>constraint_report.feasible</th><th>unknown_terms</th>${order
+      .map((term) => {
+        const role = roleFor(front, term);
+        return `<th>${escapeText(term)}${role ? ` ${roleChip(role)}` : ""}</th>`;
+      })
+      .join("")}<th>other terms</th></tr></thead><tbody>${rows}</tbody></table>
   `;
 }
 
@@ -177,14 +213,15 @@ function renderPlot(front, recommendedId, optimalIds) {
   for (const candidate of front.candidates || []) {
     const x = (candidate.objective_vector || [])[0];
     const y = (candidate.objective_vector || [])[1];
-    if (x === null || x === undefined) continue;
-    if (y === null || y === undefined) unknown.push({ candidate, x: Number(x) });
-    else points.push({ candidate, x: Number(x), y: Number(y) });
+    const xKnown = !(x === null || x === undefined);
+    const yKnown = !(y === null || y === undefined);
+    if (xKnown && yKnown) points.push({ candidate, x: Number(x), y: Number(y) });
+    else unknown.push({ candidate, x: xKnown ? Number(x) : null, y: yKnown ? Number(y) : null });
   }
-  const xs = points.map((point) => point.x).concat(unknown.map((point) => point.x));
-  if (!xs.length) return "";
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
+  const xs = points.map((point) => point.x).concat(unknown.filter((point) => point.x !== null).map((point) => point.x));
+  if (!xs.length && !unknown.length) return "";
+  const minX = xs.length ? Math.min(...xs) : 0;
+  const maxX = xs.length ? Math.max(...xs) : 1;
   const ys = points.map((point) => point.y);
   const minY = ys.length ? Math.min(...ys) : 0;
   const maxY = ys.length ? Math.max(...ys) : 1;
@@ -199,11 +236,15 @@ function renderPlot(front, recommendedId, optimalIds) {
     .join("");
   const rail = unknown.length
     ? `<rect x="20" y="250" width="680" height="40" fill="url(#hatch)"/>${unknown
-        .map((point) => `<rect x="${scaleX(point.x) - 4}" y="266" width="8" height="8" fill="#1c1917"/>`)
+        .map((point, index) => {
+          const xPos = point.x === null ? 40 + index * 16 : scaleX(point.x);
+          return `<rect x="${xPos - 4}" y="266" width="8" height="8" fill="#1c1917"/>`;
+        })
         .join("")}`
     : "";
+  const missingX = unknown.filter((point) => point.x === null).length;
   const caption = unknown.length
-    ? `<p class="note">${unknown.length} member(s) are UNKNOWN on <code>${escapeText(order[1])}</code> and sit in the hatched rail. They are not given a number on the ${escapeText(senseY || "numeric")} axis.</p>`
+    ? `<p class="note">${unknown.length} member(s) are UNKNOWN on at least one of <code>${escapeText(order[0])}</code> and <code>${escapeText(order[1])}</code> and sit in the hatched rail. They are not given a number on the ${escapeText(senseY || "numeric")} axis.${missingX ? " A member whose first axis is UNKNOWN is spaced along the rail in member order, which is not a score." : ""}</p>`
     : `<p class="note">Every plotted member has a number on both axes. An UNKNOWN value would sit in the hatched rail, not on this scale.</p>`;
   return `<svg class="plot" viewBox="0 0 720 300" width="100%" role="img" aria-label="First axis versus second. UNKNOWN members sit in a hatched rail, not at a worst-case score.">
     <defs><pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8"><rect width="8" height="8" fill="#ddd8cc"/><path d="M0 8 L8 0" stroke="#c9c3b6" stroke-width="2"/></pattern></defs>

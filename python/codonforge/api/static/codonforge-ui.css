@@ -313,6 +313,16 @@ button {
   font-weight: 600;
 }
 
+.warn-row.head {
+  background: transparent;
+  border-left-color: transparent;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+
 .fixture {
   font-size: 0.78rem;
   color: var(--ink-dim);

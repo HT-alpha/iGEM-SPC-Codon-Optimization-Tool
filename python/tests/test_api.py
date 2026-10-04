@@ -130,6 +130,8 @@ def test_the_page_is_the_api_shell(base: str) -> None:
     assert "unknown_terms" in script
     assert "not_informed_by" in script
     assert "UNKNOWN" in script
+    assert 'startsWith("structure.")' in script
+    assert "constraint_report.feasible absent" in script
     with urllib.request.urlopen(f"{base}/favicon.ico") as response:
         assert response.status == 204
 
