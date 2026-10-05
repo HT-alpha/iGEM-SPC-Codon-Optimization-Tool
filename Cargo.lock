@@ -85,6 +85,27 @@ name = "cf-metrics"
 version = "0.1.0"
 
 [[package]]
+name = "cf-primer-search"
+version = "0.1.0"
+dependencies = [
+ "cf-metrics",
+ "cf-primer-thermo",
+ "cf-types",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "cf-primer-thermo"
+version = "0.1.0"
+dependencies = [
+ "cf-types",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "cf-pyext"
 version = "0.1.0"
 dependencies = [
