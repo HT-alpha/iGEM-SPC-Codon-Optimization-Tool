@@ -323,6 +323,10 @@ function renderSequences(front, recommendedId, optimalIds) {
             <p class="note">${escapeText(note)}</p>`;
         })
         .join("");
+      if (role === "recommended" && (candidate.sequences || [])[0]) {
+        window.optimizedCds = candidate.sequences[0].cds;
+        refreshOptimizedHandoff();
+      }
       const unknownLine = unknown
         ? `<p class="note"><span class="unk">UNKNOWN</span> ${escapeText(unknown)}. These are unscored terms, not codon positions. This document has no position mask, so codons are not hatched.</p>`
         : "";
@@ -650,3 +654,237 @@ submitButton.addEventListener("click", async () => {
     submitError.innerHTML = `<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`;
   }
 });
+
+window.optimizedCds = "";
+
+function refreshOptimizedHandoff() {
+  const slot = document.getElementById("use-optimized");
+  if (!slot) return;
+  slot.innerHTML = window.optimizedCds
+    ? `<button type="button" id="use-optimized-sequence">Use optimized sequence</button>`
+    : "";
+}
+
+document.querySelectorAll("button.tab").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll("button.tab").forEach((item) => item.classList.toggle("active", item === button));
+    document.getElementById("tab-codon").hidden = button.dataset.tab !== "codon";
+    document.getElementById("tab-primer").hidden = button.dataset.tab !== "primer";
+    if (button.dataset.tab === "primer") drawViewer();
+  });
+});
+
+const viewer = document.getElementById("primer-viewer");
+const primerSequence = document.getElementById("primer-sequence");
+let selection = null;
+let dragAnchor = null;
+let viewStart = 0;
+
+function rulerStep(length) {
+  if (length > 5000) return 100;
+  if (length > 500) return 50;
+  return 10;
+}
+
+function visibleWindow(sequence) {
+  if (sequence.length <= 10000) return { start: 0, text: sequence };
+  const start = Math.max(0, Math.min(viewStart, sequence.length - 2000));
+  return { start, text: sequence.slice(start, start + 2000) };
+}
+
+function drawViewer() {
+  if (!viewer || !primerSequence) return;
+  const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+  const windowed = visibleWindow(sequence);
+  viewStart = windowed.start;
+  const step = rulerStep(sequence.length);
+  const flank = Number(document.getElementById("primer-flank").value) || 200;
+  let html = "";
+  for (let index = 0; index < windowed.text.length; index += 1) {
+    const absolute = windowed.start + index;
+    if (absolute % step === 0) html += `<span class="note">${absolute}</span> `;
+    let klass = "nt";
+    if (selection && absolute >= selection.start && absolute < selection.end) klass += " selected";
+    else if (selection && absolute >= selection.start - flank && absolute < selection.start) klass += " flank";
+    else if (selection && absolute >= selection.end && absolute < selection.end + flank) klass += " flank";
+    html += `<span class="${klass}" data-index="${absolute}">${windowed.text[index]}</span>`;
+  }
+  if (sequence.length > 10000) {
+    html = `<p class="note">Showing ${windowed.start}–${windowed.start + windowed.text.length} of ${sequence.length}. <button type="button" id="viewer-back" data-jump="-2000">Back</button> <button type="button" id="viewer-forward" data-jump="2000">Forward</button></p>` + html;
+  }
+  viewer.innerHTML = html || `<span class="note">Paste a sequence.</span>`;
+  const note = document.getElementById("primer-selection");
+  if (note) {
+    note.textContent = selection
+      ? `Region ${selection.start}–${selection.end} (${selection.end - selection.start} nt).`
+      : "No region selected.";
+  }
+}
+
+function indexAt(event) {
+  const node = event.target.closest("[data-index]");
+  return node ? Number(node.dataset.index) : null;
+}
+
+if (viewer) {
+  viewer.addEventListener("pointerdown", (event) => {
+    const index = indexAt(event);
+    if (index === null) {
+      const jump = event.target.closest("[data-jump]");
+      if (jump) {
+        viewStart = Math.max(0, viewStart + Number(jump.dataset.jump));
+        drawViewer();
+      }
+      return;
+    }
+    dragAnchor = index;
+    selection = { start: index, end: index + 1 };
+    drawViewer();
+  });
+  viewer.addEventListener("pointermove", (event) => {
+    if (dragAnchor === null || event.buttons !== 1) return;
+    const index = indexAt(event);
+    if (index === null) return;
+    selection = { start: Math.min(dragAnchor, index), end: Math.max(dragAnchor, index) + 1 };
+    drawViewer();
+  });
+  window.addEventListener("pointerup", () => {
+    dragAnchor = null;
+  });
+}
+
+if (primerSequence) primerSequence.addEventListener("input", drawViewer);
+
+document.getElementById("tab-primer").addEventListener("click", (event) => {
+  if (event.target.id !== "use-optimized-sequence") return;
+  primerSequence.value = window.optimizedCds;
+  selection = null;
+  drawViewer();
+});
+
+function primerConfig() {
+  return {
+    tm_target: Number(document.getElementById("primer-tm").value),
+    product_size_range: {
+      min: Number(document.getElementById("primer-pmin").value),
+      max: Number(document.getElementById("primer-pmax").value),
+    },
+    flank_length: Number(document.getElementById("primer-flank").value),
+    primer_length_range: {
+      min: Number(document.getElementById("primer-lmin").value),
+      max: Number(document.getElementById("primer-lmax").value),
+    },
+  };
+}
+
+function zoneClass(flag) {
+  if (!flag) return "zone-green";
+  return flag.severity === "red" ? "zone-red" : "zone-amber";
+}
+
+function detailPanel(pair) {
+  const flags = (pair.flags || [])
+    .map((flag) => `<div class="${zoneClass(flag)}">${escapeText(flag.property)} ${escapeText(flag.observed)} · ${escapeText(flag.threshold)}</div>`)
+    .join("");
+  return `<div class="detail-panel open" style="max-height:40rem">
+    <p><strong>Forward</strong> <span class="mono">${escapeText(pair.forward_sequence)}</span></p>
+    <p>GC ${escapeText(pair.gc_forward)}% · Tm ${escapeText(Number(pair.tm_forward).toFixed(2))} °C
+      <button type="button" class="param-help" title="${escapeAttr(pair.parameter_citation || "")}">?</button></p>
+    <p class="note">${escapeText(pair.parameter_set_id || "")} ${escapeText(pair.parameter_digest || "")}</p>
+    <pre class="mono">${escapeText(pair.hairpin_diagram_forward || "")}</pre>
+    <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_forward)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_forward)} · 3′ clamp ${pair.gc_clamp_forward ? "G or C" : "not G or C"}</p>
+    <p><strong>Reverse</strong> <span class="mono">${escapeText(pair.reverse_sequence)}</span></p>
+    <pre class="mono">${escapeText(pair.hairpin_diagram_reverse || "")}</pre>
+    <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_reverse)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_reverse)} · 3′ clamp ${pair.gc_clamp_reverse ? "G or C" : "not G or C"}</p>
+    <p><strong>Pair</strong> hetero-dimer ΔG ${escapeText(pair.hetero_dimer_dG)} · 3′ ΔG ${escapeText(pair.hetero_dimer_3prime_dG)} · Tm mismatch ${escapeText(pair.tm_mismatch)} · product ${escapeText(pair.product_size)}</p>
+    <pre class="mono">${escapeText(pair.hetero_dimer_alignment || "")}</pre>
+    ${flags || `<p class="zone-green">No property is in the amber or red zone.</p>`}
+    <p class="note">Specificity against genome not checked.</p>
+    ${pair.product_sequence ? `<button type="button" data-copy="${escapeAttr(pair.product_sequence)}">Copy product sequence</button><div class="seq-block">${escapeText(pair.product_sequence)}</div>` : ""}
+  </div>`;
+}
+
+function renderPrimerResult(result) {
+  const root = document.getElementById("primer-results");
+  const pairs = (result && result.pairs) || [];
+  if (!pairs.length) {
+    root.innerHTML = problemCallout({ code: "CF-PRIM-001", title: "No primer pairs survived pruning", detail: "Widen the flank, widen the product-size range, or move the Tm target." });
+    return;
+  }
+  const recommended = pairs[0];
+  const rows = pairs
+    .map((pair, index) => {
+      const worst = Math.min(pair.hairpin_dG_forward, pair.hairpin_dG_reverse, pair.self_dimer_dG_forward, pair.self_dimer_dG_reverse, pair.hetero_dimer_dG);
+      return `<tr data-pair="${index}"><td class="mono">${escapeText(pair.pair_id)}</td><td>${escapeText(Number(pair.tm_mismatch).toFixed(2))}</td><td>${escapeText(Number(worst).toFixed(2))}</td><td>${escapeText(Math.abs(pair.gc_forward - pair.gc_reverse).toFixed(1))}</td><td>${escapeText(pair.product_size)}</td><td>${pair.refused ? chip("refusal", "refused") : chip("feasible", "kept")}</td></tr>`;
+    })
+    .join("");
+  root.innerHTML = `<div class="reveal">
+    <div class="callout pulse-once"><strong>Recommended</strong> <code>${escapeText(recommended.pair_id)}</code><br>
+    informed_by <code>primer.tm_mismatch</code> <code>primer.worst_dimer_penalty</code> <code>primer.gc_balance</code> <code>primer.product_deviation</code></div>
+    <p class="note">Specificity against genome not checked. ${escapeText(result.parameter_citation || "")}</p>
+    <div class="hscroll"><table class="data"><thead><tr><th>pair</th><th>Tm mismatch</th><th>worst dimer ΔG</th><th>GC balance</th><th>product</th><th>zone</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div id="primer-detail">${detailPanel(recommended)}</div>
+  </div>`;
+  root.querySelectorAll("tr[data-pair]").forEach((row) => {
+    row.addEventListener("click", () => {
+      document.getElementById("primer-detail").innerHTML = detailPanel(pairs[Number(row.dataset.pair)]);
+    });
+  });
+}
+
+async function pollPrimers(jobId) {
+  const bar = document.getElementById("primer-progress");
+  let status = await call("GET", `/v1/primers/${jobId}`);
+  while (status.payload && ["queued", "running"].includes(status.payload.state)) {
+    const tier = ((status.payload.progress || {}).tiers || []).find((item) => item.tier === "primer_evaluate") || { fraction: 0 };
+    const width = Math.round((tier.fraction || 0) * 100);
+    bar.innerHTML = `<div class="tier-track"><span>primer_evaluate</span><span>${escapeText(status.payload.state)}</span><div class="bar"><span style="width:${width}%"></span></div><span></span></div>`;
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    status = await call("GET", `/v1/primers/${jobId}`);
+  }
+  if (!status.payload) return;
+  if (status.payload.problem) {
+    document.getElementById("primer-error").innerHTML = problemCallout(status.payload.problem);
+    document.getElementById("primer-results").innerHTML = problemCallout(status.payload.problem);
+    return;
+  }
+  renderPrimerResult(status.payload.primer_result);
+}
+
+document.getElementById("primer-search").addEventListener("click", async () => {
+  document.getElementById("primer-error").innerHTML = "";
+  if (!selection) {
+    document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>No region selected.</strong> <span class="note">Drag across the sequence viewer.</span></div>`;
+    return;
+  }
+  const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+  const posted = await call("POST", "/v1/primers/candidates", {
+    sequence,
+    region: selection,
+    config: primerConfig(),
+  });
+  if (!posted.payload) return;
+  if (posted.payload.code && !posted.payload.job_id) {
+    document.getElementById("primer-error").innerHTML = problemCallout(posted.payload);
+    document.getElementById("primer-results").innerHTML = problemCallout(posted.payload);
+    return;
+  }
+  pollPrimers(posted.payload.job_id);
+});
+
+document.getElementById("manual-check").addEventListener("click", async () => {
+  const posted = await call("POST", "/v1/primers/analyze", {
+    forward: document.getElementById("manual-forward").value.toUpperCase().replace(/[^ACGT]/g, ""),
+    reverse: document.getElementById("manual-reverse").value.toUpperCase().replace(/[^ACGT]/g, ""),
+  });
+  const root = document.getElementById("manual-detail");
+  if (!posted.payload) return;
+  if (posted.payload.code && !posted.payload.forward_sequence) {
+    root.innerHTML = problemCallout(posted.payload);
+    return;
+  }
+  root.innerHTML = `<div class="reveal">${detailPanel(posted.payload)}</div>`;
+});
+
+drawViewer();
+refreshOptimizedHandoff();

@@ -2,27 +2,26 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>CodonForge</title>
+<title>DNA Design Suite</title>
 <link rel="stylesheet" href="/codonforge-ui.css">
 </head>
 <body>
 <nav class="nav">
-  <a href="#submit">Submit</a>
-  <a href="#status">Status</a>
-  <a href="#front">Pareto front</a>
-  <span class="note">Renders the job and front documents the API returns. No scores are stored in this page. Faces: IBM Plex Sans / Mono and Source Serif 4 when installed; Noto / system otherwise. Tokens from the Part D brief (IGV hatch, Jalview gap, NCBI header blue).</span>
+  <button type="button" class="tab active" data-tab="codon">Codon Optimization</button>
+  <button type="button" class="tab" data-tab="primer">Primer Design</button>
+  <span class="note">DNA Design Suite. CodonForge and PrimerForge share this page. Faces: IBM Plex Sans / Mono and Source Serif 4 when installed. Tokens from the Part D brief (IGV hatch, NCBI header blue).</span>
 </nav>
 
 <header class="mast">
   <div class="k">Document</div>
   <div class="v">
-    <h1>CodonForge</h1>
+    <h1>DNA Design Suite</h1>
     <p class="sub">A design is a lab result. Missing scores stay missing. Feasibility is the boolean on the candidate, not a third state.</p>
     <p id="calibration" class="note">epistasis.context_naturalness absent</p>
   </div>
 </header>
 
-<div class="page">
+<div class="page" id="tab-codon">
   <h2 id="submit">Submit</h2>
   <div class="rail">
     <div class="k">Bearer token</div>
@@ -46,6 +45,39 @@
 
   <h2>Not in this build</h2>
   <div id="unbuilt-root" class="note">Hosts, models, observations, presets, protein input, and the five-check feasibility route answer CF-CLI-003. The front's constraint_report is what this page shows.</div>
+</div>
+
+<div class="page" id="tab-primer" hidden>
+  <h2>Sequence</h2>
+  <p class="note">Upload a DNA sequence, then drag across the viewer to choose the region to amplify. NCBI BLAST is not part of this tool.</p>
+  <div id="use-optimized"></div>
+  <textarea id="primer-sequence" class="seq" rows="4" spellcheck="false" placeholder="ACGT..."></textarea>
+  <div class="viewer-layout">
+    <div>
+      <div id="primer-viewer" class="seq-block viewer" tabindex="0"></div>
+      <p id="primer-selection" class="note">No region selected.</p>
+    </div>
+    <div class="config-panel">
+      <h2>Configuration</h2>
+      <label>Tm target <input id="primer-tm" class="seq" type="number" value="60" step="0.1"></label>
+      <label>Product min <input id="primer-pmin" class="seq" type="number" value="100"></label>
+      <label>Product max <input id="primer-pmax" class="seq" type="number" value="500"></label>
+      <label>Flank length <input id="primer-flank" class="seq" type="number" value="200" min="18" max="300"></label>
+      <label>Primer min <input id="primer-lmin" class="seq" type="number" value="18"></label>
+      <label>Primer max <input id="primer-lmax" class="seq" type="number" value="25"></label>
+      <button id="primer-search" type="button">Find primer pairs</button>
+      <div id="primer-progress"></div>
+    </div>
+  </div>
+  <div id="primer-error"></div>
+  <div id="primer-results"></div>
+
+  <h2>Check a specific pair</h2>
+  <p class="note">Manual check. This posts to /v1/primers/analyze and returns immediately.</p>
+  <label>Forward <input id="manual-forward" class="seq" spellcheck="false"></label>
+  <label>Reverse <input id="manual-reverse" class="seq" spellcheck="false"></label>
+  <button id="manual-check" type="button">POST /v1/primers/analyze</button>
+  <div id="manual-detail"></div>
 </div>
 <script src="/app.js"></script>
 </body>

@@ -1,4 +1,7 @@
-# CodonForge
+# DNA Design Suite
+
+CodonForge is the codon-optimization tool in this suite. PrimerForge is the
+primer-design tool. They share one page and one visual language.
 
 Epistasis-aware, systems-level, multi-objective codon optimization.
 

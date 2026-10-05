@@ -276,6 +276,66 @@ button {
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--rule);
   font-size: 0.86rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+button.tab {
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+button.tab.active {
+  border-bottom-color: var(--recommended);
+  color: var(--recommended);
+}
+
+.viewer-layout {
+  display: grid;
+  grid-template-columns: 1fr 16rem;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.config-panel {
+  border-left: 1px solid var(--rule);
+  padding-left: var(--space-2);
+}
+
+.config-panel label {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.viewer {
+  white-space: pre-wrap;
+  word-break: break-all;
+  cursor: text;
+  user-select: none;
+  line-height: 1.6;
+}
+
+.nt.region { background: var(--recommended-wash); }
+.nt.flank { background: var(--diagnostic-wash); }
+.nt.selected { background: var(--recommended); color: var(--paper); }
+
+.zone-green { color: var(--feasible); }
+.zone-amber { color: var(--warning-ink); background: var(--warning-wash); }
+.zone-red { color: var(--refusal-ink); background: var(--refusal-wash); }
+
+.detail-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 150ms cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+@media (max-width: 720px) {
+  .viewer-layout { grid-template-columns: 1fr; }
+  .config-panel { border-left: 0; padding-left: 0; }
 }
 
 .tier-track {
