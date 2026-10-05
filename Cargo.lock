@@ -114,6 +114,8 @@ dependencies = [
  "cf-landscape",
  "cf-landscape-api",
  "cf-metrics",
+ "cf-primer-search",
+ "cf-primer-thermo",
  "cf-search",
  "cf-types",
  "pyo3",

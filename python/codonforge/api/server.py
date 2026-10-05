@@ -101,6 +101,7 @@ class Api:
     def __init__(self, store: ArtifactStore) -> None:
         self.store = store
         self.records: dict[str, Record] = {}
+        self.primer_records: dict[str, Any] = {}
         self.idempotency: dict[tuple[str, str], tuple[str, str]] = {}
         self.lock = threading.Lock()
         self.run_lock = threading.Lock()
@@ -475,11 +476,80 @@ class Handler(BaseHTTPRequestHandler):
             )
             self._send(status, payload, problem_body=status >= 400)
             return
+        if path == "/v1/primers/candidates" and method == "POST":
+            from codonforge.primers.service import submit as submit_primers
+
+            status, payload = submit_primers(self.server.api, tenant, self._json())
+            self._send(status, payload, problem_body=status >= 400)
+            return
+        if path == "/v1/primers/analyze" and method == "POST":
+            from codonforge.primers.service import analyze as analyze_primers
+
+            body = self._json()
+            forward = body.get("forward")
+            reverse = body.get("reverse")
+            if not isinstance(forward, str) or not isinstance(reverse, str):
+                self._send(
+                    422,
+                    problem(
+                        "CF-PRIM-006",
+                        "Primer search configuration is malformed",
+                        422,
+                        "POST /v1/primers/analyze requires forward and reverse strings",
+                    ),
+                    problem_body=True,
+                )
+                return
+            try:
+                self._send(200, analyze_primers(forward, reverse))
+            except ValueError as exc:
+                message = str(exc)
+                code = message.split()[0] if message.startswith("CF-") else "CF-PRIM-006"
+                self._send(
+                    422,
+                    problem(code, "Primer analysis failed", 422, message),
+                    problem_body=True,
+                )
+            return
         if path == "/v1/score" and method == "POST":
             status, payload = self.server.api.score(self._json())
             self._send(status, payload, problem_body=status >= 400)
             return
         parts = [part for part in path.split("/") if part]
+        if len(parts) >= 3 and parts[0] == "v1" and parts[1] == "primers":
+            job_id = parts[2]
+            record = self.server.api.primer_records.get(job_id)
+            if record is None or record.tenant != tenant:
+                self._send(
+                    404,
+                    problem(
+                        "CF-AUTH-003",
+                        "The job is not visible to this caller",
+                        404,
+                        "No primer job with that id is visible.",
+                    ),
+                    problem_body=True,
+                )
+                return
+            if method == "GET" and len(parts) == 3:
+                self._send(200, record.status)
+                return
+            if method == "GET" and len(parts) == 5 and parts[3] == "pair":
+                pair = record.pairs.get(parts[4])
+                if pair is None:
+                    self._send(
+                        404,
+                        problem(
+                            "CF-PRIM-003",
+                            "The amplification region is outside the sequence",
+                            404,
+                            f"No pair {parts[4]} on this job.",
+                        ),
+                        problem_body=True,
+                    )
+                    return
+                self._send(200, pair)
+                return
         if len(parts) >= 3 and parts[0] == "v1" and parts[1] == "jobs":
             job_id = parts[2]
             tail = parts[3] if len(parts) > 3 else ""

@@ -92,6 +92,10 @@
             "tier2_block_ca",
             "tier3_moea",
             "decision",
+            "primer_generate",
+            "primer_prune",
+            "primer_evaluate",
+            "primer_rank",
             "none"
           ]
         },
@@ -105,7 +109,11 @@
                   "tier1_seed",
                   "tier2_block_ca",
                   "tier3_moea",
-                  "decision"
+                  "decision",
+                  "primer_generate",
+                  "primer_prune",
+                  "primer_evaluate",
+                  "primer_rank"
                 ]
               },
               "state": {
@@ -269,6 +277,11 @@
         "self"
       ],
       "additionalProperties": false
+    },
+    "primer_result": {
+      "type": ["object", "null"],
+      "description": "Present when this job is a PrimerForge search. Codon jobs omit it. The object is the ranked pair front from cf-primer-search.",
+      "additionalProperties": true
     }
   },
   "required": [

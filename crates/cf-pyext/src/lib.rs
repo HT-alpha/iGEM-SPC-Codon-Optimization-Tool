@@ -646,6 +646,58 @@ fn constraint_violations(
     .to_string())
 }
 
+#[pyfunction]
+#[pyo3(signature = (request_json, progress=None))]
+fn primer_search(
+    py: Python<'_>,
+    request_json: &str,
+    progress: Option<Py<PyAny>>,
+) -> PyResult<String> {
+    let value: serde_json::Value =
+        serde_json::from_str(request_json).map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let sequence = value
+        .get("sequence")
+        .and_then(|item| item.as_str())
+        .ok_or_else(|| PyValueError::new_err("CF-PRIM-006 sequence is required"))?
+        .to_string();
+    let region = value
+        .get("region")
+        .ok_or_else(|| PyValueError::new_err("CF-PRIM-006 region is required"))?;
+    let start = region
+        .get("start")
+        .and_then(|item| item.as_u64())
+        .ok_or_else(|| PyValueError::new_err("CF-PRIM-006 region.start is required"))?
+        as usize;
+    let end = region
+        .get("end")
+        .and_then(|item| item.as_u64())
+        .ok_or_else(|| PyValueError::new_err("CF-PRIM-006 region.end is required"))?
+        as usize;
+    let config = cf_primer_search::Config::from_json(&value)
+        .map_err(|err| PyValueError::new_err(err.0.clone()))?;
+    let result = py.allow_threads(|| {
+        cf_primer_search::search(&sequence, start, end, &config, &mut |fraction| {
+            if let Some(callback) = &progress {
+                Python::with_gil(|py| {
+                    let _ = callback.call1(py, (fraction,));
+                });
+            }
+        })
+    });
+    match result {
+        Ok(document) => Ok(document.to_string()),
+        Err(err) => Err(PyValueError::new_err(err.0)),
+    }
+}
+
+#[pyfunction]
+fn primer_analyze(forward: &str, reverse: &str) -> PyResult<String> {
+    match cf_primer_search::analyze_pair(forward, reverse) {
+        Ok(document) => Ok(document.to_string()),
+        Err(err) => Err(PyValueError::new_err(err.0)),
+    }
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__doc__", "CodonForge compiled core (cf-pyext).")?;
@@ -679,6 +731,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fit_potts_context, m)?)?;
     m.add_function(wrap_pyfunction!(score_potts_context, m)?)?;
     m.add_function(wrap_pyfunction!(score_codon_usage_baseline, m)?)?;
+    m.add_function(wrap_pyfunction!(primer_search, m)?)?;
+    m.add_function(wrap_pyfunction!(primer_analyze, m)?)?;
     Ok(())
 }
 

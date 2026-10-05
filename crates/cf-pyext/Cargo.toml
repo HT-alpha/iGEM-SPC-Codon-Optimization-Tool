@@ -42,3 +42,5 @@ cf-landscape-api = { path = "../cf-landscape-api" }
 cf-search = { path = "../cf-search" }
 cf-landscape = { path = "../cf-landscape" }
 cf-epistasis = { path = "../cf-epistasis" }
+cf-primer-thermo = { path = "../cf-primer-thermo" }
+cf-primer-search = { path = "../cf-primer-search" }
