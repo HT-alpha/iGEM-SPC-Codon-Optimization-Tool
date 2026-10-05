@@ -1,15 +1,25 @@
 signed_off_by:   NG Chi Hong
 role:            Biology Teacher
 institution:     St. Paul's College
-date:            2026-10-04
+date:            2026-10-05
 amendment:       AMD-013
-scope: >
-  Reviewer confirmed that ViennaRNA and LinearFold are used as
-  user-installed dependencies only and are not bundled; that
-  LinearDesign's patented CFG x DFA intersection method is not
-  implemented and is enforced by a software test; and that this
-  analysis is accepted for a non-commercial iGEM educational project,
-  with the understanding that wider commercial distribution would
-  require a separate legal review.
+scope: |
+  I confirm that I have reviewed AMD-013, the licence and patent analysis
+  for the CodonForge iGEM codon optimization project. Specifically, I
+  reviewed the following:
+
+  ViennaRNA and LinearFold are used as user-installed dependencies only,
+  and are not bundled with the software. Their licence terms permit this
+  use for a non-commercial, freely distributed project.
+
+  LinearDesign (Baidu Research) is covered by an active patent. The
+  CodonForge code does not implement the patented method (CFG × DFA
+  intersection for joint MFE and codon optimization). A software test
+  enforces this.
+
+  I accept this analysis for the purposes of a non-commercial iGEM
+  educational project. I understand this is not a formal legal opinion,
+  and that wider commercial distribution would require a separate legal
+  review.
 conditions:      none
-evidence:        email reply from reviewer dated 2026-10-04
+evidence:        email from NG Chi Hong to Kwok Cho TSANG, 2026-10-05
