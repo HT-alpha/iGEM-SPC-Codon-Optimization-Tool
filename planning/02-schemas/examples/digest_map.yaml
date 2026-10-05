@@ -42,6 +42,7 @@ computed:
   - { file: pareto_front.example.json,       at: /digest, rule: self_document }
   - { file: observation.example.json,        at: /digest, rule: self_document }
   - { file: structure_parameters.example.json, at: /digest, rule: self_document }
+  - { file: primer_parameters.example.json, at: /digest, rule: self_document }
 
   # Embedded documents. A job request carries whole ConstructContext and
   # ConstraintSet documents, each of which carries its own digest over its own
@@ -174,6 +175,8 @@ external:
   - { file: landscape_lockfile.example.json, at: /resolution/3/digest,
       reason: "artifact cf:kinetics_domainmap:...:0.3.0 has no worked manifest in this example set" }
 
+  - { file: primer_parameters.example.json, at: /provenance/source_digest,
+      reason: "sha256 of the PMC19045 HTML page Table 2 was transcribed from; that page is not stored in the repository" }
   - { file: structure_parameters.example.json, at: /provenance/source_digest,
       reason: "digest of the published source the energies were transcribed from; DEP-STRU-001 means no such source is in the repository, and this example is explicitly a placeholder rather than a real parameter set" }
   - { file: landscape_query.example.json, at: /model_pins/epistasis.dwell_deviation/digest,

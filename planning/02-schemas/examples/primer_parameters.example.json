@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "parameter_set_id": "param_santalucia1998_table2_v1",
+  "provenance": {
+    "citation": "SantaLucia J Jr. A unified view of polymer, dumbbell, and oligonucleotide DNA nearest-neighbor thermodynamics. Proc Natl Acad Sci USA. 1998;95(4):1460-1465. Table 2, unified oligonucleotide ΔH° and ΔS° NN parameters in 1 M NaCl. Free full text: PMC19045.",
+    "doi": "10.1073/pnas.95.4.1460",
+    "source_digest": "sha256:601cbd89b1015492621281c0c826d1edc580eb6ae9fca3dc92cc49a4e38fa33f",
+    "licence": "The article is free full text (PMC19045). The parameter values are published measurements transcribed from Table 2. CodonForge does not redistribute ViennaRNA or OligoAnalyzer parameter files.",
+    "redistributable": true,
+    "transcribed_by": "CodonForge PrimerForge",
+    "notes": "Table 2 initiation and symmetry rows are included. Eq. 3 gives Tm (R = 1.987 cal/K·mol). Eq. 7's published slope, -0.114 kcal/mol, is salt_dg37_kcal_per_ln_na. Entropy salt correction is that slope converted at 310.15 K with ΔH treated as salt-independent, which is the assumption stated for Eqs. 8 and 3. Hairpin loop initiation is not in Table 2 and is not invented here. source_digest is the sha256 of the PMC19045 HTML page the table was transcribed from on 2026-10-05."
+  },
+  "temperature_k": 310.15,
+  "gas_constant_cal_per_k_mol": 1.987,
+  "sodium_molar": 1.0,
+  "strand_concentration_molar": 1e-6,
+  "salt_dg37_kcal_per_ln_na": -0.114,
+  "stacks": {
+    "AA/TT": { "delta_h_kcal": -7.9, "delta_s_cal": -22.2 },
+    "AT/TA": { "delta_h_kcal": -7.2, "delta_s_cal": -20.4 },
+    "TA/AT": { "delta_h_kcal": -7.2, "delta_s_cal": -21.3 },
+    "CA/GT": { "delta_h_kcal": -8.5, "delta_s_cal": -22.7 },
+    "GT/CA": { "delta_h_kcal": -8.4, "delta_s_cal": -22.4 },
+    "CT/GA": { "delta_h_kcal": -7.8, "delta_s_cal": -21.0 },
+    "GA/CT": { "delta_h_kcal": -8.2, "delta_s_cal": -22.2 },
+    "CG/GC": { "delta_h_kcal": -10.6, "delta_s_cal": -27.2 },
+    "GC/CG": { "delta_h_kcal": -9.8, "delta_s_cal": -24.4 },
+    "GG/CC": { "delta_h_kcal": -8.0, "delta_s_cal": -19.9 }
+  },
+  "initiation": {
+    "gc": { "delta_h_kcal": 0.1, "delta_s_cal": -2.8 },
+    "at": { "delta_h_kcal": 2.3, "delta_s_cal": 4.1 }
+  },
+  "symmetry_correction": { "delta_h_kcal": 0.0, "delta_s_cal": -1.4 },
+  "digest": "sha256:bc2dc4483cffe471b2dab753e3b6b9a427b50016c4d07f41106b054a6e181e31"
+}

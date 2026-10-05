@@ -52,11 +52,7 @@ fn stack_key(left: u8, right: u8) -> Result<String, ParameterError> {
     Ok(forward)
 }
 
-fn lookup(
-    parameters: &Parameters,
-    left: u8,
-    right: u8,
-) -> Result<&Thermo, ParameterError> {
+fn lookup(parameters: &Parameters, left: u8, right: u8) -> Result<&Thermo, ParameterError> {
     let forward = stack_key(left, right)?;
     if let Some(thermo) = parameters.stacks.get(&forward) {
         return Ok(thermo);
