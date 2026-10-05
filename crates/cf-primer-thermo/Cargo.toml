@@ -1,0 +1,13 @@
+[package]
+name = "cf-primer-thermo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Nearest-neighbour primer thermodynamics from a digested SantaLucia 1998 parameter document."
+
+[dependencies]
+cf-types = { path = "../cf-types" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }

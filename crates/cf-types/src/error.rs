@@ -135,6 +135,15 @@ codes! {
     // the system shares one vocabulary; the two must agree.
     METR_DIMENSION         => ("CF-METR-001", 422, "Objective counts do not line up between fronts", "planning/03-algorithms/03-nsga-loop-and-operators.md"),
 
+    // ---- CF-PRIM: primer design --------------------------------------------
+    PRIM_NONE_SURVIVED     => ("CF-PRIM-001", 422, "No primer pairs survived pruning", "planning/02-schemas/primer_parameters.schema.json"),
+    PRIM_FLANK_TOO_SHORT   => ("CF-PRIM-002", 422, "The sequence is too short for a primer on the requested flank", "planning/02-schemas/primer_parameters.schema.json"),
+    PRIM_REGION            => ("CF-PRIM-003", 422, "The amplification region is outside the sequence", "planning/02-schemas/primer_parameters.schema.json"),
+    PRIM_REFUSED           => ("CF-PRIM-004", 200, "A primer pair is in the red zone", "planning/02-schemas/primer_parameters.schema.json"),
+    PRIM_PARAMETERS        => ("CF-PRIM-005", 422, "The primer parameter document digest does not match", "planning/02-schemas/primer_parameters.schema.json"),
+    PRIM_CONFIG            => ("CF-PRIM-006", 422, "Primer search configuration is malformed", "planning/02-schemas/primer_parameters.schema.json"),
+    PRIM_TRUNCATED         => ("CF-PRIM-007", 200, "Primer candidates were limited to those closest to the Tm target before dimer evaluation", "planning/02-schemas/primer_parameters.schema.json"),
+
     // ---- CF-CLI: command line and library surface --------------------------
     CLI_BAD_ARGUMENTS      => ("CF-CLI-001", 400, "Command-line arguments are missing or malformed", "planning/04-api/02-cli-and-library.md"),
     CLI_EMPTY_FRONT        => ("CF-CLI-002", 200, "The job produced no candidates", "planning/02-schemas/pareto_front.schema.json"),

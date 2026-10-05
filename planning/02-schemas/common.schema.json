@@ -48,7 +48,7 @@
     },
     "TermId": {
       "type": "string",
-      "pattern": "^(epistasis|structure|kinetics|lm|burden|usage|constraint|meta)\\.[a-z0-9_]+$",
+      "pattern": "^(epistasis|structure|kinetics|lm|burden|usage|constraint|meta|primer)\\.[a-z0-9_]+$",
       "examples": ["epistasis.dwell_deviation", "structure.local_accessibility", "structure.mfe_global", "kinetics.pause_concordance", "lm.naturalness", "burden.growth_cost", "usage.cai", "usage.gc_content", "constraint.violation_count"],
       "description": "Namespaced objective/diagnostic term identifier. The namespace is the owning module; adding a term is additive and does not bump ContractMajor."
     },

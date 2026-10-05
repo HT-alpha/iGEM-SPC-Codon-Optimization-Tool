@@ -65,6 +65,34 @@ modules:
       - TST-METR-001
       - TST-METR-002
 
+  - name: cf-primer-thermo
+    rank: 1
+    layer: support
+    runtime: rust-core
+    path: crates/cf-primer-thermo
+    responsibility: >-
+      Nearest-neighbour Tm and two-state hairpin and dimer ΔG for short DNA
+      oligos. Parameters are the digested SantaLucia 1998 Table 2 document.
+      No ViennaRNA and no codon-search dependency.
+    depends_on: [cf-types]
+    public_contract: planning/02-schemas/primer_parameters.schema.json
+    tests:
+      - TST-PRIM-001
+
+  - name: cf-primer-search
+    rank: 2
+    layer: search-engine
+    runtime: rust-core
+    path: crates/cf-primer-search
+    responsibility: >-
+      Flank windows, GC, homopolymer, Tm and product-size pruning, then a
+      Pareto front of primer pairs. Ranking is cf-metrics. Thermodynamics
+      are cf-primer-thermo.
+    depends_on: [cf-types, cf-metrics, cf-primer-thermo]
+    public_contract: planning/02-schemas/pareto_front.schema.json
+    tests:
+      - TST-PRIM-002
+
   # ---------------------------------------------------------------- rank 1 --
   - name: cf-landscape-api
     rank: 1

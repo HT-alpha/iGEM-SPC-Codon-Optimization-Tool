@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codonforge.org/schemas/v1/primer_parameters.schema.json",
+  "title": "PrimerParameters",
+  "description": "Nearest-neighbour parameters for primer Tm and two-state dimer/hairpin ΔG.\n\nSame discipline as structure_parameters (DEP-STRU-001): the numbers are a provenance-tracked document with a digest, not constants compiled into the engine. The primer engine reads this document and refuses it when the digest does not match. SantaLucia 1998 Table 2 is the set shipped with PrimerForge; it is a transcription of the open full text, not a table extracted from ViennaRNA or from OligoAnalyzer.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
+    "parameter_set_id": {
+      "type": "string",
+      "pattern": "^param_[a-z0-9_]+_v[0-9]+$"
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "citation": { "type": "string", "minLength": 20 },
+        "doi": { "type": ["string", "null"] },
+        "source_digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" },
+        "licence": { "type": "string", "minLength": 2 },
+        "redistributable": { "type": "boolean" },
+        "transcribed_by": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      },
+      "required": ["citation", "source_digest", "licence", "redistributable"],
+      "additionalProperties": false
+    },
+    "temperature_k": { "type": "number", "exclusiveMinimum": 0 },
+    "gas_constant_cal_per_k_mol": { "type": "number", "exclusiveMinimum": 0 },
+    "sodium_molar": { "type": "number", "exclusiveMinimum": 0 },
+    "strand_concentration_molar": { "type": "number", "exclusiveMinimum": 0 },
+    "salt_dg37_kcal_per_ln_na": {
+      "type": "number",
+      "description": "Published slope of Eq. 7 in SantaLucia 1998: ΔG°37([Na+]) − ΔG°37(1 M) = slope × N × ln([Na+]). N is the number of phosphates in one strand (duplex length minus 1)."
+    },
+    "stacks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "delta_h_kcal": { "type": "number" },
+          "delta_s_cal": { "type": "number" }
+        },
+        "required": ["delta_h_kcal", "delta_s_cal"],
+        "additionalProperties": false
+      }
+    },
+    "initiation": {
+      "type": "object",
+      "properties": {
+        "gc": {
+          "type": "object",
+          "properties": {
+            "delta_h_kcal": { "type": "number" },
+            "delta_s_cal": { "type": "number" }
+          },
+          "required": ["delta_h_kcal", "delta_s_cal"],
+          "additionalProperties": false
+        },
+        "at": {
+          "type": "object",
+          "properties": {
+            "delta_h_kcal": { "type": "number" },
+            "delta_s_cal": { "type": "number" }
+          },
+          "required": ["delta_h_kcal", "delta_s_cal"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["gc", "at"],
+      "additionalProperties": false
+    },
+    "symmetry_correction": {
+      "type": "object",
+      "properties": {
+        "delta_h_kcal": { "type": "number" },
+        "delta_s_cal": { "type": "number" }
+      },
+      "required": ["delta_h_kcal", "delta_s_cal"],
+      "additionalProperties": false
+    },
+    "digest": { "$ref": "common.schema.json#/$defs/Sha256Digest" }
+  },
+  "required": [
+    "schema_version",
+    "parameter_set_id",
+    "provenance",
+    "temperature_k",
+    "gas_constant_cal_per_k_mol",
+    "sodium_molar",
+    "strand_concentration_molar",
+    "salt_dg37_kcal_per_ln_na",
+    "stacks",
+    "initiation",
+    "symmetry_correction",
+    "digest"
+  ],
+  "additionalProperties": false
+}

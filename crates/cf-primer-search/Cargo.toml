@@ -1,0 +1,14 @@
+[package]
+name = "cf-primer-search"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Primer-pair search: flank windows, pruning, then a Pareto front."
+
+[dependencies]
+cf-metrics = { path = "../cf-metrics" }
+cf-primer-thermo = { path = "../cf-primer-thermo" }
+cf-types = { path = "../cf-types" }
+serde = { workspace = true }
+serde_json = { workspace = true }

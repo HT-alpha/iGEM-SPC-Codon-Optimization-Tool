@@ -79,6 +79,8 @@ jobs:
           - cf-biophys-kinetics
           - cf-landscape
           - cf-search
+          - cf-primer-thermo
+          - cf-primer-search
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

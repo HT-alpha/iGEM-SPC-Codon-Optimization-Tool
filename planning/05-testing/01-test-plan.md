@@ -285,6 +285,13 @@ Two supporting units the architecture implies but does not name, added here beca
 | `TST-UNC-002` | benchmark | Empirical coverage of the nominal 90 % interval on held-out data lands in `[0.87, 0.93]` (`GATE-UNC-001`). |
 | `TST-PERF-001` | perf | End-to-end wall time for the 2 kb and 15 kb reference jobs at all three tiers; fails on a >25 % regression versus the trailing 7-day median. |
 
+### `cf-primer-thermo` / `cf-primer-search`
+
+| Id | Tier | Assertion |
+| --- | --- | --- |
+| `TST-PRIM-001` | unit | SantaLucia 1998 Table 2 for `CGTTGA` reproduces the hand-summed ΔH, ΔS and Eq. 3 Tm. Replacing a stack in the parameter document is `CF-PRIM-005`. ΔG below −9 kcal/mol refuses; ΔG between −4 and −9 flags. |
+| `TST-PRIM-002` | unit | Each pruning filter (GC, homopolymer, Tm, product size) rejects its own counterexample. A flank shorter than the minimum primer is `CF-PRIM-002`. `CF-PRIM-001` is the empty-survivor refusal. |
+
 ---
 
 ## 4. What is deliberately not tested by unit tests

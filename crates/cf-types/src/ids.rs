@@ -125,7 +125,7 @@ id_newtype!(
     /// `requested_terms` has no wildcard.
     TermId,
     "TermId",
-    r"^(epistasis|structure|kinetics|lm|burden|usage|constraint|meta)\.[a-z0-9_]+$"
+    r"^(epistasis|structure|kinetics|lm|burden|usage|constraint|meta|primer)\.[a-z0-9_]+$"
 );
 
 id_newtype!(
