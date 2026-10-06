@@ -83,3 +83,10 @@ A `GCGCGCGCGCGCGCGCGCGC` self-dimer is in the refuse zone (ΔG < −9 kcal/mol).
 `CGCAAAGCG` with itself is the threshold check for the register fix: the
 single helix `CGC` is −2.459 kcal/mol (not flagged); both helices with one
 initiation are below −4 kcal/mol and are flagged.
+
+## Potts surface at convergence
+
+The selected `W = 10` Potts fit is 2333 total iterations, gradient norm
+0.0977, `converged: true`. The held-out nats improved by 0.0003 nats/codon
+over the early-stop model (−0.8712 to −0.8709), confirming the early-stop
+model was already a good approximation.

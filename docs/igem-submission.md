@@ -20,13 +20,18 @@ candidate names `informed_by` and `not_informed_by`. Warnings are rows of
 
 The pairwise synonymous Potts model (`epistasis.context_naturalness`) is fit
 on the CDS of `NC_000913.3` (assembly `GCF_000005845.2`). The 13-protein panel
-was held out of the fit and then scored. The named Ribo-seq dataset is Li,
-Burkhardt, Gross and Weissman, Cell 2014, GEO `GSE53767`. The fit does not
-consume those read counts. The dwell head is not fitted. Li et al. Cell 2014
-does not state a 5'-end A-site offset, and the footprints were size-selected
-from about 15 to 45 nt. Li, Oh and Weissman, Nature 2012 assigns the A site
-to the footprint center on GEO GSE35641, which is a different series, and
-does not state +15 nt. Requesting `epistasis.dwell_deviation` returns
+was held out of the fit and then scored. The selected `W = 10` fit ran 2333
+L-BFGS iterations in total, reached gradient norm 0.0977, and is
+`converged: true`. `GET /v1/calibration` returns that iteration count, that
+gradient, and `converged: true`.
+
+The dwell head (A-site occupancy signal from ribosome profiling) is not
+fitted. Li et al. 2014 (GEO GSE53767) does not state a 5′-end A-site offset,
+and the footprint size range (15–45 nt) makes a single offset unverifiable
+from the publication alone. No offset was assumed and no counts were
+substituted. The dwell head will be fitted when a primary source establishes
+the offset for this dataset. `GET /v1/calibration` returns
+`dwell.state: not_fitted`. Requesting `epistasis.dwell_deviation` returns
 `CF-LAND-001`. It does not report a deviation of zero.
 
 ## What it does not do
@@ -41,16 +46,10 @@ does not state +15 nt. Requesting `epistasis.dwell_deviation` returns
 - `POST /v1/feasibility` returns `CF-CLI-003`. The five-check analyser is not
   this build. Feasibility on a finished candidate is the boolean
   `constraint_report.feasible`.
-- The `W = 10` Potts fit meets the convergence tolerance. The reduced
-  gradient `gradient_norm / sqrt(n_positions)` is 8.72e-5, below 1e-4
-  (`n_positions` 1,254,595, raw gradient norm 0.09771). That took 2333
-  cumulative L-BFGS iterations from zero initialization (40, then 195 in
-  15-iteration chunks, then 400, 800, and 898). Limited-memory history was
-  reset between those segments. The last segment stopped because the
-  tolerance was met, not because the iteration cap was hit. Held-out
-  naturalness at convergence is −0.870868 nats/codon, against −0.871175 at
-  the 40-iteration early stop and a codon-usage baseline of −0.991739.
-  `W = 5` is the unchanged 40-iteration fit and is not the selected model.
+- The `W = 10` Potts fit is converged: 2333 total iterations, gradient norm
+  0.0977, `converged: true`. Held-out naturalness is −0.870868 nats/codon,
+  against a codon-usage baseline of −0.991739. `W = 5` was not re-fit and is
+  not the selected model.
 - `P1-26` (`DEP-SRCH-013`) is held.
 - `EXP-06` and bundled thermodynamic tables are not in this snapshot. The
   dwell head is recorded as not fitted, for the reason above.
@@ -125,10 +124,12 @@ is `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`.
 
 ## EXP-05 re-run
 
-Twenty seeds per arm on `rpsJ`, `rplL`, and `rpsL`, at 20 generations.
-`decide()` was not edited. Hypervolume margin is 0 on all three, so the
-rule keeps Lamarckian. The default was not changed. Wall clock for the
-120 jobs was 4.3 seconds.
+EXP-05 ran on two of three panel proteins (rplL infeasible under constraint
+set); hypervolume margin was zero on both at 20 generations, Lamarckian
+default retained.
+
+Twenty seeds per arm were started on `rpsJ`, `rplL`, and `rpsL`.
+`decide()` was not edited. Wall clock for the 120 jobs was 4.3 seconds.
 
 `rpsJ` and `rpsL` ran 20 generations on every seed. `rplL` runs 0
 generations: tier 1 returns `CF-SRCH-006` (no feasible assignment under
@@ -166,7 +167,8 @@ earlier build that kept only the first helix reported −0.810.
   `GATE-BEN-001` stays unclaimed because LinearFold's MFE is not
   `structure.local_accessibility`.
 - The epistatic surface is that same host only.
-- `W = 5` in the same artifact is still the 40-iteration early stop. It was
-  not re-fit. Window selection stays `W = 10`.
-- EXP-05 at 20 generations does not separate the arms on hypervolume.
+- `W = 5` was not re-fit. Window selection stays `W = 10`.
+- EXP-05 ran on two of three panel proteins (`rplL` infeasible under the
+  constraint set). Hypervolume margin was zero on both at 20 generations.
+  Lamarckian stays the default.
 - Wider commercial distribution is outside the AMD-013 sign-off on file.

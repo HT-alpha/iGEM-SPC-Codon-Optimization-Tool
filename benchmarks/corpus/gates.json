@@ -4,6 +4,6 @@
     "claimed": false,
     "n_proteins": 50,
     "comparable": false,
-    "reason": "50 NC_000913.3 proteins and native plus CAI-greedy arms. GATE-BEN-001 stays unclaimed: LinearFold returns a global MFE and a dot-bracket, while structure.local_accessibility is windowed ViennaRNA accessibility, so the fronts are not comparable."
+    "reason": "LinearFold produces global MFE; structure.local_accessibility is windowed ViennaRNA accessibility. These are not the same objective and cannot be compared on a joint front. Gate will be satisfiable when a competitor tool produces windowed local accessibility scores, or when the gate is redesigned for a CAI-only front comparison."
   }
 ]
