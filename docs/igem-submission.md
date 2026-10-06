@@ -126,6 +126,18 @@ Repair invocations, mean per seed:
 `rplL` never fired repair under this motif. `rpsJ` and `rpsL` differ, which
 is the evidence Baldwinian is repairing the unrepaired genome again.
 
+## PrimerForge
+
+PrimerForge, added in the DNA Design Suite after the 2026-10-05 sign-off,
+designs primer pairs for a region the user selects on a DNA sequence and
+also checks one pasted pair. Melting temperatures and dimer ΔG use SantaLucia
+1998 Table 2 (`docs/primerforge-validation.md`), as a digested parameter
+document, in a clean-room two-state calculation. It does not check specificity
+against a genome, does not wrap Primer3, and does not claim mFold parity for
+hairpins. The forward CaPIP self-dimer is two helices in one register,
+ΔG°37 −3.556 kcal/mol against the published OligoAnalyzer cell −3.55; an
+earlier build that kept only the first helix reported −0.810.
+
 ## Known limitations
 
 - The design benchmark panel is 13 proteins, all from one *E. coli* chromosome.

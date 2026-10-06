@@ -23,3 +23,11 @@ scope: |
   review.
 conditions:      none
 evidence:        email from NG Chi Hong to Kwok Cho TSANG, 2026-10-05
+primerforge_scope_note: >
+  This sign-off predates the addition of PrimerForge to the DNA
+  Design Suite (added after 2026-10-05). PrimerForge was reviewed
+  by the engineering team as not changing the scope of AMD-013: it
+  does not use ViennaRNA, LinearFold, or LinearDesign's claimed
+  method, and it does not vendor any licensed tool. The signed
+  statements in this file remain accurate for the full DNA Design
+  Suite as of v2.0.0.
