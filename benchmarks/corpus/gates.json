@@ -1,0 +1,9 @@
+[
+  {
+    "gate": "GATE-BEN-001",
+    "claimed": false,
+    "n_proteins": 50,
+    "comparable": false,
+    "reason": "50 NC_000913.3 proteins and native plus CAI-greedy arms. GATE-BEN-001 stays unclaimed: LinearFold returns a global MFE and a dot-bracket, while structure.local_accessibility is windowed ViennaRNA accessibility, so the fronts are not comparable."
+  }
+]

@@ -5,8 +5,9 @@ to design a sequence. It does call the library's scoring path.
 
 A fixed reference point, comparison refusal, in-process native and CAI-greedy
 baselines, and an external-tool adapter that runs a binary the user installed.
-No tool is vendored. The real-protein panel is 13 CDS from NC_000913.3
-(`DEP-BEN-002`). It does not claim `GATE-BEN-001`.
+No tool is vendored. The real-protein panel is 50 CDS from NC_000913.3
+(`DEP-BEN-002`). It does not claim `GATE-BEN-001`: LinearFold's global MFE
+is not `structure.local_accessibility`.
 
 Declared dependencies: cf-types, cf-metrics, cf-orchestrator, cf-testkit, cf-ingest.
 Contract: planning/05-testing/04-benchmark-harness.md. `DEP-BEN-001`.

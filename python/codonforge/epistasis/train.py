@@ -117,7 +117,9 @@ def select_window(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def fit_panel(directory: Path | None = None) -> dict[str, Any]:
     """Write the artifact. Returns the summary, including both windows."""
     panel = json.loads(PANEL_PATH.read_text(encoding="utf-8"))
-    train, held = held_out_split(list(panel["genes"]))
+    # The fit held out the original 13. The benchmark list is larger, and
+    # those extra genes were in the training CDS. Do not hold them out now.
+    train, held = held_out_split(list(panel["potts_held_out"]))
     train_cds = [row["cds"] for row in train]
     held_cds = [row["cds"] for row in held]
     baseline = _call(

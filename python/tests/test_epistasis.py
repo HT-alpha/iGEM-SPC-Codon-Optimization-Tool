@@ -14,11 +14,13 @@ from codonforge.modelreg.manifest import digest_of
 
 def test_the_panel_genes_are_removed_before_the_fit() -> None:
     panel = json.loads((Path("benchmarks/corpus/panel.json")).read_text(encoding="utf-8"))
-    train, held = held_out_split(list(panel["genes"]))
+    held_out = list(panel["potts_held_out"])
+    train, held = held_out_split(held_out)
+    assert len(held_out) == 13
     assert len(held) == 13
     assert len(train) == 4127
-    assert {row["gene"] for row in held} == set(panel["genes"])
-    assert not ({row["gene"] for row in train} & set(panel["genes"]))
+    assert {row["gene"] for row in held} == set(held_out)
+    assert not ({row["gene"] for row in train} & set(held_out))
 
 
 def test_the_shipped_artifact_rejects_a_replaced_coupling() -> None:

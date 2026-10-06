@@ -26,8 +26,11 @@ consume those read counts. There is no dwell head.
 
 ## What it does not do
 
-- It does not claim `GATE-BEN-001`. The panel is 13 proteins, with native and
-  CAI-greedy arms only. There is no LinearDesign or CDSfold arm.
+- It does not claim `GATE-BEN-001`. The panel is 50 `NC_000913.3` proteins,
+  with native and CAI-greedy arms. LinearFold returns a global MFE and a
+  dot-bracket. `structure.local_accessibility` is windowed ViennaRNA
+  accessibility. Those fronts are not the same objective, so the gate stays
+  unclaimed.
 - It does not implement LinearDesign's grammar-intersection method.
 - It does not ship a GPU path. `P3-14` (LM scoring) is cut.
 - `POST /v1/feasibility` returns `CF-CLI-003`. The five-check analyser is not
@@ -146,7 +149,9 @@ earlier build that kept only the first helix reported −0.810.
 
 ## Known limitations
 
-- The design benchmark panel is 13 proteins, all from one *E. coli* chromosome.
+- The design benchmark panel is 50 proteins, all from one *E. coli* chromosome.
+  `GATE-BEN-001` stays unclaimed because LinearFold's MFE is not
+  `structure.local_accessibility`.
 - The epistatic surface is that same host only.
 - `W = 5` in the same artifact is still the 40-iteration early stop. It was
   not re-fit. Window selection stays `W = 10`.

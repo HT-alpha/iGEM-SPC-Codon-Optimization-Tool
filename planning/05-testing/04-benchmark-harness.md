@@ -24,7 +24,7 @@ Thresholds: [`02-acceptance-thresholds.md`](02-acceptance-thresholds.md) §3.
 
 | Id | Contents | Used by | Provenance |
 | --- | --- | --- | --- |
-| `bm_proteins_50` | 50 heterologous proteins, 200–800 codons, spanning GC content, length and hydrophobicity | `bench_mfe_cai_frontier`, `bench_hypervolume_vs_baselines` | Public sequences; manifest with per-record digests. **Not in this build.** The panel that is present is 13 CDS from `NC_000913.3` (`DEP-BEN-002`). `GATE-BEN-001` is not claimed. |
+| `bm_proteins_50` | 50 heterologous proteins, 200–800 codons, spanning GC content, length and hydrophobicity | `bench_mfe_cai_frontier`, `bench_hypervolume_vs_baselines` | Public sequences; manifest with per-record digests. **Not in this build.** The panel that is present is 50 endogenous CDS from `NC_000913.3` (`DEP-BEN-002`). `GATE-BEN-001` is not claimed, because LinearFold's global MFE is not `structure.local_accessibility`. |
 | `bm_constructs_20` | 20 multi-cistron constructs, 4–15 kb, 2–6 cistrons | `bench_joint_search`, `perf_*` | Registry parts + published operons |
 | `bm_riboseq_ecoli` | ≥2 independent *E. coli* Ribo-seq datasets, reprocessed identically | `bench_epistasis_heldout`, `EXP-01` | GEO/SRA accessions in the manifest |
 | `bm_riboseq_yeast` | Same for *S. cerevisiae* | as above | as above |

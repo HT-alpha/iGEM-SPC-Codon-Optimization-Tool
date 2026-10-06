@@ -8,6 +8,11 @@
   nats/codon −0.8708682912309792, compared with −0.8711749285771091 at the
   40-iteration early stop. `GET /v1/calibration` reports `converged: true`.
   Digest `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`.
+- The design panel is 50 `NC_000913.3` CDS (the original 13 plus 37, each
+  cited by its protein_id). `GATE-BEN-001` stays unclaimed: LinearFold's
+  global MFE is not `structure.local_accessibility`. The Potts held-out set
+  is still those original 13. Selected-CDS digest
+  `sha256:f03c0e882509ec34d8ad0fc327759dabc9b67cdf803a8892bdaeabf475a60bb3`.
 
 ## v2.0.0
 

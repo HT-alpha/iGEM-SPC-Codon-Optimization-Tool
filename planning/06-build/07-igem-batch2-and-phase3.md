@@ -46,8 +46,11 @@ nor the 20 seeds.
 The claim that is defensible is the one `DEP-BEN-002` writes into
 `gates.json` with `claimed: false`:
 
-**13 proteins, 0 seeds, two in-process arms (native and CAI-greedy).
-`GATE-BEN-001` is not claimed.**
+**50 proteins, 0 seeds, two in-process arms (native and CAI-greedy).
+`GATE-BEN-001` is not claimed.** LinearFold emits a global MFE and a
+dot-bracket. The scored structure term is windowed accessibility. The
+fronts are not compared. The original 13 genes remain the Potts held-out
+set.
 
 The sequences are the CDS of `NC_000913.3` (assembly `GCF_000005845.2`,
 4140 records in the cited FASTA). The gzip's sha256 is

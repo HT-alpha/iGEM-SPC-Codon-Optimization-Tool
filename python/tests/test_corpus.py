@@ -1,7 +1,8 @@
-"""The 13-protein panel. `DEP-BEN-002`.
+"""The 50-protein panel. `DEP-BEN-002`.
 
-`GATE-BEN-001` is a non-claim: fewer than 50 proteins, no competitor arm.
-A CDS whose header is not NC_000913.3 is refused.
+`GATE-BEN-001` is a non-claim: LinearFold's global MFE is not
+`structure.local_accessibility`. A CDS whose header is not NC_000913.3
+is refused.
 """
 
 from __future__ import annotations
@@ -21,27 +22,32 @@ from codonforge.bench.corpus import (
 )
 
 
-def test_the_panel_is_thirteen_real_cds_and_does_not_claim_the_gate(tmp_path: Path) -> None:
+def test_the_panel_is_fifty_real_cds_and_does_not_claim_the_gate(tmp_path: Path) -> None:
     panel = load_panel()
     assert panel["expression_evidence"]["value"] is None
     assert panel["expression_evidence"]["geo"] == "GSE53767"
+    assert len(panel["potts_held_out"]) == 13
     genes = select_genes(panel)
     assert [gene["gene"] for gene in genes] == panel["genes"]
-    assert len(genes) == 13
+    assert len(genes) == 50
     assert all(gene["cds"].startswith("ATG") for gene in genes)
     assert all(gene["protein_id"].startswith(("NP_", "YP_")) for gene in genes)
+    cited = {row["gene"]: row["protein_id"] for row in panel["accessions"]}
+    assert cited == {gene["gene"]: gene["protein_id"] for gene in genes}
     manifest = run_baselines(tmp_path)
-    assert manifest["n_proteins"] == 13
+    assert manifest["n_proteins"] == 50
     assert manifest["seeds"] == 0
     assert manifest["external_tools"] == []
     metrics = json.loads((tmp_path / "metrics.json").read_text(encoding="utf-8"))
-    assert len(metrics) == 13
+    assert len(metrics) == 50
     assert all(row["translation_match"] is True for row in metrics)
     fasta = (tmp_path / "baselines.fasta").read_text(encoding="utf-8")
-    assert fasta.count(">") == 26
+    assert fasta.count(">") == 100
     gates = json.loads((tmp_path / "gates.json").read_text(encoding="utf-8"))
     assert gates[0]["gate"] == "GATE-BEN-001"
     assert gates[0]["claimed"] is False
+    assert gates[0]["comparable"] is False
+    assert "local_accessibility" in gates[0]["reason"]
 
 
 def test_a_sequence_without_the_accession_is_refused(tmp_path: Path) -> None:

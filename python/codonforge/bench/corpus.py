@@ -4,9 +4,12 @@ The sequences are the CDS of `NC_000913.3` whose headers carry that accession
 and a `protein_id`. A record without them is refused: a panel that accepts a
 bare string would be how an invented sequence gets into a benchmark.
 
-`GATE-BEN-001` is not evaluated. The gate needs at least 50 proteins and a
-competitor arm. This module writes that non-claim into `gates.json` so an
-empty file cannot be read as a pass.
+`GATE-BEN-001` is not claimed. Fifty proteins is the count the gate asks
+for. The competitor it asks for is a fold on `structure.mfe_global`.
+LinearFold returns that global minimum free energy and a dot-bracket.
+`structure.local_accessibility` is windowed ViennaRNA accessibility.
+Those are not the same number, and `DEP-STRU-002` keeps global MFE off
+the engine seam, so the fronts are not compared.
 
 Native and CAI-greedy run in process. The weights are the relative
 adaptiveness of the ribosomal-protein CDS in the same file, counted by
@@ -64,6 +67,17 @@ def verify_shipped_cds(panel: dict[str, Any], path: Path | None = None) -> None:
         raise BenchError(
             "corpus gzip sha256 does not match the panel; "
             "this file is not the cited NC_000913.3 CDS dump"
+        )
+    expected_selected = panel.get("selected_cds_sha256")
+    if not isinstance(expected_selected, str) or len(expected_selected) != 64:
+        raise BenchError(
+            "panel has no selected_cds_sha256; the expanded gene list is unchecked"
+        )
+    selected = _selected_cds_sha256(panel, path)
+    if selected != expected_selected:
+        raise BenchError(
+            "selected CDS sha256 does not match the panel; "
+            "the expanded gene list is not the cited sequences"
         )
 
 
@@ -127,6 +141,28 @@ def _header_problem(header: str, sequence: str) -> str | None:
     if len(sequence) % 3 != 0:
         return "corpus CDS is not a whole number of codons"
     return None
+
+
+def _selected_cds_sha256(panel: dict[str, Any], path: Path | None = None) -> str:
+    """Digest of the named genes in panel order, sequences included.
+
+    The gzip digest does not change when the gene list changes. This one does.
+    """
+    wanted = list(panel["genes"])
+    sequences: dict[str, str] = {}
+    for header, sequence in iter_cds(path):
+        gene = _gene(header)
+        if gene not in wanted or gene in sequences:
+            continue
+        problem = _header_problem(header, sequence)
+        if problem:
+            raise BenchError(problem)
+        sequences[gene] = sequence
+    missing = [gene for gene in wanted if gene not in sequences]
+    if missing:
+        raise BenchError(f"panel genes missing from the CDS file: {missing}")
+    payload = "".join(f"{gene}\n{sequences[gene]}\n" for gene in wanted)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def select_genes(
@@ -235,6 +271,7 @@ def run_baselines(directory: Path, cds_path: Path | None = None) -> dict[str, An
             "gate": "GATE-BEN-001",
             "claimed": False,
             "n_proteins": len(rows),
+            "comparable": False,
             "reason": panel["claim"],
         }
     ]
