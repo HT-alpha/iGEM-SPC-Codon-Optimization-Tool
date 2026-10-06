@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "epistasis_dwell",
+  "state": "not_fitted",
+  "accession": "GSE53767",
+  "a_site_offset_nt": null,
+  "normalization": null,
+  "citation": "Li GW, Burkhardt D, Gross C, Weissman JS. Cell. 2014;157:624-635. doi:10.1016/j.cell.2014.02.033",
+  "assignment_citation": "Li GW, Oh E, Weissman JS. Nature. 2012;484:538-541. doi:10.1038/nature10965. GEO GSE35641, not GSE53767. A-site at the footprint center; not a +15 nt 5'-end offset.",
+  "reason": "epistasis.dwell_deviation was requested but the fitted dwell head is absent. GSE53767 does not state a 5'-end A-site offset (Li et al., Cell 2014; footprints ~15-45 nt). Li, Oh and Weissman, Nature 2012 assigns footprint centers on GSE35641, not a +15 nt offset, and that rule was not applied here. No dwell deviation of zero was substituted.",
+  "digest": "sha256:5fc819733529004b677f02aee6ea7643f6abe4279ab2292fd31af9cfa724a961"
+}

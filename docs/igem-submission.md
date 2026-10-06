@@ -22,7 +22,12 @@ The pairwise synonymous Potts model (`epistasis.context_naturalness`) is fit
 on the CDS of `NC_000913.3` (assembly `GCF_000005845.2`). The 13-protein panel
 was held out of the fit and then scored. The named Ribo-seq dataset is Li,
 Burkhardt, Gross and Weissman, Cell 2014, GEO `GSE53767`. The fit does not
-consume those read counts. There is no dwell head.
+consume those read counts. The dwell head is not fitted. Li et al. Cell 2014
+does not state a 5'-end A-site offset, and the footprints were size-selected
+from about 15 to 45 nt. Li, Oh and Weissman, Nature 2012 assigns the A site
+to the footprint center on GEO GSE35641, which is a different series, and
+does not state +15 nt. Requesting `epistasis.dwell_deviation` returns
+`CF-LAND-001`. It does not report a deviation of zero.
 
 ## What it does not do
 
@@ -47,8 +52,8 @@ consume those read counts. There is no dwell head.
   the 40-iteration early stop and a codon-usage baseline of −0.991739.
   `W = 5` is the unchanged 40-iteration fit and is not the selected model.
 - `P1-26` (`DEP-SRCH-013`) is held.
-- `EXP-06`, bundled thermodynamic tables, and a dwell head are not in this
-  snapshot.
+- `EXP-06` and bundled thermodynamic tables are not in this snapshot. The
+  dwell head is recorded as not fitted, for the reason above.
 - AMD-013 sign-off is recorded in `docs/legal-clearance.yaml` from the
   reviewer's email of 2026-10-05. The scope is a non-commercial iGEM
   educational project, and the reviewer states that the email is not a formal

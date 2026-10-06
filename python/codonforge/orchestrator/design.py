@@ -195,6 +195,20 @@ def design(
             exit_code=2,
         )
 
+    from codonforge.epistasis.dwell import DWELL_TERM, dwell_status
+
+    if DWELL_TERM in request.objectives:
+        dwell = dwell_status()
+        # Not fitted in this build. Do not fall through into a job that
+        # would omit the axis or report it as zero.
+        if dwell["state"] != "fitted":
+            raise DesignError("CF-LAND-001", dwell["reason"])
+        raise DesignError(
+            "CF-LAND-001",
+            "epistasis.dwell_deviation is not scored in this build; "
+            "a fitted GSE53767 head is not installed",
+        )
+
     unknown = [t for t in request.objectives if t not in BUILTIN_TERMS]
     if unknown:
         raise DesignError(

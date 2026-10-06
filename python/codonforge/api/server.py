@@ -439,7 +439,10 @@ class Handler(BaseHTTPRequestHandler):
             from codonforge.epistasis.artifact import ArtifactError, load_calibration
 
             try:
+                from codonforge.epistasis.dwell import dwell_status
+
                 payload = load_calibration()
+                payload["dwell"] = dwell_status()
             except (ArtifactError, json.JSONDecodeError, OSError) as exc:
                 self._send(
                     500,
