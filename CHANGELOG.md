@@ -27,7 +27,10 @@ file list so it can be fetched.
   thread per second in Chrome. A first version that animated a registered custom
   property cost about 115 ms per second and was replaced. A hidden tab does no
   work. There is no animation loop.
-- `helix.js` is 11 kB and the SVG it builds is 17 kB, 28 kB together.
+- `helix.js` is 11.4 kB and the SVG it builds is 17.1 kB, 28.5 kB together. The
+  helix's keyframes and rules add 10 kB to the shared stylesheet.
+- `python/tests/test_helix.py` has 18 tests, and `tools/helix_controls.sh` injects
+  24 defects, one per property they guard; all 24 are caught.
 - `app.js` is now loaded as a module. PrimerForge's poll loop gains the same
   `catch` the CodonForge one has, so a network failure there ends in the error
   state and a message instead of an unhandled rejection.
