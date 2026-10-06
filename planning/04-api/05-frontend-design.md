@@ -63,7 +63,8 @@ Named after the *state*, not after a palette step. None of these are Tailwind
 | `warning-with-provenance` | left rule `#c4922a`, wash `#f5ead0` | A warning that still carries `(code, stage, subject)`. | Same instrument-software warning row; NCBI's problem pages put the code in mono next to the prose. |
 
 `recommended` `#1a4a73` is NCBI header blue — identity of *the named answer*,
-not a gradient and not purple. `structure-opt` `#3a5f4d` is a second categorical
+not a gradient and not purple. The DNA helix (§8) also draws its backbone in this token
+(`DEP-UI-001`). `structure-opt` `#3a5f4d` is a second categorical
 mark, not a step on the same ramp.
 
 `--ink` `#1c1917` and `--paper` `#f3efe4` follow Jalview / paper-canvas, not
@@ -191,3 +192,48 @@ of it as a penalty.
 
 Regenerate from the fixtures with `python3 planning/04-api/mockups/render.py`.
 Do not hand-edit numbers in the HTML.
+
+---
+
+## 8. The DNA helix
+
+One animated element, in both tabs, and it answers a question the page
+otherwise cannot: *is the tool doing something right now?* It is a B-form double
+helix, built from geometry at run time, not an image. It sits as the first child
+of each result region, above the placeholder notes, and takes its place in the
+page's flow, so it never covers or hides a disclosure.
+
+| State | Set by | Helix |
+| --- | --- | --- |
+| idle | page load | Centred, 200 x 300 px, one turn per 9 s. |
+| running | the poll loop starts | Moves to the corner at 100 x 150 px, one turn per 5 s, and each rung dims and brightens in turn from the bottom. The tier tracks keep their place. |
+| result | the front or the primer table is rendered | Finishes its turn, then docks at 80 x 120 px in the corner at the idle speed. The result fades in as before. |
+| error | a `CF-*` problem, an empty front, a failed job | Rotation stops where it is and every rung turns `refusal-ink`. The error message fades in 1.5 s later. |
+
+Under `prefers-reduced-motion: reduce` nothing moves and nothing resizes: the
+helix is a still image at the idle pose with the same geometry and tints, and
+the error recolour still applies because a colour change is not motion. That is
+a stylesheet rule. The module has no script check and no animation loop.
+
+Where each number comes from. None is chosen by eye.
+
+| Quantity | Value | Source |
+| --- | --- | --- |
+| Rise per base pair | 3.4 A | Watson and Crick, *Nature* 171:737 (1953). PDB 1BNA measures 3.35 A. |
+| Twist per base pair | 36 deg, 10 bp per turn | Same. 1BNA measures 35.8 deg. |
+| Phosphate radius | 9.3 A | Measured on 1BNA, 9.27 +/- 0.51 A over 22 phosphates. Watson and Crick give 10 A. |
+| Strand offset | 145 deg | Measured on 1BNA: the two phosphate tracks are 144.6 deg apart, so the minor groove arc is 145 deg and the major groove arc is 215 deg. |
+| Rung sequence | `ATGACCATGATTACGGATTC` | The first 20 nt of the `lacZ` CDS in `benchmarks/corpus/NC_000913.3_cds.fna.gz`. |
+| Base tints | A green, T red, G amber, C blue | IGV.js `defaultNucleotideColors`, muted: HSL saturation x 0.4, lightness 0.58. IGV's G is orange, not yellow. |
+
+`tools/measure_bform_1bna.py` derives the two measured values from the 1BNA
+coordinates and `docs/helix-1bna-measurement.json` records the result with the
+sha256 of the file it read; the coordinates are not vendored. A synthetic duplex
+of known geometry is the test fixture for the script.
+
+Part D's rule that NCBI blue is only `recommended` is departed from here, with
+`DEP-UI-001`. The helix reuses tokens that already exist (`recommended` for the
+backbone, `refusal-ink` for the error, the muted IGV tints for detail) and adds
+none to the state vocabulary. The helix does not replace the tier bars or the
+indeterminate bar in the primer tab: those are the progress tracks, and they
+are unchanged.

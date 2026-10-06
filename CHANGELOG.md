@@ -1,5 +1,49 @@
 # Changelog
 
+## v2.3.0
+
+A DNA double helix on the landing page and in the loading and result states of
+both tabs. Frontend only: no backend change, no new dependency, no library. The
+page gains one script file, `helix.js`, and one entry in the server's static
+file list so it can be fetched.
+
+- The helix is built from B-form geometry at run time (SVG, no image) and
+  rotates by CSS keyframes. Rise 3.4 A and twist 36 deg per base pair follow
+  Watson and Crick 1953. The phosphate radius (9.3 A) and strand offset
+  (145 deg, so the grooves alternate) are measured on PDB 1BNA by
+  `tools/measure_bform_1bna.py`, recorded in `docs/helix-1bna-measurement.json`.
+  The rungs carry the first 20 nt of the `lacZ` CDS from the shipped corpus.
+- Backbone in the `recommended` token (`DEP-UI-001`). Rungs in IGV's default
+  nucleotide palette muted by one stated rule, in two halves per rung (A green
+  and T red, G amber and C blue). IGV's G is orange; the brief's "yellow" is
+  not what IGV ships.
+- Four states, set only by the existing polling code. Idle: centred, one turn
+  per 9 s. Running: in the corner, one turn per 5 s, rungs pulsing bottom to
+  top. Result: finishes its turn, docks at 80 x 120 px, result fades in. Error:
+  rotation stops, rungs turn `refusal-ink`, the message fades in 1.5 s later.
+- `prefers-reduced-motion: reduce` is a stylesheet rule. The helix stays a
+  still image at its idle pose.
+- Cost: rotation is `transform` and `opacity` keyframes, about 1 ms of main
+  thread per second in Chrome. A first version that animated a registered custom
+  property cost about 115 ms per second and was replaced. A hidden tab does no
+  work. There is no animation loop.
+- `helix.js` is 11 kB and the SVG it builds is 17 kB, 28 kB together.
+- `app.js` is now loaded as a module. PrimerForge's poll loop gains the same
+  `catch` the CodonForge one has, so a network failure there ends in the error
+  state and a message instead of an unhandled rejection.
+- Unchanged: every disclosure on both tabs, the tab colours, the typography, the
+  spacing, the Pareto table. The helix takes its place in the page flow above
+  the placeholder notes.
+
+Found while testing and not changed: dragging across the PrimerForge sequence
+viewer selects one nucleotide in Chrome, because `setPointerCapture` retargets
+`pointermove` to the viewer and `indexAt()` then finds no `[data-index]`. It
+does the same on v2.2.0.
+
+Still not claimed: everything v2.2.0 does not claim. `P1-26`, EXP-06,
+LinearDesign, bundled thermodynamic tables and `P3-14` remain held, and the
+legal clearance gate is unchanged.
+
 ## v2.2.0
 
 Close-out notes on top of v2.1.0 (`0f22940`). The converged Potts fit, the
