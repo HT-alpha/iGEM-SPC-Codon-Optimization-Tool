@@ -346,6 +346,7 @@ animations.push({
 const helix = m.createHelix(container);
 const snap = () => ({ state: container.dataset.helixState, pose: container.dataset.helixPose });
 const backbone = made.find((n) => n.name === "g" && n.attrs.class === "hx-bb");
+const fire = (event) => [...(backbone.listeners.animationiteration || [])].forEach((f) => f(event));
 const steps = {};
 steps.start = snap();
 helix.setState("running");
@@ -355,10 +356,10 @@ helix.setState("result");
 steps.resultBeforeTurn = snap();
 steps.ratesBeforeTurn = animations.slice(0, 3).map((a) => a.rates.at(-1));
 // A pulse's iteration, or another target, must not count as the helix's turn.
-backbone.listeners.animationiteration[0]({ target: {}, animationName: "hx-slide" });
-backbone.listeners.animationiteration[0]({ target: backbone, animationName: "hx-glow" });
+fire({ target: {}, animationName: "hx-slide" });
+fire({ target: backbone, animationName: "hx-glow" });
 steps.afterWrongEvents = snap();
-backbone.listeners.animationiteration[0]({ target: backbone, animationName: "hx-slide" });
+fire({ target: backbone, animationName: "hx-slide" });
 steps.afterTurn = snap();
 steps.ratesAfterTurn = animations.slice(0, 3).map((a) => a.rates.at(-1));
 steps.listenersLeft = (backbone.listeners.animationiteration || []).length;
