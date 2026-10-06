@@ -13,6 +13,9 @@
   global MFE is not `structure.local_accessibility`. The Potts held-out set
   is still those original 13. Selected-CDS digest
   `sha256:f03c0e882509ec34d8ad0fc327759dabc9b67cdf803a8892bdaeabf475a60bb3`.
+- `P1-26` stays held. The landscape registry still has no in-core L1 term
+  whose radius exceeds the default tier-2 block and cannot be covered by
+  raising that block. See `DEP-SRCH-013`.
 - EXP-05 was re-run at 20 generations, 20 seeds per arm, on `rpsJ`, `rplL`,
   and `rpsL`. `decide()` is unchanged. Hypervolume margin is 0, so
   Lamarckian stays the default. `rplL` does not reach tier 3 (`CF-SRCH-006`
