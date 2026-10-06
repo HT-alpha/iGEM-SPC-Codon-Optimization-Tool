@@ -959,6 +959,7 @@ async function pollPrimers(jobId) {
     status = await call("GET", `/v1/primers/${jobId}`);
   }
   if (!status.payload) return;
+  bar.innerHTML = primerProgress(status.payload);
   if (status.payload.problem) {
     document.getElementById("primer-error").innerHTML = problemCallout(status.payload.problem);
     document.getElementById("primer-results").innerHTML = problemCallout(status.payload.problem);
@@ -969,6 +970,7 @@ async function pollPrimers(jobId) {
 
 document.getElementById("primer-search").addEventListener("click", async () => {
   document.getElementById("primer-error").innerHTML = "";
+  document.getElementById("primer-results").innerHTML = "";
   if (!selection) {
     document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>No region selected.</strong> <span class="note">Drag across the sequence viewer.</span></div>`;
     return;
