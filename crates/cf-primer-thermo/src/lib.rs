@@ -96,6 +96,34 @@ mod tests {
             let fold = dimer(&parameters, left, right).unwrap();
             assert!(fold.delta_g_kcal.is_finite(), "{}", fold.delta_g_kcal);
         }
+        // Forward self-dimer. Two helices (CAG and CTG) in one register,
+        // initiation once. Table 2 gives −3.556 kcal/mol, the published
+        // OligoAnalyzer cell −3.55 within 0.01.
+        let forward = dimer(&parameters, "CAGCCACTGATGCCAAGAGA", "CAGCCACTGATGCCAAGAGA").unwrap();
+        assert!(
+            (forward.delta_g_kcal - (-3.556)).abs() < 0.01,
+            "{}",
+            forward.delta_g_kcal
+        );
+    }
+
+    #[test]
+    fn a_second_helix_crosses_the_flag_line() {
+        // 5'-CGCAAAGCG-3' with itself. The best single helix is CGC
+        // (or GCG): two stacks and initiation at both ends, ΔG°37 = −2.459,
+        // which is above the −4 kcal/mol flag line. The register contains
+        // both helices and is charged initiation once, so the pair is flagged.
+        let parameters = params();
+        let single = perfect_duplex(&parameters, "CGC").unwrap();
+        assert!((single.delta_g37_kcal - (-2.459)).abs() < 0.01);
+        assert_eq!(dg_zone(single.delta_g37_kcal), DgZone::Accept);
+        let both = dimer(&parameters, "CGCAAAGCG", "CGCAAAGCG").unwrap();
+        assert!(
+            both.delta_g_kcal < -4.0 && both.delta_g_kcal >= -9.0,
+            "{}",
+            both.delta_g_kcal
+        );
+        assert_eq!(dg_zone(both.delta_g_kcal), DgZone::Flag);
     }
 
     #[test]
