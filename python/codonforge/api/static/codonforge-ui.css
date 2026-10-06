@@ -34,6 +34,18 @@
   --structure-opt: #3a5f4d;
   --structure-opt-wash: #d7e4db;
 
+  /* Base-pair tints for the helix. The convention is IGV.js's default
+     nucleotide palette (igvteam/igv.js, js/util/nucleotideColors.js,
+     defaultNucleotideColors): A rgb(0,200,0), C rgb(0,0,200), T rgb(255,0,0),
+     G rgb(209,113,5). Each is muted by one rule: HSL saturation x 0.4,
+     lightness set to 0.58. Hue is kept, so A green, T red, C blue and G amber
+     (IGV's G is orange, not yellow). python/tests/test_helix.py recomputes
+     these four from the source colours. */
+  --base-a: #69bf69;
+  --base-t: #bf6969;
+  --base-g: #bd966b;
+  --base-c: #6969bf;
+
   --space-1: 5px;
   --space-2: 10px;
   --space-3: 20px;
@@ -511,6 +523,11 @@ button.tab.active {
   animation: cf-reveal 200ms cubic-bezier(0, 0, 0.38, 0.9) both;
 }
 
+/* An error message waits for the helix to stop and turn red first. */
+.reveal.reveal-late {
+  animation-delay: 1500ms;
+}
+
 @keyframes cf-reveal {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
@@ -627,5 +644,224 @@ button.warn-toggle {
   .zone-chip {
     transition: none;
     animation: none;
+  }
+}
+
+/* DNA helix (helix.js). The module builds the SVG and gives every rung half
+   its turn-0 pose inline; everything that moves is here, so
+   prefers-reduced-motion is a media query and not a script check.
+
+   Every animation below is transform or opacity keyframes, which the browser
+   runs without restyling the page on each frame. The keyframes read the
+   geometry from custom properties the module sets on the SVG, so no constant
+   is repeated in this file. Rung halves all use hx-move and hx-fade and differ
+   only by a negative delay (--hx-f, the rung's phase as a fraction of a turn).
+   Strand B's depth is strand A's, offset by the strand offset (--hx-dphase).
+   The backbone is a single translateY of one pitch. All of them have one
+   length, so the backbone and the rungs turn as one helix.
+
+   Where CSS trig is not supported the keyframes are invalid and the helix
+   stays at its inline turn-0 pose: a still picture, not a broken one.
+
+   Easing is IBM Carbon's expressive standard curve, cubic-bezier(0.4, 0.14,
+   0.3, 1), at duration-slow-01 (400ms). The pose changes once per job, which
+   is expressive rather than productive motion:
+   https://carbondesignsystem.com/guidelines/motion/overview/ */
+
+@keyframes hx-slide {
+  from { transform: translateY(0); }
+  to { transform: translateY(calc(var(--hx-pitch) * 1px)); }
+}
+
+/* b runs 0 to 360 degrees. A rung half is a unit line placed at its mid angle. */
+@keyframes hx-move {
+  0% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(0deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(0deg))); }
+  4.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(15deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(15deg))); }
+  8.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(30deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(30deg))); }
+  12.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(45deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(45deg))); }
+  16.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(60deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(60deg))); }
+  20.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(75deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(75deg))); }
+  25% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(90deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(90deg))); }
+  29.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(105deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(105deg))); }
+  33.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(120deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(120deg))); }
+  37.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(135deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(135deg))); }
+  41.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(150deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(150deg))); }
+  45.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(165deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(165deg))); }
+  50% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(180deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(180deg))); }
+  54.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(195deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(195deg))); }
+  58.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(210deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(210deg))); }
+  62.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(225deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(225deg))); }
+  66.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(240deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(240deg))); }
+  70.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(255deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(255deg))); }
+  75% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(270deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(270deg))); }
+  79.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(285deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(285deg))); }
+  83.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(300deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(300deg))); }
+  87.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(315deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(315deg))); }
+  91.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(330deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(330deg))); }
+  95.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(345deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(345deg))); }
+  100% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(360deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(360deg))); }
+}
+
+/* Depth of a strand end, 0.3 at the back to 1 at the front. This is strand A's;
+   strand B's is the same curve, 'delta' of a turn later. */
+@keyframes hx-fade {
+  0% { opacity: calc(0.3 + 0.7 * (1 - sin(0deg - var(--hx-delta) / 2)) / 2); }
+  4.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(15deg - var(--hx-delta) / 2)) / 2); }
+  8.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(30deg - var(--hx-delta) / 2)) / 2); }
+  12.5% { opacity: calc(0.3 + 0.7 * (1 - sin(45deg - var(--hx-delta) / 2)) / 2); }
+  16.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(60deg - var(--hx-delta) / 2)) / 2); }
+  20.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(75deg - var(--hx-delta) / 2)) / 2); }
+  25% { opacity: calc(0.3 + 0.7 * (1 - sin(90deg - var(--hx-delta) / 2)) / 2); }
+  29.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(105deg - var(--hx-delta) / 2)) / 2); }
+  33.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(120deg - var(--hx-delta) / 2)) / 2); }
+  37.5% { opacity: calc(0.3 + 0.7 * (1 - sin(135deg - var(--hx-delta) / 2)) / 2); }
+  41.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(150deg - var(--hx-delta) / 2)) / 2); }
+  45.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(165deg - var(--hx-delta) / 2)) / 2); }
+  50% { opacity: calc(0.3 + 0.7 * (1 - sin(180deg - var(--hx-delta) / 2)) / 2); }
+  54.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(195deg - var(--hx-delta) / 2)) / 2); }
+  58.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(210deg - var(--hx-delta) / 2)) / 2); }
+  62.5% { opacity: calc(0.3 + 0.7 * (1 - sin(225deg - var(--hx-delta) / 2)) / 2); }
+  66.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(240deg - var(--hx-delta) / 2)) / 2); }
+  70.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(255deg - var(--hx-delta) / 2)) / 2); }
+  75% { opacity: calc(0.3 + 0.7 * (1 - sin(270deg - var(--hx-delta) / 2)) / 2); }
+  79.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(285deg - var(--hx-delta) / 2)) / 2); }
+  83.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(300deg - var(--hx-delta) / 2)) / 2); }
+  87.5% { opacity: calc(0.3 + 0.7 * (1 - sin(315deg - var(--hx-delta) / 2)) / 2); }
+  91.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(330deg - var(--hx-delta) / 2)) / 2); }
+  95.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(345deg - var(--hx-delta) / 2)) / 2); }
+  100% { opacity: calc(0.3 + 0.7 * (1 - sin(360deg - var(--hx-delta) / 2)) / 2); }
+}
+
+@keyframes hx-glow {
+  0% { opacity: var(--hx-rest); }
+  12% { opacity: 1; }
+  36% { opacity: var(--hx-rest); }
+  100% { opacity: var(--hx-rest); }
+}
+
+.helix-stage {
+  --hx-ease: cubic-bezier(0.4, 0.14, 0.3, 1);
+  --hx-period: 9s;
+  --hx-h-centre: 300px;
+  --hx-h-corner: 150px;
+  --hx-h-badge: 120px;
+  position: relative;
+  height: var(--hx-h-centre);
+  margin: var(--space-3) 0;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.hx-svg {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 2 / 3;
+  transform: translateX(-50%);
+}
+
+.hx-bb {
+  animation: hx-slide var(--hx-period) linear infinite;
+}
+
+.hx-bb path {
+  fill: none;
+  stroke: var(--recommended);
+  stroke-linecap: butt;
+}
+
+.hx-rung path {
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: butt;
+  transition: stroke 300ms linear;
+}
+
+.hx-rung .hx-a {
+  animation:
+    hx-move var(--hx-period) linear calc(var(--hx-f) * var(--hx-period) * -1) infinite,
+    hx-fade var(--hx-period) linear calc(var(--hx-f) * var(--hx-period) * -1) infinite;
+}
+
+.hx-rung .hx-b {
+  animation:
+    hx-move var(--hx-period) linear calc(var(--hx-f) * var(--hx-period) * -1) infinite,
+    hx-fade var(--hx-period) linear calc((var(--hx-f) + var(--hx-dphase)) * var(--hx-period) * -1)
+      infinite;
+}
+
+.hx-nA { stroke: var(--base-a); }
+.hx-nT { stroke: var(--base-t); }
+.hx-nG { stroke: var(--base-g); }
+.hx-nC { stroke: var(--base-c); }
+
+.hx-rung {
+  transition: opacity 300ms linear;
+}
+
+/* Running: the rungs dim and a pulse passes up the ladder, one rung every
+   70ms, bottom to top. */
+.helix-stage[data-helix-state="running"] .hx-rung {
+  --hx-rest: 0.45;
+  opacity: var(--hx-rest);
+  animation: hx-glow 2400ms linear calc(var(--hx-i) * 70ms) infinite;
+}
+
+/* Error: rotation stops where it is and the rungs go to the refusal red. */
+.helix-stage[data-helix-state="error"] .hx-bb,
+.helix-stage[data-helix-state="error"] .hx-rung path {
+  animation-play-state: paused;
+}
+
+.helix-stage[data-helix-state="error"] .hx-rung path {
+  stroke: var(--refusal-ink);
+}
+
+@media (max-width: 720px) {
+  .helix-stage {
+    --hx-h-centre: 220px;
+    --hx-h-corner: 130px;
+    --hx-h-badge: 100px;
+  }
+}
+
+/* Poses are motion, so they apply only when motion is allowed. Under
+   prefers-reduced-motion the helix stays at its idle pose with no animation,
+   which is a static picture of the same geometry and colours. */
+@media (prefers-reduced-motion: no-preference) {
+  .helix-stage {
+    transition: height 400ms var(--hx-ease);
+  }
+
+  .hx-svg {
+    transition:
+      left 400ms var(--hx-ease),
+      transform 400ms var(--hx-ease);
+  }
+
+  .helix-stage[data-helix-pose="corner"] { height: var(--hx-h-corner); }
+  .helix-stage[data-helix-pose="badge"] { height: var(--hx-h-badge); }
+
+  .helix-stage[data-helix-pose="corner"] .hx-svg,
+  .helix-stage[data-helix-pose="badge"] .hx-svg {
+    left: 100%;
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-bb,
+  .hx-rung .hx-a,
+  .hx-rung .hx-b,
+  .helix-stage[data-helix-state="running"] .hx-rung {
+    animation: none;
+  }
+
+  .hx-rung,
+  .hx-rung path {
+    transition: none;
   }
 }

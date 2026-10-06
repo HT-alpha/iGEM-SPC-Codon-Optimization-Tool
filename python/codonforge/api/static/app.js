@@ -2,7 +2,11 @@
    Polls GET /v1/jobs/{id} while a job is running. Codon tints, when shown,
    use relative_adaptiveness from the submitted host profile. The front
    document's objective_vector, unknown_terms, and objective_sense are per
-   term, not per codon, so this page does not invent a position mask. */
+   term, not per codon, so this page does not invent a position mask.
+   The DNA helix (helix.js) is told the job state from the polling code below
+   and from nowhere else. */
+
+import { createHelix } from "/helix.js";
 
 const tokenInput = document.getElementById("token");
 const requestInput = document.getElementById("request");
@@ -10,6 +14,8 @@ const submitButton = document.getElementById("submit");
 const submitError = document.getElementById("submit-error");
 const statusRoot = document.getElementById("status-root");
 const frontRoot = document.getElementById("front-root");
+const codonHelix = createHelix(document.getElementById("codon-helix"));
+const primerHelix = createHelix(document.getElementById("primer-helix"));
 
 const tierFraction = new Map();
 const openStages = new Set();
@@ -66,6 +72,10 @@ function problemCallout(problem) {
     return `<div class="callout refusal"><strong>No CF-* code.</strong> <span class="note">The response did not name a registered code.</span></div>`;
   }
   return `<div class="callout refusal"><strong>${codeLink(problem)}</strong> ${escapeText(problem.title || "")}<div class="note">${escapeText(problem.detail || "")}</div></div>`;
+}
+
+function lateReveal(html) {
+  return `<div class="reveal reveal-late">${html}</div>`;
 }
 
 function isRefusal(item) {
@@ -164,7 +174,7 @@ function renderStatus(document) {
         `<tr><td class="mono">${escapeText(term.term_id)}</td><td>${roleChip(term.role)}</td><td class="mono">${escapeText(term.direction)}</td></tr>`,
     )
     .join("");
-  const failed = document.state === "failed" ? problemCallout(document.problem) : document.problem && document.problem.code ? problemCallout(document.problem) : "";
+  const failed = document.state === "failed" ? lateReveal(problemCallout(document.problem)) : document.problem && document.problem.code ? problemCallout(document.problem) : "";
   const stateKind = document.state === "succeeded" ? "feasible" : document.state === "failed" ? "refusal" : "warning";
   statusRoot.innerHTML = `
     <div class="rail"><div class="k">Job</div><div class="v mono">${escapeText(document.job_id || "")}</div></div>
@@ -400,8 +410,8 @@ function renderFront(front) {
     const problem = match
       ? { code: match[0], type: `https://codonforge.org/problems/${match[0].toLowerCase()}`, title: "The front has no candidates", detail: reason }
       : null;
-    frontRoot.innerHTML = `<div class="reveal">${problem ? problemCallout(problem) : `<div class="callout refusal"><strong>Empty front.</strong> <span class="note">No candidates were returned${reason ? `: ${escapeText(reason)}` : ""}. The document did not name a CF-* code for this outcome.</span></div>`}</div>`;
-    return;
+    frontRoot.innerHTML = lateReveal(problem ? problemCallout(problem) : `<div class="callout refusal"><strong>Empty front.</strong> <span class="note">No candidates were returned${reason ? `: ${escapeText(reason)}` : ""}. The document did not name a CF-* code for this outcome.</span></div>`);
+    return false;
   }
   const recommended = front.recommended || {};
   const order = front.objective_order || [];
@@ -461,6 +471,7 @@ function renderFront(front) {
       .join("")}<th>other terms</th></tr></thead><tbody>${rows}</tbody></table></div>
     </div>
   `;
+  return true;
 }
 
 function clearHot() {
@@ -499,19 +510,24 @@ function showFrontFailure(response) {
   const body = payload.code
     ? problemCallout(payload)
     : `<div class="callout refusal"><strong>Front request failed.</strong> <span class="note">HTTP ${escapeText(response.status)}. The body did not name a CF-* code.</span></div>`;
-  frontRoot.innerHTML = `<div class="reveal">${body}</div>`;
+  frontRoot.innerHTML = lateReveal(body);
 }
 
 async function loadFront(jobId) {
   const front = await call("GET", `/v1/jobs/${jobId}/front?reduction=default&max_candidates=20`);
-  if (front.status === 200 && front.payload && !front.payload.code) renderFront(front.payload);
-  else showFrontFailure(front);
+  if (front.status === 200 && front.payload && !front.payload.code) {
+    codonHelix.setState(renderFront(front.payload) ? "result" : "error");
+  } else {
+    showFrontFailure(front);
+    codonHelix.setState("error");
+  }
 }
 
 let pollToken = 0;
 
 async function poll(jobId) {
   const token = ++pollToken;
+  codonHelix.setState("running");
   try {
     let status = await call("GET", `/v1/jobs/${jobId}`);
     while (
@@ -527,20 +543,23 @@ async function poll(jobId) {
     }
     if (token !== pollToken || !status.payload) return;
     if (status.payload.code && !status.payload.job_id) {
-      submitError.innerHTML = problemCallout(status.payload);
-      frontRoot.innerHTML = `<div class="reveal">${problemCallout(status.payload)}</div>`;
+      submitError.innerHTML = lateReveal(problemCallout(status.payload));
+      frontRoot.innerHTML = lateReveal(problemCallout(status.payload));
+      codonHelix.setState("error");
       return;
     }
     renderStatus(status.payload);
     if (status.payload.state !== "succeeded") {
       const problem = status.payload.problem || { code: "", title: "", detail: "" };
-      frontRoot.innerHTML = `<div class="reveal">${status.payload.problem ? problemCallout(problem) : `<div class="callout refusal"><strong>Job ${escapeText(status.payload.state || "unfinished")}.</strong> <span class="note">No front was requested, because the job did not succeed. The status document did not include a problem code.</span></div>`}</div>`;
+      frontRoot.innerHTML = lateReveal(status.payload.problem ? problemCallout(problem) : `<div class="callout refusal"><strong>Job ${escapeText(status.payload.state || "unfinished")}.</strong> <span class="note">No front was requested, because the job did not succeed. The status document did not include a problem code.</span></div>`);
+      codonHelix.setState("error");
       return;
     }
     await loadFront(jobId);
   } catch (error) {
     if (token !== pollToken) return;
-    submitError.innerHTML = `<div class="callout refusal"><strong>The status request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`;
+    submitError.innerHTML = lateReveal(`<div class="callout refusal"><strong>The status request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`);
+    codonHelix.setState("error");
   }
 }
 
@@ -548,8 +567,9 @@ async function showJob(jobId) {
   const status = await call("GET", `/v1/jobs/${jobId}`);
   if (!status.payload) return;
   if (status.payload.code && !status.payload.job_id) {
-    submitError.innerHTML = problemCallout(status.payload);
-    frontRoot.innerHTML = `<div class="reveal">${problemCallout(status.payload)}</div>`;
+    submitError.innerHTML = lateReveal(problemCallout(status.payload));
+    frontRoot.innerHTML = lateReveal(problemCallout(status.payload));
+    codonHelix.setState("error");
     return;
   }
   renderStatus(status.payload);
@@ -558,7 +578,8 @@ async function showJob(jobId) {
     return;
   }
   if (status.payload.state !== "succeeded") {
-    frontRoot.innerHTML = `<div class="reveal">${status.payload.problem ? problemCallout(status.payload.problem) : `<div class="callout refusal"><strong>Job ${escapeText(status.payload.state || "unfinished")}.</strong> <span class="note">No front is available.</span></div>`}</div>`;
+    frontRoot.innerHTML = lateReveal(status.payload.problem ? problemCallout(status.payload.problem) : `<div class="callout refusal"><strong>Job ${escapeText(status.payload.state || "unfinished")}.</strong> <span class="note">No front is available.</span></div>`);
+    codonHelix.setState("error");
     return;
   }
   await loadFront(jobId);
@@ -643,15 +664,17 @@ submitButton.addEventListener("click", async () => {
     const posted = await call("POST", "/v1/jobs", body);
     if (!posted.payload) return;
     if (posted.payload.code && !posted.payload.job_id) {
-      submitError.innerHTML = problemCallout(posted.payload);
-      frontRoot.innerHTML = `<div class="reveal">${problemCallout(posted.payload)}</div>`;
+      submitError.innerHTML = lateReveal(problemCallout(posted.payload));
+      frontRoot.innerHTML = lateReveal(problemCallout(posted.payload));
+      codonHelix.setState("error");
       return;
     }
     history.replaceState(null, "", `#${posted.payload.job_id}`);
     renderStatus(posted.payload);
     poll(posted.payload.job_id);
   } catch (error) {
-    submitError.innerHTML = `<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`;
+    submitError.innerHTML = lateReveal(`<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`);
+    codonHelix.setState("error");
   }
 });
 
@@ -888,8 +911,8 @@ function renderPrimerResult(result) {
   const pairs = (result && result.pairs) || [];
   if (!pairs.length) {
     const detail = (result && result.detail) || "No filter counts were returned with this empty result.";
-    root.innerHTML = problemCallout({ code: "CF-PRIM-001", title: "No primer pairs survived pruning", detail });
-    return;
+    root.innerHTML = lateReveal(problemCallout({ code: "CF-PRIM-001", title: "No primer pairs survived pruning", detail }));
+    return false;
   }
   const recommended = pairs[0];
   const rows = pairs
@@ -934,6 +957,7 @@ function renderPrimerResult(result) {
   });
   const first = root.querySelector("tr[data-pair]");
   if (first) first.classList.add("open");
+  return true;
 }
 
 function primerProgress(payload) {
@@ -950,22 +974,33 @@ function primerProgress(payload) {
     .join("");
 }
 
+function showPrimerFailure(error) {
+  document.getElementById("primer-error").innerHTML = lateReveal(`<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`);
+  primerHelix.setState("error");
+}
+
 async function pollPrimers(jobId) {
   const bar = document.getElementById("primer-progress");
-  let status = await call("GET", `/v1/primers/${jobId}`);
-  while (status.payload && ["queued", "running"].includes(status.payload.state)) {
+  primerHelix.setState("running");
+  try {
+    let status = await call("GET", `/v1/primers/${jobId}`);
+    while (status.payload && ["queued", "running"].includes(status.payload.state)) {
+      bar.innerHTML = primerProgress(status.payload);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      status = await call("GET", `/v1/primers/${jobId}`);
+    }
+    if (!status.payload) return;
     bar.innerHTML = primerProgress(status.payload);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    status = await call("GET", `/v1/primers/${jobId}`);
+    if (status.payload.problem) {
+      document.getElementById("primer-error").innerHTML = lateReveal(problemCallout(status.payload.problem));
+      document.getElementById("primer-results").innerHTML = lateReveal(problemCallout(status.payload.problem));
+      primerHelix.setState("error");
+      return;
+    }
+    primerHelix.setState(renderPrimerResult(status.payload.primer_result) ? "result" : "error");
+  } catch (error) {
+    showPrimerFailure(error);
   }
-  if (!status.payload) return;
-  bar.innerHTML = primerProgress(status.payload);
-  if (status.payload.problem) {
-    document.getElementById("primer-error").innerHTML = problemCallout(status.payload.problem);
-    document.getElementById("primer-results").innerHTML = problemCallout(status.payload.problem);
-    return;
-  }
-  renderPrimerResult(status.payload.primer_result);
 }
 
 document.getElementById("primer-search").addEventListener("click", async () => {
@@ -976,15 +1011,22 @@ document.getElementById("primer-search").addEventListener("click", async () => {
     return;
   }
   const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
-  const posted = await call("POST", "/v1/primers/candidates", {
-    sequence,
-    region: selection,
-    config: primerConfig(),
-  });
+  let posted;
+  try {
+    posted = await call("POST", "/v1/primers/candidates", {
+      sequence,
+      region: selection,
+      config: primerConfig(),
+    });
+  } catch (error) {
+    showPrimerFailure(error);
+    return;
+  }
   if (!posted.payload) return;
   if (posted.payload.code && !posted.payload.job_id) {
-    document.getElementById("primer-error").innerHTML = problemCallout(posted.payload);
-    document.getElementById("primer-results").innerHTML = problemCallout(posted.payload);
+    document.getElementById("primer-error").innerHTML = lateReveal(problemCallout(posted.payload));
+    document.getElementById("primer-results").innerHTML = lateReveal(problemCallout(posted.payload));
+    primerHelix.setState("error");
     return;
   }
   pollPrimers(posted.payload.job_id);
