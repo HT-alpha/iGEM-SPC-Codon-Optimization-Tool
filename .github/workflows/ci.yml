@@ -18,9 +18,9 @@ env:
 # compiler. Passing `toolchain: stable` is how a local 1.83 install stayed
 # green while CI's newer clippy failed. Keep the two pins the same.
 #
-# RISK-LAT-005: checkout@v4 and setup-python@v5 still target Node 20. The
-# runner warns and forces Node 24. Not failing today. When GitHub turns the
-# warning into an error, bump those actions; do not silence the warning.
+# RISK-LAT-005: checkout@v5 and setup-python@v6 run on Node 24. upload and
+# download of wheels use the Node 24 majors as well. Do not pin these back
+# to a Node 20 action to silence a warning.
 
 jobs:
   # Repository invariants first: they are seconds-fast, and a layering or
@@ -29,8 +29,8 @@ jobs:
     name: repository invariants
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install jsonschema pyyaml
@@ -45,12 +45,12 @@ jobs:
     name: fmt + clippy + ruff
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
           toolchain: "1.98.1"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: cargo fmt --all -- --check
@@ -82,7 +82,7 @@ jobs:
           - cf-primer-thermo
           - cf-primer-search
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.98.1"
@@ -98,7 +98,7 @@ jobs:
     name: cargo build -p cf-pyext
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.98.1"
@@ -113,11 +113,11 @@ jobs:
       matrix:
         python: ["3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: "1.98.1"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
       - uses: Swatinem/rust-cache@v2
@@ -151,8 +151,8 @@ jobs:
     name: generated assets are reproducible
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - run: pip install biopython
