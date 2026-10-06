@@ -13,6 +13,15 @@
   global MFE is not `structure.local_accessibility`. The Potts held-out set
   is still those original 13. Selected-CDS digest
   `sha256:f03c0e882509ec34d8ad0fc327759dabc9b67cdf803a8892bdaeabf475a60bb3`.
+- `actions/checkout@v5` and `actions/setup-python@v6` replace the Node 20
+  majors. Wheel upload and download use Node 24 majors as well.
+- PrimerForge polls primer tiers, drags a live selection, links a hovered
+  pair to its binding sites, slides the detail panel in, recolours
+  threshold chips from the values already on the pair, and names the
+  filter that removed the most candidates on `CF-PRIM-001`.
+- `epistasis.dwell_deviation` is refused with `CF-LAND-001` when the fitted
+  head is absent. Li et al. Cell 2014 does not state a +15 nt A-site offset,
+  so no GSE53767 counts were extracted and none were replaced with zero.
 - `P1-26` stays held. The landscape registry still has no in-core L1 term
   whose radius exceeds the default tier-2 block and cannot be covered by
   raising that block. See `DEP-SRCH-013`.

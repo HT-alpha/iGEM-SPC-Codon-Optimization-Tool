@@ -103,6 +103,47 @@ pub fn product_keeps(size: usize, min: usize, max: usize) -> bool {
     (min..=max).contains(&size)
 }
 
+fn prim001(dropped: &std::collections::BTreeMap<&str, usize>) -> String {
+    let filters = [
+        (
+            "gc",
+            "GC 30-70%",
+            "Widen the flank so more base compositions are available.",
+        ),
+        (
+            "homopolymer",
+            "homopolymer (runs of 5 or longer refused)",
+            "Widen the flank. This template is a long run of one base.",
+        ),
+        (
+            "tm",
+            "Tm within 8 C of the target",
+            "Move the Tm target, or widen the flank.",
+        ),
+        ("product", "product size", "Widen the product-size range."),
+    ];
+    let mut best: Option<(&str, &str, &str, usize)> = None;
+    for (key, label, suggestion) in filters {
+        let count = dropped.get(key).copied().unwrap_or(0);
+        let replace = match best {
+            Some((_, _, _, previous)) => count > previous,
+            None => true,
+        };
+        if replace {
+            best = Some((key, label, suggestion, count));
+        }
+    }
+    match best {
+        Some((_, _, _, 0)) | None => {
+            "CF-PRIM-001 no primer windows were generated. Widen the flank or shorten the primer."
+                .into()
+        }
+        Some((_, label, suggestion, count)) => format!(
+            "CF-PRIM-001 the {label} filter eliminated the most candidates ({count}). {suggestion}"
+        ),
+    }
+}
+
 fn windows(
     template: &str,
     from: usize,
@@ -133,21 +174,24 @@ fn evaluate_primer(
     end: usize,
     reverse: bool,
     target: f64,
-) -> Result<Option<Primer>, SearchError> {
+) -> Result<Result<Primer, &'static str>, SearchError> {
     let slice = &template[start..end];
     let sequence = if reverse {
         cf_primer_thermo::duplex::reverse_complement(slice).map_err(|err| SearchError(err.0))?
     } else {
         slice.to_string()
     };
-    if !gc_keeps(gc_percent(&sequence)) || !homopolymer_keeps(&sequence) {
-        return Ok(None);
+    if !gc_keeps(gc_percent(&sequence)) {
+        return Ok(Err("gc"));
+    }
+    if !homopolymer_keeps(&sequence) {
+        return Ok(Err("homopolymer"));
     }
     let duplex = perfect_duplex(parameters, &sequence).map_err(|err| SearchError(err.0))?;
     if !tm_prefilter_keeps(duplex.tm_celsius, target) {
-        return Ok(None);
+        return Ok(Err("tm"));
     }
-    Ok(Some(Primer {
+    Ok(Ok(Primer {
         sequence,
         start,
         end,
@@ -396,6 +440,10 @@ pub fn search(
             "CF-PRIM-002 the sequence is too short for a primer on the requested flank".into(),
         ));
     }
+    let mut dropped = std::collections::BTreeMap::<&str, usize>::new();
+    let mut note_drop = |reason: &'static str| {
+        *dropped.entry(reason).or_insert(0) += 1;
+    };
     let mut forward = Vec::new();
     for (window_start, window_end) in windows(
         template,
@@ -404,7 +452,7 @@ pub fn search(
         config.primer_min,
         config.primer_max,
     ) {
-        if let Some(primer) = evaluate_primer(
+        match evaluate_primer(
             &parameters,
             template,
             window_start,
@@ -412,7 +460,8 @@ pub fn search(
             false,
             config.tm_target,
         )? {
-            forward.push(primer);
+            Ok(primer) => forward.push(primer),
+            Err(reason) => note_drop(reason),
         }
     }
     let mut reverse = Vec::new();
@@ -423,7 +472,7 @@ pub fn search(
         config.primer_min,
         config.primer_max,
     ) {
-        if let Some(primer) = evaluate_primer(
+        match evaluate_primer(
             &parameters,
             template,
             window_start,
@@ -431,7 +480,8 @@ pub fn search(
             true,
             config.tm_target,
         )? {
-            reverse.push(primer);
+            Ok(primer) => reverse.push(primer),
+            Err(reason) => note_drop(reason),
         }
     }
     progress(0.25);
@@ -460,16 +510,15 @@ pub fn search(
     let mut scored = Vec::new();
     for (index, fwd) in forward.iter().enumerate() {
         for rev in &reverse {
-            if let Some(pair) = score_pair(&parameters, template, fwd, rev, config)? {
-                scored.push(pair);
+            match score_pair(&parameters, template, fwd, rev, config)? {
+                Some(pair) => scored.push(pair),
+                None => note_drop("product"),
             }
         }
         progress(0.25 + 0.7 * ((index + 1) * reverse.len()) as f64 / total as f64);
     }
     if scored.is_empty() {
-        return Err(SearchError(
-            "CF-PRIM-001 no primer pairs survived GC, homopolymer, Tm and product-size pruning. Widen the flank, widen the product-size range, or move the Tm target.".into(),
-        ));
+        return Err(SearchError(prim001(&dropped)));
     }
     let ranked: Vec<Ranked> = scored
         .iter()
@@ -556,6 +605,22 @@ mod tests {
         };
         let error = search("ACGTACGT", 4, 6, &config, &mut |_| {}).unwrap_err();
         assert!(error.0.contains("CF-PRIM-002"), "{error}");
+    }
+
+    #[test]
+    fn a_homopolymer_template_names_that_filter() {
+        let config = Config {
+            tm_target: 60.0,
+            product_min: 20,
+            product_max: 80,
+            flank: 40,
+            primer_min: 18,
+            primer_max: 20,
+        };
+        let template = "AAACCGGTAA".repeat(20);
+        let error = search(&template, 40, 60, &config, &mut |_| {}).unwrap_err();
+        assert!(error.0.contains("homopolymer"), "{error}");
+        assert!(error.0.contains("CF-PRIM-001"), "{error}");
     }
 
     #[test]

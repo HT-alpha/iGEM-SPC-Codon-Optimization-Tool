@@ -679,6 +679,8 @@ const primerSequence = document.getElementById("primer-sequence");
 let selection = null;
 let dragAnchor = null;
 let viewStart = 0;
+let hoverSites = null;
+let lastPrimerResult = null;
 
 function rulerStep(length) {
   if (length > 5000) return 100;
@@ -698,27 +700,54 @@ function drawViewer() {
   const windowed = visibleWindow(sequence);
   viewStart = windowed.start;
   const step = rulerStep(sequence.length);
-  const flank = Number(document.getElementById("primer-flank").value) || 200;
   let html = "";
   for (let index = 0; index < windowed.text.length; index += 1) {
     const absolute = windowed.start + index;
     if (absolute % step === 0) html += `<span class="note">${absolute}</span> `;
-    let klass = "nt";
-    if (selection && absolute >= selection.start && absolute < selection.end) klass += " selected";
-    else if (selection && absolute >= selection.start - flank && absolute < selection.start) klass += " flank";
-    else if (selection && absolute >= selection.end && absolute < selection.end + flank) klass += " flank";
-    html += `<span class="${klass}" data-index="${absolute}">${windowed.text[index]}</span>`;
+    html += `<span class="nt" data-index="${absolute}">${windowed.text[index]}</span>`;
   }
   if (sequence.length > 10000) {
     html = `<p class="note">Showing ${windowed.start}–${windowed.start + windowed.text.length} of ${sequence.length}. <button type="button" id="viewer-back" data-jump="-2000">Back</button> <button type="button" id="viewer-forward" data-jump="2000">Forward</button></p>` + html;
   }
   viewer.innerHTML = html || `<span class="note">Paste a sequence.</span>`;
+  applyHighlight();
+}
+
+function applyHighlight() {
+  if (!viewer) return;
+  const flank = Number(document.getElementById("primer-flank").value) || 200;
+  viewer.querySelectorAll("[data-index]").forEach((node) => {
+    const absolute = Number(node.dataset.index);
+    let klass = "nt";
+    if (hoverSites) {
+      if (absolute >= hoverSites.forwardStart && absolute < hoverSites.forwardEnd) klass += " bind-f";
+      else if (absolute >= hoverSites.reverseStart && absolute < hoverSites.reverseEnd) klass += " bind-r";
+      else if (absolute >= hoverSites.ampStart && absolute < hoverSites.ampEnd) klass += " amplicon";
+    } else if (selection && absolute >= selection.start && absolute < selection.end) {
+      klass += " selected";
+    } else if (selection && absolute >= selection.start - flank && absolute < selection.start) {
+      klass += " flank";
+    } else if (selection && absolute >= selection.end && absolute < selection.end + flank) {
+      klass += " flank";
+    }
+    if (node.className !== klass) node.className = klass;
+  });
   const note = document.getElementById("primer-selection");
   if (note) {
     note.textContent = selection
       ? `Region ${selection.start}–${selection.end} (${selection.end - selection.start} nt).`
       : "No region selected.";
   }
+}
+
+function showSelectionTip(event) {
+  const tip = document.getElementById("selection-tip");
+  if (!tip || !selection) return;
+  const bases = selection.end - selection.start;
+  tip.hidden = false;
+  tip.textContent = bases + " bp selected";
+  tip.style.left = event.clientX + 12 + "px";
+  tip.style.top = event.clientY + 16 + "px";
 }
 
 function indexAt(event) {
@@ -738,18 +767,23 @@ if (viewer) {
       return;
     }
     dragAnchor = index;
+    hoverSites = null;
     selection = { start: index, end: index + 1 };
-    drawViewer();
+    applyHighlight();
+    showSelectionTip(event);
   });
   viewer.addEventListener("pointermove", (event) => {
     if (dragAnchor === null || event.buttons !== 1) return;
     const index = indexAt(event);
     if (index === null) return;
     selection = { start: Math.min(dragAnchor, index), end: Math.max(dragAnchor, index) + 1 };
-    drawViewer();
+    applyHighlight();
+    showSelectionTip(event);
   });
   window.addEventListener("pointerup", () => {
     dragAnchor = null;
+    const tip = document.getElementById("selection-tip");
+    if (tip) tip.hidden = true;
   });
 }
 
@@ -782,23 +816,66 @@ function zoneClass(flag) {
   return flag.severity === "red" ? "zone-red" : "zone-amber";
 }
 
+function clientFlags(pair) {
+  const target = Number(document.getElementById("primer-tm").value);
+  const productMin = Number(document.getElementById("primer-pmin").value);
+  const productMax = Number(document.getElementById("primer-pmax").value);
+  const flags = [];
+  [
+    ["hairpin_dG_forward", pair.hairpin_dG_forward],
+    ["hairpin_dG_reverse", pair.hairpin_dG_reverse],
+    ["self_dimer_dG_forward", pair.self_dimer_dG_forward],
+    ["self_dimer_dG_reverse", pair.self_dimer_dG_reverse],
+    ["hetero_dimer_dG", pair.hetero_dimer_dG],
+  ].forEach(([property, observed]) => {
+    const value = Number(observed);
+    if (Number.isNaN(value)) return;
+    if (value < -9) flags.push({ property, observed: value, threshold: "ΔG < -9 kcal/mol", severity: "red" });
+    else if (value < -4) flags.push({ property, observed: value, threshold: "ΔG < -4 kcal/mol", severity: "amber" });
+  });
+  [
+    ["tm_forward_vs_target", pair.tm_forward],
+    ["tm_reverse_vs_target", pair.tm_reverse],
+  ].forEach(([property, observed]) => {
+    const delta = Math.abs(Number(observed) - target);
+    if (Number.isNaN(delta)) return;
+    if (delta > 5) flags.push({ property, observed: delta, threshold: "|Tm − target| > 5 C", severity: "red" });
+    else if (delta > 2) flags.push({ property, observed: delta, threshold: "|Tm − target| > 2 C", severity: "amber" });
+  });
+  if (pair.product_size != null && (pair.product_size < productMin || pair.product_size > productMax)) {
+    flags.push({
+      property: "product_size",
+      observed: pair.product_size,
+      threshold: "outside " + productMin + "–" + productMax,
+      severity: "red",
+    });
+  }
+  return flags;
+}
+
+function worstSeverity(flags) {
+  if (flags.some((flag) => flag.severity === "red")) return "red";
+  if (flags.some((flag) => flag.severity === "amber")) return "amber";
+  return "green";
+}
+
 function detailPanel(pair) {
-  const flags = (pair.flags || [])
-    .map((flag) => `<div class="${zoneClass(flag)}">${escapeText(flag.property)} ${escapeText(flag.observed)} · ${escapeText(flag.threshold)}</div>`)
+  const flags = clientFlags(pair)
+    .map((flag) => `<div class="zone-chip ${zoneClass(flag)}">${escapeText(flag.property)} ${escapeText(flag.observed)} · ${escapeText(flag.threshold)}</div>`)
     .join("");
-  return `<div class="detail-panel open" style="max-height:40rem">
+  return `<div class="pair-detail">
     <p><strong>Forward</strong> <span class="mono">${escapeText(pair.forward_sequence)}</span></p>
     <p>GC ${escapeText(pair.gc_forward)}% · Tm ${escapeText(Number(pair.tm_forward).toFixed(2))} °C
       <button type="button" class="param-help" title="${escapeAttr(pair.parameter_citation || "")}">?</button></p>
     <p class="note">${escapeText(pair.parameter_set_id || "")} ${escapeText(pair.parameter_digest || "")}</p>
-    <pre class="mono">${escapeText(pair.hairpin_diagram_forward || "")}</pre>
+    <pre class="mono mono-reveal">${escapeText(pair.hairpin_diagram_forward || "")}</pre>
     <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_forward)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_forward)} · 3′ clamp ${pair.gc_clamp_forward ? "G or C" : "not G or C"}</p>
     <p><strong>Reverse</strong> <span class="mono">${escapeText(pair.reverse_sequence)}</span></p>
-    <pre class="mono">${escapeText(pair.hairpin_diagram_reverse || "")}</pre>
+    <pre class="mono mono-reveal">${escapeText(pair.hairpin_diagram_reverse || "")}</pre>
     <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_reverse)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_reverse)} · 3′ clamp ${pair.gc_clamp_reverse ? "G or C" : "not G or C"}</p>
     <p><strong>Pair</strong> hetero-dimer ΔG ${escapeText(pair.hetero_dimer_dG)} · 3′ ΔG ${escapeText(pair.hetero_dimer_3prime_dG)} · Tm mismatch ${escapeText(pair.tm_mismatch)} · product ${escapeText(pair.product_size)}</p>
-    <pre class="mono">${escapeText(pair.hetero_dimer_alignment || "")}</pre>
-    ${flags || `<p class="zone-green">No property is in the amber or red zone.</p>`}
+    <pre class="mono mono-reveal">${escapeText(pair.hetero_dimer_alignment || "")}</pre>
+    <div class="flag-host">${flags || `<p class="zone-chip zone-green">No property is in the amber or red zone.</p>`}</div>
     <p class="note">Specificity against genome not checked.</p>
     ${pair.product_sequence ? `<button type="button" data-copy="${escapeAttr(pair.product_sequence)}">Copy product sequence</button><div class="seq-block">${escapeText(pair.product_sequence)}</div>` : ""}
   </div>`;
@@ -806,19 +883,23 @@ function detailPanel(pair) {
 
 function renderPrimerResult(result) {
   const root = document.getElementById("primer-results");
+  lastPrimerResult = result;
   const pairs = (result && result.pairs) || [];
   if (!pairs.length) {
-    root.innerHTML = problemCallout({ code: "CF-PRIM-001", title: "No primer pairs survived pruning", detail: "Widen the flank, widen the product-size range, or move the Tm target." });
+    const detail = (result && result.detail) || "No filter counts were returned with this empty result.";
+    root.innerHTML = problemCallout({ code: "CF-PRIM-001", title: "No primer pairs survived pruning", detail });
     return;
   }
   const recommended = pairs[0];
   const rows = pairs
     .map((pair, index) => {
       const worst = Math.min(pair.hairpin_dG_forward, pair.hairpin_dG_reverse, pair.self_dimer_dG_forward, pair.self_dimer_dG_reverse, pair.hetero_dimer_dG);
-      return `<tr data-pair="${index}"><td class="mono">${escapeText(pair.pair_id)}</td><td>${escapeText(Number(pair.tm_mismatch).toFixed(2))}</td><td>${escapeText(Number(worst).toFixed(2))}</td><td>${escapeText(Math.abs(pair.gc_forward - pair.gc_reverse).toFixed(1))}</td><td>${escapeText(pair.product_size)}</td><td>${pair.refused ? chip("refusal", "refused") : chip("feasible", "kept")}</td></tr>`;
+      const severity = worstSeverity(clientFlags(pair));
+      const zone = severity === "red" ? chip("refusal", "red") : severity === "amber" ? chip("warning", "amber") : chip("feasible", "kept");
+      return `<tr data-pair="${index}"><td class="mono">${escapeText(pair.pair_id)}</td><td>${escapeText(Number(pair.tm_mismatch).toFixed(2))}</td><td>${escapeText(Number(worst).toFixed(2))}</td><td>${escapeText(Math.abs(pair.gc_forward - pair.gc_reverse).toFixed(1))}</td><td>${escapeText(pair.product_size)}</td><td class="zone-chip">${zone}</td></tr>`;
     })
     .join("");
-  root.innerHTML = `<div class="reveal">
+  root.innerHTML = `<div class="reveal primer-results-layout">
     <div class="callout pulse-once"><strong>Recommended</strong> <code>${escapeText(recommended.pair_id)}</code><br>
     informed_by <code>primer.tm_mismatch</code> <code>primer.worst_dimer_penalty</code> <code>primer.gc_balance</code> <code>primer.product_deviation</code></div>
     <p class="note">Specificity against genome not checked. ${escapeText(result.parameter_citation || "")}</p>
@@ -826,19 +907,53 @@ function renderPrimerResult(result) {
     <div id="primer-detail">${detailPanel(recommended)}</div>
   </div>`;
   root.querySelectorAll("tr[data-pair]").forEach((row) => {
+    const pair = pairs[Number(row.dataset.pair)];
     row.addEventListener("click", () => {
-      document.getElementById("primer-detail").innerHTML = detailPanel(pairs[Number(row.dataset.pair)]);
+      root.querySelectorAll("tr.open").forEach((other) => other.classList.remove("open"));
+      row.classList.add("open");
+      document.getElementById("primer-detail").innerHTML = detailPanel(pair);
+    });
+    row.addEventListener("pointerenter", () => {
+      const ampStart = Math.min(pair.forward_start, pair.reverse_start);
+      const ampEnd = Math.max(pair.forward_end, pair.reverse_end);
+      hoverSites = {
+        forwardStart: pair.forward_start,
+        forwardEnd: pair.forward_end,
+        reverseStart: pair.reverse_start,
+        reverseEnd: pair.reverse_end,
+        ampStart,
+        ampEnd,
+      };
+      applyHighlight();
+    });
+    row.addEventListener("pointerleave", () => {
+      hoverSites = null;
+      applyHighlight();
     });
   });
+  const first = root.querySelector("tr[data-pair]");
+  if (first) first.classList.add("open");
+}
+
+function primerProgress(payload) {
+  const tiers = (payload.progress && payload.progress.tiers) || [];
+  const moving = tiers.some((tier) => Number(tier.fraction) > 0);
+  if (!tiers.length || !moving) {
+    return `<div class="tier-track"><span>primers</span><span>${escapeText(payload.state || "")}</span><div class="bar indeterminate"><span></span></div><span></span></div>`;
+  }
+  return tiers
+    .map((tier) => {
+      const width = Math.round((Number(tier.fraction) || 0) * 100);
+      return `<div class="tier-track"><span>${escapeText(tier.tier)}</span><span>${escapeText(tier.state)}</span><div class="bar"><span style="width:${width}%"></span></div><span></span></div>`;
+    })
+    .join("");
 }
 
 async function pollPrimers(jobId) {
   const bar = document.getElementById("primer-progress");
   let status = await call("GET", `/v1/primers/${jobId}`);
   while (status.payload && ["queued", "running"].includes(status.payload.state)) {
-    const tier = ((status.payload.progress || {}).tiers || []).find((item) => item.tier === "primer_evaluate") || { fraction: 0 };
-    const width = Math.round((tier.fraction || 0) * 100);
-    bar.innerHTML = `<div class="tier-track"><span>primer_evaluate</span><span>${escapeText(status.payload.state)}</span><div class="bar"><span style="width:${width}%"></span></div><span></span></div>`;
+    bar.innerHTML = primerProgress(status.payload);
     await new Promise((resolve) => setTimeout(resolve, 2000));
     status = await call("GET", `/v1/primers/${jobId}`);
   }
@@ -884,6 +999,40 @@ document.getElementById("manual-check").addEventListener("click", async () => {
     return;
   }
   root.innerHTML = `<div class="reveal">${detailPanel(posted.payload)}</div>`;
+});
+
+function refreshPrimerZones() {
+  if (!lastPrimerResult || !lastPrimerResult.pairs) return;
+  const rows = document.querySelectorAll("#primer-results tr[data-pair]");
+  if (!rows.length) return;
+  rows.forEach((row) => {
+    const pair = lastPrimerResult.pairs[Number(row.dataset.pair)];
+    const severity = worstSeverity(clientFlags(pair));
+    const node = row.querySelector(".chip");
+    if (!node) return;
+    node.className = "chip " + (severity === "red" ? "refusal" : severity === "amber" ? "warning" : "feasible");
+    node.textContent = severity === "green" ? "kept" : severity;
+  });
+  const open = document.querySelector("#primer-results tr.open");
+  const host = document.querySelector("#primer-detail .flag-host");
+  if (open && host) {
+    const pair = lastPrimerResult.pairs[Number(open.dataset.pair)];
+    const flags = clientFlags(pair);
+    host.innerHTML = flags.length
+      ? flags
+          .map((flag) => `<div class="zone-chip ${zoneClass(flag)}">${escapeText(flag.property)} ${escapeText(flag.observed)} · ${escapeText(flag.threshold)}</div>`)
+          .join("")
+      : `<p class="zone-chip zone-green">No property is in the amber or red zone.</p>`;
+  }
+}
+
+["primer-tm", "primer-pmin", "primer-pmax"].forEach((id) => {
+  const input = document.getElementById(id);
+  if (!input) return;
+  input.addEventListener("input", () => {
+    refreshPrimerZones();
+    applyHighlight();
+  });
 });
 
 drawViewer();
