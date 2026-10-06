@@ -1,0 +1,26 @@
+{
+  "base_pairs": 12,
+  "bp_per_turn": 10.06,
+  "handedness": "right",
+  "major_groove_arc_deg": 215.4,
+  "minor_groove_arc_deg": 144.6,
+  "pdb_id": "1BNA",
+  "phosphate_radius_angstrom": {
+    "mean": 9.265,
+    "n": 22,
+    "sd": 0.51
+  },
+  "phosphate_track_offset_deg": 144.6,
+  "phosphate_winding_deg_per_angstrom": 10.667,
+  "rise_angstrom_per_bp": {
+    "mean": 3.349,
+    "n": 11,
+    "sd": 0.446
+  },
+  "source_sha256": "9c994f2f173a60b6ce37ab8077e8f12d592fb890799fbdee3c6ad352c51e7845",
+  "twist_deg_per_bp": {
+    "mean": 35.798,
+    "n": 11,
+    "sd": 4.165
+  }
+}
