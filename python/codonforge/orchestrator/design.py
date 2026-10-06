@@ -72,6 +72,10 @@ class DesignRequest:
     seed: int = 0
     generations: int = 12
     segment: int = 4
+    #: Hypervolume stagnation window. The engine default is 8. A campaign
+    #: that is testing a generation budget sets this above that budget so
+    #: the budget, not the window, is what stops the run.
+    stagnation_window: int = 8
     weights: list[float] = field(default_factory=list)
     host_digest: str = "sha256:" + "0" * 64
     job_id: str | None = None
@@ -228,6 +232,7 @@ def design(
         host_id=request.host,
         host_digest=request.host_digest,
         term_weights=list(request.weights) or [1.0] * len(request.objectives),
+        stagnation_window=request.stagnation_window,
     )
 
     job = Job.submit(

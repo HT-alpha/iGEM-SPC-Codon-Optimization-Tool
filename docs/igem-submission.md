@@ -107,10 +107,10 @@ A finished job seals a landscape lockfile. The digest covers the resolved
 artifacts, the host profile, the inputs, and the RNG record, and it omits
 `created_at`. Two hypervolumes are comparable when they share a budget tier,
 a lockfile digest, and a reference point (`TST-BEN-002`). The EXP-05 arms
-share the budget (`standard`, 4 generations) and the reference point `0` on
-`usage.cai`. They do not share a lockfile digest: the sealed document
-includes the seed and the constraint set, and the repair flag is part of
-that set.
+share the budget (`standard`, 20 generations, stagnation window 21 so the
+budget is what stops the run) and the reference point `0` on `usage.cai`.
+They do not share a lockfile digest: the sealed document includes the seed
+and the constraint set, and the repair flag is part of that set.
 
 The Potts manifest digest covers `h` and the couplings. The current digest
 is `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`.
@@ -120,20 +120,28 @@ is `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`.
 
 ## EXP-05 re-run
 
-Twenty seeds per arm on `rpsJ`, `rplL`, and `rpsL`. `decide()` was not
-edited. Hypervolume margin is 0 on all three, so the rule keeps Lamarckian.
-The default was not changed.
+Twenty seeds per arm on `rpsJ`, `rplL`, and `rpsL`, at 20 generations.
+`decide()` was not edited. Hypervolume margin is 0 on all three, so the
+rule keeps Lamarckian. The default was not changed. Wall clock for the
+120 jobs was 4.3 seconds.
 
-Repair invocations, mean per seed:
+`rpsJ` and `rpsL` ran 20 generations on every seed. `rplL` runs 0
+generations: tier 1 returns `CF-SRCH-006` (no feasible assignment under
+the interior motif) on both arms, so that protein does not inform the
+repair comparison. Its margin is 0 because both arms fail the same way.
 
-| Gene | Lamarckian | Baldwinian |
-| --- | --- | --- |
-| `rpsJ` | 3.35 | 4.75 |
-| `rplL` | 0 | 0 |
-| `rpsL` | 2.25 | 2.80 |
+Repair invocations, mean per seed, on the jobs that reached tier 3:
 
-`rplL` never fired repair under this motif. `rpsJ` and `rpsL` differ, which
-is the evidence Baldwinian is repairing the unrepaired genome again.
+| Gene | Lamarckian | Baldwinian | Hypervolume margin |
+| --- | --- | --- | --- |
+| `rpsJ` | 13.95 | 24.55 | 0 |
+| `rplL` | 0 (tier 1 refused) | 0 (tier 1 refused) | 0 |
+| `rpsL` | 10.3 | 15.0 | 0 |
+
+Population diversity stays 0 on the Lamarckian arm and about 0.001 on
+the Baldwinian arm for `rpsJ` and `rpsL`. That is not a hypervolume
+separation. The finding at this budget is inconclusive, and Lamarckian
+stays the default.
 
 ## PrimerForge
 
@@ -155,5 +163,5 @@ earlier build that kept only the first helix reported −0.810.
 - The epistatic surface is that same host only.
 - `W = 5` in the same artifact is still the 40-iteration early stop. It was
   not re-fit. Window selection stays `W = 10`.
-- EXP-05 at this budget does not separate the arms on hypervolume.
+- EXP-05 at 20 generations does not separate the arms on hypervolume.
 - Wider commercial distribution is outside the AMD-013 sign-off on file.

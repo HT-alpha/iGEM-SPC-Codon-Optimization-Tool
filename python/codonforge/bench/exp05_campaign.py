@@ -26,8 +26,12 @@ from codonforge.orchestrator.design import DesignRequest, design
 # Three shortest panel CDS. Twenty seeds is 120 jobs at this budget.
 PROTEINS = ("rpsJ", "rplL", "rpsL")
 SEEDS = 20
-GENERATIONS = 4
+GENERATIONS = 20
 SEGMENT = 4
+# The engine stops on hypervolume stagnation after 8 generations. The
+# 4-generation campaign never reached that window. This one sets the
+# window above the budget so both arms actually run 20 generations.
+STAGNATION_WINDOW = 21
 BUDGET = "standard"
 # Low end of the defined interval of a geometric mean of weights in (0, 1].
 CAI_REFERENCE = 0.0
@@ -125,15 +129,21 @@ def run_one(
         seed=seed,
         generations=GENERATIONS,
         segment=SEGMENT,
+        stagnation_window=STAGNATION_WINDOW,
         host_digest="sha256:" + "ab" * 32,
     )
     result = design(request, store)
     state = result.job.checkpoint or {}
     members = state.get("members") or []
+    problem = ""
+    if result.job.state == "failed" and result.job.problem:
+        problem = str(result.job.problem.get("code", ""))
     return Trial(
         hypervolume=_hypervolume(result.front),
         diversity=_diversity(members),
         repair_invocations=int(state.get("repairs_attempted") or 0),
+        generations_run=int(result.job.generations_run),
+        problem_code=problem,
     )
 
 
@@ -170,6 +180,11 @@ def run_campaign(directory: Path) -> dict[str, Any]:
                 / len(lamarckian),
                 "mean_repairs_baldwinian": sum(t.repair_invocations for t in baldwinian)
                 / len(baldwinian),
+                "generations_run_min": min(t.generations_run for t in lamarckian + baldwinian),
+                "generations_run_max": max(t.generations_run for t in lamarckian + baldwinian),
+                "problem_codes": sorted(
+                    {t.problem_code for t in lamarckian + baldwinian if t.problem_code}
+                ),
             }
         )
     elapsed = time.perf_counter() - started
@@ -189,6 +204,9 @@ def run_campaign(directory: Path) -> dict[str, Any]:
             "tier": BUDGET,
             "generations": GENERATIONS,
             "segment": SEGMENT,
+            "stagnation_window": STAGNATION_WINDOW,
+            "generations_run_min": min(row["generations_run_min"] for row in per_protein),
+            "generations_run_max": max(row["generations_run_max"] for row in per_protein),
         },
         "reference_point": list(REFERENCE),
         "senses": SENSES,

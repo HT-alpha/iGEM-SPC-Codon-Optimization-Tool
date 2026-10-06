@@ -7,8 +7,11 @@
   "seeds_per_arm": 20,
   "budget": {
     "tier": "standard",
-    "generations": 4,
-    "segment": 4
+    "generations": 20,
+    "segment": 4,
+    "stagnation_window": 21,
+    "generations_run_min": 0,
+    "generations_run_max": 20
   },
   "reference_point": [
     0.0
@@ -16,7 +19,7 @@
   "senses": [
     "maximize"
   ],
-  "elapsed_seconds": 3.423063148999063,
+  "elapsed_seconds": 4.29191312599869,
   "outcome": "keep_lamarckian",
   "per_protein": [
     {
@@ -25,11 +28,14 @@
       "switch_to_baldwinian": false,
       "hv_margin": 0.0,
       "hv_standard_deviation": 0.0,
-      "repair_ratio": 1.4179104477611941,
+      "repair_ratio": 1.7598566308243728,
       "mean_diversity_lamarckian": 0.0,
       "mean_diversity_baldwinian": 0.0011217948717948717,
-      "mean_repairs_lamarckian": 3.35,
-      "mean_repairs_baldwinian": 4.75
+      "mean_repairs_lamarckian": 13.95,
+      "mean_repairs_baldwinian": 24.55,
+      "generations_run_min": 20,
+      "generations_run_max": 20,
+      "problem_codes": []
     },
     {
       "gene": "rplL",
@@ -41,7 +47,12 @@
       "mean_diversity_lamarckian": 0.0,
       "mean_diversity_baldwinian": 0.0,
       "mean_repairs_lamarckian": 0.0,
-      "mean_repairs_baldwinian": 0.0
+      "mean_repairs_baldwinian": 0.0,
+      "generations_run_min": 0,
+      "generations_run_max": 0,
+      "problem_codes": [
+        "CF-SRCH-006"
+      ]
     },
     {
       "gene": "rpsL",
@@ -49,11 +60,14 @@
       "switch_to_baldwinian": false,
       "hv_margin": 0.0,
       "hv_standard_deviation": 0.0,
-      "repair_ratio": 1.2444444444444445,
+      "repair_ratio": 1.4563106796116505,
       "mean_diversity_lamarckian": 0.0,
-      "mean_diversity_baldwinian": 0.0004000000000000001,
-      "mean_repairs_lamarckian": 2.25,
-      "mean_repairs_baldwinian": 2.8
+      "mean_diversity_baldwinian": 0.0009333333333333335,
+      "mean_repairs_lamarckian": 10.3,
+      "mean_repairs_baldwinian": 15.0,
+      "generations_run_min": 20,
+      "generations_run_max": 20,
+      "problem_codes": []
     }
   ],
   "default_changed": false

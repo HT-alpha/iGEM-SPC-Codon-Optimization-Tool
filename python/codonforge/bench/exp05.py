@@ -27,6 +27,8 @@ class Trial:
     hypervolume: float
     diversity: float
     repair_invocations: int
+    generations_run: int = 0
+    problem_code: str = ""
 
 
 @dataclass(frozen=True)
