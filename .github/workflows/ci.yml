@@ -143,6 +143,9 @@ jobs:
           # Turns a skipped structure-engine check into a failure, so CI cannot
           # go green by not running the checks that matter most.
           CF_REQUIRE_STRUCTURE_ENGINE: "1"
+          # The helix geometry and state-machine tests run helix.js under Node,
+          # which GitHub's runners ship. Turns a missing Node into a failure.
+          CF_REQUIRE_NODE: "1"
 
   # The vendored NCBI tables are generated, not hand-written. If regenerating
   # them changes the file, either upstream changed or somebody edited the
