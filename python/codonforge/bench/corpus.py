@@ -70,9 +70,7 @@ def verify_shipped_cds(panel: dict[str, Any], path: Path | None = None) -> None:
         )
     expected_selected = panel.get("selected_cds_sha256")
     if not isinstance(expected_selected, str) or len(expected_selected) != 64:
-        raise BenchError(
-            "panel has no selected_cds_sha256; the expanded gene list is unchecked"
-        )
+        raise BenchError("panel has no selected_cds_sha256; the expanded gene list is unchecked")
     selected = _selected_cds_sha256(panel, path)
     if selected != expected_selected:
         raise BenchError(

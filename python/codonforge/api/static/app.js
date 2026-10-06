@@ -769,11 +769,12 @@ if (viewer) {
     dragAnchor = index;
     hoverSites = null;
     selection = { start: index, end: index + 1 };
+    viewer.setPointerCapture(event.pointerId);
     applyHighlight();
     showSelectionTip(event);
   });
   viewer.addEventListener("pointermove", (event) => {
-    if (dragAnchor === null || event.buttons !== 1) return;
+    if (dragAnchor === null) return;
     const index = indexAt(event);
     if (index === null) return;
     selection = { start: Math.min(dragAnchor, index), end: Math.max(dragAnchor, index) + 1 };

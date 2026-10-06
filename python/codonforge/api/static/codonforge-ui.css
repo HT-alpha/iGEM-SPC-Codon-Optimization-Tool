@@ -297,9 +297,13 @@ button.tab.active {
 
 .viewer-layout {
   display: grid;
-  grid-template-columns: 1fr 16rem;
+  grid-template-columns: minmax(0, 1fr) 16rem;
   gap: var(--space-3);
   align-items: start;
+}
+
+.viewer-layout > * {
+  min-width: 0;
 }
 
 .config-panel {
