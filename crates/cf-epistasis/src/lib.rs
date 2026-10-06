@@ -13,5 +13,6 @@
 mod potts;
 
 pub use potts::{
-    fit_potts, score_codon_usage, score_naturalness, FitReport, PottsModel, UsageBaseline,
+    fit_potts, fit_potts_from, score_codon_usage, score_naturalness, FitReport, PottsModel,
+    UsageBaseline,
 };

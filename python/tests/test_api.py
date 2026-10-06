@@ -131,7 +131,7 @@ def test_calibration_is_fitted_or_absent(base: str) -> None:
         assert isinstance(payload["baseline_nats_per_codon"], float)
         assert isinstance(payload["iteration_count"], int)
         assert isinstance(payload["final_gradient_norm"], float)
-        assert payload["converged"] is False
+        assert payload["converged"] is True
 
 
 def test_the_page_is_the_api_shell(base: str) -> None:

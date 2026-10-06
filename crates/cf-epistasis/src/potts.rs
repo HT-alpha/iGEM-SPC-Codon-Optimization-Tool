@@ -261,6 +261,19 @@ pub fn fit_potts(
     lambda_j: f64,
     max_iterations: u32,
 ) -> Result<FitReport, String> {
+    fit_potts_from(sequences, window, lambda_h, lambda_j, max_iterations, None)
+}
+
+/// `initial` continues a previous fit. It is the concatenated `h` and
+/// couplings, already in the zero-sum gauge. L-BFGS history starts empty.
+pub fn fit_potts_from(
+    sequences: &[String],
+    window: usize,
+    lambda_h: f64,
+    lambda_j: f64,
+    max_iterations: u32,
+    initial: Option<&[f64]>,
+) -> Result<FitReport, String> {
     if window == 0 || window > 20 {
         return Err(format!("window {window} is outside 1..=20"));
     }
@@ -274,6 +287,15 @@ pub fn fit_potts(
     let families = Families::bacterial();
     let n_param = 64 + window * 4096;
     let mut theta = vec![0.0; n_param];
+    if let Some(start) = initial {
+        if start.len() != n_param {
+            return Err(format!(
+                "initial parameters have length {}, window {window} needs {n_param}",
+                start.len()
+            ));
+        }
+        theta.copy_from_slice(start);
+    }
     let mut history: Vec<(Vec<f64>, Vec<f64>)> = Vec::new();
     let mut previous_theta: Option<Vec<f64>> = None;
     let mut previous_gradient: Option<Vec<f64>> = None;

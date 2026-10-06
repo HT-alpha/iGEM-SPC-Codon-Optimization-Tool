@@ -1,7 +1,7 @@
 {
   "state": "fitted",
   "window": 10,
-  "held_out_nats_per_codon": -0.8711749285771091,
+  "held_out_nats_per_codon": -0.8708682912309792,
   "baseline_nats_per_codon": -0.991738843659599,
   "windows": [
     {
@@ -14,17 +14,17 @@
     },
     {
       "window": 10,
-      "held_out_nats_per_codon": -0.8711749285771091,
-      "train_nats_per_codon": -1.0042573341737642,
-      "iterations": 40,
-      "gradient_norm": 1139.537776475773,
-      "converged": false
+      "held_out_nats_per_codon": -0.8708682912309792,
+      "train_nats_per_codon": -1.00329327771788,
+      "iterations": 2333,
+      "gradient_norm": 0.09770886731134135,
+      "converged": true
     }
   ],
-  "iteration_count": 40,
-  "final_gradient_norm": 1139.537776475773,
-  "converged": false,
-  "digest": "sha256:87a139a46336379fa4e2a955a30e4b04ac5aa9a53f306023deada44bae528f7e",
+  "iteration_count": 2333,
+  "final_gradient_norm": 0.09770886731134135,
+  "converged": true,
+  "digest": "sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6",
   "n_train": 4127,
   "n_held_out": 13
 }

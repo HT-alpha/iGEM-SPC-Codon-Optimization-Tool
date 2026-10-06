@@ -750,6 +750,18 @@ fn json_strings(value: &serde_json::Value, key: &str) -> PyResult<Vec<String>> {
         .collect()
 }
 
+fn json_f64s(value: &serde_json::Value) -> PyResult<Vec<f64>> {
+    value
+        .as_array()
+        .ok_or_else(|| PyValueError::new_err("parameter vector must be a list"))?
+        .iter()
+        .map(|item| {
+            item.as_f64()
+                .ok_or_else(|| PyValueError::new_err("parameter vector contains a non-number"))
+        })
+        .collect()
+}
+
 /// Fit the synonymous Potts model. One crossing for the whole fit.
 ///
 /// The dwell head is not on this surface. A request for it is not answered
@@ -776,8 +788,28 @@ fn fit_potts_context(request_json: &str) -> PyResult<String> {
         .get("max_iterations")
         .and_then(|item| item.as_u64())
         .unwrap_or(25) as u32;
-    let report = cf_epistasis::fit_potts(&sequences, window, lambda_h, lambda_j, max_iterations)
-        .map_err(PyValueError::new_err)?;
+    let initial = match (request.get("h"), request.get("couplings")) {
+        (Some(h), Some(couplings)) => {
+            let mut theta = json_f64s(h)?;
+            theta.extend(json_f64s(couplings)?);
+            Some(theta)
+        }
+        (None, None) => None,
+        _ => {
+            return Err(PyValueError::new_err(
+                "h and couplings must be supplied together",
+            ))
+        }
+    };
+    let report = cf_epistasis::fit_potts_from(
+        &sequences,
+        window,
+        lambda_h,
+        lambda_j,
+        max_iterations,
+        initial.as_deref(),
+    )
+    .map_err(PyValueError::new_err)?;
     Ok(serde_json::json!({
         "window": report.model.window,
         "h": report.model.h,

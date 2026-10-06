@@ -33,10 +33,16 @@ consume those read counts. There is no dwell head.
 - `POST /v1/feasibility` returns `CF-CLI-003`. The five-check analyser is not
   this build. Feasibility on a finished candidate is the boolean
   `constraint_report.feasible`.
-- The Potts fit is a 40-iteration early stop. The gradient norm at `W = 10`
-  is about 1140, above the convergence tolerance. The held-out figure is the
-  value at that stop: −0.8712 nats/codon, against a codon-usage baseline of
-  −0.9917. It is not a converged surface.
+- The `W = 10` Potts fit meets the convergence tolerance. The reduced
+  gradient `gradient_norm / sqrt(n_positions)` is 8.72e-5, below 1e-4
+  (`n_positions` 1,254,595, raw gradient norm 0.09771). That took 2333
+  cumulative L-BFGS iterations from zero initialization (40, then 195 in
+  15-iteration chunks, then 400, 800, and 898). Limited-memory history was
+  reset between those segments. The last segment stopped because the
+  tolerance was met, not because the iteration cap was hit. Held-out
+  naturalness at convergence is −0.870868 nats/codon, against −0.871175 at
+  the 40-iteration early stop and a codon-usage baseline of −0.991739.
+  `W = 5` is the unchanged 40-iteration fit and is not the selected model.
 - `P1-26` (`DEP-SRCH-013`) is held.
 - `EXP-06`, bundled thermodynamic tables, and a dwell head are not in this
   snapshot.
@@ -58,13 +64,12 @@ consume those read counts. There is no dwell head.
   `UNKNOWN`, instead of imputing a missing score or collapsing the front to
   one winner.
 - The result page states when the Potts surface is absent, and when it is
-  present it states the window, the held-out nats, the baseline, and the
-  early stop.
+  present it states the window, the held-out nats, the baseline, and whether
+  the fit converged.
 
 ## What is not claimed
 
 - `GATE-BEN-001`.
-- A converged Potts fit.
 - LinearDesign's method, or a comparison against it.
 - GPU acceleration.
 - A Baldwinian default. The EXP-05 re-run kept Lamarckian.
@@ -105,9 +110,10 @@ includes the seed and the constraint set, and the repair flag is part of
 that set.
 
 The Potts manifest digest covers `h` and the couplings. The current digest
-is `sha256:87a139a46336379fa4e2a955a30e4b04ac5aa9a53f306023deada44bae528f7e`.
+is `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`.
 `GET /v1/calibration` returns the window, the held-out nats, the baseline,
-`iteration_count`, and `final_gradient_norm`.
+`iteration_count` (2333), `final_gradient_norm` (0.09771), and
+`converged: true`.
 
 ## EXP-05 re-run
 
@@ -142,6 +148,7 @@ earlier build that kept only the first helix reported −0.810.
 
 - The design benchmark panel is 13 proteins, all from one *E. coli* chromosome.
 - The epistatic surface is that same host only.
-- The Potts numbers are an early stop, as above.
+- `W = 5` in the same artifact is still the 40-iteration early stop. It was
+  not re-fit. Window selection stays `W = 10`.
 - EXP-05 at this budget does not separate the arms on hypervolume.
 - Wider commercial distribution is outside the AMD-013 sign-off on file.

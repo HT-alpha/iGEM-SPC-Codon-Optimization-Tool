@@ -21,6 +21,16 @@ def test_the_panel_genes_are_removed_before_the_fit() -> None:
     assert not ({row["gene"] for row in train} & set(panel["genes"]))
 
 
+def test_the_shipped_artifact_rejects_a_replaced_coupling() -> None:
+    """The digest guard on the fitted manifest, not only on a toy document."""
+    path = Path("benchmarks/epistasis/manifest.json")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    verify_artifact(document)
+    document["parameters"]["models"][1]["couplings"][0] += 1.0
+    with pytest.raises(ArtifactError, match="digest"):
+        verify_artifact(document)
+
+
 def test_the_artifact_digest_covers_a_coupling(tmp_path: Path) -> None:
     document = {
         "schema_version": "1.0.0",

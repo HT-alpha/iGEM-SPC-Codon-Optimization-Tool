@@ -180,6 +180,9 @@ def _document(
             "baseline_n_unseen": summary["baseline_n_unseen"],
             "standard_error": chosen["standard_error"],
             "comparison": summary["windows"],
+            "iteration_count": chosen["iterations"],
+            "final_gradient_norm": chosen["gradient_norm"],
+            "converged": chosen["converged"],
             "models": [
                 {
                     "window": row["window"],
