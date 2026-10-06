@@ -1,5 +1,46 @@
 # Changelog
 
+## v2.2.0
+
+Close-out notes on top of v2.1.0 (`0f22940`). The converged Potts fit, the
+50-protein corpus, and the Node 24 action pins are in that tag. This release
+records them in the submission notes and states what is still not claimed.
+
+Confirmed from v2.1.0:
+
+- Selected `W = 10` Potts fit: 2333 iterations, gradient norm
+  0.09770886731134135, `converged: true`. Digest
+  `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`.
+  Held-out nats improved by 0.0003 nats/codon (−0.8712 to −0.8709).
+- Fifty `NC_000913.3` proteins, each with a protein_id from that accession.
+  Selected-CDS digest
+  `sha256:f03c0e882509ec34d8ad0fc327759dabc9b67cdf803a8892bdaeabf475a60bb3`,
+  also recorded on `gates.json`. The Potts held-out set is still the
+  original 13.
+- `actions/checkout@v5`, `actions/setup-python@v6`, `upload-artifact@v6`,
+  and `download-artifact@v7` declare Node 24.
+
+New in this tag:
+
+- The submission and `docs/primerforge-validation.md` state the converged
+  fit and the 0.0003 nats observation.
+- EXP-05 is two proteins. `rplL` is infeasible under the constraint set
+  (`CF-SRCH-006`). That is a property of the gene under the motif, not a
+  search bug. Margin was zero on `rpsJ` and `rpsL` at 20 generations.
+  Lamarckian stays the default.
+- The dwell head is not fitted. GSE53767 states no 5′-end A-site offset.
+  `GET /v1/calibration` returns `dwell.state: not_fitted`.
+- `GATE-BEN-001` stays unclaimed: global MFE is not windowed accessibility.
+- PrimerForge added no landscape term. The tier-2 block is unchanged, and
+  `P1-26` stays held.
+
+Still not claimed:
+
+- `GATE-BEN-001`.
+- An EXP-05 result that separates Baldwinian from Lamarckian on hypervolume.
+- A fitted dwell head.
+- `P1-26`. Commercial distribution remains outside the AMD-013 sign-off.
+
 ## v2.1.0
 
 - The selected `W = 10` Potts model is converged. Cumulative L-BFGS

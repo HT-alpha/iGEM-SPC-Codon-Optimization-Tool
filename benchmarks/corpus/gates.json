@@ -4,6 +4,7 @@
     "claimed": false,
     "n_proteins": 50,
     "comparable": false,
+    "selected_cds_sha256": "f03c0e882509ec34d8ad0fc327759dabc9b67cdf803a8892bdaeabf475a60bb3",
     "reason": "LinearFold produces global MFE; structure.local_accessibility is windowed ViennaRNA accessibility. These are not the same objective and cannot be compared on a joint front. Gate will be satisfiable when a competitor tool produces windowed local accessibility scores, or when the gate is redesigned for a CAI-only front comparison."
   }
 ]

@@ -48,6 +48,7 @@ def test_the_panel_is_fifty_real_cds_and_does_not_claim_the_gate(tmp_path: Path)
     assert gates[0]["claimed"] is False
     assert gates[0]["comparable"] is False
     assert "local_accessibility" in gates[0]["reason"]
+    assert gates[0]["selected_cds_sha256"] == panel["selected_cds_sha256"]
 
 
 def test_a_sequence_without_the_accession_is_refused(tmp_path: Path) -> None:

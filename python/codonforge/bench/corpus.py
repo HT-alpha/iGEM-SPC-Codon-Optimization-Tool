@@ -270,6 +270,7 @@ def run_baselines(directory: Path, cds_path: Path | None = None) -> dict[str, An
             "claimed": False,
             "n_proteins": len(rows),
             "comparable": False,
+            "selected_cds_sha256": panel["selected_cds_sha256"],
             "reason": panel["claim"],
         }
     ]
