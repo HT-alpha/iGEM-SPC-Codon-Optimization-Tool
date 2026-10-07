@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.4.1
+
+The ribosomal usage table lists all 64 codons. `AGG` and `TAG` were the two
+absent keys. In the 54 ribosomal-protein CDS of `NC_000913.3`, `AGG` occurs
+0 times and `TAG` occurs 0 times, so both weights are 0. The other 62 weights
+are unchanged. The CDS gzip digest is unchanged. A test requires every codon
+to be present; omitting the zero-count codons makes that test fail.
+
+The CAI-only `GATE-BEN-001` comparison was run again with that table. The 50
+scores are the same as v2.4.0. `claimed` stays false.
+
+- `aceB` (`NP_418438.1`): `AGG` at codon 14. Native CAI 0, CodonForge 0,
+  `cai_greedy` 1.
+- `thrA` (`NP_414543.1`): `AGG` at codons 28 and 243. Native CAI 0,
+  CodonForge 0, `cai_greedy` 1.
+
+`usage.cai` is 0 while any counted codon has weight 0. The 4-generation
+search did not remove those codons. `cai_greedy` replaces each codon with
+the highest-weight synonym, so it never keeps `AGG`. This is a search
+shortfall on a flat zero, not a missing table entry.
+
 ## v2.4.0
 
 No new fitted model and no change to the repair default.

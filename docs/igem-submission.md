@@ -1,9 +1,10 @@
 # CodonForge — iGEM submission notes
 
-The stable release is `v2.4.0`. `v2.3.0` is the DNA helix. `v2.3.1` corrects
-the PrimerForge sequence viewer, which selected one nucleotide on drag in
-Chrome. `v2.4.0` records the dwell-head investigation, the P1-26 inventory,
-the 40-generation EXP-05 run, and the CAI-only `GATE-BEN-001` comparison.
+The stable release is `v2.4.1`. `v2.4.0` records the dwell-head investigation,
+the P1-26 inventory, the 40-generation EXP-05 run, and the first CAI-only
+`GATE-BEN-001` comparison. `v2.4.1` puts every codon, including `AGG` at
+weight 0, into the ribosomal usage table and re-runs that comparison. The
+gate stays unclaimed.
 `docs/legal-clearance.yaml`
 records the AMD-013 sign-off from NG Chi Hong's email of 2026-10-05. The
 review accepts this analysis for a non-commercial iGEM educational project.
@@ -50,11 +51,11 @@ deviation of zero.
 
 ## What it does not do
 
-- It does not claim `GATE-BEN-001`. The panel is 50 `NC_000913.3` proteins,
-  with native and CAI-greedy arms. LinearFold returns a global MFE and a
-  dot-bracket. `structure.local_accessibility` is windowed ViennaRNA
-  accessibility. Those fronts are not the same objective, so the gate stays
-  unclaimed.
+- It does not claim `GATE-BEN-001`. The MFE fronts are not the same
+  objective. The CAI-only rerun, after the usage table lists `AGG` at weight
+  0, is still short on `aceB` (`AGG` at codon 14) and `thrA` (`AGG` at codons
+  28 and 243): CodonForge and the native CDS score 0, and `cai_greedy` scores
+  1.
 - It does not implement LinearDesign's grammar-intersection method.
 - It does not ship a GPU path. `P3-14` (LM scoring) is cut.
 - `POST /v1/feasibility` returns `CF-CLI-003`. The five-check analyser is not
@@ -178,8 +179,8 @@ earlier build that kept only the first helix reported −0.810.
 ## Known limitations
 
 - The design benchmark panel is 50 proteins, all from one *E. coli* chromosome.
-  `GATE-BEN-001` stays unclaimed because LinearFold's MFE is not
-  `structure.local_accessibility`.
+  `GATE-BEN-001` stays unclaimed. The CAI-only comparison fails on `aceB` and
+  `thrA` because `AGG` has weight 0 and the search leaves it in place.
 - The epistatic surface is that same host only.
 - `W = 5` was not re-fit. Window selection stays `W = 10`.
 - EXP-05 ran on two of three panel proteins (`rplL` infeasible under the

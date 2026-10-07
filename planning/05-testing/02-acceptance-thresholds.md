@@ -81,10 +81,10 @@ An **absolute** gate, correctly: a 90 % interval covering 70 % is wrong by defin
 table. No checked tool emits windowed local accessibility that this project
 can add as a competitor, so the run that exists is CAI-only: native,
 `cai_greedy`, and one CodonForge design on `usage.cai`. `claimed` is false.
-`aceB` and `thrA` contain `AGG`, which the ribosomal-protein table does not
-list, so those two score 0 for both the native CDS and CodonForge while
-`cai_greedy` scores 1. The threshold below is the original MFE rule and was
-not applied.
+`aceB` codon 14 and `thrA` codons 28 and 243 are `AGG`. That codon has count
+0 in the 54 ribosomal CDS, so the table lists weight 0. Both the native CDS
+and CodonForge score 0 there, and `cai_greedy` scores 1. The threshold below
+is the original MFE rule and was not applied.
 
 | | |
 | --- | --- |

@@ -12,6 +12,6 @@
       "aceB",
       "thrA"
     ],
-    "reason": "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein relative adaptiveness for every arm. Arms: the native CDS, cai_greedy, and one CodonForge design (budget fast, 4 generations, seed 7, no structure objective, no forbidden motif). Claimed only when the CodonForge value is at least cai_greedy on every protein. The MFE comparison against LinearDesign or CDSfold is not this record."
+    "reason": "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein relative adaptiveness for every arm, including codons whose count in the 54 ribosomal CDS is 0. Arms: the native CDS, cai_greedy, and one CodonForge design (budget fast, 4 generations, seed 7, no structure objective, no forbidden motif). Claimed only when the CodonForge value is at least cai_greedy on every protein. The MFE comparison against LinearDesign or CDSfold is not this record. Not claimed. aceB (NP_418438.1) CodonForge 0.0 vs cai_greedy 1.0; AGG at codon 14 thrA (NP_414543.1) CodonForge 0.0 vs cai_greedy 1.0; AGG at codon 28, AGG at codon 243 AGG has count 0 in the 54 ribosomal CDS, so its weight is 0. usage.cai is 0 while any counted codon has weight 0, and this 4-generation search did not remove those codons. cai_greedy replaces each codon with the highest-weight synonym."
   }
 ]

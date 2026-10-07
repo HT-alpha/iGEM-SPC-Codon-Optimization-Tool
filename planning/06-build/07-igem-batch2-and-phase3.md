@@ -57,10 +57,12 @@ outside AMD-013.
 `DEP-BEN-003` records the comparison that was run instead: one `usage.cai`
 axis, the same ribosomal-protein weights, native and `cai_greedy` and one
 CodonForge design (budget `fast`, 4 generations, seed 7). CodonForge is at
-least `cai_greedy` on 48 of 50 proteins. It is not on `aceB` or `thrA`:
-both CDS contain `AGG`, which the weight table does not list, so the
-geometric mean is 0 for the native sequence and for the CodonForge
-candidate, and 1 for `cai_greedy`. `claimed` stays false. The original 13
+least `cai_greedy` on 48 of 50 proteins. It is not on `aceB` or `thrA`.
+`AGG` occurs 0 times in the 54 ribosomal CDS, so its weight is 0, and the
+table now lists that 0. `aceB` has `AGG` at codon 14. `thrA` has it at
+codons 28 and 243. `usage.cai` is 0 while any of those remain, and the
+4-generation search leaves them. `cai_greedy` replaces each with the
+highest-weight synonym and scores 1. `claimed` stays false. The original 13
 genes remain the Potts held-out set.
 
 The sequences are the CDS of `NC_000913.3` (assembly `GCF_000005845.2`,
