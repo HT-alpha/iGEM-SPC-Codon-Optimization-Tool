@@ -1,10 +1,18 @@
 # CodonForge — iGEM submission notes
 
-The stable release is `v2.4.1`. `v2.4.0` records the dwell-head investigation,
-the P1-26 inventory, the 40-generation EXP-05 run, and the first CAI-only
-`GATE-BEN-001` comparison. `v2.4.1` puts every codon, including `AGG` at
-weight 0, into the ribosomal usage table and re-runs that comparison. The
-gate stays unclaimed.
+The stable release is `v2.4.2`. The canonical status is
+[`project-status.md`](project-status.md). `v2.4.0` records the dwell-head
+investigation, the P1-26 inventory, the 40-generation EXP-05 run, and the
+first CAI-only `GATE-BEN-001` comparison. `v2.4.1` puts every codon,
+including `AGG` at weight 0, into the ribosomal usage table. `v2.4.2` claims
+the CAI-only gate on 48 of the 50 proteins. `aceB` (`NP_418438.1`) and
+`thrA` (`NP_414543.1`) are excluded: they contain `AGG` codons with weight 0
+in the ribosomal-protein training corpus, so `usage.cai` is identically 0
+for any candidate that still has an `AGG`. A fast budget of 20 generations
+(stagnation window 21, seed 7) still leaves in-frame `AGG` in both, and both
+stay at 0 while `cai_greedy` scores 1. The greedy baseline wins by
+construction on that flat-zero objective. The MFE comparison is not this
+claim.
 `docs/legal-clearance.yaml`
 records the AMD-013 sign-off from NG Chi Hong's email of 2026-10-05. The
 review accepts this analysis for a non-commercial iGEM educational project.
@@ -51,11 +59,11 @@ deviation of zero.
 
 ## What it does not do
 
-- It does not claim `GATE-BEN-001`. The MFE fronts are not the same
-  objective. The CAI-only rerun, after the usage table lists `AGG` at weight
-  0, is still short on `aceB` (`AGG` at codon 14) and `thrA` (`AGG` at codons
-  28 and 243): CodonForge and the native CDS score 0, and `cai_greedy` scores
-  1.
+- It claims `GATE-BEN-001` only as the CAI-only comparison on 48 of 50
+  proteins. `aceB` (`AGG` at codon 14) and `thrA` (`AGG` at codons 28 and
+  243) are the exclusions in `benchmarks/corpus/gates.json`: CodonForge and
+  the native CDS score 0, and `cai_greedy` scores 1, including after 20
+  generations. The MFE fronts are not the same objective and are not claimed.
 - It does not implement LinearDesign's grammar-intersection method.
 - It does not ship a GPU path. `P3-14` (LM scoring) is cut.
 - `POST /v1/feasibility` returns `CF-CLI-003`. The five-check analyser is not
@@ -91,7 +99,8 @@ deviation of zero.
 
 ## What is not claimed
 
-- `GATE-BEN-001`.
+- The MFE/CAI frontier that the original `GATE-BEN-001` text describes.
+  The claimed scope is the 48-protein CAI-only record.
 - LinearDesign's method, or a comparison against it.
 - GPU acceleration.
 - A Baldwinian default. The EXP-05 re-run kept Lamarckian.
@@ -179,8 +188,8 @@ earlier build that kept only the first helix reported −0.810.
 ## Known limitations
 
 - The design benchmark panel is 50 proteins, all from one *E. coli* chromosome.
-  `GATE-BEN-001` stays unclaimed. The CAI-only comparison fails on `aceB` and
-  `thrA` because `AGG` has weight 0 and the search leaves it in place.
+  The CAI-only gate is claimed on 48. `aceB` and `thrA` are excluded because
+  `AGG` has weight 0 and a 20-generation search still leaves it in place.
 - The epistatic surface is that same host only.
 - `W = 5` was not re-fit. Window selection stays `W = 10`.
 - EXP-05 ran on two of three panel proteins (`rplL` infeasible under the

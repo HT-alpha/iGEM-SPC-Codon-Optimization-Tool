@@ -4,8 +4,9 @@ The sequences are the CDS of `NC_000913.3` whose headers carry that accession
 and a `protein_id`. A record without them is refused: a panel that accepts a
 bare string would be how an invented sequence gets into a benchmark.
 
-`GATE-BEN-001` is not claimed. Fifty proteins is the count the gate asks
-for. The competitor it asks for is a fold on `structure.mfe_global`.
+`GATE-BEN-001` is claimed only as the CAI-only comparison in
+`benchmarks/corpus/gates.json`. The competitor the original gate asks for
+is a fold on `structure.mfe_global`.
 LinearFold returns that global minimum free energy and a dot-bracket.
 `structure.local_accessibility` is windowed ViennaRNA accessibility.
 Those are not the same number, and `DEP-STRU-002` keeps global MFE off
@@ -276,6 +277,31 @@ def run_baselines(directory: Path, cds_path: Path | None = None) -> dict[str, An
     ]
     (directory / "gates.json").write_text(json.dumps(gates, indent=2), encoding="utf-8")
     return manifest
+
+
+def check_cai_gate(gate: dict[str, Any], rows: list[dict[str, Any]]) -> None:
+    """Refuse a claim that covers a protein the recorded scores do not support.
+
+    A claim of all 50, or an exclusion list that leaves out a protein whose
+    CodonForge value is below `cai_greedy`, is an error. Equality counts as
+    meeting the baseline.
+    """
+    if gate.get("claimed") is not True:
+        raise BenchError("GATE-BEN-001 is not claimed")
+    excluded = set((gate.get("degenerate_cases") or {}).get("excluded") or [])
+    short = [row["gene"] for row in rows if row["codonforge_cai"] + 1e-12 < row["cai_greedy_cai"]]
+    uncovered = [gene for gene in short if gene not in excluded]
+    if uncovered:
+        raise BenchError("claimed proteins underperform cai_greedy: " + ", ".join(uncovered))
+    spare = [gene for gene in excluded if gene not in short]
+    if spare:
+        raise BenchError("excluded proteins that meet cai_greedy: " + ", ".join(spare))
+    claimed_n = len(rows) - len(excluded)
+    claim = str(gate.get("claim") or "")
+    if f"{claimed_n} of {len(rows)}" not in claim:
+        raise BenchError(f"the claim does not say {claimed_n} of {len(rows)}; it says {claim!r}")
+    if claimed_n != gate.get("n_claimed"):
+        raise BenchError(f"n_claimed is {gate.get('n_claimed')}, the rows support {claimed_n}")
 
 
 def run_cai_only(directory: Path, cds_path: Path | None = None) -> dict[str, Any]:

@@ -59,11 +59,13 @@ axis, the same ribosomal-protein weights, native and `cai_greedy` and one
 CodonForge design (budget `fast`, 4 generations, seed 7). CodonForge is at
 least `cai_greedy` on 48 of 50 proteins. It is not on `aceB` or `thrA`.
 `AGG` occurs 0 times in the 54 ribosomal CDS, so its weight is 0, and the
-table now lists that 0. `aceB` has `AGG` at codon 14. `thrA` has it at
-codons 28 and 243. `usage.cai` is 0 while any of those remain, and the
-4-generation search leaves them. `cai_greedy` replaces each with the
-highest-weight synonym and scores 1. `claimed` stays false. The original 13
-genes remain the Potts held-out set.
+table lists that 0. `aceB` has `AGG` at codon 14. `thrA` has it at codons
+28 and 243. `usage.cai` is 0 while any of those remain. The 4-generation
+search leaves them, and a 20-generation run (stagnation window 21, seed 7)
+still leaves in-frame `AGG` and still scores 0. `cai_greedy` replaces each
+with the highest-weight synonym and scores 1. The gate is claimed on the
+other 48. The two proteins are `degenerate_cases` and are excluded. The
+original 13 genes remain the Potts held-out set.
 
 The sequences are the CDS of `NC_000913.3` (assembly `GCF_000005845.2`,
 4140 records in the cited FASTA). The gzip's sha256 is

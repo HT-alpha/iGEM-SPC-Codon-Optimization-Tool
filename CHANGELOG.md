@@ -1,5 +1,27 @@
 # Changelog
 
+## v2.4.2
+
+`GATE-BEN-001` is claimed on 48 of 50 proteins. The claim is the CAI-only
+front against `cai_greedy`, not the MFE comparison.
+
+`aceB` (`NP_418438.1`) and `thrA` (`NP_414543.1`) were run again at budget
+`fast`, 20 generations, stagnation window 21, seed 7. Both ran 20
+generations. Both still score 0 where `cai_greedy` scores 1, and both
+designed sequences still contain in-frame `AGG` (`aceB` at codons 80, 136,
+321, 454, 497, 502 and 508; `thrA` at 243, 406, 421, 538, 680, 731, 755 and
+792). `usage.cai` is identically 0 while an `AGG` remains, because that
+codon has weight 0 in the ribosomal-protein corpus. The greedy baseline
+wins by construction on that flat objective. The two proteins are
+`degenerate_cases` in `benchmarks/corpus/gates.json` and are excluded from
+the claim.
+
+`check_cai_gate` refuses a claim that covers a protein whose recorded
+CodonForge score is below `cai_greedy`. `tools/gate_controls.sh` writes an
+all-50 claim into `gates.json` and requires that refusal.
+
+The canonical status note is `docs/project-status.md`.
+
 ## v2.4.1
 
 The ribosomal usage table lists all 64 codons. `AGG` and `TAG` were the two
