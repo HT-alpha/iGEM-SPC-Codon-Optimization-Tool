@@ -7,7 +7,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 fail() { echo "CONTROL FAILED: $1" >&2; exit 1; }
-trap 'git checkout -- benchmarks/corpus/gates.json' EXIT
+trap 'status=$?; git checkout -- benchmarks/corpus/gates.json; exit "$status"' EXIT
 
 python3 - <<'PY'
 import sys
@@ -26,7 +26,7 @@ patch.sub(
 )
 patch.sub(
     "benchmarks/corpus/gates.json",
-    '"excluded": [\n      "aceB",\n      "thrA"\n    ]',
+    '"excluded": [\n        "aceB",\n        "thrA"\n      ]',
     '"excluded": []',
 )
 PY
