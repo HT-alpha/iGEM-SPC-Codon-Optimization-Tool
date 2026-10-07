@@ -1,5 +1,39 @@
 # Changelog
 
+## v2.4.0
+
+No new fitted model and no change to the repair default.
+
+- The dwell head stays `not_fitted`. Li et al. Cell 2014
+  (doi:10.1016/j.cell.2014.02.033, GSE53767) score center residues at least
+  10 nt from either end of 20–42 nt reads. They do not state a 5′-end offset.
+  Li, Oh and Weissman, Nature 2012 (doi:10.1038/nature10965, GSE35641) use
+  the same kind of center-weighting, 12 nt from either end, on 25–42 nt
+  reads, and the 2014 methods say the size selection differs. Ingolia et al.
+  Science 2009 is yeast. Mohammad, Green and Buskirk, eLife 2019
+  (doi:10.7554/eLife.42591) assign their own 3′ ends. RiboToolkit and
+  RiboCode do not state an offset for GSE53767. The GEO files were not
+  reachable. `GET /v1/calibration` names these papers. Nothing was fitted.
+- `P1-26` stays held (`DEP-SRCH-013`). The registry is still `usage.cai` and
+  `usage.gc_content` (positionwise), `constraint.violation_count` (motif
+  window, or unbounded for a k-mer rule), and `structure.local_accessibility`
+  (`Codons(14)`, L0). Burden declares no radius. The Potts window `W = 10`
+  is not a registered radius; raising the block from 8 to 10 would be the
+  ordinary remedy if it were. The dwell head registers no term.
+- EXP-05, 20 seeds per arm, 40 generations, stagnation window 41, on
+  `gapA`, `pfkA`, `mdh`, `eno` and `pykF`. Each finished 40 generations.
+  Hypervolume margin 0, Lamarckian standard deviation 0, on every protein.
+  `decide()` was not edited and does not switch the default. `sucD` was not
+  included: its interior motif is `CF-SRCH-006`, the same refusal as `rplL`.
+- `GATE-BEN-001` (`DEP-BEN-003`) is a CAI-only comparison of 50 proteins.
+  `claimed` is false. `aceB` and `thrA` contain `AGG`, missing from the
+  ribosomal-protein weight table, so CodonForge and the native CDS score 0
+  and `cai_greedy` scores 1. The other 48 are at least the greedy value.
+  CDSfold, RNAplfold and LinearDesign were not added.
+
+`P1-26`, EXP-06, LinearDesign, bundled thermodynamic tables and `P3-14`
+remain held. Clearance is unchanged.
+
 ## v2.3.1
 
 The PrimerForge sequence viewer selects the dragged region again.
