@@ -77,6 +77,15 @@ An **absolute** gate, correctly: a 90 % interval covering 70 % is wrong by defin
 
 ### `GATE-BEN-001` — MFE/CAI frontier vs. LinearDesign / CDSfold
 
+`DEP-BEN-003`. The record in `benchmarks/corpus/gates.json` is not this
+table. No checked tool emits windowed local accessibility that this project
+can add as a competitor, so the run that exists is CAI-only: native,
+`cai_greedy`, and one CodonForge design on `usage.cai`. `claimed` is false.
+`aceB` and `thrA` contain `AGG`, which the ribosomal-protein table does not
+list, so those two score 0 for both the native CDS and CodonForge while
+`cai_greedy` scores 1. The threshold below is the original MFE rule and was
+not applied.
+
 | | |
 | --- | --- |
 | Setup | Fixed benchmark set of ≥50 proteins. CodonForge runs with exactly two objectives (`structure.mfe_global`, `usage.cai`) to make the comparison apples-to-apples. Competitor outputs enter through the seed-import path so both sides are scored by identical code. |

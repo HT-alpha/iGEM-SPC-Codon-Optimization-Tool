@@ -47,10 +47,21 @@ The claim that is defensible is the one `DEP-BEN-002` writes into
 `gates.json` with `claimed: false`:
 
 **50 proteins, 0 seeds, two in-process arms (native and CAI-greedy).
-`GATE-BEN-001` is not claimed.** LinearFold emits a global MFE and a
-dot-bracket. The scored structure term is windowed accessibility. The
-fronts are not compared. The original 13 genes remain the Potts held-out
-set.
+`GATE-BEN-001` is not claimed as an MFE comparison.** LinearFold emits a
+global MFE and a dot-bracket. The scored structure term is windowed
+accessibility. Those fronts are not compared. CDSfold optimizes global MFE
+and is offered for non-commercial use only. RNAplfold is the ViennaRNA
+engine this project already uses, not a competitor. LinearDesign stays
+outside AMD-013.
+
+`DEP-BEN-003` records the comparison that was run instead: one `usage.cai`
+axis, the same ribosomal-protein weights, native and `cai_greedy` and one
+CodonForge design (budget `fast`, 4 generations, seed 7). CodonForge is at
+least `cai_greedy` on 48 of 50 proteins. It is not on `aceB` or `thrA`:
+both CDS contain `AGG`, which the weight table does not list, so the
+geometric mean is 0 for the native sequence and for the CodonForge
+candidate, and 1 for `cai_greedy`. `claimed` stays false. The original 13
+genes remain the Potts held-out set.
 
 The sequences are the CDS of `NC_000913.3` (assembly `GCF_000005845.2`,
 4140 records in the cited FASTA). The gzip's sha256 is

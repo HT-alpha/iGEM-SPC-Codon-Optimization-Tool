@@ -276,3 +276,100 @@ def run_baselines(directory: Path, cds_path: Path | None = None) -> dict[str, An
     ]
     (directory / "gates.json").write_text(json.dumps(gates, indent=2), encoding="utf-8")
     return manifest
+
+
+def run_cai_only(directory: Path, cds_path: Path | None = None) -> dict[str, Any]:
+    """CAI-only redefinition of GATE-BEN-001. No structure axis, no external binary.
+
+    Path A (a competitor that emits windowed accessibility) did not clear the
+    three conditions, so this is the comparison the gate can actually run.
+    Native, CAI-greedy and one CodonForge design are scored by
+    `score_sequences` / the design front, which is one implementation of
+    `usage.cai`. The weights are the ribosomal-protein relative adaptiveness.
+    """
+    from codonforge.modelreg import ArtifactStore
+    from codonforge.orchestrator.design import DesignRequest, design, score_sequences
+
+    panel = load_panel()
+    genes = select_genes(panel, cds_path)
+    usage = ribosomal_usage(cds_path)
+    profile = {
+        "codon_usage": {
+            "subset": "user_supplied",
+            "table": {codon: {"relative_adaptiveness": weight} for codon, weight in usage.items()},
+        }
+    }
+    constraints = {
+        "schema_version": "1.0.0",
+        "constraint_set_id": "cst_cai_only",
+        "constraints": [],
+    }
+    store = ArtifactStore(directory / "store")
+    rows = []
+    for gene in genes:
+        cds = gene["cds"]
+        greedy = cai_greedy(cds, panel["translation_table"], usage)
+        request = DesignRequest(
+            host="escherichia_coli:511145/MG1655",
+            cds=cds,
+            host_profile=profile,
+            objectives=["usage.cai"],
+            constraints=constraints,
+            translation_table=11,
+            budget="fast",
+            seed=7,
+            generations=4,
+            segment=2,
+            host_digest="sha256:" + "ab" * 32,
+        )
+        scored = score_sequences(request, [cds, greedy])
+        result = design(request, store)
+        if result.job.state != "succeeded" or not result.front.get("candidates"):
+            raise BenchError(f"{gene['gene']}: CAI-only design did not return a candidate")
+        vector = result.front["candidates"][0].get("objective_vector") or [None]
+        codonforge = vector[0]
+        native_cai = scored[0]["usage.cai"]
+        greedy_cai = scored[1]["usage.cai"]
+        if codonforge is None or native_cai is None or greedy_cai is None:
+            raise BenchError(f"{gene['gene']}: a CAI value is missing")
+        rows.append(
+            {
+                "gene": gene["gene"],
+                "protein_id": gene["protein_id"],
+                "codons": gene["codons"],
+                "native_cai": native_cai,
+                "cai_greedy_cai": greedy_cai,
+                "codonforge_cai": codonforge,
+            }
+        )
+    beats_native = all(row["codonforge_cai"] + 1e-12 >= row["native_cai"] for row in rows)
+    ties_or_beats_greedy = sum(
+        1 for row in rows if row["codonforge_cai"] + 1e-12 >= row["cai_greedy_cai"]
+    )
+    definition = (
+        "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein "
+        "relative adaptiveness for every arm. Arms: the native CDS, cai_greedy, "
+        "and one CodonForge design (budget fast, 4 generations, seed 7, no "
+        "structure objective, no forbidden motif). Claimed only when the "
+        "CodonForge value is at least cai_greedy on every protein. The MFE "
+        "comparison against LinearDesign or CDSfold is not this record."
+    )
+    claimed = len(rows) == 50 and ties_or_beats_greedy == len(rows)
+    gate = {
+        "gate": "GATE-BEN-001",
+        "definition": "cai_only",
+        "claimed": claimed,
+        "n_proteins": len(rows),
+        "comparable": True,
+        "selected_cds_sha256": panel["selected_cds_sha256"],
+        "beats_native": beats_native,
+        "codonforge_ge_greedy": ties_or_beats_greedy,
+        "behind_greedy": [
+            row["gene"] for row in rows if row["codonforge_cai"] + 1e-12 < row["cai_greedy_cai"]
+        ],
+        "reason": definition,
+    }
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "cai_only.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    (directory / "gates.json").write_text(json.dumps([gate], indent=2), encoding="utf-8")
+    return gate

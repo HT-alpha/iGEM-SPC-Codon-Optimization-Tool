@@ -1,0 +1,402 @@
+[
+  {
+    "gene": "lacZ",
+    "protein_id": "NP_414878.1",
+    "codons": 1025,
+    "native_cai": 0.4172795301542131,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "gapA",
+    "protein_id": "NP_416293.1",
+    "codons": 332,
+    "native_cai": 0.8509178944841576,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "eno",
+    "protein_id": "NP_417259.1",
+    "codons": 433,
+    "native_cai": 0.8536344350366416,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "pykF",
+    "protein_id": "NP_416191.1",
+    "codons": 471,
+    "native_cai": 0.7380120499025711,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "pfkA",
+    "protein_id": "NP_418351.1",
+    "codons": 321,
+    "native_cai": 0.6857752062356853,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "adk",
+    "protein_id": "NP_415007.1",
+    "codons": 215,
+    "native_cai": 0.6950918053309867,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "dnaK",
+    "protein_id": "NP_414555.1",
+    "codons": 639,
+    "native_cai": 0.7543230853486205,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "tufB",
+    "protein_id": "NP_418407.1",
+    "codons": 395,
+    "native_cai": 0.8088005249701238,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "rpsA",
+    "protein_id": "NP_415431.1",
+    "codons": 558,
+    "native_cai": 0.8019571828360197,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "rplA",
+    "protein_id": "NP_418411.1",
+    "codons": 235,
+    "native_cai": 0.7901926062766395,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "rplL",
+    "protein_id": "NP_418413.1",
+    "codons": 122,
+    "native_cai": 0.8596575975602394,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "rpsL",
+    "protein_id": "NP_417801.1",
+    "codons": 125,
+    "native_cai": 0.7006055324403413,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "rpsJ",
+    "protein_id": "NP_417780.1",
+    "codons": 104,
+    "native_cai": 0.6463463946444975,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "aceA",
+    "protein_id": "NP_418439.1",
+    "codons": 435,
+    "native_cai": 0.5369748987213764,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "aceB",
+    "protein_id": "NP_418438.1",
+    "codons": 534,
+    "native_cai": 0.0,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 0.0
+  },
+  {
+    "gene": "aceE",
+    "protein_id": "NP_414656.1",
+    "codons": 888,
+    "native_cai": 0.713920149028904,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "aceF",
+    "protein_id": "NP_414657.1",
+    "codons": 631,
+    "native_cai": 0.6602230087431212,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "lpd",
+    "protein_id": "NP_414658.1",
+    "codons": 475,
+    "native_cai": 0.694287779473651,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "gltA",
+    "protein_id": "NP_415248.1",
+    "codons": 428,
+    "native_cai": 0.5987019411238987,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "icd",
+    "protein_id": "NP_415654.1",
+    "codons": 417,
+    "native_cai": 0.6283224888791982,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "mdh",
+    "protein_id": "NP_417703.1",
+    "codons": 313,
+    "native_cai": 0.6146728070941132,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "sucA",
+    "protein_id": "NP_415254.1",
+    "codons": 934,
+    "native_cai": 0.5622427705341552,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "sucC",
+    "protein_id": "NP_415256.1",
+    "codons": 389,
+    "native_cai": 0.6265190575205545,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "sucD",
+    "protein_id": "NP_415257.1",
+    "codons": 290,
+    "native_cai": 0.6633378142261386,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "sdhA",
+    "protein_id": "NP_415251.1",
+    "codons": 589,
+    "native_cai": 0.5699395240654626,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "pgi",
+    "protein_id": "NP_418449.1",
+    "codons": 550,
+    "native_cai": 0.6068756266172023,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "tpiA",
+    "protein_id": "NP_418354.1",
+    "codons": 256,
+    "native_cai": 0.7659312874941596,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "pgk",
+    "protein_id": "NP_417401.1",
+    "codons": 388,
+    "native_cai": 0.7580641726675343,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "gpmA",
+    "protein_id": "NP_415276.1",
+    "codons": 251,
+    "native_cai": 0.6382512766868623,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "ppc",
+    "protein_id": "NP_418391.1",
+    "codons": 884,
+    "native_cai": 0.4898785848676633,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "zwf",
+    "protein_id": "NP_416366.1",
+    "codons": 492,
+    "native_cai": 0.49378879863471664,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "tktA",
+    "protein_id": "YP_026188.1",
+    "codons": 664,
+    "native_cai": 0.7219646990441106,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "ptsG",
+    "protein_id": "NP_415619.1",
+    "codons": 478,
+    "native_cai": 0.6056140692434927,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "glpK",
+    "protein_id": "NP_418361.1",
+    "codons": 503,
+    "native_cai": 0.5353322304313882,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "aspC",
+    "protein_id": "NP_415448.1",
+    "codons": 397,
+    "native_cai": 0.545291661425786,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "ilvC",
+    "protein_id": "NP_418222.1",
+    "codons": 492,
+    "native_cai": 0.6259674590909883,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "leuA",
+    "protein_id": "NP_414616.1",
+    "codons": 524,
+    "native_cai": 0.48241784341426236,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "thrA",
+    "protein_id": "NP_414543.1",
+    "codons": 821,
+    "native_cai": 0.0,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 0.0
+  },
+  {
+    "gene": "lysC",
+    "protein_id": "NP_418448.1",
+    "codons": 450,
+    "native_cai": 0.44262575092449863,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "metK",
+    "protein_id": "NP_417417.1",
+    "codons": 385,
+    "native_cai": 0.6640557706259073,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "purA",
+    "protein_id": "NP_418598.1",
+    "codons": 433,
+    "native_cai": 0.6660995334894557,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "guaB",
+    "protein_id": "NP_417003.1",
+    "codons": 489,
+    "native_cai": 0.6699186085800876,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "ndk",
+    "protein_id": "NP_417013.1",
+    "codons": 144,
+    "native_cai": 0.6848491150235231,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "atpA",
+    "protein_id": "NP_418190.1",
+    "codons": 514,
+    "native_cai": 0.7080282938066654,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "atpD",
+    "protein_id": "NP_418188.1",
+    "codons": 461,
+    "native_cai": 0.690661531791725,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "nuoC",
+    "protein_id": "NP_416789.2",
+    "codons": 597,
+    "native_cai": 0.5542049507077846,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "crr",
+    "protein_id": "NP_416912.1",
+    "codons": 170,
+    "native_cai": 0.676780357193263,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "fadB",
+    "protein_id": "NP_418288.1",
+    "codons": 730,
+    "native_cai": 0.5294833368060958,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "fabB",
+    "protein_id": "NP_416826.1",
+    "codons": 407,
+    "native_cai": 0.6657687918792513,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  },
+  {
+    "gene": "rpoB",
+    "protein_id": "NP_418414.1",
+    "codons": 1343,
+    "native_cai": 0.6840985384568226,
+    "cai_greedy_cai": 1.0,
+    "codonforge_cai": 1.0
+  }
+]
