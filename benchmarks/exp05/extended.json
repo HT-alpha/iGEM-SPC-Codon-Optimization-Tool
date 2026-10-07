@@ -1,0 +1,104 @@
+{
+  "proteins": [
+    "gapA",
+    "pfkA",
+    "mdh",
+    "eno",
+    "pykF"
+  ],
+  "seeds_per_arm": 20,
+  "budget": {
+    "tier": "standard",
+    "generations": 40,
+    "segment": 4,
+    "stagnation_window": 41,
+    "generations_run_min": 40,
+    "generations_run_max": 40
+  },
+  "reference_point": [
+    0.0
+  ],
+  "senses": [
+    "maximize"
+  ],
+  "elapsed_seconds": 27.93349153499912,
+  "outcome": "keep_lamarckian",
+  "per_protein": [
+    {
+      "gene": "gapA",
+      "codons": 332,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": 1.2830188679245282,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.0003514056224899598,
+      "mean_repairs_lamarckian": 10.6,
+      "mean_repairs_baldwinian": 13.6,
+      "generations_run_min": 40,
+      "generations_run_max": 40,
+      "problem_codes": []
+    },
+    {
+      "gene": "pfkA",
+      "codons": 321,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": 1.2729306487695748,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.0005192107995846313,
+      "mean_repairs_lamarckian": 22.35,
+      "mean_repairs_baldwinian": 28.45,
+      "generations_run_min": 40,
+      "generations_run_max": 40,
+      "problem_codes": []
+    },
+    {
+      "gene": "mdh",
+      "codons": 313,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": 1.2,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.00045260915867944613,
+      "mean_repairs_lamarckian": 18.5,
+      "mean_repairs_baldwinian": 22.2,
+      "generations_run_min": 40,
+      "generations_run_max": 40,
+      "problem_codes": []
+    },
+    {
+      "gene": "eno",
+      "codons": 433,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": 1.6090584028605484,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.00036566589684372585,
+      "mean_repairs_lamarckian": 41.95,
+      "mean_repairs_baldwinian": 67.5,
+      "generations_run_min": 40,
+      "generations_run_max": 40,
+      "problem_codes": []
+    },
+    {
+      "gene": "pykF",
+      "codons": 471,
+      "switch_to_baldwinian": false,
+      "hv_margin": 0.0,
+      "hv_standard_deviation": 0.0,
+      "repair_ratio": 1.2451154529307282,
+      "mean_diversity_lamarckian": 0.0,
+      "mean_diversity_baldwinian": 0.0003538570417551309,
+      "mean_repairs_lamarckian": 28.15,
+      "mean_repairs_baldwinian": 35.05,
+      "generations_run_min": 40,
+      "generations_run_max": 40,
+      "problem_codes": []
+    }
+  ],
+  "default_changed": false
+}

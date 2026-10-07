@@ -117,6 +117,8 @@ def run_one(
     seed: int,
     lamarckian: bool,
     store: ArtifactStore,
+    generations: int = GENERATIONS,
+    stagnation_window: int = STAGNATION_WINDOW,
 ) -> Trial:
     request = DesignRequest(
         host="escherichia_coli:511145/MG1655",
@@ -127,9 +129,9 @@ def run_one(
         translation_table=11,
         budget=BUDGET,
         seed=seed,
-        generations=GENERATIONS,
+        generations=generations,
         segment=SEGMENT,
-        stagnation_window=STAGNATION_WINDOW,
+        stagnation_window=stagnation_window,
         host_digest="sha256:" + "ab" * 32,
     )
     result = design(request, store)
@@ -147,8 +149,14 @@ def run_one(
     )
 
 
-def run_campaign(directory: Path) -> dict[str, Any]:
-    """Twenty seeds, two arms, three proteins. Applies decide() unchanged."""
+def run_campaign(
+    directory: Path,
+    proteins: tuple[str, ...] = PROTEINS,
+    generations: int = GENERATIONS,
+    stagnation_window: int = STAGNATION_WINDOW,
+    output_name: str = "campaign.json",
+) -> dict[str, Any]:
+    """Twenty seeds, two arms. Applies decide() unchanged."""
     directory.mkdir(parents=True, exist_ok=True)
     panel = load_panel()
     genes = {row["gene"]: row for row in select_genes(panel)}
@@ -156,13 +164,17 @@ def run_campaign(directory: Path) -> dict[str, Any]:
     store = ArtifactStore(directory / "store")
     started = time.perf_counter()
     per_protein = []
-    for name in PROTEINS:
+    for name in proteins:
         gene = genes[name]
         lamarckian = []
         baldwinian = []
         for seed in range(SEEDS):
-            lamarckian.append(run_one(gene, profile, seed, True, store))
-            baldwinian.append(run_one(gene, profile, seed, False, store))
+            lamarckian.append(
+                run_one(gene, profile, seed, True, store, generations, stagnation_window)
+            )
+            baldwinian.append(
+                run_one(gene, profile, seed, False, store, generations, stagnation_window)
+            )
         decision = decide(lamarckian, baldwinian)
         per_protein.append(
             {
@@ -198,13 +210,13 @@ def run_campaign(directory: Path) -> dict[str, Any]:
     else:
         outcome = "inconclusive"
     document = {
-        "proteins": list(PROTEINS),
+        "proteins": list(proteins),
         "seeds_per_arm": SEEDS,
         "budget": {
             "tier": BUDGET,
-            "generations": GENERATIONS,
+            "generations": generations,
             "segment": SEGMENT,
-            "stagnation_window": STAGNATION_WINDOW,
+            "stagnation_window": stagnation_window,
             "generations_run_min": min(row["generations_run_min"] for row in per_protein),
             "generations_run_max": max(row["generations_run_max"] for row in per_protein),
         },
@@ -215,5 +227,5 @@ def run_campaign(directory: Path) -> dict[str, Any]:
         "per_protein": per_protein,
         "default_changed": False,
     }
-    (directory / "campaign.json").write_text(json.dumps(document, indent=2), encoding="utf-8")
+    (directory / output_name).write_text(json.dumps(document, indent=2), encoding="utf-8")
     return document
