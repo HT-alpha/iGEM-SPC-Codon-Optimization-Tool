@@ -1,8 +1,10 @@
 # CodonForge — iGEM submission notes
 
-The stable release is `v2.3.1`. `v2.3.0` is the DNA helix. `v2.3.1` corrects
+The stable release is `v2.4.0`. `v2.3.0` is the DNA helix. `v2.3.1` corrects
 the PrimerForge sequence viewer, which selected one nucleotide on drag in
-Chrome. `docs/legal-clearance.yaml`
+Chrome. `v2.4.0` records the dwell-head investigation, the P1-26 inventory,
+the 40-generation EXP-05 run, and the CAI-only `GATE-BEN-001` comparison.
+`docs/legal-clearance.yaml`
 records the AMD-013 sign-off from NG Chi Hong's email of 2026-10-05. The
 review accepts this analysis for a non-commercial iGEM educational project.
 The reviewer states that it is not a formal legal opinion. Wider commercial
@@ -27,13 +29,24 @@ L-BFGS iterations in total, reached gradient norm 0.0977, and is
 gradient, and `converged: true`.
 
 The dwell head (A-site occupancy signal from ribosome profiling) is not
-fitted. Li et al. 2014 (GEO GSE53767) does not state a 5′-end A-site offset,
-and the footprint size range (15–45 nt) makes a single offset unverifiable
-from the publication alone. No offset was assumed and no counts were
-substituted. The dwell head will be fitted when a primary source establishes
-the offset for this dataset. `GET /v1/calibration` returns
-`dwell.state: not_fitted`. Requesting `epistasis.dwell_deviation` returns
-`CF-LAND-001`. It does not report a deviation of zero.
+fitted. No paper states one 5′-end offset for GEO GSE53767. Li et al., Cell
+2014 (doi:10.1016/j.cell.2014.02.033) size-select about 15–45 nt and give the
+same score to center residues at least 10 nt from either end of 20–42 nt
+reads. Li, Oh and Weissman, Nature 2012 (doi:10.1038/nature10965, GSE35641)
+do the same kind of center-weighting, at 12 nt from either end of 25–42 nt
+reads, and do not state +15; the 2014 methods say the size selection differs.
+Ingolia et al., Science 2009 (doi:10.1126/science.1168978) is yeast: Fig. 2
+puts 5′ ends 12–13 nt upstream of the start codon. Mohammad, Green and
+Buskirk, eLife 2019 (doi:10.7554/eLife.42591; there is no 2019 Cell Systems
+paper of that name) assign their own 3′ ends, about 12 nt from the A site, on
+a flash-freeze library, not GSE53767. RiboToolkit (doi:10.1093/nar/gkaa395)
+defaults to 26–32 nt and a user-supplied or plastid P-site. RiboCode
+(doi:10.1093/nar/gky179) infers a P-site per read length and does not name
+this accession. The GEO files were not reachable, so no counts were extracted
+and none were replaced with zero. `GET /v1/calibration` returns
+`dwell.state: not_fitted` and names these papers. Requesting
+`epistasis.dwell_deviation` returns `CF-LAND-001`. It does not report a
+deviation of zero.
 
 ## What it does not do
 

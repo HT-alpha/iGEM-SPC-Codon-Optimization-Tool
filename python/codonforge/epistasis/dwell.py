@@ -4,14 +4,17 @@ The head is a separate axis. A job that does not name it never reads this
 file. A job that names it without a fitted head is `CF-LAND-001`. A zero
 deviation is not substituted for a missing fit.
 
-The fit is not in this tree. Li, Burkhardt, Gross and Weissman, Cell 2014
-(GEO GSE53767) do not state a 5'-end A-site offset. Their footprints were
-size-selected from about 15 to 45 nt, so one offset does not place the
-A site. The assignment rule in Li, Oh and Weissman, Nature 2012
-(doi:10.1038/nature10965, GEO GSE35641, a different series) puts the A site
-at the footprint center — residues at least 12 nt from either end — and
-does not state +15. The GEO supplementary files were not reachable from the
-environment that would have extracted the counts.
+The fit is not in this tree. No paper checked below states one 5'-end
+offset for GSE53767. Li et al., Cell 2014, map 20–42 nt reads by giving the
+same score to center residues at least 10 nt from either end. That is not a
+single codon. Li, Oh and Weissman, Nature 2012, do the same kind of
+center-weighting on a different series (GSE35641, 25–42 nt, 12 nt from
+either end) and do not state +15. The 2014 methods say the size selection
+differs from that earlier procedure. Ingolia et al., Science 2009, is yeast.
+Mohammad, Green and Buskirk, eLife 2019, assign their own libraries to the
+3' end. RiboToolkit and RiboCode compute a P-site from the reads in front of
+them; neither states an offset for GSE53767. The GEO files were not
+reachable, so the counts were not extracted under any rule.
 """
 
 from __future__ import annotations
@@ -28,10 +31,21 @@ ARTIFACT_NAME = "dwell.json"
 
 ABSENCE_REASON = (
     "epistasis.dwell_deviation was requested but the fitted dwell head is absent. "
-    "GSE53767 does not state a 5'-end A-site offset (Li et al., Cell 2014; "
-    "footprints ~15–45 nt). Li, Oh and Weissman, Nature 2012 assigns footprint "
-    "centers on GSE35641, not a +15 nt offset, and that rule was not applied here. "
-    "No dwell deviation of zero was substituted."
+    "No 5'-end A-site offset is stated for GSE53767. Li et al., Cell 2014, "
+    "doi:10.1016/j.cell.2014.02.033, size-select about 15-45 nt and score the "
+    "center residues at least 10 nt from either end of 20-42 nt reads. "
+    "Li, Oh and Weissman, Nature 2012, doi:10.1038/nature10965, GSE35641, "
+    "score center residues at least 12 nt from either end of 25-42 nt reads "
+    "and do not state +15; the 2014 size selection is not that procedure. "
+    "Ingolia et al., Science 2009, doi:10.1126/science.1168978, is yeast: "
+    "5' ends start 12-13 nt upstream of the start codon (Fig. 2). "
+    "Mohammad, Green and Buskirk, eLife 2019, doi:10.7554/eLife.42591, assign "
+    "their own 3' ends, about 12 nt from the A site, on a flash-freeze "
+    "high-Mg library, not GSE53767. RiboToolkit (Nucleic Acids Res. 2020, "
+    "doi:10.1093/nar/gkaa395) defaults to 26-32 nt and a user or plastid "
+    "P-site. RiboCode (Nucleic Acids Res. 2018, doi:10.1093/nar/gky179) "
+    "infers a P-site per read length and does not name GSE53767. "
+    "The GEO files were not reachable. No dwell deviation of zero was substituted."
 )
 
 
@@ -68,5 +82,7 @@ def dwell_status(path: Path | None = None) -> dict[str, Any]:
         "a_site_offset_nt": document.get("a_site_offset_nt"),
         "normalization": document.get("normalization"),
         "reason": document.get("reason", ABSENCE_REASON),
+        "checked": document.get("checked", []),
+        "what_would_resolve": document.get("what_would_resolve"),
         "digest": document.get("digest"),
     }

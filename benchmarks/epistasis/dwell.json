@@ -6,7 +6,45 @@
   "a_site_offset_nt": null,
   "normalization": null,
   "citation": "Li GW, Burkhardt D, Gross C, Weissman JS. Cell. 2014;157:624-635. doi:10.1016/j.cell.2014.02.033",
-  "assignment_citation": "Li GW, Oh E, Weissman JS. Nature. 2012;484:538-541. doi:10.1038/nature10965. GEO GSE35641, not GSE53767. A-site at the footprint center; not a +15 nt 5'-end offset.",
-  "reason": "epistasis.dwell_deviation was requested but the fitted dwell head is absent. GSE53767 does not state a 5'-end A-site offset (Li et al., Cell 2014; footprints ~15-45 nt). Li, Oh and Weissman, Nature 2012 assigns footprint centers on GSE35641, not a +15 nt offset, and that rule was not applied here. No dwell deviation of zero was substituted.",
-  "digest": "sha256:5fc819733529004b677f02aee6ea7643f6abe4279ab2292fd31af9cfa724a961"
+  "checked": [
+    {
+      "paper": "Li, Burkhardt, Gross and Weissman, Cell 2014",
+      "doi": "10.1016/j.cell.2014.02.033",
+      "dataset": "GSE53767",
+      "says": "Size selection about 15-45 nt. Reads of 20-42 nt are mapped by giving the same length-weighted score to center residues at least 10 nt from either end. No single 5'-end offset."
+    },
+    {
+      "paper": "Li, Oh and Weissman, Nature 2012",
+      "doi": "10.1038/nature10965",
+      "dataset": "GSE35641",
+      "says": "Footprints 25-42 nt. Center residues at least 12 nt from either end share one score. The A site is the footprint center, validated at stop codons and stall sites. Not +15. The 2014 methods say the size selection differs from this procedure."
+    },
+    {
+      "paper": "Ingolia, Ghaemmaghami, Newman and Weissman, Science 2009",
+      "doi": "10.1126/science.1168978",
+      "dataset": "yeast",
+      "says": "Fig. 2: 5' ends start 12-13 nt upstream of the start codon. Not an E. coli offset, and not a stated +15."
+    },
+    {
+      "paper": "Mohammad, Green and Buskirk, eLife 2019",
+      "doi": "10.7554/eLife.42591",
+      "dataset": "their libraries, not GSE53767",
+      "says": "Density is assigned to the 3' end. MNase cuts about 12 nt from the A site. Harvest is flash-freezing and high Mg, not the filtration harvest of GSE53767. The 2019 Cell Systems citation does not exist; this is the 2019 E. coli paper."
+    },
+    {
+      "paper": "Liu et al., Nucleic Acids Res. 2020 (RiboToolkit)",
+      "doi": "10.1093/nar/gkaa395",
+      "dataset": "none named for GSE53767",
+      "says": "Default codon analysis uses 26-32 nt reads. P-site offsets are supplied by the user or computed by plastid from the start-codon metagene. No E. coli offset for GSE53767."
+    },
+    {
+      "paper": "Xiao et al., Nucleic Acids Res. 2018 (RiboCode)",
+      "doi": "10.1093/nar/gky179",
+      "dataset": "none named for GSE53767",
+      "says": "metaplots infers a length-specific P-site from the 5' end to annotated start codons. The worked examples are HEK293 (+12) and zebrafish, not GSE53767."
+    }
+  ],
+  "what_would_resolve": "A primary source that states one A-site offset for GSE53767, or the authors' center-weighted rule applied to the reads of that accession. The GEO files were not reachable from this environment (ftp.ncbi.nlm.nih.gov returned no response), so the reads were not reprocessed.",
+  "reason": "epistasis.dwell_deviation was requested but the fitted dwell head is absent. No 5'-end A-site offset is stated for GSE53767. Li et al., Cell 2014, doi:10.1016/j.cell.2014.02.033, size-select about 15-45 nt and score the center residues at least 10 nt from either end of 20-42 nt reads. Li, Oh and Weissman, Nature 2012, doi:10.1038/nature10965, GSE35641, score center residues at least 12 nt from either end of 25-42 nt reads and do not state +15; the 2014 size selection is not that procedure. Ingolia et al., Science 2009, doi:10.1126/science.1168978, is yeast: 5' ends start 12-13 nt upstream of the start codon (Fig. 2). Mohammad, Green and Buskirk, eLife 2019, doi:10.7554/eLife.42591, assign their own 3' ends, about 12 nt from the A site, on a flash-freeze high-Mg library, not GSE53767. RiboToolkit (Nucleic Acids Res. 2020, doi:10.1093/nar/gkaa395) defaults to 26-32 nt and a user or plastid P-site. RiboCode (Nucleic Acids Res. 2018, doi:10.1093/nar/gky179) infers a P-site per read length and does not name GSE53767. The GEO files were not reachable. No dwell deviation of zero was substituted.",
+  "digest": "sha256:b5367ca991228d4ddcc6830eec29ed27607c587a8c1274f136bbbbe6f3975916"
 }

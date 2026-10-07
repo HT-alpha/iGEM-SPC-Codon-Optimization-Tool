@@ -41,4 +41,13 @@ def test_the_shipped_dwell_head_is_not_fitted() -> None:
     assert status["accession"] == "GSE53767"
     assert status["a_site_offset_nt"] is None
     assert status["normalization"] is None
+    titles = " ".join(item["paper"] for item in status["checked"])
+    assert "Cell 2014" in titles
+    assert "Nature 2012" in titles
+    assert "Science 2009" in titles
+    assert "eLife 2019" in titles
+    assert "RiboToolkit" in titles
+    assert "RiboCode" in titles
+    assert "10 nt" in status["reason"]
+    assert status["what_would_resolve"]
     assert dwell_status(Path("benchmarks/epistasis/does-not-exist.json"))["state"] == "absent"
