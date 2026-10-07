@@ -89,3 +89,57 @@ and anything the reader should know that the diff does not show. If a negative
 control does not fire on the first try, assume the fixture is inadequate before
 concluding the check is redundant — that assumption has been correct every time
 so far.
+
+## Cursor Cloud environment
+
+`main` (`ae6822c`, 2026-08-05) is the original stub: `README.md`, `codon_6.0.py`,
+`old_codon.py`. It is an ancestor of the product, not a second codebase.
+`git rev-list --count origin/main..v2.2.0` is 145, and the other direction is 0.
+Every release tag from `v0.1.0-igem` through `v2.3.0` is on the line that runs
+through `origin/cursor/v21-open-items-b1dc` (`v2.2.0`, `28720f0`). GitHub's
+default branch is still `main`, so a fresh clone does not contain those tags.
+Fast-forwarding `main` to the current stable tag would not rewrite history.
+Do not do it unless someone has confirmed it. The command, once confirmed, is
+`git push origin <stable-tag>:main`. Do not rebase the release line onto `main`.
+
+Two branches from July 2026 are not on this line:
+`origin/cursor/build-bioforge-1637` and
+`origin/cursor/setup-dev-environment-a1db`.
+`origin/cursor/p1-26-reread-recommended-front-design-6c83` has one commit that
+is not in the release line. `P1-26` stays held, so that branch is not merged
+from here.
+
+ViennaRNA is installed by the user, never vendored. The structure tests skip
+without it, and `CF_REQUIRE_STRUCTURE_ENGINE=1` turns that skip into a failure.
+This environment has ViennaRNA 2.7.2, from:
+
+```sh
+.venv/bin/pip install 'ViennaRNA==2.7.2'
+```
+
+The helix tests and the viewer-selection test run JavaScript under Node.
+`CF_REQUIRE_NODE=1` turns a missing Node into a failure. `node` here is
+v22.14.0 at `/exec-daemon/node`.
+
+The API server has no CLI entry point. From the repo root, after `make build`:
+
+```sh
+.venv/bin/python -c '
+from pathlib import Path
+import time
+from codonforge.api import serve
+from codonforge.modelreg import ArtifactStore
+serve(ArtifactStore(Path("/tmp/codonforge-artifacts")), port=8765)
+print("http://127.0.0.1:8765/", flush=True)
+while True:
+    time.sleep(3600)
+'
+```
+
+No environment variable is required. Static files are read from
+`python/codonforge/api/static` on each request. A new path is served only after
+the process restarts, because the route table is built at import.
+
+MCP sign-in does not complete under automation. Authenticating the Adapter
+server timed out, and there is no workaround yet, so a run here cannot read or
+write that workspace.

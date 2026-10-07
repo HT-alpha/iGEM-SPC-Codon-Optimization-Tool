@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.3.1
+
+The PrimerForge sequence viewer selects the dragged region again.
+
+In Chrome, `setPointerCapture` on the viewer retargets `pointermove` to the
+viewer, so `event.target` is no longer the nucleotide and `indexAt` ignored
+the move. A drag stayed on the one base where it started. The nucleotide is
+now taken from `document.elementFromPoint` (`viewer.js`). Capture stays, so a
+drag that leaves a nucleotide still reports moves. The same code is in
+v2.2.0 and v2.3.0.
+
+Confirmed in Chrome 148, on the first 700 nt of the shipped `lacZ` CDS: a
+drag from index 300 to 345 selected `Region 300–346 (46 nt).` A drag back
+from 80 to 40 selected `Region 40–81 (41 nt).` The viewer's Forward button
+still pages a sequence longer than 10,000 nt. Before the change the same
+300-to-345 drag selected `Region 300–301 (1 nt).`
+
+`tools/viewer_controls.sh` puts that ignore-the-point behaviour back.
+`test_a_retargeted_move_names_the_nucleotide_under_the_pointer` fails, and
+the script reverts.
+
+Clearance, `NOTICE`, and `test_amd_013` are unchanged. `P1-26`, EXP-06,
+LinearDesign, bundled thermodynamic tables, and `P3-14` stay held.
+
 ## v2.3.0
 
 A DNA double helix on the landing page and in the loading and result states of
