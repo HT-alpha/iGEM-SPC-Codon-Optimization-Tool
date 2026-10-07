@@ -1,7 +1,8 @@
 # CodonForge — iGEM submission notes
 
-This is the state of the tree at the `v1.0.0` stable release. The
-`v0.1.0-igem` pre-release is the parent snapshot. `docs/legal-clearance.yaml`
+The stable release is `v2.3.1`. `v2.3.0` is the DNA helix. `v2.3.1` corrects
+the PrimerForge sequence viewer, which selected one nucleotide on drag in
+Chrome. `docs/legal-clearance.yaml`
 records the AMD-013 sign-off from NG Chi Hong's email of 2026-10-05. The
 review accepts this analysis for a non-commercial iGEM educational project.
 The reviewer states that it is not a formal legal opinion. Wider commercial
