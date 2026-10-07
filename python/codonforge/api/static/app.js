@@ -7,6 +7,7 @@
    and from nowhere else. */
 
 import { createHelix } from "/helix.js";
+import { nucleotideIndex } from "/viewer.js";
 
 const tokenInput = document.getElementById("token");
 const requestInput = document.getElementById("request");
@@ -774,8 +775,7 @@ function showSelectionTip(event) {
 }
 
 function indexAt(event) {
-  const node = event.target.closest("[data-index]");
-  return node ? Number(node.dataset.index) : null;
+  return nucleotideIndex(event.target, document.elementFromPoint(event.clientX, event.clientY));
 }
 
 if (viewer) {
