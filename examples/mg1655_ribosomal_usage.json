@@ -2,191 +2,197 @@
   "codon_usage": {
     "subset": "user_supplied",
     "table": {
-      "TTG": {
-        "relative_adaptiveness": 0.050239
-      },
-      "GCT": {
-        "relative_adaptiveness": 1.0
-      },
-      "AAT": {
-        "relative_adaptiveness": 0.155251
-      },
-      "ATC": {
-        "relative_adaptiveness": 1.0
-      },
       "AAA": {
-        "relative_adaptiveness": 1.0
-      },
-      "TCA": {
-        "relative_adaptiveness": 0.064516
-      },
-      "AAG": {
-        "relative_adaptiveness": 0.419624
-      },
-      "CGC": {
-        "relative_adaptiveness": 0.461905
-      },
-      "GCC": {
-        "relative_adaptiveness": 0.187845
-      },
-      "ATT": {
-        "relative_adaptiveness": 0.342466
-      },
-      "CAG": {
-        "relative_adaptiveness": 1.0
-      },
-      "TCT": {
-        "relative_adaptiveness": 1.0
-      },
-      "GAA": {
-        "relative_adaptiveness": 1.0
-      },
-      "CGT": {
-        "relative_adaptiveness": 1.0
-      },
-      "CAC": {
         "relative_adaptiveness": 1.0
       },
       "AAC": {
         "relative_adaptiveness": 1.0
       },
-      "GCA": {
-        "relative_adaptiveness": 0.58011
+      "AAG": {
+        "relative_adaptiveness": 0.419624
       },
-      "AGC": {
-        "relative_adaptiveness": 0.669355
+      "AAT": {
+        "relative_adaptiveness": 0.155251
       },
-      "ATG": {
-        "relative_adaptiveness": 1.0
+      "ACA": {
+        "relative_adaptiveness": 0.08
+      },
+      "ACC": {
+        "relative_adaptiveness": 0.897143
+      },
+      "ACG": {
+        "relative_adaptiveness": 0.102857
       },
       "ACT": {
         "relative_adaptiveness": 1.0
       },
-      "TTC": {
+      "AGA": {
+        "relative_adaptiveness": 0.009524
+      },
+      "AGC": {
+        "relative_adaptiveness": 0.669355
+      },
+      "AGG": {
+        "relative_adaptiveness": 0.0
+      },
+      "AGT": {
+        "relative_adaptiveness": 0.120968
+      },
+      "ATA": {
+        "relative_adaptiveness": 0.003425
+      },
+      "ATC": {
         "relative_adaptiveness": 1.0
       },
-      "GTA": {
-        "relative_adaptiveness": 0.514451
-      },
-      "TAC": {
+      "ATG": {
         "relative_adaptiveness": 1.0
       },
-      "GGC": {
-        "relative_adaptiveness": 0.636628
-      },
-      "GAC": {
-        "relative_adaptiveness": 1.0
-      },
-      "TTT": {
-        "relative_adaptiveness": 0.325
+      "ATT": {
+        "relative_adaptiveness": 0.342466
       },
       "CAA": {
         "relative_adaptiveness": 0.308989
       },
-      "CCG": {
+      "CAC": {
         "relative_adaptiveness": 1.0
       },
-      "GTG": {
-        "relative_adaptiveness": 0.245665
-      },
-      "GGT": {
-        "relative_adaptiveness": 1.0
-      },
-      "CTG": {
+      "CAG": {
         "relative_adaptiveness": 1.0
       },
       "CAT": {
         "relative_adaptiveness": 0.366972
       },
-      "TAA": {
-        "relative_adaptiveness": 1.0
-      },
-      "GTT": {
-        "relative_adaptiveness": 1.0
-      },
-      "TCC": {
-        "relative_adaptiveness": 0.685484
-      },
-      "CTC": {
-        "relative_adaptiveness": 0.047847
-      },
-      "ACC": {
-        "relative_adaptiveness": 0.897143
-      },
-      "TGG": {
-        "relative_adaptiveness": 1.0
-      },
-      "GCG": {
-        "relative_adaptiveness": 0.353591
-      },
-      "CTT": {
-        "relative_adaptiveness": 0.057416
-      },
-      "GAG": {
-        "relative_adaptiveness": 0.336207
-      },
-      "TGC": {
-        "relative_adaptiveness": 1.0
-      },
-      "GAT": {
-        "relative_adaptiveness": 0.622449
-      },
-      "TTA": {
-        "relative_adaptiveness": 0.035885
-      },
-      "ACG": {
-        "relative_adaptiveness": 0.102857
-      },
       "CCA": {
         "relative_adaptiveness": 0.19375
       },
-      "GTC": {
-        "relative_adaptiveness": 0.182081
+      "CCC": {
+        "relative_adaptiveness": 0.0125
       },
-      "TAT": {
-        "relative_adaptiveness": 0.322917
+      "CCG": {
+        "relative_adaptiveness": 1.0
       },
       "CCT": {
         "relative_adaptiveness": 0.21875
       },
-      "CTA": {
-        "relative_adaptiveness": 0.002392
-      },
-      "AGT": {
-        "relative_adaptiveness": 0.120968
-      },
-      "ACA": {
-        "relative_adaptiveness": 0.08
-      },
       "CGA": {
         "relative_adaptiveness": 0.004762
       },
-      "TGT": {
-        "relative_adaptiveness": 0.333333
-      },
-      "AGA": {
-        "relative_adaptiveness": 0.009524
-      },
-      "ATA": {
-        "relative_adaptiveness": 0.003425
-      },
-      "TCG": {
-        "relative_adaptiveness": 0.032258
-      },
-      "GGA": {
-        "relative_adaptiveness": 0.011628
-      },
-      "TGA": {
-        "relative_adaptiveness": 0.08
-      },
-      "GGG": {
-        "relative_adaptiveness": 0.020349
+      "CGC": {
+        "relative_adaptiveness": 0.461905
       },
       "CGG": {
         "relative_adaptiveness": 0.007143
       },
-      "CCC": {
-        "relative_adaptiveness": 0.0125
+      "CGT": {
+        "relative_adaptiveness": 1.0
+      },
+      "CTA": {
+        "relative_adaptiveness": 0.002392
+      },
+      "CTC": {
+        "relative_adaptiveness": 0.047847
+      },
+      "CTG": {
+        "relative_adaptiveness": 1.0
+      },
+      "CTT": {
+        "relative_adaptiveness": 0.057416
+      },
+      "GAA": {
+        "relative_adaptiveness": 1.0
+      },
+      "GAC": {
+        "relative_adaptiveness": 1.0
+      },
+      "GAG": {
+        "relative_adaptiveness": 0.336207
+      },
+      "GAT": {
+        "relative_adaptiveness": 0.622449
+      },
+      "GCA": {
+        "relative_adaptiveness": 0.58011
+      },
+      "GCC": {
+        "relative_adaptiveness": 0.187845
+      },
+      "GCG": {
+        "relative_adaptiveness": 0.353591
+      },
+      "GCT": {
+        "relative_adaptiveness": 1.0
+      },
+      "GGA": {
+        "relative_adaptiveness": 0.011628
+      },
+      "GGC": {
+        "relative_adaptiveness": 0.636628
+      },
+      "GGG": {
+        "relative_adaptiveness": 0.020349
+      },
+      "GGT": {
+        "relative_adaptiveness": 1.0
+      },
+      "GTA": {
+        "relative_adaptiveness": 0.514451
+      },
+      "GTC": {
+        "relative_adaptiveness": 0.182081
+      },
+      "GTG": {
+        "relative_adaptiveness": 0.245665
+      },
+      "GTT": {
+        "relative_adaptiveness": 1.0
+      },
+      "TAA": {
+        "relative_adaptiveness": 1.0
+      },
+      "TAC": {
+        "relative_adaptiveness": 1.0
+      },
+      "TAG": {
+        "relative_adaptiveness": 0.0
+      },
+      "TAT": {
+        "relative_adaptiveness": 0.322917
+      },
+      "TCA": {
+        "relative_adaptiveness": 0.064516
+      },
+      "TCC": {
+        "relative_adaptiveness": 0.685484
+      },
+      "TCG": {
+        "relative_adaptiveness": 0.032258
+      },
+      "TCT": {
+        "relative_adaptiveness": 1.0
+      },
+      "TGA": {
+        "relative_adaptiveness": 0.08
+      },
+      "TGC": {
+        "relative_adaptiveness": 1.0
+      },
+      "TGG": {
+        "relative_adaptiveness": 1.0
+      },
+      "TGT": {
+        "relative_adaptiveness": 0.333333
+      },
+      "TTA": {
+        "relative_adaptiveness": 0.035885
+      },
+      "TTC": {
+        "relative_adaptiveness": 1.0
+      },
+      "TTG": {
+        "relative_adaptiveness": 0.050239
+      },
+      "TTT": {
+        "relative_adaptiveness": 0.325
       }
     }
   }

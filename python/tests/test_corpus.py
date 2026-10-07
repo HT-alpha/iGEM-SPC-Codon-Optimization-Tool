@@ -25,6 +25,14 @@ from codonforge.bench.corpus import (
 from codonforge.orchestrator.design import DesignRequest, score_sequences
 
 
+def test_the_ribosomal_weight_table_lists_every_codon() -> None:
+    usage = ribosomal_usage()
+    codons = {a + b + c for a in "ACGT" for b in "ACGT" for c in "ACGT"}
+    assert set(usage) == codons
+    # AGG is never used in the 54 ribosomal CDS, so its weight is 0, not absent.
+    assert usage["AGG"] == 0.0
+
+
 def test_the_panel_is_fifty_real_cds_and_does_not_claim_the_gate(tmp_path: Path) -> None:
     panel = load_panel()
     assert panel["expression_evidence"]["value"] is None

@@ -280,6 +280,14 @@ def test_tst_inge_002_elongation_rate_has_no_default():
     assert "no default" in excinfo.value.detail
 
 
+def test_every_codon_is_present_even_when_its_count_is_zero():
+    usage = codon_usage_from_cds(["ATGCGTTAA", "ATGCGTTAA", "ATGCGCTAA"], translation_table=11)
+    codons = {a + b + c for a in "ACGT" for b in "ACGT" for c in "ACGT"}
+    assert set(usage["table"]) == codons
+    assert usage["table"]["AGG"]["count"] == 0
+    assert usage["table"]["AGG"]["relative_adaptiveness"] == 0.0
+
+
 def test_tst_inge_002_relative_adaptiveness_is_derived_correctly():
     # Arginine: two CGT and one CGC, so w(CGT) = 1.0 and w(CGC) = 0.5.
     usage = codon_usage_from_cds(["ATGCGTTAA", "ATGCGTTAA", "ATGCGCTAA"], translation_table=11)

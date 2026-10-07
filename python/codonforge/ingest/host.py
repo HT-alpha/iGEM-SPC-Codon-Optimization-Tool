@@ -36,6 +36,10 @@ _GENOME_ONLY_TERMS = [
     "epistasis.context_naturalness",
 ]
 
+# Every codon, including those with count 0. A missing key is not the same
+# record as a weight of 0: callers that iterate the table would skip it.
+_ALL_CODONS = tuple(a + b + c for a in "ACGT" for b in "ACGT" for c in "ACGT")
+
 
 def codon_usage_from_cds(
     sequences: list[str], *, translation_table: int, subset: str = "genome_wide"
@@ -65,13 +69,9 @@ def codon_usage_from_cds(
 
     total = sum(counts.values())
     table: dict[str, Any] = {}
-    families: dict[str, list[str]] = {}
-    for codon in counts:
+    for codon in _ALL_CODONS:
+        count = counts.get(codon, 0)
         family = _core.synonyms(codon, translation_table)
-        families[codon] = family
-
-    for codon, count in counts.items():
-        family = families[codon]
         family_total = sum(counts.get(member, 0) for member in family)
         fraction = count / family_total if family_total else 0.0
         family_max = max((counts.get(member, 0) for member in family), default=0)
