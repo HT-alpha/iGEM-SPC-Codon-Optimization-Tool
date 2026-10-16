@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0.0",
+  "constraint_set_id": "cst_validation_assembly",
+  "name": "GC window, seven restriction sites, homopolymer, Shine-Dalgarno, 12-mer repeat",
+  "derived_from": ["user"],
+  "constraints": [
+    {
+      "id": "c_gc50",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "gc_window", "window_nt": 50, "min": 0.4, "max": 0.6}
+    },
+    {
+      "id": "c_bsai",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "BsaI", "site": "GGTCTC", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_bsmbi",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "BsmBI", "site": "CGTCTC", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_ecori",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "EcoRI", "site": "GAATTC", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_xbai",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "XbaI", "site": "TCTAGA", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_spei",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "SpeI", "site": "ACTAGT", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_psti",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "PstI", "site": "CTGCAG", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_noti",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "NotI", "site": "GCGGCCGC", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_homopolymer",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "homopolymer", "base": "any", "max_run": 6}
+    },
+    {
+      "id": "c_sd",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "forbidden_motif", "motif": "AGGAGG", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_kmer12",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "kmer_repeat", "k": 12, "max_occurrences": 1, "count_overlapping": true, "canonical_strand": false}
+    }
+  ],
+  "repair_policy": {}
+}
