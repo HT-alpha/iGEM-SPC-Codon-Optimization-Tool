@@ -58,9 +58,23 @@ _STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/formats.js": ("formats.js", "text/javascript; charset=utf-8"),
     "/helix.js": ("helix.js", "text/javascript; charset=utf-8"),
     "/viewer.js": ("viewer.js", "text/javascript; charset=utf-8"),
     "/codonforge-ui.css": ("codonforge-ui.css", "text/css; charset=utf-8"),
+}
+# The guided page offers these as one-click presets. They are the files in
+# examples/, not a second copy, so the button and the README read one table.
+_EXAMPLE_FILES = {
+    "/examples/mg1655_ribosomal_usage.json": (
+        "mg1655_ribosomal_usage.json",
+        "application/json",
+    ),
+    "/examples/rpsL.cds": ("rpsL.cds", "text/plain; charset=utf-8"),
+    "/examples/rpsL_constraints.json": (
+        "rpsL_constraints.json",
+        "application/json",
+    ),
 }
 
 
@@ -418,6 +432,27 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
+        if method == "GET" and path in _EXAMPLE_FILES:
+            name, content_type = _EXAMPLE_FILES[path]
+            file = _examples_dir() / name
+            if not file.is_file():
+                message = (
+                    f"{name} is not in this installation. Upload a codon-usage "
+                    "table from the page instead.\n"
+                ).encode()
+                self.send_response(404)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(message)))
+                self.end_headers()
+                self.wfile.write(message)
+                return
+            payload = file.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
         reason = _unbuilt_reason(path)
         if reason:
             self._send(
@@ -629,7 +664,50 @@ class Server(ThreadingHTTPServer):
         self.api = api
 
 
+def _examples_dir() -> Path:
+    """The checkout's examples/ directory, when this file is the source tree."""
+    here = Path(__file__).resolve()
+    candidates = [here.parents[3] / "examples", Path.cwd() / "examples"]
+    for path in candidates:
+        if (path / "mg1655_ribosomal_usage.json").is_file():
+            return path
+    return candidates[0]
+
+
 def serve(store: ArtifactStore, host: str = "127.0.0.1", port: int = 0) -> Server:
     server = Server((host, port), Api(store))
     threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def run_page(
+    store: ArtifactStore | None = None,
+    host: str = "127.0.0.1",
+    port: int = 8000,
+    *,
+    open_browser: bool = True,
+    opener: Any = None,
+    block: bool = True,
+) -> Server:
+    """Serve the page for a person at the keyboard.
+
+    ``serve`` starts a daemon thread and returns, which is what tests use.
+    This listens on port 8000, opens a browser, and blocks until interrupted.
+    """
+    import webbrowser
+
+    if store is None:
+        store = ArtifactStore(Path(".codonforge/artifacts"))
+    server = Server((host, port), Api(store))
+    bound_host, bound_port = server.server_address[:2]
+    url = f"http://{bound_host}:{bound_port}/"
+    if open_browser:
+        (opener or webbrowser.open)(url)
+    if not block:
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return server
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.shutdown()
     return server

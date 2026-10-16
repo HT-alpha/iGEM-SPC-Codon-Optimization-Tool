@@ -6,6 +6,7 @@
    The DNA helix (helix.js) is told the job state from the polling code below
    and from nowhere else. */
 
+import { toCsv, toFasta, toGenbank } from "/formats.js";
 import { createHelix } from "/helix.js";
 import { nucleotideIndex } from "/viewer.js";
 
@@ -68,11 +69,74 @@ function codeLink(problem) {
   return `<a href="${escapeAttr(href)}">${escapeText(code)}</a>`;
 }
 
+/* What to try, keyed by the registered code. The code, stage, and subject
+   stay on the row; this sentence is the action, not a replacement for them. */
+const NEXT_STEP = {
+  "CF-AUTH-001": "The access token was missing or not in the expected shape. Open Advanced and use a token that starts with t_ followed by 8 to 32 letters or digits. The value already filled in works on this page.",
+  "CF-AUTH-003": "That job was started with a different token. Use the same token, or run the design again.",
+  "CF-CLI-001": "The request was incomplete or not in the shape this server accepts. Check that the coding sequence uses only A, C, G and T, that its length divides by 3, and that a codon-usage table is loaded.",
+  "CF-CLI-002": "The job finished without a candidate. A constraint that no synonymous sequence can satisfy is a common cause. Remove a rule and run again.",
+  "CF-CLI-003": "This version does not provide that feature. Design from the form on this page: a DNA coding sequence, a host name, and a codon-usage table. PrimerForge, the other tab, designs PCR primers. A protein sequence is not converted to DNA here, and there is no catalog of hosts to browse.",
+  "CF-IDEM-001": "The same submit was sent twice with different contents. Reload the page and run the design once.",
+  "CF-LAND-001": "That objective is not available. Choose CAI, whole-gene GC fraction, constraint violations, or local mRNA structure.",
+  "CF-LAND-004": "That term is reported, not ranked. Leave it unchecked, or keep CAI as the objective.",
+  "CF-FEAS-001": "A rule is broken in a part of the sequence the search is not allowed to change. Remove that rule, or clear the fixed flanks under Advanced.",
+  "CF-FEAS-002": "A repeat rule cannot be satisfied for a sequence of this length. Raise the allowed count, or drop the rule.",
+  "CF-FEAS-003": "At one codon, every synonym is forbidden. Relax a motif rule and run again.",
+  "CF-FEAS-004": "Taken together, the motif rules leave no way through the gene. Remove one of them.",
+  "CF-FEAS-005": "No synonymous coding sequence can land inside that GC window. Widen the minimum and maximum, or lengthen the window.",
+  "CF-FEAS-006": "A constraint was not understood. Use the tick boxes, or paste a file that matches the example.",
+  "CF-SRCH-001": "One edit operator is not available in this version, so the search used the others. The design is still real. This is a notice, not a failed job.",
+  "CF-SRCH-006": "No codon assignment satisfies the constraints. Remove a rule, or check that you pasted the coding sequence in frame.",
+  "CF-SRCH-010": "Local mRNA structure cannot be updated inside one of the search stages, so that stage did not use it. Where the score was not computed, the result says UNKNOWN. UNKNOWN is not zero.",
+  "CF-STRU-003": "No RNA folding program is installed on the computer running this server. CodonForge does not include one. Install ViennaRNA if you need the structure score. CAI does not need it.",
+  "CF-ORCH-002": "The generation budget ran out before every stage finished. The sequence is from the stages that did finish. Raise generations under Advanced if you want the population stage to run longer.",
+  "CF-ORCH-006": "The budget you chose names a stage this version does not run. The stages that did run are listed, and the sequence is from those. Fast and Standard do not ask for the extra stage. Choosing Exact asks for a final ranking that is reported as skipped.",
+  "CF-ORCH-007": "A later stage did not beat an earlier one. The sequence shown is the better of the two, and the notice names both stages. The search is allowed to try a change that does not win.",
+  "CF-PRIM-001": "No primer pair passed the filters. Select a longer region, widen the product-size range, or move the melting-temperature target.",
+  "CF-PRIM-002": "There is not enough sequence beside the region for a primer. Select a region further from the end, or paste a longer template.",
+  "CF-PRIM-003": "The selected region does not sit inside the sequence. Select again, or use Select the whole sequence.",
+  "CF-PRIM-006": "The primer settings were not usable. Check that each minimum is smaller than its maximum.",
+  "CF-PRIM-007": "Many primers were close to the melting-temperature target, so only the closest ones were checked for dimers. The pairs shown are those. This is a notice, not a failed search.",
+};
+
+const TIER_PLAIN = {
+  tier1_seed: "First pass. Picks a codon at each position.",
+  tier2_block_ca: "Polish. Revisits the gene in blocks.",
+  tier3_moea: "A population of alternatives, for the number of generations you set.",
+  decision: "A final ranking this version does not run.",
+  primer_generate: "Builds candidate primers on each side of the region.",
+  primer_prune: "Drops primers whose melting temperature is far from the target.",
+  primer_evaluate: "Checks hairpins and dimers.",
+  primer_rank: "Sorts the pairs that remain.",
+};
+
+const STATE_PLAIN = {
+  queued: "Waiting to start. This page checks again every 2 seconds.",
+  running: "Working. Each row below is one stage. There is no single percentage, because a skipped stage is not part of a bar.",
+  succeeded: "Finished. The sequence, the scores, and the constraint check are under Pareto front.",
+  failed: "Stopped before a design was ready. The code names the reason. The sentence under it says what to try.",
+  cancelled: "Cancelled. No finished design was requested.",
+};
+
+const TERM_PLAIN = {
+  "usage.cai": "CAI",
+  "usage.gc_content": "GC fraction",
+  "constraint.violation_count": "Constraint violations",
+  "structure.local_accessibility": "Local mRNA structure",
+};
+
+function nextStep(problem) {
+  const text = problem && NEXT_STEP[problem.code];
+  if (!text) return "";
+  return `<p class="next-step"><strong>What to do.</strong> ${escapeText(text)}</p>`;
+}
+
 function problemCallout(problem) {
   if (!problem || !problem.code) {
     return `<div class="callout refusal"><strong>No CF-* code.</strong> <span class="note">The response did not name a registered code.</span></div>`;
   }
-  return `<div class="callout refusal"><strong>${codeLink(problem)}</strong> ${escapeText(problem.title || "")}<div class="note">${escapeText(problem.detail || "")}</div></div>`;
+  return `<div class="callout refusal"><strong>${codeLink(problem)}</strong> ${escapeText(problem.title || "")}<div class="note">${escapeText(problem.detail || "")}</div>${nextStep(problem)}</div>`;
 }
 
 function lateReveal(html) {
@@ -108,7 +172,7 @@ function renderWarnings(document) {
       const rows = group
         .map(
           (warning) =>
-            `<div class="warn-row"><div class="code">${codeLink(warning)}</div><div class="mono">${escapeText(warning.stage || "")}</div><div class="mono">${escapeText(warning.subject || "")}</div><div><strong>${escapeText(warning.title || "")}</strong><div class="note">${escapeText(warning.detail || "")}</div></div></div>`,
+            `<div class="warn-row"><div class="code">${codeLink(warning)}</div><div class="mono">${escapeText(warning.stage || "")}</div><div class="mono">${escapeText(warning.subject || "")}</div><div><strong>${escapeText(warning.title || "")}</strong><div class="note">${escapeText(warning.detail || "")}</div>${nextStep(warning)}</div></div>`,
         )
         .join("");
       const kind = refusal ? "refusal" : "notice";
@@ -166,7 +230,8 @@ function renderStatus(document) {
         tier.generation === undefined || tier.generation === null
           ? ""
           : `${tier.generation}/${tier.max_generations ?? "—"}`;
-      return `<div class="tier-track"><span>${escapeText(tier.tier)}</span><span>${escapeText(tier.state)}</span><div class="bar"><span style="width:${start}%" data-target="${width}"></span></div><span>${escapeText(generation)}</span></div>`;
+      const gloss = TIER_PLAIN[tier.tier] ? `<p class="tier-plain">${escapeText(TIER_PLAIN[tier.tier])}</p>` : "";
+      return `<div class="tier-block"><div class="tier-track"><span>${escapeText(tier.tier)}</span><span>${escapeText(tier.state)}</span><div class="bar"><span style="width:${start}%" data-target="${width}"></span></div><span>${escapeText(generation)}</span></div>${gloss}</div>`;
     })
     .join("");
   const objectives = (document.resolved_objectives || [])
@@ -177,9 +242,10 @@ function renderStatus(document) {
     .join("");
   const failed = document.state === "failed" ? lateReveal(problemCallout(document.problem)) : document.problem && document.problem.code ? problemCallout(document.problem) : "";
   const stateKind = document.state === "succeeded" ? "feasible" : document.state === "failed" ? "refusal" : "warning";
+  const plainState = STATE_PLAIN[document.state] || "";
   statusRoot.innerHTML = `
     <div class="rail"><div class="k">Job</div><div class="v mono">${escapeText(document.job_id || "")}</div></div>
-    <div class="rail"><div class="k">State</div><div class="v">${chip(stateKind, document.state || "")}</div></div>
+    <div class="rail"><div class="k">State</div><div class="v">${chip(stateKind, document.state || "")}${plainState ? `<p class="field-help">${escapeText(plainState)}</p>` : ""}</div></div>
     ${failed}
     <h2>Tiers</h2>
     ${tiers || '<p class="note">No tier has been reported.</p>'}
@@ -455,8 +521,10 @@ function renderFront(front) {
     .join("");
   const plot = renderPlot(front, recommended.candidate_id, optimalIds);
   const sequences = renderSequences(front, recommended.candidate_id, optimalIds);
+  window.lastFront = front;
   frontRoot.innerHTML = `
     <div class="reveal">
+    ${resultSummary(front)}
     <p class="note">reduction.method <code>${escapeText((front.reduction || {}).method || "")}</code> · presented ${(front.reduction || {}).presented_count ?? ""} of ${(front.reduction || {}).raw_nondominated_count ?? ""}</p>
     <div class="legend">${chip("feasible", "feasible")}${chip("infeasible", "infeasible")}${chip("unknown", "UNKNOWN")}${chip("recommended", "recommended")}${chip("structure", "structure-optimal among scored")}${chip("diagnostic", "diagnostic-only")}</div>
     <div class="callout pulse-once"><strong>Recommended</strong> <code>${escapeText(recommended.candidate_id || "")}</code> · rule <code>${escapeText(recommended.rule || "")}</code><br>informed_by ${informed || "—"}<br>not_informed_by ${excluded || "—"}</div>
@@ -473,6 +541,106 @@ function renderFront(front) {
     </div>
   `;
   return true;
+}
+
+function resultSummary(front) {
+  const recommended = front.recommended || {};
+  const candidates = front.candidates || [];
+  const candidate =
+    candidates.find((item) => item.candidate_id === recommended.candidate_id) || candidates[0];
+  if (!candidate) return "";
+  const order = front.objective_order || [];
+  const sense = front.objective_sense || [];
+  const scores = order
+    .map((term, index) => {
+      const value = (candidate.objective_vector || [])[index];
+      const label = TERM_PLAIN[term] || term;
+      if (value === null || value === undefined) {
+        return `<div class="rail"><div class="k">${escapeText(label)} <span class="mono">${escapeText(term)}</span></div><div class="v"><span class="unk">UNKNOWN</span> <p class="field-help">Not scored. This is not zero, and it is not a bad result.</p></div></div>`;
+      }
+      const direction = sense[index] || "";
+      return `<div class="rail"><div class="k">${escapeText(label)} <span class="mono">${escapeText(term)}</span></div><div class="v"><span class="mono">${escapeText(Number(value).toFixed(6))}</span> <span class="note">${escapeText(direction)}</span></div></div>`;
+    })
+    .join("");
+  const report = candidate.constraint_report;
+  let feasible;
+  if (!report || typeof report.feasible !== "boolean") {
+    feasible = `<p class="note">constraint_report.feasible absent</p>`;
+  } else if (report.feasible) {
+    feasible = `${chip("feasible", "constraints satisfied")}<p class="field-help">constraint_report.feasible is true. Every hard constraint that was checked passed.</p>`;
+  } else {
+    feasible = `${chip("infeasible", "constraints not satisfied")}<p class="field-help">constraint_report.feasible is false. At least one hard rule still fails. The sequence is shown so you can read it.</p>`;
+  }
+  const cds = (candidate.sequences || [])[0] && candidate.sequences[0].cds;
+  const lengthNote = cds ? `<p class="note">${cds.length} bases, ${Math.floor(cds.length / 3)} codons.</p>` : "";
+  return `<section class="result-summary">
+    <h2>Your design</h2>
+    <p class="mono">${escapeText(candidate.candidate_id)}</p>
+    ${lengthNote}
+    ${feasible}
+    ${scores}
+    ${caiZeroNote(candidate, front)}
+    <div class="seq-actions">
+      <button type="button" data-export="fasta">Download FASTA</button>
+      <button type="button" data-export="genbank">Download GenBank</button>
+      <button type="button" data-export="csv">Download CSV</button>
+    </div>
+    <p class="field-help">FASTA and CSV include every design on this front. GenBank is the one named above. The numbers are the ones in the result document.</p>
+  </section>`;
+}
+
+function caiZeroNote(candidate, front) {
+  const index = (front.objective_order || []).indexOf("usage.cai");
+  if (index < 0) return "";
+  const value = (candidate.objective_vector || [])[index];
+  if (value !== 0 && value !== 0.0) return "";
+  const weights = activeWeights();
+  if (!weights || weights.AGG !== 0) return "";
+  return `<p class="note">CAI is 0. In the codon table for this job, AGG has relative adaptiveness 0, and one AGG makes the whole index 0. The design still contains that codon, or another codon with weight 0.</p>`;
+}
+
+function recommendedIndex(front) {
+  const id = front.recommended && front.recommended.candidate_id;
+  const index = (front.candidates || []).findIndex((item) => item.candidate_id === id);
+  return index >= 0 ? index : 0;
+}
+
+function sequenceDocumentFor(front, index) {
+  const candidate = (front.candidates || [])[index] || (front.candidates || [])[0];
+  const cds = candidate && candidate.sequences && candidate.sequences[0] ? candidate.sequences[0].cds : "";
+  const five = document.getElementById("flank-5");
+  const three = document.getElementById("flank-3");
+  const table = document.getElementById("translation-table");
+  return {
+    cds,
+    five_prime_flank: five ? five.value.toUpperCase().replace(/[^ACGT]/g, "") : "",
+    three_prime_flank: three ? three.value.toUpperCase().replace(/[^ACGT]/g, "") : "",
+    translation_table: table ? Number(table.value) || 11 : 11,
+  };
+}
+
+function exportFront(kind) {
+  const front = window.lastFront;
+  if (!front) return;
+  const stamp = front.job_id || "design";
+  if (kind === "fasta") downloadText(`${stamp}.fasta`, toFasta(front), "text/plain");
+  else if (kind === "csv") downloadText(`${stamp}.csv`, toCsv(front), "text/csv");
+  else if (kind === "genbank") {
+    const index = recommendedIndex(front);
+    downloadText(`${stamp}.gb`, toGenbank(front, sequenceDocumentFor(front, index), index), "text/plain");
+  }
+}
+
+function downloadText(filename, text, type) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function clearHot() {
@@ -647,17 +815,25 @@ frontRoot.addEventListener("pointerout", (event) => {
 
 frontRoot.addEventListener("click", (event) => {
   const button = event.target.closest("[data-copy]");
-  if (!button) return;
-  copyRaw(button.dataset.copy || "", button);
+  if (button) {
+    copyRaw(button.dataset.copy || "", button);
+    return;
+  }
+  const exporter = event.target.closest("[data-export]");
+  if (exporter) exportFront(exporter.dataset.export);
 });
 
 submitButton.addEventListener("click", async () => {
   submitError.innerHTML = "";
   let body;
   try {
+    prepareRequest();
     body = JSON.parse(requestInput.value);
   } catch (error) {
-    submitError.innerHTML = `<div class="callout refusal"><strong>The request is not JSON.</strong> <span class="note">Nothing was posted.</span></div>`;
+    const message = error && error.message ? error.message : "The request is not JSON.";
+    submitError.innerHTML = `<div class="callout refusal"><strong>${escapeText(message)}</strong> <span class="note">Nothing was posted.</span></div>`;
+    const statusHeading = document.getElementById("status");
+    if (statusHeading && message) document.getElementById("submit-error").scrollIntoView({ block: "nearest" });
     return;
   }
   lastSubmitted = body;
@@ -672,6 +848,8 @@ submitButton.addEventListener("click", async () => {
     }
     history.replaceState(null, "", `#${posted.payload.job_id}`);
     renderStatus(posted.payload);
+    const statusHeading = document.getElementById("status");
+    if (statusHeading) statusHeading.scrollIntoView({ block: "start" });
     poll(posted.payload.job_id);
   } catch (error) {
     submitError.innerHTML = lateReveal(`<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`);
@@ -691,7 +869,11 @@ function refreshOptimizedHandoff() {
 
 document.querySelectorAll("button.tab").forEach((button) => {
   button.addEventListener("click", () => {
-    document.querySelectorAll("button.tab").forEach((item) => item.classList.toggle("active", item === button));
+    document.querySelectorAll("button.tab").forEach((item) => {
+      const on = item === button;
+      item.classList.toggle("active", on);
+      item.setAttribute("aria-selected", on ? "true" : "false");
+    });
     document.getElementById("tab-codon").hidden = button.dataset.tab !== "codon";
     document.getElementById("tab-primer").hidden = button.dataset.tab !== "primer";
     if (button.dataset.tab === "primer") drawViewer();
@@ -759,9 +941,10 @@ function applyHighlight() {
   const note = document.getElementById("primer-selection");
   if (note) {
     note.textContent = selection
-      ? `Region ${selection.start}–${selection.end} (${selection.end - selection.start} nt).`
+      ? `Bases ${selection.start + 1}–${selection.end} (${selection.end - selection.start} nt). Both ends are included.`
       : "No region selected.";
   }
+  syncRegionFields();
 }
 
 function showSelectionTip(event) {
@@ -1007,7 +1190,7 @@ document.getElementById("primer-search").addEventListener("click", async () => {
   document.getElementById("primer-error").innerHTML = "";
   document.getElementById("primer-results").innerHTML = "";
   if (!selection) {
-    document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>No region selected.</strong> <span class="note">Drag across the sequence viewer.</span></div>`;
+    document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>No region selected.</strong> <span class="note">Drag across the sequence, type a start and end, or use Select the whole sequence.</span></div>`;
     return;
   }
   const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
@@ -1082,3 +1265,393 @@ function refreshPrimerZones() {
 
 drawViewer();
 refreshOptimizedHandoff();
+
+const EMPTY_CONSTRAINTS = {
+  schema_version: "1.0.0",
+  constraint_set_id: "cst_none",
+  constraints: [],
+};
+
+let loadedProfile = null;
+let loadedConstraints = null;
+
+function syncRegionFields() {
+  const start = document.getElementById("region-start");
+  const end = document.getElementById("region-end");
+  if (!start || !end || !selection) return;
+  start.value = String(selection.start + 1);
+  end.value = String(selection.end);
+}
+
+function selectionFromFields() {
+  if (!primerSequence) return;
+  const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+  const startBox = document.getElementById("region-start");
+  const endBox = document.getElementById("region-end");
+  const startBase = Number(startBox.value);
+  const endBase = Number(endBox.value);
+  if (!Number.isInteger(startBase) || !Number.isInteger(endBase)) return;
+  const start = Math.max(0, startBase - 1);
+  const end = Math.min(sequence.length, endBase);
+  if (end <= start) return;
+  selection = { start, end };
+  applyHighlight();
+}
+
+function cleanedCds(raw) {
+  const lines = String(raw).replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n");
+  const kept = [];
+  let header = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith(">") || trimmed.startsWith(";")) {
+      header = true;
+      continue;
+    }
+    kept.push(trimmed);
+  }
+  let sequence = kept.join("").toUpperCase().replaceAll(/\s+/g, "");
+  const notes = [];
+  if (header) notes.push("Removed the FASTA header.");
+  const rna = (sequence.match(/U/g) || []).length;
+  if (rna) {
+    sequence = sequence.replaceAll("U", "T");
+    notes.push(`Read ${rna} U as T, so an RNA paste is treated as DNA.`);
+  }
+  const digits = (sequence.match(/[0-9]/g) || []).length;
+  if (digits) {
+    sequence = sequence.replaceAll(/[0-9]/g, "");
+    notes.push("Removed position numbers.");
+  }
+  const illegal = sequence.match(/[^ACGT]/g);
+  return { sequence, notes, illegal: illegal ? [...new Set(illegal)] : [] };
+}
+
+function refreshSequenceNote() {
+  const note = document.getElementById("cds-note");
+  const box = document.getElementById("cds-text");
+  if (!note || !box) return;
+  if (!box.value.trim()) {
+    note.textContent = "No sequence yet. The rpsL demo is the E. coli K-12 MG1655 gene rpsL, 125 codons.";
+    return;
+  }
+  const parsed = cleanedCds(box.value);
+  const parts = [...parsed.notes];
+  if (!parsed.sequence) {
+    parts.push("No A, C, G or T bases were found.");
+  } else if (parsed.illegal.length) {
+    parts.push(`These letters are not DNA bases: ${parsed.illegal.join(", ")}. A protein sequence cannot be optimized here.`);
+  } else if (parsed.sequence.length % 3 !== 0) {
+    parts.push(`${parsed.sequence.length} bases. That is not a multiple of 3, so it is not a whole number of codons.`);
+  } else {
+    parts.push(`${parsed.sequence.length} bases, ${parsed.sequence.length / 3} codons.`);
+  }
+  note.textContent = parts.join(" ");
+}
+
+function setProfileNote(text) {
+  const note = document.getElementById("profile-note");
+  if (note) note.textContent = text;
+}
+
+async function loadBundledProfile() {
+  const response = await fetch("/examples/mg1655_ribosomal_usage.json");
+  if (!response.ok) {
+    setProfileNote("The bundled E. coli table could not be loaded. Upload a codon-usage JSON instead.");
+    return;
+  }
+  loadedProfile = await response.json();
+  setProfileNote("Loaded examples/mg1655_ribosomal_usage.json. E. coli K-12 MG1655 ribosomal proteins, labelled user-supplied.");
+  syncRequest();
+}
+
+function constraintFromBuilder() {
+  const rules = [];
+  if (document.getElementById("constraint-bsai").checked) {
+    rules.push({
+      id: "c_bsai",
+      class: "blocking",
+      scope: "cds",
+      rule: { kind: "restriction_site", enzyme: "BsaI", site: "GGTCTC", strand: "both", max_occurrences: 0 },
+    });
+  }
+  if (document.getElementById("constraint-bsmbi").checked) {
+    rules.push({
+      id: "c_bsmbi",
+      class: "blocking",
+      scope: "cds",
+      rule: { kind: "restriction_site", enzyme: "BsmBI", site: "CGTCTC", strand: "both", max_occurrences: 0 },
+    });
+  }
+  if (document.getElementById("constraint-homo").checked) {
+    rules.push({
+      id: "c_homopolymer",
+      class: "blocking",
+      scope: "cds",
+      rule: { kind: "homopolymer", base: "any", max_run: Number(document.getElementById("constraint-homo-run").value) },
+    });
+  }
+  if (document.getElementById("constraint-gc").checked) {
+    rules.push({
+      id: "c_gc_window",
+      class: "blocking",
+      scope: "cds",
+      rule: {
+        kind: "gc_window",
+        window_nt: Number(document.getElementById("constraint-gc-window").value),
+        min: Number(document.getElementById("constraint-gc-min").value),
+        max: Number(document.getElementById("constraint-gc-max").value),
+      },
+    });
+  }
+  return {
+    schema_version: "1.0.0",
+    constraint_set_id: "cst_form",
+    constraints: rules,
+  };
+}
+
+function constraintsForRequest() {
+  const mode = document.getElementById("constraint-mode").value;
+  if (mode === "none") return EMPTY_CONSTRAINTS;
+  if (mode === "example") {
+    if (!loadedConstraints) throw new Error("The rpsL constraint file has not loaded yet. Choose it again, or use No extra rules.");
+    return loadedConstraints;
+  }
+  if (mode === "builder") return constraintFromBuilder();
+  const text = document.getElementById("constraint-json").value.trim();
+  if (!text) throw new Error("Paste a constraint JSON, or choose No extra rules.");
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error("The constraint box is not JSON. Nothing was posted.");
+  }
+}
+
+function selectedHost() {
+  const select = document.getElementById("host-select");
+  if (select.value !== "custom") return select.value;
+  const custom = document.getElementById("host-custom").value.trim();
+  if (!custom) throw new Error("Type a host name, or pick E. coli from the list.");
+  return custom;
+}
+
+function selectedObjectives() {
+  const chosen = [];
+  if (document.getElementById("obj-cai").checked) chosen.push("usage.cai");
+  if (document.getElementById("obj-gc").checked) chosen.push("usage.gc_content");
+  if (document.getElementById("obj-violation").checked) chosen.push("constraint.violation_count");
+  if (document.getElementById("obj-structure").checked) chosen.push("structure.local_accessibility");
+  if (!chosen.length) throw new Error("Choose at least one objective. CAI is the usual first choice.");
+  return chosen;
+}
+
+function buildRequest() {
+  const box = document.getElementById("cds-text");
+  const parsed = cleanedCds(box.value);
+  if (!parsed.sequence) throw new Error("Paste a coding sequence, or load the rpsL demo.");
+  if (parsed.illegal.length) {
+    throw new Error(`These letters are not DNA bases: ${parsed.illegal.join(", ")}. Paste a coding sequence, not a protein.`);
+  }
+  if (parsed.sequence.length % 3 !== 0) {
+    throw new Error(`The sequence is ${parsed.sequence.length} bases long, which is not a whole number of codons. Check that the copy is complete.`);
+  }
+  if (!loadedProfile || !loadedProfile.codon_usage) {
+    throw new Error("Load a codon-usage table. The button uses the bundled E. coli MG1655 ribosomal table.");
+  }
+  const flank = (id) => document.getElementById(id).value.toUpperCase().replace(/[^ACGT]/g, "");
+  return {
+    host: selectedHost(),
+    cds: parsed.sequence,
+    host_profile: loadedProfile,
+    objectives: selectedObjectives(),
+    constraints: constraintsForRequest(),
+    five_prime_flank: flank("flank-5"),
+    three_prime_flank: flank("flank-3"),
+    translation_table: Number(document.getElementById("translation-table").value) || 11,
+    budget: document.getElementById("budget").value,
+    seed: Number(document.getElementById("seed").value) || 0,
+    generations: Number(document.getElementById("generations").value) || 4,
+  };
+}
+
+function syncRequest() {
+  const edit = document.getElementById("edit-json");
+  if (!requestInput || (edit && edit.checked)) return;
+  try {
+    requestInput.value = JSON.stringify(buildRequest(), null, 2);
+  } catch (error) {
+    requestInput.value = "";
+  }
+}
+
+function prepareRequest() {
+  const edit = document.getElementById("edit-json");
+  if (edit && edit.checked) {
+    if (!requestInput.value.trim()) throw new Error("The request box is empty. Untick Edit this JSON myself, or paste a request.");
+    return;
+  }
+  requestInput.value = JSON.stringify(buildRequest(), null, 2);
+}
+
+function showConstraintMode() {
+  const mode = document.getElementById("constraint-mode").value;
+  document.getElementById("constraint-builder").hidden = mode !== "builder";
+  document.getElementById("constraint-json-wrap").hidden = mode !== "json" && mode !== "example";
+  const jsonBox = document.getElementById("constraint-json");
+  jsonBox.readOnly = mode === "example";
+  syncRequest();
+}
+
+async function loadExampleConstraints() {
+  const response = await fetch("/examples/rpsL_constraints.json");
+  if (!response.ok) throw new Error("The rpsL constraint file could not be loaded.");
+  loadedConstraints = await response.json();
+  document.getElementById("constraint-json").value = JSON.stringify(loadedConstraints, null, 2);
+  syncRequest();
+}
+
+async function loadDemo() {
+  const response = await fetch("/examples/rpsL.cds");
+  if (!response.ok) throw new Error("The rpsL demo sequence could not be loaded.");
+  document.getElementById("cds-text").value = (await response.text()).trim();
+  document.getElementById("host-select").value = "escherichia_coli:511145/MG1655";
+  document.getElementById("host-custom-wrap").hidden = true;
+  document.getElementById("obj-cai").checked = true;
+  document.getElementById("obj-gc").checked = false;
+  document.getElementById("obj-violation").checked = false;
+  document.getElementById("obj-structure").checked = false;
+  document.getElementById("budget").value = "fast";
+  document.getElementById("generations").value = "4";
+  document.getElementById("seed").value = "7";
+  document.getElementById("constraint-mode").value = "example";
+  if (!loadedProfile) await loadBundledProfile();
+  await loadExampleConstraints();
+  showConstraintMode();
+  refreshSequenceNote();
+  syncRequest();
+  document.getElementById("submit").focus();
+}
+
+function bindGuide() {
+  const cds = document.getElementById("cds-text");
+  if (cds) cds.addEventListener("input", () => {
+    refreshSequenceNote();
+    syncRequest();
+  });
+  const file = document.getElementById("cds-file");
+  if (file) {
+    file.addEventListener("change", () => {
+      const chosen = file.files && file.files[0];
+      if (!chosen) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        cds.value = String(reader.result || "");
+        refreshSequenceNote();
+        syncRequest();
+      };
+      reader.readAsText(chosen);
+    });
+  }
+  document.getElementById("load-demo").addEventListener("click", () => {
+    loadDemo().catch((error) => {
+      submitError.innerHTML = `<div class="callout refusal"><strong>${escapeText(error.message)}</strong></div>`;
+    });
+  });
+  document.getElementById("load-profile").addEventListener("click", () => {
+    loadBundledProfile().catch((error) => {
+      setProfileNote(error.message);
+    });
+  });
+  document.getElementById("profile-file").addEventListener("change", (event) => {
+    const chosen = event.target.files && event.target.files[0];
+    if (!chosen) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result || ""));
+        if (!parsed || !parsed.codon_usage) {
+          setProfileNote("That file has no codon_usage object. The bundled table is the shape this page expects.");
+          return;
+        }
+        loadedProfile = parsed;
+        setProfileNote(`Loaded ${chosen.name}.`);
+        syncRequest();
+      } catch (error) {
+        setProfileNote("That file is not JSON.");
+      }
+    };
+    reader.readAsText(chosen);
+  });
+  const host = document.getElementById("host-select");
+  const customWrap = document.getElementById("host-custom-wrap");
+  const applyHost = () => {
+    customWrap.hidden = host.value !== "custom";
+    syncRequest();
+  };
+  host.addEventListener("change", applyHost);
+  document.getElementById("host-custom").addEventListener("input", syncRequest);
+  applyHost();
+  document.getElementById("constraint-mode").addEventListener("change", () => {
+    if (document.getElementById("constraint-mode").value === "example") {
+      loadExampleConstraints().catch((error) => {
+        document.getElementById("cds-note").textContent = error.message;
+      });
+    }
+    showConstraintMode();
+  });
+  document.getElementById("load-constraints").addEventListener("click", () => {
+    document.getElementById("constraint-mode").value = "json";
+    loadExampleConstraints()
+      .then(() => {
+        document.getElementById("constraint-json").readOnly = false;
+      })
+      .catch((error) => {
+        submitError.innerHTML = `<div class="callout refusal"><strong>${escapeText(error.message)}</strong></div>`;
+      });
+  });
+  ["constraint-bsai", "constraint-bsmbi", "constraint-homo", "constraint-gc", "constraint-homo-run", "constraint-gc-window", "constraint-gc-min", "constraint-gc-max", "constraint-json", "obj-cai", "obj-gc", "obj-violation", "obj-structure", "budget", "generations", "seed", "translation-table", "flank-5", "flank-3"].forEach((id) => {
+    const node = document.getElementById(id);
+    if (!node) return;
+    node.addEventListener("input", syncRequest);
+    node.addEventListener("change", syncRequest);
+  });
+  document.getElementById("edit-json").addEventListener("change", (event) => {
+    requestInput.readOnly = !event.target.checked;
+    if (!event.target.checked) syncRequest();
+  });
+  document.getElementById("load-primer-demo").addEventListener("click", () => {
+    fetch("/examples/rpsL.cds")
+      .then((response) => {
+        if (!response.ok) throw new Error("The rpsL sequence could not be loaded.");
+        return response.text();
+      })
+      .then((text) => {
+        primerSequence.value = text.trim();
+        document.getElementById("primer-flank").value = "40";
+        selection = { start: 40, end: 300 };
+        drawViewer();
+      })
+      .catch((error) => {
+        document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>${escapeText(error.message)}</strong></div>`;
+      });
+  });
+  document.getElementById("select-all").addEventListener("click", () => {
+    const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+    if (!sequence) {
+      document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>Paste a template first.</strong> <span class="note">Or load the rpsL sequence.</span></div>`;
+      return;
+    }
+    selection = { start: 0, end: sequence.length };
+    drawViewer();
+  });
+  ["region-start", "region-end"].forEach((id) => {
+    document.getElementById(id).addEventListener("change", selectionFromFields);
+  });
+  showConstraintMode();
+  refreshSequenceNote();
+  loadBundledProfile().catch((error) => setProfileNote(error.message));
+}
+
+bindGuide();

@@ -7,6 +7,6 @@ Declared dependencies: cf-types, cf-orchestrator, cf-active, cf-modelreg.
 Contract: planning/04-api/openapi.yaml
 """
 
-from codonforge.api.server import Api, serve
+from codonforge.api.server import Api, run_page, serve
 
-__all__ = ["Api", "serve"]
+__all__ = ["Api", "run_page", "serve"]
