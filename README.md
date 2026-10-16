@@ -46,6 +46,38 @@ python -m codonforge.cli.main design \
     --output explain
 ```
 
+### Open the page
+
+CodonForge and PrimerForge are one page. From a checkout, after `make setup`
+and `make build`:
+
+```sh
+.venv/bin/python -m codonforge.api
+```
+
+The process listens on port 8000, opens a browser at the page, and waits until
+Ctrl+C. `--no-browser` skips the window. `--port` chooses a different port;
+8000 is the default.
+
+On Windows, in PowerShell, from the repository directory:
+
+```powershell
+.\.venv\Scripts\python.exe -m codonforge.api
+```
+
+Ctrl+C stops it. The same module command works on macOS and Linux when
+`python` is the environment you installed into, including after a wheel
+install:
+
+```sh
+python -m codonforge.api
+```
+
+The form pastes or uploads a coding sequence, takes the host, and can load
+the bundled ribosomal usage table in one click. The rpsL demo fills the
+sequence, that table, and the example constraints. A result can be copied or
+saved as FASTA, GenBank, or CSV. PrimerForge is the other tab on the same page.
+
 ### 1. Build from a checkout
 
 CodonForge is a Rust core with a Python extension, so a build needs both

@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.5.0
+
+The DNA Design Suite page is a guided form for people who are not
+programmers. The API routes are the same ones as v2.4.2.
+
+CodonForge asks for a coding sequence (paste or FASTA upload), a host, a
+codon-usage table, optional constraints, and objectives, then runs. The
+bundled `examples/mg1655_ribosomal_usage.json` is a button, and it loads on
+its own when the page opens. The rpsL demo fills the CDS, that table, and
+`examples/rpsL_constraints.json`. Budget, generations, seed, and the access
+token start on the values of that demo (fast, 4, 7, and a local token) and
+sit under Advanced. CAI is the objective already ticked.
+
+While a job runs, each search stage keeps its own row. A finished job shows
+the sequence, the scores taken from the front document, whether
+`constraint_report.feasible` is true or false, and each warning with its
+code, stage, and subject plus a sentence on what to do. UNKNOWN stays the
+word UNKNOWN. FASTA, GenBank, and CSV are downloaded from that document.
+`CF-*` refusals, including Phase 1 routes that answer `CF-CLI-003`, name a
+next step instead of leaving the reader with the JSON alone.
+
+PrimerForge is the other tab. A region can be dragged, typed as a start and
+end, or set to the whole sequence. The same helix, tokens, and typefaces are
+used on both tabs.
+
+The page is started with `python -m codonforge.api`. It binds port 8000,
+opens a browser, and blocks until Ctrl+C. README has the PowerShell command
+as well as the macOS and Linux one.
+
+The CAI gate claim is unchanged from v2.4.2.
+
 ## v2.4.2
 
 `GATE-BEN-001` is claimed on 48 of 50 proteins. The claim is the CAI-only
