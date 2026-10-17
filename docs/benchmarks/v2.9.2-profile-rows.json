@@ -1,0 +1,2325 @@
+{
+  "seed": 7,
+  "host": "escherichia_coli:511145/BL21",
+  "suite": "all",
+  "rows": [
+    {
+      "state": "succeeded",
+      "wall_s": 0.5391357769999559,
+      "peak_rss_kb": 48880,
+      "nt": 7077,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 4.1e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001033,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 9.3e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.060276,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.010886,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000219,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 9625,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "yeeJ CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.3339351719998831,
+      "peak_rss_kb": 46112,
+      "nt": 4029,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 4.4e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000757,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 9e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.048038,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.006971,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000139,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 6591,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "rpoB CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.2516743999999562,
+      "peak_rss_kb": 45432,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.8e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000593,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 5.7e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.021972,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.006057,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.00012,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 5639,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "lacZ CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.07373432999997931,
+      "peak_rss_kb": 44420,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 2.8e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000331,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 3.8e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.005506,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.00164,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 6.5e-05,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 3498,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "waaS CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.04357570599995597,
+      "peak_rss_kb": 44248,
+      "nt": 306,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000248,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 3.4e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.002319,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.001119,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 4.6e-05,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 2865,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "elp CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.045318407999957344,
+      "peak_rss_kb": 44216,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 2.9e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000317,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 3.5e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.002803,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.001224,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 6.3e-05,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 2937,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "rpsL CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.16890500099998462,
+      "peak_rss_kb": 44732,
+      "nt": 1968,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.3e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.00045,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 4.4e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.014274,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.004177,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000109,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 4530,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "yagF CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.1316048389999196,
+      "peak_rss_kb": 44480,
+      "nt": 1602,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.3e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000423,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 4.5e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.010643,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.002957,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 8.4e-05,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 4148,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "aceB CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.20158194500004356,
+      "peak_rss_kb": 44824,
+      "nt": 2463,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.4e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000515,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 5e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.017865,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.005036,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000101,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 5010,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "thrA CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 3.047508447999917,
+      "peak_rss_kb": 52884,
+      "nt": 7077,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.008363,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001437,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 0.000123,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.144158,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 1.772116,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.288539,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.369721,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9580065306093907
+      ],
+      "front_bytes": 54865,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "yeeJ CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 2.0573929230001795,
+      "peak_rss_kb": 50068,
+      "nt": 4029,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.005612,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001122,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 0.000103,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.079866,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 1.584678,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.050027,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.059577,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9798209521813181
+      ],
+      "front_bytes": 18070,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "rpoB CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.6456582609998804,
+      "peak_rss_kb": 47476,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.004845,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000911,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 9e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.057955,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.281972,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.034337,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.042384,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9516318473376221
+      ],
+      "front_bytes": 17055,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "lacZ CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.1545968929999617,
+      "peak_rss_kb": 44644,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.002927,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000672,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 7.5e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.019188,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.043646,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.006827,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.01272,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9173459052341191
+      ],
+      "front_bytes": 13947,
+      "status_bytes": 1835,
+      "protein_identical": true,
+      "name": "waaS CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.09886768399996981,
+      "peak_rss_kb": 44356,
+      "nt": 306,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.000975,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000533,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 6.5e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.004846,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.044383,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.003166,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.005012,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.43802555520567116
+      ],
+      "front_bytes": 17701,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "elp CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.059604583999998795,
+      "peak_rss_kb": 44276,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.000598,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000525,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 6.6e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.006619,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.007062,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.001617,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000483,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9866866273575934
+      ],
+      "front_bytes": 3544,
+      "status_bytes": 1834,
+      "protein_identical": true,
+      "name": "rpsL CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.4334758799998326,
+      "peak_rss_kb": 45484,
+      "nt": 1968,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.005721,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000882,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 8.2e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.040703,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.18484,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.021757,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.026784,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9286425884184984
+      ],
+      "front_bytes": 15042,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "yagF CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.7014560340001026,
+      "peak_rss_kb": 46484,
+      "nt": 4029,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 4.1e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000854,
+          "calls": 7
+        },
+        "constraint_unsearched": {
+          "seconds": 6.4e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.039574,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.109561,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000138,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0,
+        0.6171608892818251
+      ],
+      "front_bytes": 11657,
+      "status_bytes": 1417,
+      "protein_identical": true,
+      "name": "rpoB CAI+burden empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.25744091999990815,
+      "peak_rss_kb": 45148,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.003001,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000854,
+          "calls": 7
+        },
+        "constraint_unsearched": {
+          "seconds": 7.7e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.021084,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.043531,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.057754,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.012809,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9173459052341191,
+        0.5636056357592945
+      ],
+      "front_bytes": 15918,
+      "status_bytes": 1918,
+      "protein_identical": true,
+      "name": "waaS CAI+burden assembly",
+      "suite": "stages"
+    },
+    {
+      "wall_s": 1.7758373530000426,
+      "peak_rss_kb": 31152,
+      "nt": 7077,
+      "feasible": true,
+      "edits": 527,
+      "cycles": 2,
+      "cds_sha256": "686adf6a7ed03ac848270c94afbb9f7bbfd7873dbf926bc03390001d80eb9b4c",
+      "state": "succeeded",
+      "name": "seed yeeJ",
+      "suite": "seed",
+      "rust_profile": [
+        {
+          "name": "gc_sweeps",
+          "calls": 2,
+          "seconds": 0.017842
+        },
+        {
+          "name": "fix_patterns",
+          "calls": 4,
+          "seconds": 0.010951
+        },
+        {
+          "name": "fix_kmers",
+          "calls": 3,
+          "seconds": 0.50359
+        },
+        {
+          "name": "fix_kmer_pairs",
+          "calls": 1,
+          "seconds": 0.0
+        },
+        {
+          "name": "polish",
+          "calls": 3,
+          "seconds": 0.509732
+        },
+        {
+          "name": "ascend",
+          "calls": 1,
+          "seconds": 0.754759
+        },
+        {
+          "name": "homo_touching",
+          "calls": 34064,
+          "seconds": 0.001886
+        },
+        {
+          "name": "gc_delta",
+          "calls": 50181,
+          "seconds": 0.026299
+        },
+        {
+          "name": "prefix_update",
+          "calls": 25545,
+          "seconds": 0.149511
+        },
+        {
+          "name": "pattern_count",
+          "calls": 7238,
+          "seconds": 0.439445
+        },
+        {
+          "name": "pattern_violations",
+          "calls": 4,
+          "seconds": 0.000302
+        },
+        {
+          "name": "is_feasible",
+          "calls": 448,
+          "seconds": 1.048499
+        },
+        {
+          "name": "hot_codons",
+          "calls": 3,
+          "seconds": 0.003059
+        },
+        {
+          "name": "kmer_replace",
+          "calls": 25545,
+          "seconds": 0.047236
+        },
+        {
+          "name": "checker_check",
+          "calls": 7690,
+          "seconds": 1.486967
+        }
+      ]
+    },
+    {
+      "wall_s": 1.6029915010001332,
+      "peak_rss_kb": 31152,
+      "nt": 4029,
+      "feasible": true,
+      "edits": 685,
+      "cycles": 2,
+      "cds_sha256": "160aae5887a352527910df72b394f831b42c1a9949a83109e6a5589b37ab958e",
+      "state": "succeeded",
+      "name": "seed rpoB",
+      "suite": "seed",
+      "rust_profile": [
+        {
+          "name": "gc_sweeps",
+          "calls": 5,
+          "seconds": 0.022341
+        },
+        {
+          "name": "fix_patterns",
+          "calls": 9,
+          "seconds": 0.01053
+        },
+        {
+          "name": "fix_kmers",
+          "calls": 5,
+          "seconds": 0.04677
+        },
+        {
+          "name": "fix_kmer_pairs",
+          "calls": 4,
+          "seconds": 0.0
+        },
+        {
+          "name": "polish",
+          "calls": 3,
+          "seconds": 0.849356
+        },
+        {
+          "name": "ascend",
+          "calls": 1,
+          "seconds": 0.715159
+        },
+        {
+          "name": "homo_touching",
+          "calls": 42390,
+          "seconds": 0.002409
+        },
+        {
+          "name": "gc_delta",
+          "calls": 43785,
+          "seconds": 0.022626
+        },
+        {
+          "name": "prefix_update",
+          "calls": 13464,
+          "seconds": 0.049426
+        },
+        {
+          "name": "pattern_count",
+          "calls": 1783,
+          "seconds": 0.067455
+        },
+        {
+          "name": "pattern_violations",
+          "calls": 9,
+          "seconds": 0.000367
+        },
+        {
+          "name": "is_feasible",
+          "calls": 956,
+          "seconds": 1.402576
+        },
+        {
+          "name": "hot_codons",
+          "calls": 5,
+          "seconds": 0.003076
+        },
+        {
+          "name": "kmer_replace",
+          "calls": 13464,
+          "seconds": 0.026673
+        },
+        {
+          "name": "checker_check",
+          "calls": 2748,
+          "seconds": 1.469781
+        }
+      ]
+    },
+    {
+      "wall_s": 0.04608093799993185,
+      "peak_rss_kb": 31152,
+      "nt": 936,
+      "feasible": true,
+      "edits": 90,
+      "cycles": 1,
+      "cds_sha256": "11cdd2fb04a48e29ff284107103ddab0c83e741341b7bf9926fff06d8b90627d",
+      "state": "succeeded",
+      "name": "seed waaS",
+      "suite": "seed",
+      "rust_profile": [
+        {
+          "name": "gc_sweeps",
+          "calls": 1,
+          "seconds": 0.00072
+        },
+        {
+          "name": "fix_patterns",
+          "calls": 2,
+          "seconds": 0.000395
+        },
+        {
+          "name": "fix_kmers",
+          "calls": 1,
+          "seconds": 0.000564
+        },
+        {
+          "name": "fix_kmer_pairs",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "polish",
+          "calls": 3,
+          "seconds": 0.012724
+        },
+        {
+          "name": "ascend",
+          "calls": 1,
+          "seconds": 0.031583
+        },
+        {
+          "name": "homo_touching",
+          "calls": 970,
+          "seconds": 6e-05
+        },
+        {
+          "name": "gc_delta",
+          "calls": 6150,
+          "seconds": 0.00332
+        },
+        {
+          "name": "prefix_update",
+          "calls": 5490,
+          "seconds": 0.00605
+        },
+        {
+          "name": "pattern_count",
+          "calls": 103,
+          "seconds": 0.000706
+        },
+        {
+          "name": "pattern_violations",
+          "calls": 2,
+          "seconds": 1.8e-05
+        },
+        {
+          "name": "is_feasible",
+          "calls": 66,
+          "seconds": 0.022327
+        },
+        {
+          "name": "hot_codons",
+          "calls": 1,
+          "seconds": 0.000141
+        },
+        {
+          "name": "kmer_replace",
+          "calls": 5490,
+          "seconds": 0.008729
+        },
+        {
+          "name": "checker_check",
+          "calls": 171,
+          "seconds": 0.023021
+        }
+      ]
+    },
+    {
+      "wall_s": 0.04767416099980437,
+      "peak_rss_kb": 31152,
+      "nt": 306,
+      "feasible": true,
+      "edits": 111,
+      "cycles": 1,
+      "cds_sha256": "067af67421dbeb2dc933198ea718fd2d9b7e1b11a2e6c9e725dbf0ac2f5c4da9",
+      "state": "succeeded",
+      "name": "seed elp",
+      "suite": "seed",
+      "rust_profile": [
+        {
+          "name": "gc_sweeps",
+          "calls": 1,
+          "seconds": 0.000235
+        },
+        {
+          "name": "fix_patterns",
+          "calls": 1,
+          "seconds": 2e-06
+        },
+        {
+          "name": "fix_kmers",
+          "calls": 2,
+          "seconds": 0.003213
+        },
+        {
+          "name": "fix_kmer_pairs",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "polish",
+          "calls": 3,
+          "seconds": 0.003491
+        },
+        {
+          "name": "ascend",
+          "calls": 1,
+          "seconds": 0.041148
+        },
+        {
+          "name": "homo_touching",
+          "calls": 400,
+          "seconds": 2.1e-05
+        },
+        {
+          "name": "gc_delta",
+          "calls": 15599,
+          "seconds": 0.007789
+        },
+        {
+          "name": "prefix_update",
+          "calls": 15299,
+          "seconds": 0.004605
+        },
+        {
+          "name": "pattern_count",
+          "calls": 557,
+          "seconds": 0.000798
+        },
+        {
+          "name": "pattern_violations",
+          "calls": 1,
+          "seconds": 2e-06
+        },
+        {
+          "name": "is_feasible",
+          "calls": 66,
+          "seconds": 0.006387
+        },
+        {
+          "name": "hot_codons",
+          "calls": 2,
+          "seconds": 8.6e-05
+        },
+        {
+          "name": "kmer_replace",
+          "calls": 15299,
+          "seconds": 0.022472
+        },
+        {
+          "name": "checker_check",
+          "calls": 624,
+          "seconds": 0.007114
+        }
+      ]
+    },
+    {
+      "wall_s": 0.0032383919999574573,
+      "peak_rss_kb": 31152,
+      "region_nt": 1000,
+      "flank": 50,
+      "response_bytes": 54039,
+      "survivors": 72,
+      "truncated": false,
+      "n_pairs": 20,
+      "product_size": 1072,
+      "hetero_dimer_dG": -3.507365,
+      "refused": false,
+      "sha256": "e57132f535a1cb83da6df37df58f5d457c0abc5ce872ebb7fd395c6c73d4e265",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 50",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 472,
+          "seconds": 1.9e-05
+        },
+        {
+          "name": "homopolymer",
+          "calls": 456,
+          "seconds": 2.9e-05
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 456,
+          "seconds": 0.000982
+        },
+        {
+          "name": "product",
+          "calls": 72,
+          "seconds": 2e-06
+        },
+        {
+          "name": "hairpin",
+          "calls": 22,
+          "seconds": 1.1e-05
+        },
+        {
+          "name": "dimer",
+          "calls": 94,
+          "seconds": 0.001082
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.000117
+        }
+      ]
+    },
+    {
+      "wall_s": 0.05724908100000903,
+      "peak_rss_kb": 36952,
+      "region_nt": 1000,
+      "flank": 100,
+      "response_bytes": 52697,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1180,
+      "hetero_dimer_dG": -2.1353599999999986,
+      "refused": false,
+      "sha256": "8c8d3c988daf7eed7ee49681b4f48639500b27eb2b2a31c0ced41d752dcd36f6",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 100",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 1272,
+          "seconds": 5.1e-05
+        },
+        {
+          "name": "homopolymer",
+          "calls": 1256,
+          "seconds": 8.2e-05
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 1116,
+          "seconds": 0.002398
+        },
+        {
+          "name": "product",
+          "calls": 1600,
+          "seconds": 5.7e-05
+        },
+        {
+          "name": "hairpin",
+          "calls": 80,
+          "seconds": 2.2e-05
+        },
+        {
+          "name": "dimer",
+          "calls": 1680,
+          "seconds": 0.021528
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.018729
+        }
+      ]
+    },
+    {
+      "wall_s": 0.0595143680000092,
+      "peak_rss_kb": 33748,
+      "region_nt": 1000,
+      "flank": 200,
+      "response_bytes": 54030,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1249,
+      "hetero_dimer_dG": -2.753985,
+      "refused": false,
+      "sha256": "cc92049d4ea1cc387914362ae2296d978278c280182fe132bf93bca3357e9d80",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 200",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 2872,
+          "seconds": 0.000114
+        },
+        {
+          "name": "homopolymer",
+          "calls": 2740,
+          "seconds": 0.000189
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 2209,
+          "seconds": 0.004804
+        },
+        {
+          "name": "product",
+          "calls": 1600,
+          "seconds": 4.8e-05
+        },
+        {
+          "name": "hairpin",
+          "calls": 80,
+          "seconds": 2.4e-05
+        },
+        {
+          "name": "dimer",
+          "calls": 1680,
+          "seconds": 0.021796
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.019604
+        }
+      ]
+    },
+    {
+      "wall_s": 0.06385840100006135,
+      "peak_rss_kb": 34516,
+      "region_nt": 1000,
+      "flank": 300,
+      "response_bytes": 54213,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1249,
+      "hetero_dimer_dG": -2.753985,
+      "refused": false,
+      "sha256": "e40da98e67dca784b6e1d53d0d6148d561ea0dc7eabef986f58fc67b57d44d07",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 300",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 4472,
+          "seconds": 0.000177
+        },
+        {
+          "name": "homopolymer",
+          "calls": 4279,
+          "seconds": 0.000298
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 3611,
+          "seconds": 0.007876
+        },
+        {
+          "name": "product",
+          "calls": 1600,
+          "seconds": 5e-05
+        },
+        {
+          "name": "hairpin",
+          "calls": 80,
+          "seconds": 1.9e-05
+        },
+        {
+          "name": "dimer",
+          "calls": 1680,
+          "seconds": 0.022406
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.019904
+        }
+      ]
+    },
+    {
+      "wall_s": 0.0662843900001917,
+      "peak_rss_kb": 34008,
+      "region_nt": 300,
+      "flank": 300,
+      "response_bytes": 44692,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 822,
+      "hetero_dimer_dG": -1.8601799999999997,
+      "refused": false,
+      "sha256": "04f69cb6ad99fe876e957d922ed5b65fa071c8af6a488b4cd17db28aef89ca7e",
+      "state": "succeeded",
+      "name": "yeeJ region 300 flank 300",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 4472,
+          "seconds": 0.000179
+        },
+        {
+          "name": "homopolymer",
+          "calls": 4197,
+          "seconds": 0.000292
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 3926,
+          "seconds": 0.008466
+        },
+        {
+          "name": "product",
+          "calls": 1600,
+          "seconds": 5.3e-05
+        },
+        {
+          "name": "hairpin",
+          "calls": 80,
+          "seconds": 1.9e-05
+        },
+        {
+          "name": "dimer",
+          "calls": 1680,
+          "seconds": 0.023424
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.020005
+        }
+      ]
+    },
+    {
+      "wall_s": 0.06927194299987605,
+      "peak_rss_kb": 35160,
+      "region_nt": 1000,
+      "flank": 300,
+      "response_bytes": 55621,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1394,
+      "hetero_dimer_dG": -1.7191900000000047,
+      "refused": false,
+      "sha256": "250193a8e2faffcd86ea4866be77b7079e7ffbbf1c1301f519a2fdc40858343a",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 300",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 4472,
+          "seconds": 0.000178
+        },
+        {
+          "name": "homopolymer",
+          "calls": 4379,
+          "seconds": 0.000316
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 4379,
+          "seconds": 0.009786
+        },
+        {
+          "name": "product",
+          "calls": 1600,
+          "seconds": 5.3e-05
+        },
+        {
+          "name": "hairpin",
+          "calls": 80,
+          "seconds": 2.3e-05
+        },
+        {
+          "name": "dimer",
+          "calls": 1680,
+          "seconds": 0.022986
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.020146
+        }
+      ]
+    },
+    {
+      "wall_s": 0.07169026199994732,
+      "peak_rss_kb": 42468,
+      "region_nt": 6477,
+      "flank": 300,
+      "response_bytes": 166429,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 6843,
+      "hetero_dimer_dG": -1.283850000000001,
+      "refused": false,
+      "sha256": "5f1fa115bcefde58d0c3d92a35e7adbc5fcbf04bf78b6efe43bf75f946aa149f",
+      "state": "succeeded",
+      "name": "yeeJ region 6477 flank 300",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 4472,
+          "seconds": 0.000179
+        },
+        {
+          "name": "homopolymer",
+          "calls": 4246,
+          "seconds": 0.000305
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 4063,
+          "seconds": 0.009001
+        },
+        {
+          "name": "product",
+          "calls": 1600,
+          "seconds": 5.1e-05
+        },
+        {
+          "name": "hairpin",
+          "calls": 80,
+          "seconds": 2e-05
+        },
+        {
+          "name": "dimer",
+          "calls": 1680,
+          "seconds": 0.023013
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.020355
+        }
+      ]
+    },
+    {
+      "wall_s": 0.0018280369999956747,
+      "peak_rss_kb": 31152,
+      "region_nt": 295,
+      "flank": 40,
+      "response_bytes": 6837,
+      "survivors": 24,
+      "truncated": false,
+      "n_pairs": 3,
+      "product_size": 371,
+      "hetero_dimer_dG": -3.9297299999999993,
+      "refused": false,
+      "sha256": "ccc17c9e987e654935d0058ab8fdd8c5e8b771f286fb8570bef5748bc751922a",
+      "state": "succeeded",
+      "name": "rpsL whole CDS flank 40",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 312,
+          "seconds": 1.4e-05
+        },
+        {
+          "name": "homopolymer",
+          "calls": 312,
+          "seconds": 2.4e-05
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 312,
+          "seconds": 0.000772
+        },
+        {
+          "name": "product",
+          "calls": 24,
+          "seconds": 1e-06
+        },
+        {
+          "name": "hairpin",
+          "calls": 11,
+          "seconds": 9e-06
+        },
+        {
+          "name": "dimer",
+          "calls": 35,
+          "seconds": 0.000484
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 2.8e-05
+        }
+      ]
+    },
+    {
+      "wall_s": 0.060826092999832326,
+      "peak_rss_kb": 48100,
+      "region_nt": 7077,
+      "flank": 300,
+      "response_bytes": 189505,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 7395,
+      "hetero_dimer_dG": -20.754845000000046,
+      "refused": true,
+      "sha256": "0754bf08ea428a9cbc2cfb26d04fcf509d8f1eb61cd64fd53e1b02a5d502cb25",
+      "state": "succeeded",
+      "name": "yeeJ synthetic flanks",
+      "suite": "primers",
+      "rust_profile": [
+        {
+          "name": "gc",
+          "calls": 4472,
+          "seconds": 0.000175
+        },
+        {
+          "name": "homopolymer",
+          "calls": 4472,
+          "seconds": 0.000164
+        },
+        {
+          "name": "tm_prefilter",
+          "calls": 4472,
+          "seconds": 0.0087
+        },
+        {
+          "name": "product",
+          "calls": 1600,
+          "seconds": 5.8e-05
+        },
+        {
+          "name": "hairpin",
+          "calls": 80,
+          "seconds": 0.000284
+        },
+        {
+          "name": "dimer",
+          "calls": 1680,
+          "seconds": 0.021281
+        },
+        {
+          "name": "pair_tm",
+          "calls": 0,
+          "seconds": 0.0
+        },
+        {
+          "name": "rank",
+          "calls": 1,
+          "seconds": 0.003158
+        }
+      ]
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.29695433500000945,
+      "peak_rss_kb": 44404,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.002694,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.0019,
+          "calls": 24
+        },
+        "constraint_unsearched": {
+          "seconds": 6.7e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.006559,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.006304,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.00171,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 0.267281,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000602,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.985816320550702,
+        2.6050213909252715
+      ],
+      "front_bytes": 14151,
+      "status_bytes": 4049,
+      "protein_identical": true,
+      "folds": {
+        "hits": 12,
+        "full_folds": 3,
+        "local_edits": 10
+      },
+      "name": "rpsL CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 1.3857476240000324,
+      "peak_rss_kb": 44848,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.007429,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.002047,
+          "calls": 23
+        },
+        "constraint_unsearched": {
+          "seconds": 7.2e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.019485,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.043995,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.007762,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 1.280199,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.013196,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9096294894349499,
+        1.7845726655476362
+      ],
+      "front_bytes": 30198,
+      "status_bytes": 4062,
+      "protein_identical": true,
+      "folds": {
+        "hits": 14,
+        "full_folds": 2,
+        "local_edits": 16
+      },
+      "name": "waaS CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.6501474720000715,
+      "peak_rss_kb": 44416,
+      "nt": 306,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.002712,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.001317,
+          "calls": 17
+        },
+        "constraint_unsearched": {
+          "seconds": 6.4e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.004729,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.044007,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.002552,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 0.579549,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.005251,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.4236181040759199,
+        3.3760051578497814
+      ],
+      "front_bytes": 24067,
+      "status_bytes": 3574,
+      "protein_identical": true,
+      "folds": {
+        "hits": 16,
+        "full_folds": 6,
+        "local_edits": 2
+      },
+      "name": "elp CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 2.203829598000084,
+      "peak_rss_kb": 47148,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.019384,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.003263,
+          "calls": 24
+        },
+        "constraint_unsearched": {
+          "seconds": 9.2e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.058243,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.267011,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.034024,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 1.763124,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.043865,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9497890800680886,
+        2.7181800037278987
+      ],
+      "front_bytes": 54914,
+      "status_bytes": 4059,
+      "protein_identical": true,
+      "folds": {
+        "hits": 15,
+        "full_folds": 1,
+        "local_edits": 18
+      },
+      "name": "lacZ CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 5.855158827999958,
+      "peak_rss_kb": 53384,
+      "nt": 7077,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.038193,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.004699,
+          "calls": 23
+        },
+        "constraint_unsearched": {
+          "seconds": 0.000137,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.146413,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 1.778773,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.286503,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 3.201752,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.379075,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9575892496987667,
+        2.408954059933615
+      ],
+      "front_bytes": 132593,
+      "status_bytes": 4067,
+      "protein_identical": true,
+      "folds": {
+        "hits": 12,
+        "full_folds": 1,
+        "local_edits": 21
+      },
+      "name": "yeeJ CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "wall_s": 0.3331142689999069,
+      "peak_rss_kb": 44564,
+      "nt": [
+        375,
+        936
+      ],
+      "joint_growth_cost": 0.4475618327684962,
+      "swaps_per_pass": [
+        22,
+        0
+      ],
+      "state": "succeeded",
+      "name": "operon rpsL+waaS",
+      "suite": "operon"
+    },
+    {
+      "wall_s": 1.6777417429998422,
+      "peak_rss_kb": 45540,
+      "nt": [
+        3075,
+        2463
+      ],
+      "joint_growth_cost": 0.4452346719259927,
+      "swaps_per_pass": [
+        26,
+        0
+      ],
+      "state": "succeeded",
+      "name": "operon lacZ+thrA",
+      "suite": "operon"
+    },
+    {
+      "kind": "yeeJ-assembly",
+      "measured": {
+        "state": "succeeded",
+        "wall_s": 3.0592401000001246,
+        "peak_rss_kb": 53532,
+        "nt": 7077,
+        "vector": [
+          0.9580065306093907
+        ],
+        "front_bytes": 54865,
+        "status_bytes": 1836,
+        "protein_identical": true
+      },
+      "top": [
+        {
+          "function": "_design",
+          "file": "profile_suite.py",
+          "line": 121,
+          "calls": 1,
+          "cumulative_s": 3.2876995900000003
+        },
+        {
+          "function": "design",
+          "file": "design.py",
+          "line": 183,
+          "calls": 1,
+          "cumulative_s": 3.0589857030000003
+        },
+        {
+          "function": "inner",
+          "file": "profile_suite.py",
+          "line": 94,
+          "calls": 14,
+          "cumulative_s": 2.585202439
+        },
+        {
+          "function": "run",
+          "file": "job.py",
+          "line": 267,
+          "calls": 1,
+          "cumulative_s": 2.218797935
+        },
+        {
+          "function": "_run_seeding_tiers",
+          "file": "job.py",
+          "line": 702,
+          "calls": 1,
+          "cumulative_s": 2.2187365690000003
+        },
+        {
+          "function": "_repair_seed",
+          "file": "job.py",
+          "line": 788,
+          "calls": 1,
+          "cumulative_s": 1.777816674
+        },
+        {
+          "function": "<built-in method codonforge._core.resolve_feasible_seed>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 1.774157251
+        },
+        {
+          "function": "_front",
+          "file": "design.py",
+          "line": 449,
+          "calls": 1,
+          "cumulative_s": 0.8355735190000001
+        },
+        {
+          "function": "annotate",
+          "file": "structure_diag.py",
+          "line": 232,
+          "calls": 1,
+          "cumulative_s": 0.460961573
+        },
+        {
+          "function": "evaluate",
+          "file": "structure_diag.py",
+          "line": 165,
+          "calls": 1,
+          "cumulative_s": 0.449157903
+        },
+        {
+          "function": "evaluate",
+          "file": "structure_diag.py",
+          "line": 97,
+          "calls": 1,
+          "cumulative_s": 0.449148525
+        },
+        {
+          "function": "_one",
+          "file": "structure_diag.py",
+          "line": 138,
+          "calls": 1,
+          "cumulative_s": 0.44913675700000005
+        },
+        {
+          "function": "prime",
+          "file": "cache.py",
+          "line": 83,
+          "calls": 1,
+          "cumulative_s": 0.44576183300000005
+        },
+        {
+          "function": "local_accessibility",
+          "file": "viennarna.py",
+          "line": 80,
+          "calls": 1,
+          "cumulative_s": 0.445476576
+        },
+        {
+          "function": "pfl_fold_up",
+          "file": "RNA.py",
+          "line": 9952,
+          "calls": 1,
+          "cumulative_s": 0.443731225
+        }
+      ],
+      "state": "succeeded",
+      "name": "yeeJ-assembly",
+      "suite": "cprofile"
+    },
+    {
+      "kind": "primer-yeeJ",
+      "measured": {
+        "wall_s": 0.06927722000000358,
+        "peak_rss_kb": 47892,
+        "region_nt": 6477,
+        "flank": 300,
+        "response_bytes": 166429,
+        "survivors": 1600,
+        "truncated": true,
+        "n_pairs": 20,
+        "product_size": 6843,
+        "hetero_dimer_dG": -1.283850000000001,
+        "refused": false,
+        "sha256": "5f1fa115bcefde58d0c3d92a35e7adbc5fcbf04bf78b6efe43bf75f946aa149f"
+      },
+      "top": [
+        {
+          "function": "_primer",
+          "file": "profile_suite.py",
+          "line": 207,
+          "calls": 1,
+          "cumulative_s": 0.070030333
+        },
+        {
+          "function": "<built-in method codonforge._core.primer_search>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 0.06922052100000001
+        },
+        {
+          "function": "loads",
+          "file": "__init__.py",
+          "line": 299,
+          "calls": 1,
+          "cumulative_s": 0.00041366000000000005
+        },
+        {
+          "function": "decode",
+          "file": "decoder.py",
+          "line": 332,
+          "calls": 1,
+          "cumulative_s": 0.00039757000000000003
+        },
+        {
+          "function": "raw_decode",
+          "file": "decoder.py",
+          "line": 343,
+          "calls": 1,
+          "cumulative_s": 0.000376146
+        },
+        {
+          "function": "<method 'encode' of 'str' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 2,
+          "cumulative_s": 0.000171724
+        },
+        {
+          "function": "<built-in method _hashlib.openssl_sha256>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 9.887000000000001e-05
+        },
+        {
+          "function": "dumps",
+          "file": "__init__.py",
+          "line": 183,
+          "calls": 1,
+          "cumulative_s": 4.3257e-05
+        },
+        {
+          "function": "encode",
+          "file": "encoder.py",
+          "line": 183,
+          "calls": 1,
+          "cumulative_s": 4e-05
+        },
+        {
+          "function": "iterencode",
+          "file": "encoder.py",
+          "line": 205,
+          "calls": 1,
+          "cumulative_s": 3.1438e-05
+        },
+        {
+          "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 2.0583000000000003e-05
+        },
+        {
+          "function": "_rss_kb",
+          "file": "profile_suite.py",
+          "line": 84,
+          "calls": 1,
+          "cumulative_s": 1.4370000000000001e-05
+        },
+        {
+          "function": "<method 'match' of 're.Pattern' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 2,
+          "cumulative_s": 6.7650000000000005e-06
+        },
+        {
+          "function": "<lambda>",
+          "file": "profile_suite.py",
+          "line": 227,
+          "calls": 43,
+          "cumulative_s": 6.367e-06
+        },
+        {
+          "function": "<built-in method resource.getrusage>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 5.939e-06
+        }
+      ],
+      "state": "succeeded",
+      "name": "primer-yeeJ",
+      "suite": "cprofile"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.5133720880000965,
+      "peak_rss_kb": 47792,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 6.2e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000679,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 8e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.020447,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.113194,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000108,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9303092945130915,
+        -0.5887977805472148
+      ],
+      "front_bytes": 9390,
+      "status_bytes": 1428,
+      "protein_identical": true,
+      "name": "rpsL CAI+Potts",
+      "suite": "potts"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.7304720729998735,
+      "peak_rss_kb": 47776,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 4.6e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.00079,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 4.7e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.042108,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.308269,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000233,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9593146794501609,
+        -0.5143818504117195
+      ],
+      "front_bytes": 17453,
+      "status_bytes": 1428,
+      "protein_identical": true,
+      "name": "waaS CAI+Potts",
+      "suite": "potts"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 4.378502028999947,
+      "peak_rss_kb": 48884,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 5.5e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001625,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 7e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.439613,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 3.400608,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.00202,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.8859755189212043,
+        -0.5677755453484393
+      ],
+      "front_bytes": 83644,
+      "status_bytes": 1428,
+      "protein_identical": true,
+      "name": "lacZ CAI+Potts",
+      "suite": "potts"
+    }
+  ]
+}

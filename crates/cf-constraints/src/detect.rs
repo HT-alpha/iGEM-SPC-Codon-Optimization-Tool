@@ -350,6 +350,25 @@ impl ConstraintChecker {
         violations
     }
 
+    /// Motif, regex, and homopolymer violations, in the same order as [`Self::check`].
+    ///
+    /// GC windows and k-mer repeats are not pattern rules. Seed repair asks for
+    /// this subset thousands of times per gene; building a k-mer index on each
+    /// of those calls does not change the filtered result and dominates the
+    /// assembly-constraint seed. The subset of [`Self::check`] whose rules are
+    /// `forbidden_motif`, `restriction_site`, `codon_ban`, `custom_regex`, or
+    /// `homopolymer` is exactly this list.
+    pub fn check_patterns(&self, view: &ConstructView) -> Vec<Violation> {
+        let mut violations = Vec::new();
+        self.check_motifs(view, &mut violations);
+        self.check_regex(view, &mut violations);
+        self.check_homopolymers(view, &mut violations);
+        violations.sort_by(|a, b| {
+            (a.start_nt, a.end_nt, &a.constraint_id).cmp(&(b.start_nt, b.end_nt, &b.constraint_id))
+        });
+        violations
+    }
+
     /// Whether this candidate is buildable: no blocking violation the search
     /// could act on.
     ///

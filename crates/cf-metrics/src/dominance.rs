@@ -110,22 +110,21 @@ pub fn constraint_dominance(left: &Ranked, right: &Ranked) -> Dominance {
     if left.has_unknown() || right.has_unknown() {
         return Dominance::Neither;
     }
-    pareto_dominance(&known(&left.objectives), &known(&right.objectives))
-}
-
-fn known(objectives: &[Option<f64>]) -> Vec<f64> {
-    objectives
-        .iter()
-        .map(|v| v.expect("screened above"))
-        .collect()
+    // The values are known. Comparing them in place is the same `<` walk as
+    // copying both vectors out first; the copy was one allocation per
+    // comparison, and a 1 600-pair primer front does about 1.3 million of
+    // those.
+    pareto_dominance(&left.objectives, &right.objectives)
 }
 
 /// Pareto comparison over fully-known, minimized objectives.
-fn pareto_dominance(left: &[f64], right: &[f64]) -> Dominance {
+fn pareto_dominance(left: &[Option<f64>], right: &[Option<f64>]) -> Dominance {
     let mut left_better = false;
     let mut right_better = false;
 
-    for (&a, &b) in left.iter().zip(right.iter()) {
+    for (a, b) in left.iter().zip(right.iter()) {
+        let a = a.expect("screened above");
+        let b = b.expect("screened above");
         if a < b {
             left_better = true;
         } else if b < a {

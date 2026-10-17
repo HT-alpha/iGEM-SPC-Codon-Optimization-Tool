@@ -1,5 +1,26 @@
 # Changelog
 
+## v2.9.2
+
+DNA Design Suite note for this tree. The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0. The profile and the
+ranked backlog are `docs/benchmarks/v2.9.2-profiles.md`.
+
+Seed repair under the assembly rules was scanning the whole CDS, including a
+fresh 12-mer index, on every pattern trial. yeeJ (7077 nt, seed 7, ribosomal
+weights, generations 0) went from 20.814 s to 3.048 s for the design and from
+19.983 s to 1.772 s for `resolve_feasible_seed`. The CDS is unchanged
+(SHA-256 `686adf6a7ed03ac848270c94afbb9f7bbfd7873dbf926bc03390001d80eb9b4c`)
+and the CAI vector is still `[0.9580065306093907]`. rpoB seed went from
+4.790 s to 1.585 s, same vector `[0.9798209521813181]`. The homopolymer
+tie-break is a local delta; 34064 full scans on yeeJ went from 0.815 s to
+0.002 s.
+
+Primer search computes hairpin, self-dimer, and Tm once per oligo, and the
+Pareto comparison no longer allocates a copy of each objective vector. A
+capped yeeJ search (flank 300, 1600 pairs) went from 0.143 s to 0.064 s.
+The 300 nt CDS-flank document is the same bytes.
+
 ## v2.9.1
 
 DNA Design Suite note for this tree: CodonForge and PrimerForge share one
