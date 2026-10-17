@@ -1454,9 +1454,7 @@ impl<'a> Solver<'a> {
             SEED_PROFILE.kmer_replace.record(kmer_started);
         }
         let prefix_started = seed_profile_on().then(Instant::now);
-        for pos in at..self.nt.len() {
-            self.prefix[pos + 1] = self.prefix[pos] + gc_bit(self.nt[pos]);
-        }
+        self.shift_prefix(at, old, bases);
         if let Some(prefix_started) = prefix_started {
             SEED_PROFILE.prefix.record(prefix_started);
         }
@@ -1511,6 +1509,34 @@ impl<'a> Solver<'a> {
             }
         }
         delta
+    }
+
+    /// Keep `prefix` equal to a rebuild from `nt`.
+    ///
+    /// The three edited bases are rewritten from the entry before them. Every
+    /// later entry is the count through those bases plus the untouched suffix,
+    /// so it moves by one integer: the new codon's GC count minus the old
+    /// one's. A codon whose GC count does not change leaves the tail alone,
+    /// including when the GC moves from one base of the codon to another; the
+    /// three-base rewrite still records that. Counts stay exact integers.
+    fn shift_prefix(&mut self, at: usize, old: Codon, bases: [u8; 3]) {
+        let old_bases = old.to_bytes();
+        let mut delta = 0i32;
+        for offset in 0..3 {
+            delta += gc_bit(bases[offset]) as i32 - gc_bit(old_bases[offset]) as i32;
+        }
+        let mut running = self.prefix[at];
+        for offset in 0..3 {
+            running += gc_bit(self.nt[at + offset]);
+            self.prefix[at + 1 + offset] = running;
+        }
+        if delta != 0 {
+            for slot in at + 4..=self.nt.len() {
+                let next = self.prefix[slot] as i32 + delta;
+                debug_assert!(next >= 0, "gc prefix went negative");
+                self.prefix[slot] = next as u32;
+            }
+        }
     }
 
     fn recompute_gc(&mut self) {
@@ -2894,6 +2920,77 @@ mod tests {
             }
         }
         counts
+    }
+
+    /// A GC-changing edit shifts every later prefix entry by the same integer,
+    /// and a GC-neutral edit that moves GC inside the codon does not. Either
+    /// mistake leaves a prefix that disagrees with a rebuild.
+    #[test]
+    fn gc_prefix_tail_matches_a_full_rebuild() {
+        let compiled = checker(vec![(
+            "c_gc",
+            Rule::GcWindow {
+                window_nt: 12,
+                min: 0.0,
+                max: 1.0,
+            },
+        )]);
+        let cds = format!("ATG{}TAA", "CTG".repeat(40));
+        let sequence = CodonSequence::from_cds(&cds, 11).unwrap();
+        let weights = weights_one();
+        let mut solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
+        assert_eq!(solver.prefix, gc_prefix(&solver.nt));
+        let index = 20;
+        let find = |solver: &Solver<'_>, bases: &[u8; 3]| {
+            solver
+                .seq
+                .synonyms_at(index)
+                .iter()
+                .copied()
+                .find(|codon| codon.to_bytes() == *bases)
+                .unwrap()
+        };
+        // CTG (GC 2) -> TTA (GC 0). The tail has to move.
+        let tta = find(&solver, b"TTA");
+        solver.set_codon(index, tta).unwrap();
+        assert_eq!(
+            solver.prefix,
+            gc_prefix(&solver.nt),
+            "tail after CTG -> TTA"
+        );
+        // TTA (0,0,0) -> CTT (1,0,0) is not neutral. CTT (1,0,0) -> TTG (0,0,1)
+        // keeps the codon GC count at 1 and moves it to the last base.
+        let ctt = find(&solver, b"CTT");
+        solver.set_codon(index, ctt).unwrap();
+        let ttg = find(&solver, b"TTG");
+        solver.set_codon(index, ttg).unwrap();
+        assert_eq!(
+            solver.prefix,
+            gc_prefix(&solver.nt),
+            "prefix after GC moved inside the codon"
+        );
+        let positions = solver.seq.codon_count();
+        let mut state = 0xC0FF_EE00_1234_ABCD_u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for step in 0..80 {
+            let at = (next() as usize) % positions;
+            if solver.seq.is_locked(at) {
+                continue;
+            }
+            let synonyms = solver.seq.synonyms_at(at).to_vec();
+            let codon = synonyms[(next() as usize) % synonyms.len()];
+            solver.set_codon(at, codon).unwrap();
+            assert_eq!(
+                solver.prefix,
+                gc_prefix(&solver.nt),
+                "step {step} codon {at}"
+            );
+        }
     }
 
     /// The explanation `explain_deviations` used to build: one full check, then
