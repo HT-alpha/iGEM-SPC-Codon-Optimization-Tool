@@ -662,7 +662,7 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             if method == "GET" and len(parts) == 3:
-                self._send(200, record.status)
+                self._send(200, _primer_payload(record.status, parsed.query))
                 return
             if method == "GET" and len(parts) == 5 and parts[3] == "pair":
                 pair = record.pairs.get(parts[4])
@@ -678,7 +678,7 @@ class Handler(BaseHTTPRequestHandler):
                         problem_body=True,
                     )
                     return
-                self._send(200, pair)
+                self._send(200, _primer_payload(pair, parsed.query))
                 return
         if len(parts) >= 3 and parts[0] == "v1" and parts[1] == "jobs":
             job_id = parts[2]
@@ -754,10 +754,28 @@ class Server(ThreadingHTTPServer):
         self.api = api
 
 
+def _primer_payload(payload: dict[str, Any], query: str) -> dict[str, Any]:
+    """Primer JSON for one response.
+
+    `product_sequence` is omitted unless `?product_sequence=1`. The default
+    is documented on `codonforge.primers.service.wants_product_sequence`.
+    """
+    from codonforge.primers.service import project_primer_payload, wants_product_sequence
+
+    return project_primer_payload(payload, wants_product_sequence(query))
+
+
 def _examples_dir() -> Path:
-    """The checkout's examples/ directory, when this file is the source tree."""
+    """Demo files the page fetches.
+
+    A source checkout uses ``examples/`` at the repo root, so the page and
+    the README read one copy. An installed wheel has no checkout; it serves
+    the copy staged under ``codonforge/api/examples``, which
+    ``tools/stage_wheel_examples.py`` keeps byte-identical.
+    """
     here = Path(__file__).resolve()
-    candidates = [here.parents[3] / "examples", Path.cwd() / "examples"]
+    packaged = here.parent / "examples"
+    candidates = [here.parents[3] / "examples", packaged, Path.cwd() / "examples"]
     for path in candidates:
         if (path / "mg1655_ribosomal_usage.json").is_file():
             return path

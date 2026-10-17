@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "constraint_set_id": "cst_biobrick_rfc10",
+  "name": "BioBrick RFC[10]: EcoRI, XbaI, SpeI, PstI, and NotI forbidden on both strands",
+  "constraints": [
+    {
+      "id": "c_ecori",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "EcoRI", "site": "GAATTC", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_xbai",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "XbaI", "site": "TCTAGA", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_spei",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "SpeI", "site": "ACTAGT", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_psti",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "PstI", "site": "CTGCAG", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_noti",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "NotI", "site": "GCGGCCGC", "strand": "both", "max_occurrences": 0}
+    }
+  ],
+  "repair_policy": {}
+}

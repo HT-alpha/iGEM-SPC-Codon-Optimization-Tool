@@ -28,6 +28,8 @@
 //! per-individual indices `0..N` are exactly the index space the generation
 //! loop already uses off the job root.
 
+use std::time::Instant;
+
 use cf_landscape_api::batch::{BatchProtocol, BatchResults};
 
 use crate::rationing::{Observation, Rationer};
@@ -409,6 +411,80 @@ pub fn seed_population(seeds: &[Genotype], request: &Tier3Request<'_>) -> Result
     })
 }
 
+/// Inclusive phase timings for `CF_TIER3_PROFILE=1`.
+///
+/// Printed once per `run_generations` call. Each counter is the time that
+/// phase spent inside this loop, including the functions it calls. The L0
+/// counter includes the one Python crossing per generation.
+struct LoopProfile {
+    enabled: bool,
+    breed_check_ns: u128,
+    breed_checks: u64,
+    feasibility_gate_ns: u128,
+    feasibility_gates: u64,
+    repair_ns: u128,
+    repair_calls: u64,
+    evaluate_ns: u128,
+    evaluate_calls: u64,
+    l0_ns: u128,
+    l0_calls: u64,
+    select_ns: u128,
+    select_calls: u64,
+    hypervolume_ns: u128,
+    hypervolume_calls: u64,
+}
+
+impl LoopProfile {
+    fn new() -> Self {
+        Self {
+            enabled: std::env::var_os("CF_TIER3_PROFILE").is_some(),
+            breed_check_ns: 0,
+            breed_checks: 0,
+            feasibility_gate_ns: 0,
+            feasibility_gates: 0,
+            repair_ns: 0,
+            repair_calls: 0,
+            evaluate_ns: 0,
+            evaluate_calls: 0,
+            l0_ns: 0,
+            l0_calls: 0,
+            select_ns: 0,
+            select_calls: 0,
+            hypervolume_ns: 0,
+            hypervolume_calls: 0,
+        }
+    }
+
+    fn dump(&self) {
+        if !self.enabled {
+            return;
+        }
+        let row = |name: &str, calls: u64, ns: u128| {
+            format!(
+                "{{\"name\":\"{name}\",\"calls\":{calls},\"seconds\":{:.6}}}",
+                ns as f64 / 1e9
+            )
+        };
+        eprintln!(
+            "CF_TIER3_PROFILE {}",
+            [
+                row("breed_check", self.breed_checks, self.breed_check_ns),
+                row(
+                    "feasibility_gate",
+                    self.feasibility_gates,
+                    self.feasibility_gate_ns
+                ),
+                row("repair", self.repair_calls, self.repair_ns),
+                row("evaluate", self.evaluate_calls, self.evaluate_ns),
+                row("l0_batch", self.l0_calls, self.l0_ns),
+                row("select", self.select_calls, self.select_ns),
+                row("hypervolume", self.hypervolume_calls, self.hypervolume_ns),
+            ]
+            .join(",")
+        );
+    }
+}
+
 /// Advance `generations` complete generations. `M ≤ 3` path.
 pub fn run_generations(
     checkpoint: &Tier3Checkpoint,
@@ -442,6 +518,7 @@ pub fn run_generations(
     let mut evaluations = checkpoint.evaluations;
     let mut repairs_attempted = checkpoint.repairs_attempted;
     let mut repairs_succeeded = checkpoint.repairs_succeeded;
+    let mut profile = LoopProfile::new();
 
     let first = checkpoint.generation;
     // The cap is a bound on the *run*, not on the segment, and it is applied
@@ -483,11 +560,17 @@ pub fn run_generations(
                     request.root_seed,
                     10_000_000 + u64::from(generation) * 1_000 + index as u64,
                 );
-                let choice = repair_child(genome, request, &mut ledger, &mut repair_rng)?;
+                let choice =
+                    repair_child(genome, request, &mut ledger, &mut repair_rng, &mut profile)?;
                 repairs_attempted += choice.attempted;
                 repairs_succeeded += choice.succeeded;
                 if choice.succeeded > 0 {
+                    let started = profile.enabled.then(Instant::now);
                     let mut scored = evaluate_one(choice.phenotype, request)?;
+                    if let Some(started) = started {
+                        profile.evaluate_ns += started.elapsed().as_nanos();
+                        profile.evaluate_calls += 1;
+                    }
                     scored.inherited = members[index].inherited.clone();
                     members[index] = scored;
                 }
@@ -514,13 +597,21 @@ pub fn run_generations(
                 request,
                 &ledger,
                 &mut pair_rng,
+                &mut profile,
             )?;
             for child in bred {
-                let choice = repair_child(child, request, &mut ledger, &mut pair_rng)?;
+                let choice =
+                    repair_child(child, request, &mut ledger, &mut pair_rng, &mut profile)?;
                 repairs_attempted += choice.attempted;
                 repairs_succeeded += choice.succeeded;
                 if offspring.len() < request.config.population {
+                    let started = profile.enabled.then(Instant::now);
                     let mut individual = evaluate_one(choice.phenotype, request)?;
+                    if let Some(started) = started {
+                        let elapsed = started.elapsed().as_nanos();
+                        profile.evaluate_ns += elapsed;
+                        profile.evaluate_calls += 1;
+                    }
                     if choice.succeeded > 0 && !repairs_are_lamarckian(request) {
                         individual.inherited = Some(choice.breed);
                     }
@@ -540,6 +631,7 @@ pub fn run_generations(
         // dimension that was still `UNKNOWN` when the ranking happened, and the
         // scores would describe survivors chosen without them.
         if let Some(scorer) = request.l0 {
+            let started = profile.enabled.then(Instant::now);
             score_l0_batch(
                 &mut combined,
                 scorer,
@@ -547,13 +639,27 @@ pub fn run_generations(
                 &mut rationer,
                 &mut rng,
             )?;
+            if let Some(started) = started {
+                profile.l0_ns += started.elapsed().as_nanos();
+                profile.l0_calls += 1;
+            }
         }
 
+        let started = profile.enabled.then(Instant::now);
         members = select(combined, request.config.population, selection);
+        if let Some(started) = started {
+            profile.select_ns += started.elapsed().as_nanos();
+            profile.select_calls += 1;
+        }
         ledger.tick();
         ran += 1;
 
+        let started = profile.enabled.then(Instant::now);
         history.push(front_hypervolume(&members));
+        if let Some(started) = started {
+            profile.hypervolume_ns += started.elapsed().as_nanos();
+            profile.hypervolume_calls += 1;
+        }
         if stagnated(
             &history,
             request.config.stagnation_window,
@@ -569,6 +675,7 @@ pub fn run_generations(
     }
 
     let front = nondominated(&members);
+    profile.dump();
     Ok(Tier3Report {
         checkpoint: Tier3Checkpoint {
             generation: first + ran,
@@ -612,6 +719,7 @@ fn breed(
     request: &Tier3Request<'_>,
     ledger: &TabuLedger,
     rng: &mut SearchRng,
+    profile: &mut LoopProfile,
 ) -> Result<Vec<Genotype>> {
     let crossover = BlockUniform::default();
     let mut children = if rng.next_f64() < request.config.crossover_rate {
@@ -629,7 +737,12 @@ fn breed(
                 start,
                 child.sequence().clone(),
             )]));
+        let started = profile.enabled.then(Instant::now);
         let found = request.checker.check(&view);
+        if let Some(started) = started {
+            profile.breed_check_ns += started.elapsed().as_nanos();
+            profile.breed_checks += 1;
+        }
         let actionable: Vec<ActionableViolation<'_>> =
             found.iter().filter_map(ActionableViolation::new).collect();
 
@@ -663,8 +776,15 @@ fn repair_child(
     request: &Tier3Request<'_>,
     ledger: &mut TabuLedger,
     rng: &mut SearchRng,
+    profile: &mut LoopProfile,
 ) -> Result<RepairedChild> {
-    if actionable_violation(&genotype, request.checker) <= 0.0 {
+    let started = profile.enabled.then(Instant::now);
+    let violation = actionable_violation(&genotype, request.checker);
+    if let Some(started) = started {
+        profile.feasibility_gate_ns += started.elapsed().as_nanos();
+        profile.feasibility_gates += 1;
+    }
+    if violation <= 0.0 {
         return Ok(RepairedChild {
             phenotype: genotype.clone(),
             breed: genotype,
@@ -678,6 +798,7 @@ fn repair_child(
         vec![(genotype.cds_offset_nt(), genotype.sequence().clone())],
     )?;
     let mut repair_rng = cf_constraints::RepairRng::new(rng.next_u64());
+    let started = profile.enabled.then(Instant::now);
     let outcome = cf_constraints::repair::repair(
         &mut target,
         request.checker,
@@ -686,6 +807,10 @@ fn repair_child(
         ledger,
         &mut repair_rng,
     )?;
+    if let Some(started) = started {
+        profile.repair_ns += started.elapsed().as_nanos();
+        profile.repair_calls += 1;
+    }
 
     if outcome.residual.is_empty() {
         let phenotype = Genotype::new(target.regions()[0].1.clone());

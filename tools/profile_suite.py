@@ -520,6 +520,8 @@ def _child_env(job: dict) -> dict[str, str]:
         env["CF_SEED_PROFILE"] = "1"
     if job["kind"] == "primer":
         env["CF_PRIMER_PROFILE"] = "1"
+    if job["kind"] == "design" and "structure.local_accessibility" in job.get("objectives", []):
+        env["CF_TIER3_PROFILE"] = "1"
     return env
 
 
@@ -545,7 +547,7 @@ def _one(job: dict, timeout: int) -> dict:
     stderr_profile = [
         line
         for line in completed.stderr.splitlines()
-        if line.startswith("CF_SEED_PROFILE ") or line.startswith("CF_PRIMER_PROFILE ")
+        if line.startswith(("CF_SEED_PROFILE ", "CF_PRIMER_PROFILE ", "CF_TIER3_PROFILE "))
     ]
     if completed.returncode != 0 or not completed.stdout.strip():
         return {

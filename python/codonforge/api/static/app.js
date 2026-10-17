@@ -1096,6 +1096,19 @@ function worstSeverity(flags) {
   return "green";
 }
 
+let submittedPrimerTemplate = "";
+
+function productSequenceOf(pair, template) {
+  if (pair && pair.product_sequence) return pair.product_sequence;
+  if (!pair || !template || pair.forward_start == null || pair.reverse_end == null) return "";
+  const start = pair.forward_start;
+  const end = pair.reverse_end;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || end > template.length) {
+    return "";
+  }
+  return template.slice(start, end);
+}
+
 function detailPanel(pair) {
   const flags = clientFlags(pair)
     .map((flag) => `<div class="zone-chip ${zoneClass(flag)}">${escapeText(flag.property)} ${escapeText(flag.observed)} · ${escapeText(flag.threshold)}</div>`)
@@ -1115,7 +1128,10 @@ function detailPanel(pair) {
     <pre class="mono mono-reveal">${escapeText(pair.hetero_dimer_alignment || "")}</pre>
     <div class="flag-host">${flags || `<p class="zone-chip zone-green">No property is in the amber or red zone.</p>`}</div>
     <p class="note">Specificity against genome not checked.</p>
-    ${pair.product_sequence ? `<button type="button" data-copy="${escapeAttr(pair.product_sequence)}">Copy product sequence</button><div class="seq-block">${escapeText(pair.product_sequence)}</div>` : ""}
+    ${(() => {
+      const product = productSequenceOf(pair, submittedPrimerTemplate);
+      return product ? `<button type="button" data-copy="${escapeAttr(product)}">Copy product sequence</button><div class="seq-block">${escapeText(product)}</div>` : "";
+    })()}
   </div>`;
 }
 
@@ -1231,6 +1247,7 @@ document.getElementById("primer-search").addEventListener("click", async () => {
     return;
   }
   const sequence = cleaned.sequence;
+  submittedPrimerTemplate = sequence;
   let posted;
   try {
     posted = await call("POST", "/v1/primers/candidates", {

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "constraint_set_id": "cst_golden_gate",
+  "name": "Golden Gate: BsaI and BsmBI forbidden on both strands",
+  "constraints": [
+    {
+      "id": "c_bsai",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "BsaI", "site": "GGTCTC", "strand": "both", "max_occurrences": 0}
+    },
+    {
+      "id": "c_bsmbi",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "restriction_site", "enzyme": "BsmBI", "site": "CGTCTC", "strand": "both", "max_occurrences": 0}
+    }
+  ],
+  "repair_policy": {}
+}

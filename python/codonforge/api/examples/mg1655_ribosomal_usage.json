@@ -1,0 +1,199 @@
+{
+  "codon_usage": {
+    "subset": "user_supplied",
+    "table": {
+      "AAA": {
+        "relative_adaptiveness": 1.0
+      },
+      "AAC": {
+        "relative_adaptiveness": 1.0
+      },
+      "AAG": {
+        "relative_adaptiveness": 0.419624
+      },
+      "AAT": {
+        "relative_adaptiveness": 0.155251
+      },
+      "ACA": {
+        "relative_adaptiveness": 0.08
+      },
+      "ACC": {
+        "relative_adaptiveness": 0.897143
+      },
+      "ACG": {
+        "relative_adaptiveness": 0.102857
+      },
+      "ACT": {
+        "relative_adaptiveness": 1.0
+      },
+      "AGA": {
+        "relative_adaptiveness": 0.009524
+      },
+      "AGC": {
+        "relative_adaptiveness": 0.669355
+      },
+      "AGG": {
+        "relative_adaptiveness": 0.0
+      },
+      "AGT": {
+        "relative_adaptiveness": 0.120968
+      },
+      "ATA": {
+        "relative_adaptiveness": 0.003425
+      },
+      "ATC": {
+        "relative_adaptiveness": 1.0
+      },
+      "ATG": {
+        "relative_adaptiveness": 1.0
+      },
+      "ATT": {
+        "relative_adaptiveness": 0.342466
+      },
+      "CAA": {
+        "relative_adaptiveness": 0.308989
+      },
+      "CAC": {
+        "relative_adaptiveness": 1.0
+      },
+      "CAG": {
+        "relative_adaptiveness": 1.0
+      },
+      "CAT": {
+        "relative_adaptiveness": 0.366972
+      },
+      "CCA": {
+        "relative_adaptiveness": 0.19375
+      },
+      "CCC": {
+        "relative_adaptiveness": 0.0125
+      },
+      "CCG": {
+        "relative_adaptiveness": 1.0
+      },
+      "CCT": {
+        "relative_adaptiveness": 0.21875
+      },
+      "CGA": {
+        "relative_adaptiveness": 0.004762
+      },
+      "CGC": {
+        "relative_adaptiveness": 0.461905
+      },
+      "CGG": {
+        "relative_adaptiveness": 0.007143
+      },
+      "CGT": {
+        "relative_adaptiveness": 1.0
+      },
+      "CTA": {
+        "relative_adaptiveness": 0.002392
+      },
+      "CTC": {
+        "relative_adaptiveness": 0.047847
+      },
+      "CTG": {
+        "relative_adaptiveness": 1.0
+      },
+      "CTT": {
+        "relative_adaptiveness": 0.057416
+      },
+      "GAA": {
+        "relative_adaptiveness": 1.0
+      },
+      "GAC": {
+        "relative_adaptiveness": 1.0
+      },
+      "GAG": {
+        "relative_adaptiveness": 0.336207
+      },
+      "GAT": {
+        "relative_adaptiveness": 0.622449
+      },
+      "GCA": {
+        "relative_adaptiveness": 0.58011
+      },
+      "GCC": {
+        "relative_adaptiveness": 0.187845
+      },
+      "GCG": {
+        "relative_adaptiveness": 0.353591
+      },
+      "GCT": {
+        "relative_adaptiveness": 1.0
+      },
+      "GGA": {
+        "relative_adaptiveness": 0.011628
+      },
+      "GGC": {
+        "relative_adaptiveness": 0.636628
+      },
+      "GGG": {
+        "relative_adaptiveness": 0.020349
+      },
+      "GGT": {
+        "relative_adaptiveness": 1.0
+      },
+      "GTA": {
+        "relative_adaptiveness": 0.514451
+      },
+      "GTC": {
+        "relative_adaptiveness": 0.182081
+      },
+      "GTG": {
+        "relative_adaptiveness": 0.245665
+      },
+      "GTT": {
+        "relative_adaptiveness": 1.0
+      },
+      "TAA": {
+        "relative_adaptiveness": 1.0
+      },
+      "TAC": {
+        "relative_adaptiveness": 1.0
+      },
+      "TAG": {
+        "relative_adaptiveness": 0.0
+      },
+      "TAT": {
+        "relative_adaptiveness": 0.322917
+      },
+      "TCA": {
+        "relative_adaptiveness": 0.064516
+      },
+      "TCC": {
+        "relative_adaptiveness": 0.685484
+      },
+      "TCG": {
+        "relative_adaptiveness": 0.032258
+      },
+      "TCT": {
+        "relative_adaptiveness": 1.0
+      },
+      "TGA": {
+        "relative_adaptiveness": 0.08
+      },
+      "TGC": {
+        "relative_adaptiveness": 1.0
+      },
+      "TGG": {
+        "relative_adaptiveness": 1.0
+      },
+      "TGT": {
+        "relative_adaptiveness": 0.333333
+      },
+      "TTA": {
+        "relative_adaptiveness": 0.035885
+      },
+      "TTC": {
+        "relative_adaptiveness": 1.0
+      },
+      "TTG": {
+        "relative_adaptiveness": 0.050239
+      },
+      "TTT": {
+        "relative_adaptiveness": 0.325
+      }
+    }
+  }
+}

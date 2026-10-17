@@ -29,13 +29,42 @@ is [`docs/project-status.md`](docs/project-status.md). History is
 The page listens on <http://127.0.0.1:8000/>, opens a browser, and waits
 until Ctrl+C. `--no-browser` skips the window. `--port` chooses another port.
 
-A wheel is not on PyPI for this tag. `pip install codonforge` does not
-resolve. Install from this checkout. Python 3.11 or newer, and a Rust
-toolchain (`rustup`), are required because the core is a compiled extension.
+`pip install codonforge` does not resolve: the package is not on PyPI.
+Python 3.11 or newer is required. One wheel per operating system covers
+3.11 through 3.13 (`abi3-py311`). CPython 3.9 and 3.10 are not supported.
 
-### Windows (PowerShell, Anaconda)
+### Install a wheel
 
-From the repository directory:
+Download the wheel for this machine from the GitHub Actions **wheels**
+artifacts on a push to this repository, or from a release once one is
+attached. The artifact names are `wheel-<runner>-<target>` and `sdist`.
+
+Linux x86_64. `virtualenv` is the bootstrap `make setup` uses. `python3 -m venv` is only the fallback when virtualenv itself cannot be installed, because that module needs `ensurepip`.
+
+```sh
+python3 -m virtualenv .venv
+.venv/bin/pip install codonforge-0.1.0-cp311-abi3-manylinux_*.whl
+.venv/bin/python -m codonforge.api
+```
+
+Windows (PowerShell, Anaconda), from the directory that contains the wheel:
+
+```powershell
+conda create -n dna-design python=3.11 -y
+conda activate dna-design
+pip install .\codonforge-0.1.0-cp311-abi3-win_amd64.whl
+python -m codonforge.api
+```
+
+The filename ends in `win_amd64` on 64-bit Windows. ViennaRNA is still
+optional and is not inside the wheel.
+
+### Install from source
+
+Use this when no wheel is available. A Rust toolchain (`rustup`) is
+required, because the core is a compiled extension.
+
+Windows (PowerShell, Anaconda), from the repository directory:
 
 ```powershell
 conda create -n dna-design python=3.11 -y
@@ -47,7 +76,7 @@ python -m codonforge.api
 
 After that environment exists, the command is `python -m codonforge.api`.
 
-### macOS and Linux
+macOS and Linux:
 
 ```sh
 make setup
@@ -63,6 +92,19 @@ module command works in any environment the package was installed into:
 ```sh
 python -m codonforge.api
 ```
+
+### Publishing a release
+
+The wheel workflow uploads artifacts. It does not publish to PyPI and it
+has no PyPI token. To publish, after `python tools/check_release_clearance.py`
+passes:
+
+1. Open the **wheels** run for the tag (or `workflow_dispatch`).
+2. Download every `wheel-*` artifact and the `sdist` artifact.
+3. From a machine that already has a PyPI account and a token you supply
+   yourself: `pip install twine` and `twine upload dist/*`.
+
+Do not add the token to the repository or to the workflow.
 
 ### First run
 

@@ -11,6 +11,8 @@
 //! in linear time with a size cap (`CF-FEAS-007` / `RISK-SEC-003`). A pattern
 //! that does not compile is a malformed constraint, not an undetectable one.
 
+use std::cell::RefCell;
+
 use cf_types::error::{code, CfError, Result};
 use regex::Regex;
 
@@ -661,16 +663,35 @@ impl ConstraintChecker {
             let constraint = self.constraint(rule.index);
             // Counts are summed across segments; positions are reported in
             // construct coordinates.
+            //
+            // Positions are recorded only for k-mers already over the limit.
+            // Recording every k-mer's positions built a `Vec` per distinct
+            // 12-mer — about one per codon on a long CDS — and tier 3 repair
+            // calls this once per synonym trial. The offender set is the same
+            // one the count map already named, so the violation list does not
+            // change.
             let mut totals: std::collections::HashMap<u64, u32> = Default::default();
-            let mut positions: std::collections::HashMap<u64, Vec<usize>> = Default::default();
+            let mut counted: Vec<(usize, &[u8])> = Vec::new();
             for (offset, bytes) in &segments {
-                let Ok(index) = KmerIndex::build(bytes, rule.k, rule.canonical) else {
+                if !accumulate_kmer_counts(bytes, rule.k, rule.canonical, &mut totals) {
                     continue;
-                };
-                for (key, count) in index.counts() {
-                    *totals.entry(*key).or_insert(0) += count;
                 }
-                if bytes.len() >= rule.k {
+                counted.push((*offset, bytes));
+            }
+            let mut offenders: Vec<(u64, u32)> = totals
+                .iter()
+                .filter(|(_, count)| **count > rule.max_occurrences)
+                .map(|(&key, &count)| (key, count))
+                .collect();
+            offenders.sort();
+            let wanted: std::collections::HashSet<u64> =
+                offenders.iter().map(|(key, _)| *key).collect();
+            let mut positions: std::collections::HashMap<u64, Vec<usize>> = Default::default();
+            if !wanted.is_empty() {
+                for (offset, bytes) in counted {
+                    if bytes.len() < rule.k {
+                        continue;
+                    }
                     for pos in 0..=bytes.len() - rule.k {
                         if let Some(packed) = crate::kmer::pack_at(bytes, pos, rule.k) {
                             let key = if rule.canonical {
@@ -678,16 +699,13 @@ impl ConstraintChecker {
                             } else {
                                 packed
                             };
-                            positions.entry(key).or_default().push(offset + pos);
+                            if wanted.contains(&key) {
+                                positions.entry(key).or_default().push(offset + pos);
+                            }
                         }
                     }
                 }
             }
-            let mut offenders: Vec<(u64, u32)> = totals
-                .into_iter()
-                .filter(|(_, count)| *count > rule.max_occurrences)
-                .collect();
-            offenders.sort();
             for (key, count) in offenders {
                 let mut where_ = positions.remove(&key).unwrap_or_default();
                 where_.sort_unstable();
@@ -852,6 +870,133 @@ fn collect_regex_hits_on_reverse(
     }
 }
 
+/// One k-mer index kept so a codon-sized edit does not rebuild the map.
+///
+/// Tier 3 repair tries every synonym in a window. Each trial is the same CDS
+/// with three bases changed. `KmerIndex::substitute` is the same counts as a
+/// rebuild (`property_tst_cons_001_incremental_matches_rebuild`). The index is
+/// put back before the function returns, including on panic, so the next
+/// unrelated sequence does not inherit the edit.
+struct CachedKmer {
+    k: usize,
+    canonical: bool,
+    index: KmerIndex,
+}
+
+thread_local! {
+    static KMER_COUNT_CACHE: RefCell<Vec<CachedKmer>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Longest edit applied by updating the cached index instead of rebuilding it.
+///
+/// A codon is three bases. Anything longer, including a crossover, rebuilds.
+const KMER_INCREMENTAL_SPAN: usize = 16;
+
+fn single_span<'a>(before: &[u8], after: &'a [u8]) -> Option<(usize, &'a [u8])> {
+    if before.len() != after.len() {
+        return None;
+    }
+    let mut index = 0;
+    while index < before.len() && before[index] == after[index] {
+        index += 1;
+    }
+    if index == before.len() {
+        return None;
+    }
+    let start = index;
+    while index < before.len() && before[index] != after[index] {
+        index += 1;
+    }
+    let end = index;
+    if end - start > KMER_INCREMENTAL_SPAN {
+        return None;
+    }
+    while index < before.len() {
+        if before[index] != after[index] {
+            return None;
+        }
+        index += 1;
+    }
+    Some((start, &after[start..end]))
+}
+
+struct Rewind<'a> {
+    index: &'a mut KmerIndex,
+    offset: usize,
+    previous: Vec<u8>,
+}
+
+impl Drop for Rewind<'_> {
+    fn drop(&mut self) {
+        if !self.previous.is_empty() {
+            let _ = self.index.substitute(self.offset, &self.previous);
+            self.previous.clear();
+        }
+    }
+}
+
+/// Add this segment's k-mer counts into `totals`.
+///
+/// Returns whether the segment could be indexed. A `k` outside 4..=32 is the
+/// same refusal as `KmerIndex::build`.
+fn accumulate_kmer_counts(
+    bytes: &[u8],
+    k: usize,
+    canonical: bool,
+    totals: &mut std::collections::HashMap<u64, u32>,
+) -> bool {
+    KMER_COUNT_CACHE.with(|slot| {
+        let mut caches = slot.borrow_mut();
+        let found = caches
+            .iter()
+            .position(|cached| cached.k == k && cached.canonical == canonical);
+        if let Some(found) = found {
+            if caches[found].index.sequence() == bytes {
+                for (key, count) in caches[found].index.counts() {
+                    *totals.entry(*key).or_insert(0) += count;
+                }
+                return true;
+            }
+            if let Some((offset, replacement)) = single_span(caches[found].index.sequence(), bytes)
+            {
+                let previous =
+                    caches[found].index.sequence()[offset..offset + replacement.len()].to_vec();
+                if caches[found].index.substitute(offset, replacement).is_err() {
+                    return false;
+                }
+                let mut rewind = Rewind {
+                    index: &mut caches[found].index,
+                    offset,
+                    previous,
+                };
+                for (key, count) in rewind.index.counts() {
+                    *totals.entry(*key).or_insert(0) += count;
+                }
+                let _ = rewind.index.substitute(rewind.offset, &rewind.previous);
+                rewind.previous.clear();
+                return true;
+            }
+        }
+        let Ok(index) = KmerIndex::build(bytes, k, canonical) else {
+            return false;
+        };
+        for (key, count) in index.counts() {
+            *totals.entry(*key).or_insert(0) += count;
+        }
+        let cached = CachedKmer {
+            k,
+            canonical,
+            index,
+        };
+        if let Some(found) = found {
+            caches[found] = cached;
+        } else {
+            caches.push(cached);
+        }
+        true
+    })
+}
+
 fn canonical_of(packed: u64, k: usize) -> u64 {
     let mut rc = 0u64;
     let mut value = packed;
@@ -950,6 +1095,16 @@ mod tests {
             "the assembled view sees both occurrences: {violations:?}"
         );
         assert!(violations[0].detail.contains("ACGT"));
+        // The span is the first occurrence, and the detail lists every one.
+        // A position scan that stored nothing would still emit a violation at
+        // 0 with `at []`, and this assertion is what notices.
+        assert_eq!(violations[0].start_nt, 0);
+        assert_eq!(violations[0].end_nt, 4);
+        assert!(
+            violations[0].detail.contains("at [0, 6]"),
+            "{}",
+            violations[0].detail
+        );
 
         let segmented =
             ConstructView::new(construct, cds).with_masking(KmerMasking::SegmentedByRegion);
@@ -1009,6 +1164,53 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert!(violations[0].actionable);
         assert!(!checker.is_feasible(&overlapping));
+    }
+
+    #[test]
+    fn unit_a_codon_edit_reuses_the_kmer_index_and_restores_it() {
+        let set = set_with(vec![(
+            "c_kmer",
+            Scope::Construct,
+            Rule::KmerRepeat {
+                k: 4,
+                max_occurrences: 1,
+                count_overlapping: true,
+                canonical_strand: false,
+            },
+        )]);
+        let checker = ConstraintChecker::compile(&set).unwrap();
+        let base = b"ACGTACGTACGTAAAA";
+        let view = ConstructView::new(base, vec![(0, base.len())]);
+        let first = checker.check(&view);
+
+        let mut edited = base.to_vec();
+        edited[0..3].copy_from_slice(b"TTT");
+        let edited_view = ConstructView::new(&edited, vec![(0, edited.len())]);
+        let warm = checker.check(&edited_view);
+        // The edit is applied and then undone. Leaving the index on the probe
+        // would make the next synonym, which differs in a second codon, look
+        // like two spans and rebuild. This is the assertion that notices.
+        let still_base = KMER_COUNT_CACHE.with(|slot| {
+            slot.borrow()
+                .iter()
+                .any(|cached| cached.index.sequence() == base)
+        });
+        assert!(
+            still_base,
+            "the cached index must still describe the unedited sequence"
+        );
+        // The cache still holds the unedited index. Dropping it and checking
+        // again has to name the same violations, or the incremental path and
+        // the rebuild path have diverged.
+        KMER_COUNT_CACHE.with(|slot| slot.borrow_mut().clear());
+        let cold = checker.check(&edited_view);
+        assert_eq!(warm, cold, "warm {warm:?} cold {cold:?}");
+
+        let again = checker.check(&view);
+        assert_eq!(
+            first, again,
+            "the cached index was not restored after the edit"
+        );
     }
 
     #[test]
