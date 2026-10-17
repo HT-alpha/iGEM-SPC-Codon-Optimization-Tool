@@ -343,7 +343,6 @@ fn flag(property: &str, threshold: &str, observed: f64, zone: DgZone) -> Value {
 
 fn score_pair(
     parameters: &Parameters,
-    template: &str,
     forward: &Primer,
     reverse: &Primer,
     config: &Config,
@@ -435,7 +434,8 @@ fn score_pair(
         (forward.gc - reverse.gc).abs(),
         (product as f64 - midpoint).abs(),
     ];
-    let product_sequence = template[forward.start..reverse.end].to_string();
+    // The amplicon string is attached to the pairs that are emitted. Building
+    // it here would allocate one for every survivor, and the rank keeps 20.
     let body = json!({
         "forward_sequence": forward.sequence,
         "reverse_sequence": reverse.sequence,
@@ -444,7 +444,6 @@ fn score_pair(
         "reverse_start": reverse.start,
         "reverse_end": reverse.end,
         "product_size": product,
-        "product_sequence": product_sequence,
         "tm_forward": tm_f,
         "tm_reverse": tm_r,
         "tm_mismatch": mismatch,
@@ -651,7 +650,7 @@ pub fn search(
     let mut scored = Vec::new();
     for (index, fwd) in forward.iter().enumerate() {
         for rev in &reverse {
-            match score_pair(&parameters, template, fwd, rev, config)? {
+            match score_pair(&parameters, fwd, rev, config)? {
                 Some(pair) => scored.push(pair),
                 None => note_drop("product"),
             }
@@ -694,6 +693,9 @@ pub fn search(
         .enumerate()
         .map(|(rank_index, index)| {
             let mut body = scored[*index].body.clone();
+            let start = body["forward_start"].as_u64().expect("forward_start") as usize;
+            let end = body["reverse_end"].as_u64().expect("reverse_end") as usize;
+            body["product_sequence"] = json!(&template[start..end]);
             body["pair_id"] = json!(format!("pair_{rank_index:02}_{:08x}", *index));
             body["nondomination_rank"] = json!(0);
             body["objective_vector"] = json!(scored[*index].objectives);
@@ -768,6 +770,46 @@ mod tests {
         let error = search(&template, 40, 60, &config, &mut |_| {}).unwrap_err();
         assert!(error.0.contains("homopolymer"), "{error}");
         assert!(error.0.contains("CF-PRIM-001"), "{error}");
+    }
+
+    #[test]
+    fn emitted_pairs_embed_the_template_slice() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../benchmarks/validation/sequences/rpsL.fa"
+        );
+        let template: String = std::fs::read_to_string(path)
+            .unwrap()
+            .lines()
+            .filter(|line| !line.starts_with('>'))
+            .collect();
+        let flank = 40;
+        let start = flank;
+        let end = template.len() - flank;
+        let region = end - start;
+        let config = Config {
+            tm_target: 60.0,
+            product_min: region,
+            product_max: region + 2 * flank,
+            flank,
+            primer_min: 18,
+            primer_max: 25,
+        };
+        let document = search(&template, start, end, &config, &mut |_| {}).unwrap();
+        let pairs = document["pairs"].as_array().unwrap();
+        assert!(!pairs.is_empty());
+        let survivors = document["survivors"].as_u64().unwrap();
+        assert!(survivors >= pairs.len() as u64);
+        for pair in pairs {
+            let from = pair["forward_start"].as_u64().unwrap() as usize;
+            let to = pair["reverse_end"].as_u64().unwrap() as usize;
+            let product = pair["product_sequence"].as_str().unwrap();
+            assert_eq!(product, &template[from..to]);
+            assert_eq!(
+                product.len(),
+                pair["product_size"].as_u64().unwrap() as usize
+            );
+        }
     }
 
     #[test]
