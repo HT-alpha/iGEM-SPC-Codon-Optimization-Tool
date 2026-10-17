@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "constraint_set_id": "cst_cryptic_probe",
+  "name": "custom regex for an SD-like motif upstream of ATG",
+  "derived_from": ["user"],
+  "constraints": [
+    {
+      "id": "c_cryptic_start",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {
+        "kind": "custom_regex",
+        "pattern": "AGGAGG[ACGT]{4,12}ATG",
+        "max_occurrences": 0,
+        "flags": ["both_strands"]
+      }
+    }
+  ],
+  "repair_policy": {}
+}

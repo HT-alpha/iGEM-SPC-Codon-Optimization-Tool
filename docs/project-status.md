@@ -1,8 +1,8 @@
 # Project status
 
-Canonical status for the DNA Design Suite at `v2.4.2`. Older notes in
+Canonical status for the DNA Design Suite at `v2.5.0`. Older notes in
 `docs/igem-submission.md` and `CHANGELOG.md` keep the history of how each
-release got here.
+release got here. The benchmark claim is the one recorded for `v2.4.2`.
 
 ## Shipped and working
 
@@ -16,10 +16,14 @@ recalibrations, seed import, and the five-check feasibility analyser answer
 `CF-CLI-003`.
 
 The page in `python/codonforge/api/static/` is the shared CodonForge and
-PrimerForge UI. The DNA view is the SVG helix in `helix.js` (CSS keyframes,
-B-form geometry measured from PDB 1BNA). Primer selection uses
-`document.elementFromPoint` so a drag still names the nucleotide under the
-pointer when Chrome retargets the event.
+PrimerForge UI. It is a guided form: a coding sequence, a host, the bundled
+MG1655 ribosomal usage table, optional constraints, and objectives with the
+terms named in plain language. `python -m codonforge.api` binds port 8000,
+opens a browser, and blocks until interrupted. The DNA view is the SVG helix
+in `helix.js` (CSS keyframes, B-form geometry measured from PDB 1BNA). Primer
+selection uses `document.elementFromPoint` so a drag still names the
+nucleotide under the pointer when Chrome retargets the event. A region can
+also be typed.
 
 Structure scoring uses ViennaRNA, installed by the user and not vendored.
 `structure.local_accessibility` is windowed accessibility (`Codons(14)` from

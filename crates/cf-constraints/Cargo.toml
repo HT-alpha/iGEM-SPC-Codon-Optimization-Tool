@@ -8,5 +8,6 @@ description = "Hard-constraint specification, incremental violation detection, r
 
 [dependencies]
 cf-types = { path = "../cf-types" }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "constraint_set_id": "cst_synthesis",
+  "name": "General synthesis: 50 nt GC windows 40-60%, homopolymer runs of 7 or longer forbidden, repeated 12-mers forbidden",
+  "constraints": [
+    {
+      "id": "c_gc50",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "gc_window", "window_nt": 50, "min": 0.4, "max": 0.6}
+    },
+    {
+      "id": "c_homopolymer",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {"kind": "homopolymer", "base": "any", "max_run": 6}
+    },
+    {
+      "id": "c_kmer12",
+      "class": "blocking",
+      "scope": "cds",
+      "rule": {
+        "kind": "kmer_repeat",
+        "k": 12,
+        "max_occurrences": 1,
+        "count_overlapping": true,
+        "canonical_strand": false
+      }
+    }
+  ],
+  "repair_policy": {}
+}

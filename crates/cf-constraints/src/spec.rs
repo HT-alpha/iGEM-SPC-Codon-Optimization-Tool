@@ -139,11 +139,15 @@ impl Rule {
     /// Whether Phase 1 can detect violations of this rule.
     ///
     /// Reported rather than silently ignored: a constraint the checker cannot
-    /// evaluate must not be presented as satisfied.
+    /// evaluate must not be presented as satisfied. `custom_regex` is
+    /// detectable: a pattern that compiles under the size cap is enforced, and
+    /// one that does not compile is refused at `ConstraintChecker::compile`
+    /// (`CF-FEAS-006`, `CF-FEAS-007`) rather than treated as satisfied.
+    /// `local_structure` and `min_codon_frequency` stay out of this phase.
     pub fn is_detectable_in_phase_1(&self) -> bool {
         !matches!(
             self,
-            Rule::LocalStructure { .. } | Rule::MinCodonFrequency { .. } | Rule::CustomRegex { .. }
+            Rule::LocalStructure { .. } | Rule::MinCodonFrequency { .. }
         )
     }
 }

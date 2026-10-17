@@ -15,6 +15,7 @@ from typing import Any
 
 from codonforge import _core
 from codonforge.orchestrator.design import _derived_id
+from codonforge.primers.sequence import clean_template
 
 SCHEMA = "1.0.0"
 # Tests set this to a callable. Production leaves it as a no-op so a search
@@ -74,7 +75,12 @@ def _problem(message: str) -> dict[str, Any]:
 
 
 def analyze(forward: str, reverse: str) -> dict[str, Any]:
-    return json.loads(_core.primer_analyze(forward, reverse))
+    forward_clean, forward_problem = clean_template(forward)
+    reverse_clean, reverse_problem = clean_template(reverse)
+    problem_text = forward_problem or reverse_problem
+    if problem_text:
+        raise ValueError(problem_text)
+    return json.loads(_core.primer_analyze(forward_clean, reverse_clean))
 
 
 def submit(api: Any, tenant: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
@@ -117,6 +123,15 @@ def _run(api: Any, job_id: str, body: dict[str, Any]) -> None:
     def on_progress(fraction: float) -> None:
         publish("running", float(fraction), "primer_evaluate")
 
+    sequence = body.get("sequence")
+    if not isinstance(sequence, str):
+        publish("failed", 1.0, "primer_rank", problem=_problem("CF-PRIM-006 sequence is required"))
+        return
+    cleaned, problem_text = clean_template(sequence)
+    if problem_text:
+        publish("failed", 1.0, "primer_rank", problem=_problem(problem_text))
+        return
+    body = {**body, "sequence": cleaned}
     try:
         raw = _core.primer_search(json.dumps(body), on_progress)
     except ValueError as exc:

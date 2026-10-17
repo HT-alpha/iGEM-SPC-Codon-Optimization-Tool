@@ -1,6 +1,7 @@
 {
   "schema_version": "1.0.0",
   "constraint_set_id": "cst_rpsL_example",
+  "name": "Empty demonstration set: checks nothing",
   "constraints": [],
   "repair_policy": {
     "lamarckian": true

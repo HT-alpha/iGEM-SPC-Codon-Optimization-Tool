@@ -14,6 +14,7 @@ import pytest
 from codonforge.api import serve
 from codonforge.modelreg import ArtifactStore
 from codonforge.primers import service
+from codonforge.primers.sequence import clean_template
 
 TENANT = "t_localdev1"
 
@@ -35,6 +36,78 @@ def base(tmp_path: Path):
     url = f"http://127.0.0.1:{server.server_address[1]}"
     yield url
     server.shutdown()
+
+
+def _wait(base: str, job_id: str) -> dict:
+    for _ in range(40):
+        code, polled = _call("GET", f"{base}/v1/primers/{job_id}")
+        assert code == 200
+        if polled["state"] in {"succeeded", "failed"}:
+            return polled
+        time.sleep(0.1)
+    raise AssertionError("primer job did not finish")
+
+
+def test_clean_template_drops_a_header_names_n_and_accepts_lowercase() -> None:
+    sequence, problem = clean_template(">GFP demo\natgc")
+    assert problem is None
+    assert sequence == "ATGC"
+    sequence, problem = clean_template(">GFP demo\nATGNCCC")
+    assert sequence == ""
+    assert problem == "CF-PRIM-006 base N at position 4 is not A, C, G or T"
+
+
+def test_analyze_names_the_illegal_base_and_accepts_lowercase_fasta(base: str) -> None:
+    oligo = "GCTAGCTAGCTAGCTAGCTA"
+    status, payload = _call(
+        "POST",
+        f"{base}/v1/primers/analyze",
+        {"forward": ">GFP demo\n" + oligo.lower(), "reverse": oligo},
+    )
+    assert status == 200
+    assert payload["forward_sequence"] == oligo
+    status, payload = _call(
+        "POST",
+        f"{base}/v1/primers/analyze",
+        {"forward": ">GFP demo\nATGN" + oligo, "reverse": oligo},
+    )
+    assert status == 422
+    assert payload["code"] == "CF-PRIM-006"
+    assert payload["detail"] == "CF-PRIM-006 base N at position 4 is not A, C, G or T"
+
+
+def test_a_fasta_header_does_not_change_the_primer_pair(base: str) -> None:
+    raw = (
+        "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTA"
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"
+        "GCTAGCTAGCTAGCTAGCTAGCTAGCTAG"
+    )
+    body = {
+        "region": {"start": 30, "end": 55},
+        "config": {
+            "tm_target": 60.0,
+            "product_size_range": {"min": 20, "max": 90},
+            "flank_length": 40,
+            "primer_length_range": {"min": 18, "max": 22},
+        },
+    }
+    status, posted = _call(
+        "POST", f"{base}/v1/primers/candidates", {**body, "sequence": raw}
+    )
+    assert status == 202
+    plain = _wait(base, posted["job_id"])
+    status, posted = _call(
+        "POST",
+        f"{base}/v1/primers/candidates",
+        {**body, "sequence": ">GFP demo\n" + raw.lower()},
+    )
+    assert status == 202
+    wrapped = _wait(base, posted["job_id"])
+    assert plain["state"] == wrapped["state"]
+    if plain["state"] == "succeeded":
+        assert plain["primer_result"]["pairs"] == wrapped["primer_result"]["pairs"]
+    else:
+        assert plain["problem"]["code"] == wrapped["problem"]["code"]
 
 
 def test_a_stable_gc_dimer_is_refused(base: str) -> None:

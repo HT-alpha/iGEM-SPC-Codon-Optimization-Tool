@@ -2,86 +2,312 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DNA Design Suite</title>
 <link rel="stylesheet" href="/codonforge-ui.css">
 </head>
 <body>
-<nav class="nav">
-  <button type="button" class="tab active" data-tab="codon">Codon Optimization</button>
-  <button type="button" class="tab" data-tab="primer">Primer Design</button>
-  <span class="note">DNA Design Suite. CodonForge and PrimerForge share this page. Faces: IBM Plex Sans / Mono and Source Serif 4 when installed. Tokens from the Part D brief (IGV hatch, NCBI header blue).</span>
+<a class="skip" href="#tab-codon">Skip to CodonForge</a>
+<nav class="nav" aria-label="DNA Design Suite">
+  <div class="nav-brand">DNA Design Suite</div>
+  <div class="tablist" role="tablist" aria-label="Tools">
+    <button type="button" class="tab active" id="tab-btn-codon" role="tab" aria-selected="true" aria-controls="tab-codon" data-tab="codon">CodonForge</button>
+    <button type="button" class="tab" id="tab-btn-primer" role="tab" aria-selected="false" aria-controls="tab-primer" data-tab="primer">PrimerForge</button>
+  </div>
+  <p class="note nav-note">Two tools, one page. CodonForge rewrites a gene. PrimerForge designs PCR primers. Faces: IBM Plex Sans / Mono and Source Serif 4 when installed.</p>
 </nav>
 
 <header class="mast">
   <div class="k">Document</div>
   <div class="v">
     <h1>DNA Design Suite</h1>
-    <p class="sub">A design is a lab result. Missing scores stay missing. Feasibility is the boolean on the candidate, not a third state.</p>
+    <p class="sub">Paste a coding sequence, name the host, and run. A score that was not measured stays blank. Feasibility is yes or no on the candidate, not a third state.</p>
     <p id="calibration" class="note">epistasis.context_naturalness absent</p>
   </div>
 </header>
 
-<div class="page" id="tab-codon">
-  <h2 id="submit">Submit</h2>
-  <div class="rail">
-    <div class="k">Bearer token</div>
-    <div class="v"><input id="token" class="seq" value="" placeholder="t_ and 8–32 letters or digits" autocomplete="off"></div>
-  </div>
-  <div class="rail">
-    <div class="k">DesignRequest JSON</div>
-    <div class="v">
-      <textarea id="request" class="seq" rows="8" spellcheck="false" placeholder='{"host":"…","cds":"ATG…","host_profile":{…},"objectives":["usage.cai"]}'></textarea>
-      <p class="note">The body is the library DesignRequest. A protein sequence, a construct, or an objectives preset is refused with CF-CLI-003. This page does not fill in a host profile.</p>
-      <button id="submit" type="button">POST /v1/jobs</button>
-      <div id="submit-error"></div>
+<div class="page" id="tab-codon" role="tabpanel" aria-labelledby="tab-btn-codon">
+  <p class="lead">CodonForge keeps the protein the same and changes which codons spell it, so the gene suits the host you name. Five steps. The later ones already have a working default.</p>
+
+  <section class="step" aria-labelledby="step-seq">
+    <h2 id="step-seq"><span class="step-no">1</span> Coding sequence</h2>
+    <div class="rail">
+      <div class="k"><label for="cds-text">DNA coding sequence</label></div>
+      <div class="v">
+        <textarea id="cds-text" class="seq" rows="6" spellcheck="false" aria-describedby="help-cds cds-note" placeholder="ATG... or a FASTA record"></textarea>
+        <p id="help-cds" class="field-help">Paste the coding sequence only (the part that is translated), or a FASTA file’s sequence. It should start with a start codon, use A, C, G and T, and its length should divide by 3. A protein sequence (M, L, K…) is not accepted here.</p>
+        <div class="seq-actions">
+          <button type="button" id="load-demo">Load the rpsL demo</button>
+          <label class="file-label" for="cds-file">Upload FASTA or text<input id="cds-file" type="file" accept=".fa,.fasta,.fna,.ffn,.txt,.cds,text/plain"></label>
+        </div>
+        <label class="check"><input id="trim-stop" type="checkbox"> Trim at the first in-frame stop</label>
+        <p class="field-help">Off unless you tick it. Standard-code stops are TAA, TAG and TGA. An iGEM part that ends TAATAA, such as untrimmed BBa_E0040 (720 bp), keeps the first stop and drops the second (717 bp). With the box off, that part is still refused as CF-SEQ-003.</p>
+        <p id="cds-note" class="note" aria-live="polite">No sequence yet. The rpsL demo is the E. coli K-12 MG1655 gene rpsL, 125 codons.</p>
+      </div>
     </div>
+  </section>
+
+  <section class="step" aria-labelledby="step-host">
+    <h2 id="step-host"><span class="step-no">2</span> Host</h2>
+    <div class="rail">
+      <div class="k"><label for="host-select">Organism the gene will run in</label></div>
+      <div class="v">
+        <select id="host-select" aria-describedby="help-host">
+          <option value="escherichia_coli:511145/MG1655" selected>E. coli K-12 MG1655</option>
+          <option value="escherichia_coli:511145/BL21">E. coli BL21</option>
+          <option value="custom">Other host (type the name)</option>
+        </select>
+        <label class="stack" id="host-custom-wrap" for="host-custom" hidden>Host name
+          <input id="host-custom" class="seq" type="text" spellcheck="false" placeholder="genus_species:taxid/strain" autocomplete="off">
+        </label>
+        <p id="help-host" class="field-help">The name is a label on the job. The codon table in the next step is what the optimizer actually uses. The bundled table is from E. coli K-12 MG1655 ribosomal proteins. If you pick another host, load that host’s table.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="step-profile">
+    <h2 id="step-profile"><span class="step-no">3</span> Codon-usage table</h2>
+    <div class="rail">
+      <div class="k"><label for="load-profile">How often this host uses each codon</label></div>
+      <div class="v">
+        <div class="seq-actions">
+          <button type="button" id="load-profile">Use E. coli MG1655 ribosomal proteins</button>
+          <button type="button" id="load-kazusa" class="secondary">Use Kazusa E. coli genome-wide</button>
+          <label class="file-label" for="profile-file">Upload a usage JSON<input id="profile-file" type="file" accept=".json,application/json"></label>
+        </div>
+        <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. 1.0 means every counted codon is a top synonym of the table that was loaded. Stops and single-codon families are excluded. A codon whose weight is 0 makes the whole CAI 0. The first button loads <span class="mono">examples/mg1655_ribosomal_usage.json</span>, counted from ribosomal-protein genes and labelled user-supplied. The page loads it when it opens. Kazusa (taxid 316407) is genome-wide frequencies converted to relative adaptiveness. Loading it replaces the table the search uses, so the result is a different number, not a second column on the ribosomal score. A finished design also reports the Kazusa number beside the table it optimized.</p>
+        <p id="profile-note" class="note" aria-live="polite">No codon table loaded yet.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="step-constraints">
+    <h2 id="step-constraints"><span class="step-no">4</span> Constraints <span class="optional">optional</span></h2>
+    <div class="rail">
+      <div class="k"><label for="constraint-mode">Rules the sequence must obey</label></div>
+      <div class="v">
+        <select id="constraint-mode" aria-describedby="help-constraints">
+          <option value="none" selected>No extra rules</option>
+          <option value="example">rpsL example file</option>
+          <option value="builder">Rules I tick below</option>
+          <option value="json">JSON I paste</option>
+        </select>
+        <p id="help-constraints" class="field-help">Constraints are hard limits, separate from scores. Leave this on “No extra rules” for a first run. The rpsL example file, <span class="mono">examples/rpsL_constraints.json</span>, is named as an empty demonstration set: its list is empty, so it checks nothing.</p>
+        <div class="seq-actions" id="constraint-presets">
+          <button type="button" class="secondary" data-preset="biobrick_rfc10.json">BioBrick RFC[10]</button>
+          <button type="button" class="secondary" data-preset="golden_gate.json">Golden Gate</button>
+          <button type="button" class="secondary" data-preset="synthesis.json">Synthesis</button>
+        </div>
+        <p class="field-help">Each button loads that preset into the JSON box and sends it. BioBrick RFC[10] forbids EcoRI, XbaI, SpeI, PstI and NotI. Golden Gate forbids BsaI and BsmBI. Synthesis forbids a 50 nt GC window outside 40–60%, a homopolymer longer than 6, and a repeated 12-mer. A rule this version does not search is reported as CF-FEAS-008 rather than treated as satisfied.</p>
+        <div id="constraint-builder" hidden>
+          <fieldset>
+            <legend>Common synthesis and cloning limits</legend>
+            <label class="check"><input id="constraint-bsai" type="checkbox"> Avoid the BsaI site GGTCTC (Golden Gate)</label>
+            <label class="check"><input id="constraint-bsmbi" type="checkbox"> Avoid the BsmBI site CGTCTC</label>
+            <label class="check"><input id="constraint-homo" type="checkbox"> No homopolymer longer than
+              <input id="constraint-homo-run" class="narrow" type="number" min="2" value="6" aria-label="Maximum homopolymer length"> bases
+            </label>
+            <p class="field-help">A homopolymer is the same base repeated, such as AAAAAA. Many synthesis companies refuse long runs.</p>
+            <label class="check"><input id="constraint-gc" type="checkbox"> GC window: every
+              <input id="constraint-gc-window" class="narrow" type="number" min="10" value="50" aria-label="GC window length in nucleotides"> nt, GC between
+              <input id="constraint-gc-min" class="narrow" type="number" min="0" max="1" step="0.01" value="0.25" aria-label="Minimum GC fraction in the window"> and
+              <input id="constraint-gc-max" class="narrow" type="number" min="0" max="1" step="0.01" value="0.68" aria-label="Maximum GC fraction in the window">
+            </label>
+            <p class="field-help">A GC window is a sliding stretch of the gene. The fractions are 0 to 1 (0.50 is 50% G and C). This is a hard band on every window. It is not the GC-fraction score in the next step, which is one number for the whole gene and, if you select it, is pushed downward.</p>
+          </fieldset>
+        </div>
+        <div id="constraint-json-wrap" hidden>
+          <label for="constraint-json">Constraint JSON</label>
+          <textarea id="constraint-json" class="seq" rows="6" spellcheck="false" aria-describedby="help-constraint-json"></textarea>
+          <p id="help-constraint-json" class="field-help">Paste a constraint-set document, or load the example and edit it. A file this page does not understand is reported back with a CF-FEAS code rather than ignored.</p>
+          <button type="button" id="load-constraints" class="secondary">Load examples/rpsL_constraints.json</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="step" aria-labelledby="step-objectives">
+    <h2 id="step-objectives"><span class="step-no">5</span> What to optimize</h2>
+    <div class="rail">
+      <div class="k">Objectives</div>
+      <div class="v">
+        <fieldset>
+          <legend>Scores. CAI is enough for a first design.</legend>
+          <label class="check"><input id="obj-cai" type="checkbox" checked> CAI <span class="mono">usage.cai</span></label>
+          <p class="field-help">Codon adaptation index. Higher means the codons look more like the highly expressed genes in the table you loaded. This is the usual first objective. The search maximizes it.</p>
+          <label class="check"><input id="obj-gc" type="checkbox"> Whole-gene GC fraction <span class="mono">usage.gc_content</span></label>
+          <p class="field-help">The share of the gene that is G or C, as one number. The search minimizes it, so selecting it pushes GC down. It is not a target and not a GC window. Use the GC-window rule above if you want a band.</p>
+          <label class="check"><input id="obj-violation" type="checkbox"> Constraint violations <span class="mono">constraint.violation_count</span></label>
+          <p class="field-help">How many constraint rules the sequence still breaks. The result table says whether this term was ranked on or only reported.</p>
+          <label class="check"><input id="obj-structure" type="checkbox"> Local mRNA structure <span class="mono">structure.local_accessibility</span></label>
+          <p class="field-help">How folded the messenger RNA is near each codon. The computer running this server needs ViennaRNA installed; CodonForge does not include it. If it is missing, the job can still finish and this score is shown as UNKNOWN. UNKNOWN means not measured. It is not zero and it is not a bad score.</p>
+        </fieldset>
+      </div>
+    </div>
+  </section>
+
+  <details class="advanced" id="advanced">
+    <summary>Advanced options</summary>
+    <div class="rail">
+      <div class="k"><label for="budget">Budget</label></div>
+      <div class="v">
+        <select id="budget" aria-describedby="help-budget">
+          <option value="fast" selected>Fast</option>
+          <option value="standard">Standard</option>
+          <option value="exact">Exact</option>
+        </select>
+        <p id="help-budget" class="field-help">The budget chooses which search stages run. Fast runs two stages (a first pass, then a polish) and is the right first choice. Standard adds a population of alternative designs, evolved for the number of generations below. Exact also asks for a final ranking stage this version does not run; the job says so with CF-ORCH-006 and still returns the earlier stages. Tiers are those stages. The progress panel shows one row per tier, not a single percentage.</p>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="generations">Generations</label></div>
+      <div class="v">
+        <input id="generations" class="seq narrow" type="number" min="1" value="4" aria-describedby="help-generations">
+        <p id="help-generations" class="field-help">How many rounds the population stage runs. Fast does not run that stage, so this number waits until you choose Standard or Exact. 4 generations and seed 7 are the rpsL example.</p>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="seed">Seed</label></div>
+      <div class="v">
+        <input id="seed" class="seq narrow" type="number" value="7" aria-describedby="help-seed">
+        <p id="help-seed" class="field-help">A number that makes the random part of the search repeatable. The same sequence, table, options, and seed produce the same design.</p>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="translation-table">Genetic code</label></div>
+      <div class="v">
+        <input id="translation-table" class="seq narrow" type="number" min="1" max="33" value="11" aria-describedby="help-table">
+        <p id="help-table" class="field-help">NCBI translation table. 11 is the bacterial code, which is what E. coli uses. Change it only if your host uses a different code.</p>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="flank-5">Flanks kept fixed</label></div>
+      <div class="v">
+        <label for="flank-5">5′ flank <input id="flank-5" class="seq" type="text" spellcheck="false" autocomplete="off"></label>
+        <label for="flank-3">3′ flank <input id="flank-3" class="seq" type="text" spellcheck="false" autocomplete="off"></label>
+        <p class="field-help">Bases before and after the coding sequence that must not change, such as a ribosome binding site you already chose. Leave blank if the coding sequence is the whole design.</p>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="token">Access token</label></div>
+      <div class="v">
+        <input id="token" class="seq" value="t_localdemo01" autocomplete="off" aria-describedby="help-token">
+        <p id="help-token" class="field-help">The local server asks for a token shaped like t_ and then 8 to 32 letters or digits. The filled-in value is fine when you are the only person using this computer. It is not a password for an account.</p>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="request">Request the server receives</label></div>
+      <div class="v">
+        <label class="check"><input id="edit-json" type="checkbox"> Edit this JSON myself</label>
+        <textarea id="request" class="seq" rows="8" spellcheck="false" readonly aria-describedby="help-request"></textarea>
+        <p id="help-request" class="field-help">Built from the steps above. Tick the box only if you need to change a field the form does not show. While it is ticked, Run design sends this text as-is.</p>
+      </div>
+    </div>
+  </details>
+
+  <div class="run-row">
+    <button type="button" id="submit" class="go">Run design</button>
+    <p class="note">Sends the request to POST /v1/jobs. Fast, on the rpsL demo, usually finishes within a minute.</p>
   </div>
+  <div id="submit-error" role="alert"></div>
 
   <div id="codon-helix" class="helix-stage" aria-hidden="true"></div>
   <h2 id="status">Status</h2>
-  <div id="status-root"><p class="note">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p></div>
+  <div id="status-root" aria-live="polite"><p class="note">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p></div>
 
   <h2 id="front">Pareto front</h2>
+  <p class="note">The designs the search kept. When there is one objective, this is that one design. A column is a score the search used. UNKNOWN means that score was not measured.</p>
   <div id="front-root"><p class="note">No front yet. A finished job fills this panel. A failure names its CF-* code here.</p></div>
 
-  <h2>Not in this build</h2>
-  <div id="unbuilt-root" class="note">Hosts, models, observations, presets, protein input, and the five-check feasibility route answer CF-CLI-003. The front's constraint_report is what this page shows.</div>
+  <details class="advanced">
+    <summary>What this version does not do</summary>
+    <div class="note" id="unbuilt-root">
+      <p>These requests answer CF-CLI-003. Nothing is silently skipped. Use the form above instead of those routes.</p>
+      <ul>
+        <li>There is no host catalog. Type the host and load a codon table. GET /v1/hosts is not a list of organisms.</li>
+        <li>There is no model catalog and no place to upload a lab measurement. Observations and recalibration are not implemented.</li>
+        <li>A protein sequence is not reverse-translated, and a multi-gene construct is not expanded. Paste one DNA coding sequence.</li>
+        <li>The separate feasibility route is not wired. After a job, read constraint_report.feasible on the design. It is true or false.</li>
+        <li>Importing another optimizer’s output is not wired.</li>
+      </ul>
+    </div>
+  </details>
 </div>
 
-<div class="page" id="tab-primer" hidden>
-  <h2>Sequence</h2>
-  <p class="note">Upload a DNA sequence, then drag across the viewer to choose the region to amplify. NCBI BLAST is not part of this tool.</p>
+<div class="page" id="tab-primer" role="tabpanel" aria-labelledby="tab-btn-primer" hidden>
+  <p class="lead">PrimerForge picks a forward and a reverse primer around a region you select. NCBI BLAST is not part of this tool. Specificity against a genome is not checked.</p>
   <div id="use-optimized"></div>
-  <textarea id="primer-sequence" class="seq" rows="4" spellcheck="false" placeholder="ACGT..."></textarea>
+  <div class="seq-actions">
+    <button type="button" id="load-primer-demo" class="secondary">Load the rpsL sequence</button>
+    <button type="button" id="select-all" class="secondary">Select the whole sequence</button>
+  </div>
+
+  <h2>Sequence</h2>
+  <label for="primer-sequence">Template DNA</label>
+  <textarea id="primer-sequence" class="seq" rows="4" spellcheck="false" placeholder="ACGT..." aria-describedby="help-primer-seq"></textarea>
+  <p id="help-primer-seq" class="field-help">Paste the DNA you will amplify. A FASTA header (a line starting with &gt; or ;) is dropped before numbering, the same way the API drops it, so the header does not shift the region. Lowercase is read as uppercase. A letter that is not A, C, G or T is named with its position and the search does not run. Then drag across the letters, or type a start and end. On a phone, Select the whole sequence is the sure path.</p>
   <div class="viewer-layout">
     <div>
-      <div id="primer-viewer" class="seq-block viewer" tabindex="0"></div>
+      <div id="primer-viewer" class="seq-block viewer" tabindex="0" role="application" aria-label="Sequence viewer. Drag across bases to choose the region to amplify, or type the start and end."></div>
       <div id="selection-tip" class="selection-tip" hidden></div>
       <p id="primer-selection" class="note">No region selected.</p>
+      <div class="region-fields">
+        <label for="region-start">Start base
+          <input id="region-start" class="seq narrow" type="number" min="1" inputmode="numeric" aria-describedby="help-region">
+        </label>
+        <label for="region-end">End base
+          <input id="region-end" class="seq narrow" type="number" min="1" inputmode="numeric">
+        </label>
+      </div>
+      <p id="help-region" class="field-help">Bases are numbered from 1, and both ends are included. The viewer highlights the same stretch. Keyboard: tab to these boxes. You do not have to drag.</p>
     </div>
     <div class="config-panel">
-      <h2>Configuration</h2>
-      <label>Tm target <input id="primer-tm" class="seq" type="number" value="60" step="0.1"></label>
-      <label>Product min <input id="primer-pmin" class="seq" type="number" value="100"></label>
-      <label>Product max <input id="primer-pmax" class="seq" type="number" value="500"></label>
-      <label>Flank length <input id="primer-flank" class="seq" type="number" value="200" min="18" max="300"></label>
-      <label>Primer min <input id="primer-lmin" class="seq" type="number" value="18"></label>
-      <label>Primer max <input id="primer-lmax" class="seq" type="number" value="25"></label>
-      <button id="primer-search" type="button">Find primer pairs</button>
-      <div id="primer-progress"></div>
+      <h2>Primer settings</h2>
+      <label for="primer-tm">Melting temperature target (°C)
+        <input id="primer-tm" class="seq" type="number" value="60" step="0.1" aria-describedby="help-primer-tm">
+      </label>
+      <p id="help-primer-tm" class="field-help">Tm, the temperature where the primer is half bound. 60 °C suits a typical PCR.</p>
+      <label for="primer-pmin">Shortest product (bp)
+        <input id="primer-pmin" class="seq" type="number" value="100" aria-describedby="help-product">
+      </label>
+      <label for="primer-pmax">Longest product (bp)
+        <input id="primer-pmax" class="seq" type="number" value="500">
+      </label>
+      <p id="help-product" class="field-help">How long the amplified piece may be, in base pairs. If your region is longer than the maximum, raise the maximum or select a shorter region.</p>
+      <details class="advanced">
+        <summary>More primer settings</summary>
+        <label for="primer-flank">Flank length (nt)
+          <input id="primer-flank" class="seq" type="number" value="200" min="18" max="300" aria-describedby="help-flank">
+        </label>
+        <p id="help-flank" class="field-help">How many bases on each side of your region the primers may sit in.</p>
+        <label for="primer-lmin">Shortest primer (nt)
+          <input id="primer-lmin" class="seq" type="number" value="18">
+        </label>
+        <label for="primer-lmax">Longest primer (nt)
+          <input id="primer-lmax" class="seq" type="number" value="25">
+        </label>
+        <p class="field-help">18 to 25 bases is a usual primer length. The minimum must be less than or equal to the maximum.</p>
+      </details>
+      <button id="primer-search" type="button" class="go">Find primer pairs</button>
+      <div id="primer-progress" aria-live="polite"></div>
     </div>
   </div>
   <div id="primer-helix" class="helix-stage" aria-hidden="true"></div>
-  <div id="primer-error"></div>
+  <div id="primer-error" role="alert"></div>
   <div id="primer-results"></div>
 
-  <h2>Check a specific pair</h2>
-  <p class="note">Manual check. This posts to /v1/primers/analyze and returns immediately.</p>
-  <label>Forward <input id="manual-forward" class="seq" spellcheck="false"></label>
-  <label>Reverse <input id="manual-reverse" class="seq" spellcheck="false"></label>
-  <button id="manual-check" type="button">POST /v1/primers/analyze</button>
+  <h2>Check a pair you already have</h2>
+  <p class="note">Paste two primers. This posts to /v1/primers/analyze and returns immediately. It does not search.</p>
+  <label for="manual-forward">Forward primer
+    <input id="manual-forward" class="seq" spellcheck="false" autocomplete="off">
+  </label>
+  <label for="manual-reverse">Reverse primer
+    <input id="manual-reverse" class="seq" spellcheck="false" autocomplete="off">
+  </label>
+  <button id="manual-check" type="button">Check this pair</button>
   <div id="manual-detail"></div>
 </div>
+<noscript><p class="callout refusal">This page needs JavaScript. The server is running; enable JavaScript and reload.</p></noscript>
 <script type="module" src="/app.js"></script>
 </body>
 </html>

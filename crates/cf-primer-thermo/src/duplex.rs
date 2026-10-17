@@ -43,8 +43,18 @@ pub fn is_self_complementary(seq: &str) -> bool {
 }
 
 fn stack_key(left: u8, right: u8) -> Result<String, ParameterError> {
-    let bottom_left = complement(left).ok_or_else(|| ParameterError("bad base".into()))?;
-    let bottom_right = complement(right).ok_or_else(|| ParameterError("bad base".into()))?;
+    let bottom_left = complement(left).ok_or_else(|| {
+        ParameterError(format!(
+            "CF-PRIM-006 base {} is not A, C, G or T",
+            left as char
+        ))
+    })?;
+    let bottom_right = complement(right).ok_or_else(|| {
+        ParameterError(format!(
+            "CF-PRIM-006 base {} is not A, C, G or T",
+            right as char
+        ))
+    })?;
     let forward = format!(
         "{}{}/{}{}",
         left as char, right as char, bottom_left as char, bottom_right as char
@@ -57,8 +67,18 @@ fn lookup(parameters: &Parameters, left: u8, right: u8) -> Result<&Thermo, Param
     if let Some(thermo) = parameters.stacks.get(&forward) {
         return Ok(thermo);
     }
-    let flipped_left = complement(right).ok_or_else(|| ParameterError("bad base".into()))?;
-    let flipped_right = complement(left).ok_or_else(|| ParameterError("bad base".into()))?;
+    let flipped_left = complement(right).ok_or_else(|| {
+        ParameterError(format!(
+            "CF-PRIM-006 base {} is not A, C, G or T",
+            right as char
+        ))
+    })?;
+    let flipped_right = complement(left).ok_or_else(|| {
+        ParameterError(format!(
+            "CF-PRIM-006 base {} is not A, C, G or T",
+            left as char
+        ))
+    })?;
     let reverse = stack_key(flipped_left, flipped_right)?;
     parameters
         .stacks

@@ -583,24 +583,42 @@ class Job:
         stages = self.budget.stages()
         cds = self.inputs.cds
         self.record_candidate("input", cds)
+        self._absorb_warnings(self._unsearched_warnings(cds))
 
         if "tier1_seed" in stages:
             self._engine_stage = "tier1"
-            report = json.loads(
-                _core.search_tier1_seed(
-                    self._tier_request(cds, self.plan.tier1),
-                    self.inputs.tier1_beam,
-                    self.inputs.tier1_seeds,
+            try:
+                report = json.loads(
+                    _core.search_tier1_seed(
+                        self._tier_request(cds, self.plan.tier1),
+                        self.inputs.tier1_beam,
+                        self.inputs.tier1_seeds,
+                    )
                 )
-            )
-            if report["seeds"]:
-                # Best surrogate first, and tier 1 already returns them in that
-                # order. Taking [0] rather than re-sorting avoids introducing a
-                # tie-break this layer would have to define.
-                cds = _cds_of(report["seeds"][0])
-                self.record_candidate("tier1_dp", cds)
-            self.stage_reports["tier1_seed"] = report
-            self._absorb_warnings(report.get("warnings", []))
+            except ValueError as exc:
+                # Tier 1 ran. Recording that before the refusal leaves the
+                # status is what stops a failed job from showing the tier as
+                # still pending.
+                refusal = _engine_refusal(exc, "tier1")
+                self.stage_reports["tier1_seed"] = {
+                    "seeds": [],
+                    "refusal": refusal.code if isinstance(refusal, TierPlanError) else "error",
+                }
+                if not isinstance(refusal, TierPlanError) or refusal.code != "CF-SRCH-006":
+                    raise
+                # DEP-SRCH-015. The DP cannot carry GC windows or scattered
+                # repeats. That refusal is the start of seed repair, not the
+                # end of the job, when a synonymous sequence still exists.
+                cds = self._repair_seed(cds)
+            else:
+                if report["seeds"]:
+                    # Best surrogate first, and tier 1 already returns them in that
+                    # order. Taking [0] rather than re-sorting avoids introducing a
+                    # tie-break this layer would have to define.
+                    cds = _cds_of(report["seeds"][0])
+                    self.record_candidate("tier1_dp", cds)
+                self.stage_reports["tier1_seed"] = report
+                self._absorb_warnings(report.get("warnings", []))
 
         if "tier2_block_ca" in stages:
             # No catch here. `run` lifts every `CF-*` problem document once.
@@ -620,6 +638,35 @@ class Job:
             self._absorb_warnings(report.get("warnings", []))
 
         self.seeded_cds = cds
+
+    def _unsearched_warnings(self, cds: str) -> list[dict[str, Any]]:
+        """`CF-FEAS-008` for rules this version does not evaluate.
+
+        A warning, not a failure. The empty demonstration constraint set has
+        none of these rules, and a job that included `local_structure` must
+        say so rather than report the rule as satisfied.
+        """
+        report = json.loads(_core.constraint_unsearched(self._tier_request(cds, self.plan.tier1)))
+        warnings = report.get("warnings", [])
+        return list(warnings) if isinstance(warnings, list) else []
+
+    def _repair_seed(self, cds: str) -> str:
+        """Continue from a repaired seed, or refuse with the rules still broken."""
+        report = json.loads(_core.resolve_feasible_seed(self._tier_request(cds, self.plan.tier1)))
+        self._absorb_warnings(report.get("unsearched", []))
+        if not report.get("feasible"):
+            problem = report.get("problem")
+            if not isinstance(problem, dict):
+                raise ValueError(
+                    json.dumps({"code": "CF-SRCH-006", "detail": "seed repair failed"})
+                )
+            raise ValueError(json.dumps(problem))
+        repaired = str(report["cds"])
+        self.record_candidate("repair", repaired)
+        warning = report.get("warning")
+        if isinstance(warning, dict):
+            self._add_warning(warning)
+        return repaired
 
     def _absorb_warnings(self, incoming: list[dict[str, Any]]) -> None:
         """Add warnings the engine produced, without duplicating them.
@@ -807,14 +854,20 @@ class Job:
                 continue
 
             if tier != GENERATIONAL_TIER:
-                # Planned, executable, and not yet reached.
-                tiers.append({"tier": tier, "state": "running" if running else "pending"})
+                # Planned, executable, and not yet reached. A failed job did
+                # not leave the tier waiting; it never got there.
+                if self.state == "failed":
+                    tiers.append({"tier": tier, "state": "skipped"})
+                else:
+                    tiers.append({"tier": tier, "state": "running" if running else "pending"})
                 continue
 
             if self.state == "succeeded":
                 state = "done"
             elif running:
                 state = "running"
+            elif self.state == "failed":
+                state = "skipped"
             else:
                 state = "pending"
             tiers.append(

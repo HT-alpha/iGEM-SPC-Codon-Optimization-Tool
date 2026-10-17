@@ -358,6 +358,29 @@ fn search_tier2_polish(request_json: &str, block: usize, sweeps: u32) -> PyResul
     })
 }
 
+/// Repair one feasible seed after tier 1 refuses a non-local constraint.
+///
+/// `DEP-SRCH-015`. Returns the report whether or not the seed is feasible.
+/// The job continues only when `feasible` is true.
+#[pyfunction]
+fn resolve_feasible_seed(request_json: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, pipeline::run_seed_resolve)
+}
+
+/// Rules this version does not search, as `CF-FEAS-008` warnings.
+#[pyfunction]
+fn constraint_unsearched(request_json: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, pipeline::run_unsearched)
+}
+
+/// Per-position diff against the most-frequent-codon assignment.
+#[pyfunction]
+fn explain_baseline(request_json: &str, cds: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, |inputs| {
+        pipeline::run_explain_deviations(inputs, cds)
+    })
+}
+
 /// The optimization direction each requested term declares. `P1-30`.
 ///
 /// Exposed so the job layer can populate `resolved_objectives[].direction` and
@@ -718,6 +741,9 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_run_segment, m)?)?;
     m.add_function(wrap_pyfunction!(search_tier1_seed, m)?)?;
     m.add_function(wrap_pyfunction!(search_tier2_polish, m)?)?;
+    m.add_function(wrap_pyfunction!(resolve_feasible_seed, m)?)?;
+    m.add_function(wrap_pyfunction!(constraint_unsearched, m)?)?;
+    m.add_function(wrap_pyfunction!(explain_baseline, m)?)?;
     m.add_function(wrap_pyfunction!(term_directions, m)?)?;
     m.add_function(wrap_pyfunction!(term_roles, m)?)?;
     m.add_function(wrap_pyfunction!(term_capabilities, m)?)?;

@@ -18,7 +18,7 @@
 //! runs a bounded number of sweeps, so each is a single call. The job layer
 //! sequences them; neither reaches back into Python.
 
-use cf_constraints::ConstraintChecker;
+use cf_constraints::{explain_deviations, resolve_feasible_seed, ConstraintChecker};
 use cf_landscape::terms::constraints::ViolationCountTerm;
 use cf_landscape::terms::structure::LocalAccessibilityTerm;
 use cf_landscape::terms::usage::{CaiTerm, CodonUsageTable, GcContentTerm};
@@ -37,6 +37,7 @@ use cf_search::{
     Tier1Request, Tier2Config, Tier2Plan, Tier2Request,
 };
 use cf_types::error::lookup;
+use cf_types::Codon;
 use cf_types::{code, CfError, CodonSequence, Digest, HostId, Result, TermId};
 use pyo3::types::PyAnyMethods;
 use serde_json::{json, Value};
@@ -424,6 +425,192 @@ pub fn run_tier2(inputs: &TierInputs<'_>, block: usize, sweeps: u32) -> Result<V
         }).collect::<Vec<_>>(),
         "notes": report.notes,
     }))
+}
+
+/// One synonymous seed after tier 1 refuses a constraint the DP cannot carry.
+///
+/// `DEP-SRCH-015`. The report is always returned, feasible or not. The job
+/// decides whether to continue. A feasible seed carries `CF-SRCH-017` so the
+/// page can say the sequence came from repair. An infeasible seed carries
+/// `CF-SRCH-006` whose detail names the rules still broken and what to change.
+pub fn run_seed_resolve(inputs: &TierInputs<'_>) -> Result<Value> {
+    let weights = codon_adaptiveness(inputs.host_profile);
+    let report = resolve_feasible_seed(inputs.sequence, inputs.checker, &weights)?;
+    let mut document = json!({
+        "cds": report.sequence.cds_string(),
+        "sequence": report.sequence.to_json()?,
+        "feasible": report.feasible,
+        "cycles": report.cycles,
+        "edits": report.edits,
+        "residual": report.residual.iter().map(|item| json!({
+            "constraint_id": item.constraint_id,
+            "kind": item.kind,
+            "count": item.count,
+        })).collect::<Vec<_>>(),
+        "unsearched": unsearched_warnings(inputs)?,
+    });
+    if report.feasible {
+        document["warning"] = stamped(
+            CfError::new(
+                code::SRCH_SEED_REPAIR,
+                format!(
+                    "tier 1 refused a constraint the dynamic program cannot carry; \
+                     seed repair committed {} synonymous edit(s) over {} cycle(s), \
+                     and later tiers start from that sequence",
+                    report.edits, report.cycles
+                ),
+            ),
+            "tier1",
+            "seed_repair",
+        );
+    } else {
+        document["problem"] = stamped(
+            CfError::new(code::SRCH_TIER1_INFEASIBLE, infeasible_seed_detail(&report)),
+            "tier1",
+            "seed_repair",
+        );
+    }
+    Ok(document)
+}
+
+/// Rules this version does not evaluate. A warning, not a refusal: treating
+/// them as satisfied would report a design the checker never looked at.
+pub fn run_unsearched(inputs: &TierInputs<'_>) -> Result<Value> {
+    Ok(json!({ "warnings": unsearched_warnings(inputs)? }))
+}
+
+/// Why each editable codon differs from the most-frequent synonym.
+pub fn run_explain_deviations(inputs: &TierInputs<'_>, cds: &str) -> Result<Value> {
+    let sequence = CodonSequence::from_cds(cds, inputs.sequence.table().id())?
+        .with_five_prime_flank(
+            std::str::from_utf8(inputs.sequence.five_prime_flank()).map_err(|err| {
+                CfError::new(
+                    code::SEQ_INVALID_BASE,
+                    format!("five-prime flank is not UTF-8: {err}"),
+                )
+            })?,
+        )?
+        .with_three_prime_flank(
+            std::str::from_utf8(inputs.sequence.three_prime_flank()).map_err(|err| {
+                CfError::new(
+                    code::SEQ_INVALID_BASE,
+                    format!("three-prime flank is not UTF-8: {err}"),
+                )
+            })?,
+        )?;
+    let weights = codon_adaptiveness(inputs.host_profile);
+    let deviations = explain_deviations(&sequence, inputs.checker, &weights)?;
+    Ok(json!(deviations
+        .into_iter()
+        .map(|item| json!({
+            "codon_index": item.codon_index,
+            "codon": item.codon,
+            "weight": item.weight,
+            "baseline": item.baseline,
+            "baseline_weight": item.baseline_weight,
+            "constraints_if_reverted": item.constraints_if_reverted,
+        }))
+        .collect::<Vec<_>>()))
+}
+
+fn codon_adaptiveness(host_profile: &Value) -> [f64; 64] {
+    // A missing codon stays at 1.0. Filling the gap with 0 would make every
+    // unlisted codon destroy CAI, which is a property of an incomplete table
+    // rather than of the sequence.
+    let mut weights = [1.0; 64];
+    let Some(table) = host_profile
+        .pointer("/codon_usage/table")
+        .and_then(Value::as_object)
+    else {
+        return weights;
+    };
+    for (label, entry) in table {
+        let Ok(codon) = Codon::parse(label) else {
+            continue;
+        };
+        if let Some(weight) = entry.get("relative_adaptiveness").and_then(Value::as_f64) {
+            weights[codon.index_usize()] = weight;
+        }
+    }
+    weights
+}
+
+fn unsearched_warnings(inputs: &TierInputs<'_>) -> Result<Vec<Value>> {
+    Ok(cf_constraints::seed::unsearched_rules(inputs.checker)
+        .into_iter()
+        .map(|rule| {
+            stamped(
+                CfError::new(
+                    code::FEAS_UNSEARCHED,
+                    format!("{}: {}", rule.id, rule.reason),
+                ),
+                "constraints",
+                &rule.id,
+            )
+        })
+        .collect())
+}
+
+fn stamped(error: CfError, stage: &str, subject: &str) -> Value {
+    let mut problem = error.to_problem_details();
+    problem["stage"] = json!(stage);
+    problem["subject"] = json!(subject);
+    problem
+}
+
+fn infeasible_seed_detail(report: &cf_constraints::SeedReport) -> String {
+    let broken = if report.residual.is_empty() {
+        "the checker still rejects the sequence".to_string()
+    } else {
+        report
+            .residual
+            .iter()
+            .map(|item| {
+                format!(
+                    "{} ({}) still has {} violation(s)",
+                    item.constraint_id, item.kind, item.count
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; ")
+    };
+    format!(
+        "no synonymous sequence satisfied the hard constraints after seed repair. {broken}. {}",
+        repair_advice(report)
+    )
+}
+
+fn repair_advice(report: &cf_constraints::SeedReport) -> String {
+    let mut parts = Vec::new();
+    let kinds: std::collections::BTreeSet<&str> = report
+        .residual
+        .iter()
+        .map(|item| item.kind.as_str())
+        .collect();
+    if kinds.contains("gc_window") {
+        parts.push("widen the GC window band or shorten the window");
+    }
+    if kinds.contains("kmer_repeat") {
+        parts.push("raise the repeat allowance or shorten k");
+    }
+    if kinds.contains("restriction_site")
+        || kinds.contains("forbidden_motif")
+        || kinds.contains("custom_regex")
+    {
+        parts.push("drop a site, motif, or pattern the synonymous codons cannot avoid");
+    }
+    if kinds.contains("homopolymer") {
+        parts.push("raise the homopolymer run limit");
+    }
+    if kinds.contains("codon_ban") {
+        parts.push("drop a codon ban that removes every synonym");
+    }
+    if parts.is_empty() {
+        "nothing in the residual names a rule class this repair pass knows how to describe"
+            .to_string()
+    } else {
+        format!("what you can change: {}", parts.join("; "))
+    }
 }
 
 /// Per-stage root seeds, derived from the job's root seed.

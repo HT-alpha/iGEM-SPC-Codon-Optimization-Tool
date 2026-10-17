@@ -1,0 +1,30 @@
+{
+  "no_region": "No region selected. Drag across the sequence, type a start and end, or use Select the whole sequence.",
+  "page_search": {
+    "bases": 717,
+    "first": "A",
+    "selection": "Bases 201–400 (200 nt). Both ends are included."
+  },
+  "result": {
+    "error": "",
+    "results": "Recommended pair_00_0000000f\ninformed_by primer.tm_mismatch primer.worst_dimer_penalty primer.gc_balance primer.product_deviation\n\nSpecificity against genome not checked. SantaLucia J Jr. A unified view of polymer, dumbbell, and oligonucleotide DNA nearest-neighbor thermodynamics. Proc Natl Acad Sci USA. 1998;95(4):1460-1465. Table 2, unified oligonucleotide ΔH° and ΔS° NN parameters in 1 M NaCl. Free full text: PMC19045.\n\nPAIR\tTM MISMATCH\tWORST DIMER ΔG\tGC BALANCE\tPRODUCT\tZONE\npair_00_0000000f\t0.01\t-2.66\t3.3\t309\tkept\npair_01_00000010\t0.01\t-2.89\t3.3\t306\tkept\npair_02_0000003d\t0.05\t-3.75\t1.8\t303\tkept\npair_03_0000003b\t0.07\t-3.75\t0.0\t321\tkept\npair_04_0000003a\t0.07\t-3.75\t0.0\t320\tkept\npair_05_00000077\t0.09\t-3.01\t7.3\t296\tkept\npair_06_00000040\t0.12\t-3.75\t1.6\t317\tkept\npair_07_00000012\t0.12\t-2.66\t1.8\t313\tkept\npair_08_00000038\t0.18\t-3.75\t1.6\t313\tkept\npair_09_0000009f\t0.22\t-3.01\t5.6\t294\tamber\npair_1",
+    "done": true
+  },
+  "illegal_base": "CF-PRIM-006 base N at position 4 is not A, C, G or T.\n\n0 ATGNCCC",
+  "codon": {
+    "help": "Constraints are hard limits, separate from scores. Leave this on “No extra rules” for a first run. The rpsL example file, examples/rpsL_constraints.json, is named as an empty demonstration set: its list is empty, so it checks nothing.",
+    "presets": [
+      "biobrick_rfc10.json",
+      "golden_gate.json",
+      "synthesis.json"
+    ],
+    "kazusa": true,
+    "note": "Trimmed at the first in-frame stop (standard code): 720 bases became 717, through codon 238 inclusive. 717 bases, 239 codons.",
+    "untrimmed": 720,
+    "sent": 717
+  },
+  "failed_design": {
+    "status": "Job\njob_TT0XKA1FKXA52K23YDGZK7XV3M\nState\nfailed\n\nStopped before a design was ready. The code names the reason. The sentence under it says what to try.\n\nCF-SRCH-006 Tier 1 found no feasible assignment\nno synonymous sequence satisfied the hard constraints after seed repair. c_gc (gc_window) still has 31 violation(s). what you can change: widen the GC window band or shorten the window\n\nWhat to do. No synonymous sequence satisfied the hard constraints. The detail names the rules that remain. Widen a GC window, raise a repeat allowance, or drop a site, motif, or pattern the codons cannot avoid.\n\nTIERS\ntier1_seed\ndone\n\nFirst pass. Picks a codon at each position.\n\ntier2_block_ca\nskipped\n\nPolish. Revisits the gene in blocks.\n\nRESOLVED OBJECTIVES\nTERM\tROLE\tDIRECTION\nusage.cai\tpareto_axis\tmaximize\nWARNINGS\ntier1 · 1 · hard refusal · CF-SRCH-006\nCODE\nSTAGE\nSUBJECT\nTITLE\nCF-SRCH-006\ntier1\nno\nTier 1 ",
+    "front": "CF-SRCH-006 Tier 1 found no feasible assignment\nno synonymous sequence satisfied the hard constraints after seed repair. c_gc (gc_window) still has 31 violation(s). what you can change: widen the GC window band or shorten the window\n\nWhat to do. No synonymous sequence satisfied the hard constraints. The detail names the rules that remain. Widen a GC window, raise a repeat allowance, or drop a site, motif, or pattern the codons cannot avoid."
+  }
+}

@@ -240,6 +240,18 @@ def explain(front: dict[str, Any], status: dict[str, Any], candidate_index: int 
         out.append(f"  {violation['constraint_id']}  {violation['detail']}")
     out.append("")
 
+    rationale = candidate.get("rationale") or {}
+    annotations = rationale.get("annotations") or []
+    if annotations:
+        out.append("rationale")
+        for annotation in annotations:
+            span = annotation.get("span") or {}
+            out.append(
+                f"  {annotation.get('tag', '')}  {span.get('start', '')}..{span.get('end', '')}"
+            )
+            out.append(f"    {annotation.get('text', '')}")
+        out.append("")
+
     if status.get("warnings"):
         out.append("warnings")
         code_width = max(len(w["code"]) for w in status["warnings"])

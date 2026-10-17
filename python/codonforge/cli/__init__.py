@@ -9,6 +9,24 @@ agreeing.
 Declared dependencies: cf-types, cf-orchestrator, cf-active, cf-modelreg.
 """
 
-from .main import build_parser, main
+import importlib
+from typing import Any
 
 __all__ = ["build_parser", "main"]
+
+
+def __getattr__(name: str) -> Any:
+    """Import `main` on first use.
+
+    `python -m codonforge.cli.main` imports the package before it executes the
+    module. Importing `main` here would leave `codonforge.cli.main` in
+    `sys.modules` before that execution, which is the RuntimeWarning every
+    CLI invocation used to print. `importlib.import_module` loads the submodule
+    without looking the name up on this package, which is what recurses.
+    """
+    if name in __all__:
+        module = importlib.import_module(f"{__name__}.main")
+        value = getattr(module, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

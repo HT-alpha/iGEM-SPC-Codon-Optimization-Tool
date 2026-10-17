@@ -50,6 +50,7 @@ name = "cf-constraints"
 version = "0.1.0"
 dependencies = [
  "cf-types",
+ "regex",
  "serde",
  "serde_json",
 ]

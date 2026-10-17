@@ -148,6 +148,38 @@
       "trigger": "fewer than 5% of editable codons differ from the input",
       "direction": "informational",
       "template": "Only {n} codons differ from your input sequence."
+    },
+    {
+      "tag": "cai_table_relative",
+      "scope": "span",
+      "term_id": "usage.cai",
+      "trigger": "usage.cai is reported for this candidate; the span is the whole CDS",
+      "direction": "informational",
+      "template": "CAI {value} is the geometric mean of relative adaptiveness on the loaded {subset} table. 1.0 means every counted codon is a top synonym of that table."
+    },
+    {
+      "tag": "cai_reference_table",
+      "scope": "span",
+      "term_id": "usage.cai",
+      "trigger": "a second reference table was scored on the same CDS and was not the table the search optimized",
+      "direction": "informational",
+      "template": "On {reference} the same CDS scores {value}. That table did not choose the codons."
+    },
+    {
+      "tag": "cai_zero_weight",
+      "scope": "position",
+      "term_id": "usage.cai",
+      "trigger": "a counted codon has relative adaptiveness 0 on the loaded table",
+      "direction": "warning",
+      "template": "Codon {codon} at position {pos} has weight 0, so CAI is 0. Flooring that weight at the smallest positive weight scores {sensitivity}."
+    },
+    {
+      "tag": "baseline_deviation",
+      "scope": "position",
+      "term_id": "usage.cai",
+      "trigger": "the codon is not the most frequent synonym of the loaded table",
+      "direction": "informational",
+      "template": "Position {pos} is {codon} rather than {baseline} because {reason}."
     }
   ]
 }

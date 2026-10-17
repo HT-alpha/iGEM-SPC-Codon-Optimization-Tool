@@ -4,12 +4,15 @@
 //! `planning/02-schemas/constraint_set.schema.json`.
 //!
 //! Blocking and advisory violations are both reported, separately. A rule the
-//! Phase 1 checker cannot evaluate (local structure, LM-dependent codon
-//! frequency, custom regex) is listed by [`ConstraintChecker::undetectable`]
-//! rather than being treated as satisfied — a constraint that is silently not
-//! checked is worse than one that fails loudly.
+//! Phase 1 checker cannot evaluate (local structure, minimum codon frequency)
+//! is listed by [`ConstraintChecker::undetectable`] rather than being treated
+//! as satisfied — a constraint that is silently not checked is worse than one
+//! that fails loudly. `custom_regex` is checked: the `regex` crate compiles it
+//! in linear time with a size cap (`CF-FEAS-007` / `RISK-SEC-003`). A pattern
+//! that does not compile is a malformed constraint, not an undetectable one.
 
-use cf_types::error::Result;
+use cf_types::error::{code, CfError, Result};
+use regex::Regex;
 
 use crate::kmer::{unpack, KmerIndex};
 use crate::motif::MotifAutomaton;
@@ -182,6 +185,16 @@ struct HomopolymerRule {
     max_run: usize,
 }
 
+struct RegexRule {
+    index: usize,
+    pattern: Regex,
+    /// The pattern text, kept for the violation detail. The compiled program
+    /// does not round-trip to the source.
+    source: String,
+    both_strands: bool,
+    max_occurrences: u32,
+}
+
 struct GcRule {
     index: usize,
     window_nt: usize,
@@ -197,6 +210,7 @@ pub struct ConstraintChecker {
     kmer_rules: Vec<KmerRule>,
     homopolymer_rules: Vec<HomopolymerRule>,
     gc_rules: Vec<GcRule>,
+    regex_rules: Vec<RegexRule>,
     undetectable: Vec<String>,
 }
 
@@ -221,6 +235,7 @@ impl ConstraintChecker {
         let mut kmer_rules = Vec::new();
         let mut homopolymer_rules = Vec::new();
         let mut gc_rules = Vec::new();
+        let mut regex_rules = Vec::new();
         let mut undetectable = Vec::new();
 
         for (index, constraint) in set.constraints.iter().enumerate() {
@@ -281,6 +296,17 @@ impl ConstraintChecker {
                     min: *min,
                     max: *max,
                 }),
+                Rule::CustomRegex {
+                    pattern,
+                    max_occurrences,
+                    flags,
+                } => regex_rules.push(RegexRule {
+                    index,
+                    pattern: compile_custom_regex(pattern, flags)?,
+                    source: pattern.clone(),
+                    both_strands: flags.iter().any(|flag| flag == "both_strands"),
+                    max_occurrences: *max_occurrences,
+                }),
                 _ => undetectable.push(constraint.id.clone()),
             }
         }
@@ -292,6 +318,7 @@ impl ConstraintChecker {
             kmer_rules,
             homopolymer_rules,
             gc_rules,
+            regex_rules,
             undetectable,
         })
     }
@@ -313,6 +340,7 @@ impl ConstraintChecker {
     pub fn check(&self, view: &ConstructView) -> Vec<Violation> {
         let mut violations = Vec::new();
         self.check_motifs(view, &mut violations);
+        self.check_regex(view, &mut violations);
         self.check_kmers(view, &mut violations);
         self.check_homopolymers(view, &mut violations);
         self.check_gc(view, &mut violations);
@@ -385,7 +413,11 @@ impl ConstraintChecker {
     /// deltas that are usually right, which is the worst of the three
     /// outcomes.
     pub fn influence_radius_nt(&self) -> Option<usize> {
-        if !self.kmer_rules.is_empty() {
+        // A custom regex match is not bounded by the pattern's character
+        // count once a quantifier is present, and a caller that treated the
+        // source length as the reach would miss hits. Same consequence as a
+        // k-mer rule: there is no finite neighbourhood, so say so.
+        if !self.kmer_rules.is_empty() || !self.regex_rules.is_empty() {
             return None;
         }
         let motifs = self
@@ -552,6 +584,55 @@ impl ConstraintChecker {
         }
     }
 
+    fn check_regex(&self, view: &ConstructView, out: &mut Vec<Violation>) {
+        for rule in &self.regex_rules {
+            let constraint = self.constraint(rule.index);
+            let spans: Vec<(usize, usize)> = match constraint.scope {
+                Scope::Construct => vec![(0, view.construct.len())],
+                Scope::Cds | Scope::Cistron => view.cds_spans.clone(),
+            };
+            let mut hits: Vec<(usize, usize, bool)> = Vec::new();
+            for (start, end) in spans {
+                if start >= end || end > view.construct.len() {
+                    continue;
+                }
+                let slice = &view.construct[start..end];
+                collect_regex_hits(&rule.pattern, slice, start, false, &mut hits);
+                if rule.both_strands {
+                    let rc = reverse_complement(slice);
+                    collect_regex_hits_on_reverse(
+                        &rule.pattern,
+                        &rc,
+                        start,
+                        slice.len(),
+                        &mut hits,
+                    );
+                }
+            }
+            hits.sort_by_key(|(start, end, reverse)| (*start, *end, *reverse));
+            let allowed = rule.max_occurrences as usize;
+            if hits.len() <= allowed {
+                continue;
+            }
+            for (start, end, reverse) in hits.into_iter().skip(allowed) {
+                let global_start = view.origin_nt + start;
+                let global_end = view.origin_nt + end;
+                out.push(Violation {
+                    constraint_id: constraint.id.clone(),
+                    class: constraint.class,
+                    start_nt: global_start,
+                    end_nt: global_end,
+                    actionable: view.touches_editable(start, end),
+                    detail: format!(
+                        "pattern /{}/ matches at {global_start}..{global_end} ({} strand); at most {allowed} permitted",
+                        rule.source,
+                        if reverse { "antisense" } else { "sense" }
+                    ),
+                });
+            }
+        }
+    }
+
     fn check_kmers(&self, view: &ConstructView, out: &mut Vec<Violation>) {
         if self.kmer_rules.is_empty() {
             return;
@@ -664,6 +745,94 @@ impl ConstraintChecker {
     }
 }
 
+fn compile_custom_regex(pattern: &str, flags: &[String]) -> Result<Regex> {
+    // Linear time, no backreferences: the `regex` crate refuses those. The
+    // size cap is RISK-SEC-003. A pattern that does not fit is not silently
+    // dropped; compile fails the constraint set.
+    regex::RegexBuilder::new(pattern)
+        .size_limit(1 << 20)
+        .dfa_size_limit(1 << 20)
+        .case_insensitive(flags.iter().any(|flag| flag == "case_insensitive"))
+        .build()
+        .map_err(|err| {
+            let message = err.to_string();
+            if message.contains("size") || message.contains("limit") {
+                CfError::new(
+                    code::FEAS_REGEX_TOO_LARGE,
+                    format!("custom_regex {pattern:?} exceeds the compiled-size cap: {message}"),
+                )
+            } else {
+                CfError::new(
+                    code::FEAS_CONSTRAINT_INVALID,
+                    format!("custom_regex {pattern:?} did not compile: {message}"),
+                )
+            }
+        })
+}
+
+fn reverse_complement(seq: &[u8]) -> Vec<u8> {
+    seq.iter()
+        .rev()
+        .map(|base| match base {
+            b'A' | b'a' => b'T',
+            b'T' | b't' | b'U' | b'u' => b'A',
+            b'C' | b'c' => b'G',
+            b'G' | b'g' => b'C',
+            other => *other,
+        })
+        .collect()
+}
+
+fn collect_regex_hits(
+    pattern: &Regex,
+    slice: &[u8],
+    origin: usize,
+    reverse: bool,
+    hits: &mut Vec<(usize, usize, bool)>,
+) {
+    let Ok(text) = std::str::from_utf8(slice) else {
+        return;
+    };
+    let mut from = 0;
+    while from < text.len() {
+        match pattern.find_at(text, from) {
+            Some(found) if found.end() > found.start() => {
+                hits.push((origin + found.start(), origin + found.end(), reverse));
+                from = found.start() + 1;
+            }
+            Some(_) => from += 1,
+            None => break,
+        }
+    }
+}
+
+fn collect_regex_hits_on_reverse(
+    pattern: &Regex,
+    reversed: &[u8],
+    origin: usize,
+    length: usize,
+    hits: &mut Vec<(usize, usize, bool)>,
+) {
+    let Ok(text) = std::str::from_utf8(reversed) else {
+        return;
+    };
+    let mut from = 0;
+    while from < text.len() {
+        match pattern.find_at(text, from) {
+            Some(found) if found.end() > found.start() => {
+                // Match [s, e) on the reverse complement is [L-e, L-s) on the
+                // original slice, then shifted by the slice origin.
+                let start = origin + length - found.end();
+                let end = origin + length - found.start();
+                hits.push((start, end, true));
+                from = found.start() + 1;
+            }
+            Some(_) => from += 1,
+            None => break,
+        }
+    }
+}
+
 fn canonical_of(packed: u64, k: usize) -> u64 {
     let mut rc = 0u64;
     let mut value = packed;
@@ -678,6 +847,7 @@ fn canonical_of(packed: u64, k: usize) -> u64 {
 mod tests {
     use super::*;
     use crate::spec::RepairPolicy;
+    use cf_types::error::code;
 
     fn set_with(rules: Vec<(&str, Scope, Rule)>) -> ConstraintSet {
         ConstraintSet {
@@ -866,6 +1036,52 @@ mod tests {
         let set = ConstraintSet::from_json(&example).unwrap();
         let checker = ConstraintChecker::compile(&set).unwrap();
         assert_eq!(checker.undetectable(), ["c_initiation_structure"]);
+    }
+
+    #[test]
+    fn unit_custom_regex_counts_a_cryptic_start_and_names_a_bad_pattern() {
+        let pattern = "AGGAGG[ACGT]{4,12}ATG";
+        let set = set_with(vec![(
+            "c_cryptic_start",
+            Scope::Cds,
+            Rule::CustomRegex {
+                pattern: pattern.into(),
+                max_occurrences: 0,
+                flags: vec!["both_strands".into()],
+            },
+        )]);
+        let checker = ConstraintChecker::compile(&set).unwrap();
+        assert!(checker.undetectable().is_empty());
+
+        let hit = b"AGGAGGAAAAATG";
+        let violations = checker.check(&ConstructView::new(hit, vec![(0, hit.len())]));
+        assert_eq!(violations.len(), 1, "a planted SD-plus-ATG must be counted");
+        assert_eq!(violations[0].constraint_id, "c_cryptic_start");
+        assert!(violations[0].actionable);
+
+        let clean = b"AGGAGGAAAAAAG";
+        assert!(checker
+            .check(&ConstructView::new(clean, vec![(0, clean.len())]))
+            .is_empty());
+
+        // The same oligo on the opposite strand. Dropping both_strands would
+        // leave this one uncounted, which is the defect the flag exists for.
+        let rc: Vec<u8> = reverse_complement(hit);
+        let violations = checker.check(&ConstructView::new(&rc, vec![(0, rc.len())]));
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].detail.contains("antisense"));
+
+        let broken = set_with(vec![(
+            "c_bad",
+            Scope::Cds,
+            Rule::CustomRegex {
+                pattern: "(".into(),
+                max_occurrences: 0,
+                flags: vec![],
+            },
+        )]);
+        let err = ConstraintChecker::compile(&broken).unwrap_err();
+        assert_eq!(err.code, code::FEAS_CONSTRAINT_INVALID);
     }
 
     #[test]

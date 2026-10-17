@@ -39,6 +39,7 @@ from codonforge.orchestrator import structure_diag
 
 from .budget import ComputeBudget
 from .job import Job, JobInputs
+from .rationale import build_rationale
 
 
 class DesignError(Exception):
@@ -110,7 +111,7 @@ class DesignResult:
     """What a completed (or cancelled) design returns."""
 
     job: Job
-    front: dict[str, Any]
+    front: dict[str, Any] | None
 
     @property
     def status(self) -> dict[str, Any]:
@@ -130,6 +131,10 @@ class DesignResult:
         Built by the job, so the digest a writer round-trips against is the
         same one the archive selected on.
         """
+        if self.front is None:
+            raise DesignError(
+                "CF-CLI-002", "a failed design has no sequence to report", exit_code=1
+            )
         cds = self.front["candidates"][0]["sequences"][0]["cds"]
         return json.loads(
             _core.sequence_document(
@@ -141,7 +146,7 @@ class DesignResult:
         )
 
     def best(self) -> dict[str, Any]:
-        if not self.front["candidates"]:
+        if self.front is None or not self.front["candidates"]:
             raise DesignError("CF-CLI-002", "the front is empty", exit_code=1)
         return self.front["candidates"][0]
 
@@ -276,6 +281,10 @@ def design(
         job.resume(resumed_document)
 
     job.run(on_segment=on_segment)
+    # A failed job's archive holds the input, recorded before the search
+    # refused. Building a front from it would present that input as the design.
+    if job.state == "failed":
+        return DesignResult(job=job, front=None)
     return DesignResult(job=job, front=_front(job, request, directions))
 
 
@@ -499,6 +508,16 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
                 unknown_terms=[
                     term for index, term in enumerate(job.plan.scored) if vector[index] is None
                 ],
+                rationale=(
+                    build_rationale(
+                        request,
+                        member.cds,
+                        _directions_request(request),
+                        member_scores,
+                    )
+                    if position == 0
+                    else None
+                ),
             )
         )
 
