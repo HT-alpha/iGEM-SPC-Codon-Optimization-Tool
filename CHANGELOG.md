@@ -1,5 +1,116 @@
 # Changelog
 
+## v2.9.0
+
+`POST /v1/observations` validates a wet-lab submission and appends it.
+`GET /v1/observations` returns that tenant's log. The eight checks are
+`CF-OBS-001` through `CF-OBS-008`. A failed check stores nothing.
+
+The stored document's `ingest_status.state` is `validated`. Its digest is
+recomputed after that field is written. A caller-supplied digest that
+disagrees with the submitted document is `CF-OBS-001`.
+
+The secondary model is ordinary least squares of one uncensored numeric
+readout on the GC fraction of an explicit CDS. Two rows of
+`protein_abundance`, CDS `ATGAAATAA` (value 1) and `ATGGGGGGG` (value 4),
+fit with residual sum of squares 0. One row, a constant GC fraction, a
+censored readout, or two different latent quantities stay `state: not_fitted`
+and carry no coefficient. No codon weight is invented.
+
+Recalibration is not scheduled. `GET /v1/recalibrations` stays `CF-CLI-003`.
+`DEP-ACT-003`.
+
+The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
+## v2.8.0
+
+`design_operon` designs each cistron, then accepts a synonymous swap only
+when `burden.growth_cost` of the caller-supplied flux-weighted codon counts
+falls and the sequence stays feasible. The protein is unchanged. Fluxes are
+the caller's. No expression rate, gene-copy number, or s-value is invented.
+
+On two copies of `ATGCTGTAA` (translation table 11, fluxes 1 and 1, leucine
+relative adaptiveness CTG 1, TTA 0.8, TTG 0.6, CTT 0.4, CTC 0.2, CTA 0.1),
+budget `fast`, generations 0, seed 7, the independent designs stay
+`ATGCTGTAA` / `ATGCTGTAA` with joint growth cost 0.7968828039139021. One
+joint pass moves the first cistron to `ATGTTATAA`. The joint cost is
+0.6453291265499066. The solo costs of those two sequences are
+0.8597495762920573 and 0.7968828039139021, and their sum is
+1.6566323802059593. A second pass accepts no swap. This host table is the
+fixture, not a measured expression rate. `DEP-SRCH-019`.
+
+The package version stays 0.1.0.
+
+## v2.7.0
+
+`epistasis.context_naturalness` is an L1 objective: the mean log probability
+of the selected synonymous Potts model. Higher is better. The unit is
+dimensionless. The couplings stay in a process cache keyed by digest. A tier
+request carries `context_digest`. The lockfile resolution entry is the
+record, pinned, and the digest is the artifact digest.
+
+The artifact is `cf:epistasis_potts:escherichia_coli:511145/MG1655:0.1.0`,
+digest `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`,
+lifecycle `draft`. The selected window is 10: held-out naturalness
+−0.8708682912309792 nats/codon, codon-usage baseline −0.991738843659599,
+2333 iterations, gradient norm 0.09770886731134135, converged. The window-5
+fit is not selected (held-out −0.900526979129995, not converged). A job whose
+host id starts with `escherichia_coli:` may pin the MG1655 artifact. No
+distance penalty is applied, because none was measured. Any other host is
+`CF-LAND-001`. A missing artifact is `CF-LAND-001` and is not scored as zero.
+`epistasis.dwell_deviation` stays `CF-LAND-001`.
+
+The interaction radius is `Codons(10)`. The job sets `tier2_block` to
+`max(8, window)`. `P1-26` stays held. `DEP-LAND-005`.
+
+The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
+## v2.6.0
+
+Structure and host burden are ranked objectives, and a job that asks for more
+than one complete axis recommends the knee of that front.
+
+`structure.local_accessibility` stays the windowed accessibility penalty
+(span 40 nt, window 6 nt, 37°C, ViennaRNA, lower is better). Tier 3 scores it
+once per generation. Tiers 1 and 2 do not, and say so with `CF-SRCH-010`. A
+job that asks for the term, or for a `local_structure` rule, and has no
+ViennaRNA installed is refused with `CF-STRU-003`. A CAI-only job still runs.
+The measured value is the structure axis of the recommended vector. When
+burden is also requested, that axis is the fold, not the burden number.
+
+`local_structure` rules with a declared span are measured with ViennaRNA.
+Those ids are no longer `CF-FEAS-008`. A missing span is `CF-STRU-004`.
+`min_codon_frequency` is still `CF-FEAS-008`. The Rust checker still lists
+`local_structure` as undetectable; the Python job is what drops the warning
+after it has measured the rule.
+
+`burden.growth_cost` is a demand-profile mismatch on the synonymous codon
+shares. Supply is `trna.gene_copy_number` when that map is non-empty,
+otherwise `codon_usage.table`. Neither is invented. The aggregation is the
+power mean of order 4, then `g = u^2 / (1 + u^2)` with the tier-3 ceiling 1.
+The unit is dimensionless. It is not a growth rate. A codon pile-up scores
+worse than the host mix. `DEP-BURD-005`.
+
+The recommendation rule for one objective is still
+`feasible_then_score_then_digest`. For two or more complete axes it is
+`knee_of_complete_front`. `candidates[0]` is that candidate. `--output explain`
+and the page print the range of each axis over the complete feasible vectors.
+`CF-ORCH-007` still compares the scalar best across stages.
+
+On the elastin-like repeat (`elp_vpgvg.fa`, 306 nt) under
+`constraints_assembly.json` and `examples/mg1655_ribosomal_usage.json`, seed
+7, budget `fast`, generations 0, the feasible CDS has independent ribosomal
+CAI 0.4380255552056712. The v2.5.0 feasible value on the same table was
+0.3699530182864034. The same CDS is what budget `standard` and 4 generations
+returns for CAI only. The protein is unchanged. Measured fronts for rpsL,
+BBa_E0040_onestop, waaS, and the elastin-like repeat are in
+`docs/benchmarks/v2.6.0-phase2.md`.
+
+The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
 ## v2.5.1
 
 A design with hard constraints no longer stops at tier 1. When the dynamic

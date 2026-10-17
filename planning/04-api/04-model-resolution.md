@@ -33,6 +33,8 @@ If no rung yields an artifact, the job is **rejected at submission** with `CF-RE
 
 Phase 1 (`P1-28`) implements rungs 1, 5 and the built-in row. Rungs 2, 3 and 4 need the channel machinery (`P3-15`) and the host-distance metric (`P3-16`). Until then, a request that would resolve through an unimplemented rung raises `CF-RESOLVE-007` naming the rung and the ticket that will provide it.
 
+`DEP-LAND-005` — `epistasis.context_naturalness` does not take the nearest-host rung. A job whose host id starts with `escherichia_coli:` pins the public MG1655 artifact. No distance penalty is applied, because none was measured. Any other host is `CF-LAND-001`.
+
 This is deliberate rather than defensive. A partially-implemented ladder whose missing rungs fall through to the next one still returns an artifact, and the artifact is plausible — a `base` model where the caller asked for a host-specific one is exactly the kind of substitution that produces a result nobody can explain later. The whole point of rung ordering is that a lower rung is a *worse* answer, so silently taking it while reporting success is the failure mode the ladder exists to prevent.
 
 ### 2.1 Compatibility filter, applied at every rung

@@ -18,7 +18,11 @@
 //! runs a bounded number of sweeps, so each is a single call. The job layer
 //! sequences them; neither reaches back into Python.
 
+use std::sync::{Mutex, OnceLock};
+
+use cf_burden::GrowthCostTerm;
 use cf_constraints::{explain_deviations, resolve_feasible_seed, ConstraintChecker};
+use cf_epistasis::{ContextNaturalnessTerm, PottsModel};
 use cf_landscape::terms::constraints::ViolationCountTerm;
 use cf_landscape::terms::structure::LocalAccessibilityTerm;
 use cf_landscape::terms::usage::{CaiTerm, CodonUsageTable, GcContentTerm};
@@ -38,7 +42,7 @@ use cf_search::{
 };
 use cf_types::error::lookup;
 use cf_types::Codon;
-use cf_types::{code, CfError, CodonSequence, Digest, HostId, Result, TermId};
+use cf_types::{code, CfError, CodonSequence, Digest, GeneticCode, HostId, Result, TermId};
 use pyo3::types::PyAnyMethods;
 use serde_json::{json, Value};
 use std::cell::RefCell;
@@ -52,6 +56,75 @@ use std::cell::RefCell;
 /// and the Python side needs it to call the engine.
 pub const STRUCTURE_SPAN_NT: usize = 40;
 
+struct InstalledContext {
+    artifact_id: String,
+    model: PottsModel,
+}
+
+fn context_models() -> &'static Mutex<std::collections::BTreeMap<String, InstalledContext>> {
+    static MODELS: OnceLock<Mutex<std::collections::BTreeMap<String, InstalledContext>>> =
+        OnceLock::new();
+    MODELS.get_or_init(|| Mutex::new(std::collections::BTreeMap::new()))
+}
+
+/// Remember one verified Potts model, keyed by its artifact digest.
+///
+/// Tier requests carry the digest, not the couplings. A resumed job installs
+/// the same digest again; installing a different document under a digest that
+/// is already present is refused.
+pub fn install_context_model(
+    digest: &str,
+    artifact_id: &str,
+    window: usize,
+    h: Vec<f64>,
+    couplings: Vec<f64>,
+) -> Result<()> {
+    let model = PottsModel {
+        window,
+        h,
+        couplings,
+    };
+    // Constructing the term checks the parameter shape and the identifiers.
+    let _ = ContextNaturalnessTerm::new(model.clone(), artifact_id, digest)?;
+    let mut models = context_models()
+        .lock()
+        .map_err(|_| CfError::new(code::LAND_TERM_UNKNOWN, "context model lock is poisoned"))?;
+    if let Some(existing) = models.get(digest) {
+        if existing.artifact_id != artifact_id
+            || existing.model.window != model.window
+            || existing.model.h != model.h
+            || existing.model.couplings != model.couplings
+        {
+            return Err(CfError::new(
+                code::SEQ_DIGEST_MISMATCH,
+                format!("digest {digest} is already installed with different Potts parameters"),
+            ));
+        }
+        return Ok(());
+    }
+    models.insert(
+        digest.to_string(),
+        InstalledContext {
+            artifact_id: artifact_id.to_string(),
+            model,
+        },
+    );
+    Ok(())
+}
+
+/// Joint or background-weighted burden. `counts` is flux-weighted codon demand.
+pub fn burden_of_demand(host_profile: &Value, table: u8, counts: &[f64; 64]) -> Result<f64> {
+    let term = GrowthCostTerm::from_host_profile(host_profile)?;
+    let code = GeneticCode::get(table)?;
+    term.score_demand(counts, code)
+}
+
+fn installed_context(digest: &str) -> Option<ContextNaturalnessTerm> {
+    let models = context_models().lock().ok()?;
+    let installed = models.get(digest)?;
+    ContextNaturalnessTerm::new(installed.model.clone(), &installed.artifact_id, digest).ok()
+}
+
 /// Build a registry holding exactly the terms a job asked for.
 ///
 /// Refuses an unknown term rather than skipping it. A job that asked for four
@@ -63,6 +136,7 @@ pub fn build_registry(
     host_profile: &Value,
     sequence: &CodonSequence,
     constraint_set: &cf_constraints::spec::ConstraintSet,
+    context_digest: Option<&str>,
 ) -> Result<TermRegistry> {
     let mut registry = TermRegistry::new();
     for term in terms {
@@ -85,6 +159,29 @@ pub fn build_registry(
                 registry
                     .register_default(Box::new(LocalAccessibilityTerm::new(STRUCTURE_SPAN_NT)?))?;
             }
+            "burden.growth_cost" => {
+                registry
+                    .register_default(Box::new(GrowthCostTerm::from_host_profile(host_profile)?))?;
+            }
+            "epistasis.context_naturalness" => {
+                let digest = context_digest.ok_or_else(|| {
+                    CfError::new(
+                        code::LAND_TERM_UNKNOWN,
+                        "epistasis.context_naturalness was requested but no Potts artifact \
+                         digest was supplied. The term is not scored as zero",
+                    )
+                })?;
+                let installed = installed_context(digest).ok_or_else(|| {
+                    CfError::new(
+                        code::LAND_TERM_UNKNOWN,
+                        format!(
+                            "epistasis.context_naturalness digest {digest} is not installed. \
+                             The term is not scored as zero"
+                        ),
+                    )
+                })?;
+                registry.register_default(Box::new(installed))?;
+            }
             "constraint.violation_count" => {
                 // Compiled afresh rather than shared: `ConstraintChecker` is not
                 // `Clone`, and the term owns its checker for the life of the
@@ -100,9 +197,11 @@ pub fn build_registry(
                     code::LAND_TERM_UNKNOWN,
                     format!(
                         "no built-in provider supplies {other}; this build ships \
-                         usage.cai, usage.gc_content, constraint.violation_count and \
-                         structure.local_accessibility, and a job is refused rather \
-                         than run against fewer terms than it asked for"
+                         usage.cai, usage.gc_content, constraint.violation_count, \
+                         structure.local_accessibility, burden.growth_cost and, when a \
+                         verified artifact is installed, epistasis.context_naturalness, \
+                         and a job is refused rather than run against fewer terms than \
+                         it asked for"
                     ),
                 ));
             }
@@ -130,6 +229,7 @@ pub fn declared_directions(inputs: &TierInputs<'_>) -> Result<Value> {
         inputs.host_profile,
         inputs.sequence,
         inputs.constraint_set,
+        inputs.context_digest,
     )?;
     let mut out = serde_json::Map::new();
     for term in inputs.terms {
@@ -168,6 +268,7 @@ pub fn declared_roles(inputs: &TierInputs<'_>) -> Result<Value> {
         inputs.host_profile,
         inputs.sequence,
         inputs.constraint_set,
+        inputs.context_digest,
     )?;
     let mut out = serde_json::Map::new();
     for term in inputs.terms {
@@ -194,6 +295,7 @@ pub fn declared_capabilities(inputs: &TierInputs<'_>) -> Result<Value> {
         inputs.host_profile,
         inputs.sequence,
         inputs.constraint_set,
+        inputs.context_digest,
     )?;
     let mut out = serde_json::Map::new();
     for term in inputs.terms {
@@ -236,6 +338,7 @@ pub fn score_terms(inputs: &TierInputs<'_>, cds: &str) -> Result<Value> {
         inputs.host_profile,
         &sequence,
         inputs.constraint_set,
+        inputs.context_digest,
     )?;
     let host = host_context(inputs)?;
     let ctx = EvalContext::new(&sequence, &host, Budget::default(), 0);
@@ -334,6 +437,7 @@ pub struct TierInputs<'a> {
     pub host_id: &'a str,
     pub host_digest: &'a str,
     pub root_seed: u64,
+    pub context_digest: Option<&'a str>,
 }
 
 fn host_context(inputs: &TierInputs<'_>) -> Result<HostContext> {
@@ -355,6 +459,7 @@ pub fn run_tier1(inputs: &TierInputs<'_>, beam: usize, seeds: usize) -> Result<V
         inputs.host_profile,
         inputs.sequence,
         inputs.constraint_set,
+        inputs.context_digest,
     )?;
     let host = host_context(inputs)?;
     let config = Tier1Config::default().with_beam(beam).with_seeds(seeds);
@@ -391,6 +496,7 @@ pub fn run_tier2(inputs: &TierInputs<'_>, block: usize, sweeps: u32) -> Result<V
         inputs.host_profile,
         inputs.sequence,
         inputs.constraint_set,
+        inputs.context_digest,
     )?;
     let host = host_context(inputs)?;
     let mut config = Tier2Config::from_planning(block);
@@ -675,6 +781,7 @@ pub fn run_tier3_segment(
         inputs.host_profile,
         inputs.sequence,
         inputs.constraint_set,
+        inputs.context_digest,
     )?;
     let host = host_context(inputs)?;
     let checker = ConstraintChecker::compile(inputs.constraint_set)?;

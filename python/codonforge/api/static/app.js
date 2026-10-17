@@ -126,7 +126,30 @@ const TERM_PLAIN = {
   "usage.gc_content": "GC fraction",
   "constraint.violation_count": "Constraint violations",
   "structure.local_accessibility": "Local mRNA structure",
+  "burden.growth_cost": "Codon-usage burden",
 };
+
+function tradeoffNote(front) {
+  const order = front.objective_order || [];
+  const sense = front.objective_sense || [];
+  if (order.length < 2 || sense.length !== order.length) return "";
+  const complete = (front.candidates || []).filter((candidate) => {
+    const vector = candidate.objective_vector || [];
+    return vector.length === order.length && vector.every((value) => value !== null && value !== undefined);
+  });
+  if (complete.length < 2) return "";
+  const parts = order.map((term, index) => {
+    const values = complete.map((candidate) => Number(candidate.objective_vector[index]));
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    return { term, low, high, sense: sense[index] };
+  });
+  if (parts.every((part) => part.low === part.high)) return "";
+  const text = parts
+    .map((part) => `${part.term} ${part.low.toFixed(6)} .. ${part.high.toFixed(6)} (${part.sense})`)
+    .join("; ");
+  return `<p class="note"><strong>Trade-off on this front.</strong> ${complete.length} candidates with complete vectors. ${escapeText(text)}.</p>`;
+}
 
 function nextStep(problem) {
   const text = problem && NEXT_STEP[problem.code];
@@ -530,6 +553,7 @@ function renderFront(front) {
     <p class="note">reduction.method <code>${escapeText((front.reduction || {}).method || "")}</code> · presented ${(front.reduction || {}).presented_count ?? ""} of ${(front.reduction || {}).raw_nondominated_count ?? ""}</p>
     <div class="legend">${chip("feasible", "feasible")}${chip("infeasible", "infeasible")}${chip("unknown", "UNKNOWN")}${chip("recommended", "recommended")}${chip("structure", "structure-optimal among scored")}${chip("diagnostic", "diagnostic-only")}</div>
     <div class="callout pulse-once"><strong>Recommended</strong> <code>${escapeText(recommended.candidate_id || "")}</code> · rule <code>${escapeText(recommended.rule || "")}</code><br>informed_by ${informed || "—"}<br>not_informed_by ${excluded || "—"}</div>
+    ${tradeoffNote(front)}
     ${optimalText}
     ${sequences}
     ${plot}

@@ -319,14 +319,45 @@ def _probe(term: str) -> str:
 
 
 def _feasibility(args: argparse.Namespace) -> int:
+    from codonforge.orchestrator import local_structure
+
+    constraints = _load(args.constraints, _EMPTY_CONSTRAINTS)
+    try:
+        local_structure.validate(constraints)
+        local_structure.require_engine(constraints, False)
+    except DesignError as error:
+        print(f"{error.code}: {error.detail}", file=sys.stderr)
+        return error.exit_code
     report = json.loads(
         _core.constraint_violations(
-            json.dumps(_load(args.constraints, _EMPTY_CONSTRAINTS)),
+            json.dumps(constraints),
             args.cds,
             [(0, len(args.cds))],
             "assembled",
         )
     )
+    evaluated = local_structure.evaluated_ids(constraints)
+    report["undetectable"] = [
+        item for item in report["undetectable"] if item not in evaluated
+    ]
+    cache: dict[tuple[Any, ...], float] = {}
+    for item in local_structure.rules(constraints):
+        if not item["blocking"]:
+            continue
+        value = local_structure.measure(args.cds, item["rule"], cache)
+        if local_structure.holds(value, item["rule"]):
+            continue
+        span = item["rule"]["span"]
+        report["violations"].append(
+            {
+                "constraint_id": item["id"],
+                "class": "blocking",
+                "start_nt": int(span["start_nt"]),
+                "end_nt": int(span["end_nt"]),
+                "detail": f"{item['rule']['metric']} is {value}",
+                "actionable": True,
+            }
+        )
     violations = report["violations"]
     if args.output == "json":
         print(json.dumps(report, indent=2, sort_keys=True))

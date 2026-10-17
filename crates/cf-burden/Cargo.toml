@@ -7,3 +7,5 @@ rust-version.workspace = true
 
 [dependencies]
 cf-types = { path = "../cf-types" }
+cf-landscape-api = { path = "../cf-landscape-api" }
+serde_json = { workspace = true }

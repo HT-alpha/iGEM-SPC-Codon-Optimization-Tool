@@ -115,6 +115,28 @@ fn wobble_bases_reading(codon_third: u8) -> Vec<(u8, Pairing)> {
     }
 }
 
+/// The one pool a codon is charged to when the host profile has no `s_values`.
+///
+/// Watson–Crick if the wobble table still lists it, otherwise G·U, otherwise
+/// inosine. Charging the codon to every permitted pool equally would assert
+/// that an unmeasured wobble pairing decodes as well as Watson–Crick. That
+/// assertion is a fabricated efficiency, so it is not made. A host that has
+/// `tai.s_values` should use [`DecodingWeights`] instead of this priority.
+pub fn primary_decoder(codon: Codon) -> Option<Decoder> {
+    let mut found = decoders(codon);
+    found.sort_by_key(|decoder| {
+        (
+            match decoder.pairing {
+                Pairing::WatsonCrick => 0,
+                Pairing::GU => 1,
+                Pairing::Inosine => 2,
+            },
+            decoder.anticodon,
+        )
+    });
+    found.into_iter().next()
+}
+
 /// The tRNA pools that can decode a codon.
 ///
 /// Deduplicated and ordered, so two callers building the same ledger from the

@@ -12,6 +12,7 @@
 
 pub mod capacity;
 pub mod ledger;
+pub mod penalty;
 pub mod wobble;
 
 pub use capacity::{
@@ -19,4 +20,5 @@ pub use capacity::{
     ThetaUnit,
 };
 pub use ledger::DemandLedger;
-pub use wobble::{decoders, Decoder, DecodingWeights, Pairing, CRICK_WOBBLE_V1};
+pub use penalty::{growth_cost, power_mean, GrowthCostTerm, AGGREGATION_P, SATURATION_N};
+pub use wobble::{decoders, primary_decoder, Decoder, DecodingWeights, Pairing, CRICK_WOBBLE_V1};

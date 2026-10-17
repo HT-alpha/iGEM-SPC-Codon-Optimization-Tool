@@ -98,6 +98,8 @@ class JobInputs:
     tier1_seeds: int = 4
     tier2_block: int = 8
     tier2_sweeps: int = 4
+    #: Digest of the Potts artifact, when the context term is in the job.
+    context_digest: str | None = None
 
 
 @dataclass
@@ -146,6 +148,10 @@ class Job:
     #: reads it so a problem document is attributed without a per-tier copy
     #: of the lifting logic. `DEP-ORCH-004`.
     _engine_stage: str = "job"
+    #: Folds already measured for this job. The engine is deterministic, so a
+    #: repeated sequence is the same number. Not checkpointed: the archive
+    #: stores the objective values the fold produced.
+    _structure_cache: dict[tuple[Any, ...], float] = field(default_factory=dict)
 
     # ----------------------------------------------------------------- #
     # submission
@@ -318,6 +324,14 @@ class Job:
                     # is what CF-ORCH-007 reports from, and handing it a single
                     # representative would discard the trade-off tier 3 exists
                     # to produce before anything downstream could see it.
+                    # The engine stores in-core axes and then the appended L0
+                    # axis (`DEP-SRCH-012`). The archive, the knee and
+                    # `best_per_objective` read `plan.scored`. Rewriting the
+                    # front here, and not the checkpoint, keeps a resume on
+                    # the engine's own order.
+                    member["objectives"] = list(
+                        self._to_plan_order(tuple(member["objectives"]))
+                    )
                     self.record_candidate(
                         "mutation", member["cds"], objectives=tuple(member["objectives"])
                     )
@@ -430,7 +444,7 @@ class Job:
             score=report["score"],
             feasible=self.is_feasible(cds),
             digest=self.sequence_digest(cds),
-            objectives=objectives,
+            objectives=self._objectives_for(cds, objectives),
         )
 
     def _deferral_warnings(self, stranded: list[int]) -> list[dict[str, Any]]:
@@ -486,7 +500,86 @@ class Job:
                 "assembled",
             )
         )
-        return not any(v["actionable"] for v in report["violations"])
+        if any(v["actionable"] for v in report["violations"]):
+            return False
+        from codonforge.orchestrator import local_structure
+
+        if not local_structure.rules(self.inputs.constraint_set):
+            return True
+        construct = self.inputs.five_prime_flank + cds + self.inputs.three_prime_flank
+        return (
+            local_structure.blocking_distance(
+                construct, self.inputs.constraint_set, self._structure_cache
+            )
+            <= 0.0
+        )
+
+    def _objectives_for(
+        self, cds: str, supplied: tuple[float | None, ...]
+    ) -> tuple[float | None, ...]:
+        """Minimized objectives, one slot per scored term.
+
+        Tier 3 already returns this width, including an L0 axis it filled.
+        Tiers 1 and 2 record a scalar. Leaving those vectors empty makes a
+        length mismatch, and two candidates of different lengths never
+        dominate each other, so the front mixes an unscored point with the
+        population. Filling the missing slots here is the same sign convention
+        tier 3 uses: minimize stays, maximize is negated.
+        """
+        width = len(self.plan.scored)
+        if len(supplied) == width and all(value is not None for value in supplied):
+            return tuple(supplied)
+        measured = self._minimized_objectives(cds)
+        if len(supplied) != width:
+            return measured
+        return tuple(
+            old if old is not None else new for old, new in zip(supplied, measured, strict=True)
+        )
+
+    def _minimized_objectives(self, cds: str) -> tuple[float | None, ...]:
+        scores = json.loads(_core.term_scores(self._tier_request(cds), cds))
+        out: list[float | None] = []
+        for term in self.plan.scored:
+            raw = scores.get(term)
+            # An L0 term has no in-core value. Tier 3 supplies it on the
+            # candidates it scores; `propagate_objectives` copies that slot
+            # onto the earlier record of the same sequence. Folding here would
+            # score outside the batch path the L0 refusals are tested on.
+            if raw is None:
+                out.append(None)
+                continue
+            sign = 1.0 if self.plan.directions.get(term) == "minimize" else -1.0
+            out.append(sign * float(raw))
+        return tuple(out)
+
+    def _repair_local_structure(self, cds: str) -> str:
+        from codonforge.orchestrator import local_structure
+
+        if not local_structure.rules(self.inputs.constraint_set):
+            return cds
+
+        def still_feasible(trial: str) -> bool:
+            construct = self.inputs.five_prime_flank + trial + self.inputs.three_prime_flank
+            start = len(self.inputs.five_prime_flank)
+            report = json.loads(
+                _core.constraint_violations(
+                    json.dumps(self.inputs.constraint_set),
+                    construct,
+                    [(start, start + len(trial))],
+                    "assembled",
+                )
+            )
+            return not any(item["actionable"] for item in report["violations"])
+
+        return local_structure.repair(
+            cds,
+            self.inputs.constraint_set,
+            self.inputs.five_prime_flank,
+            self.inputs.three_prime_flank,
+            self.inputs.translation_table,
+            still_feasible,
+            self._structure_cache,
+        )
 
     def sequence_digest(self, cds: str) -> str:
         return json.loads(
@@ -528,6 +621,23 @@ class Job:
 
         return score, axis
 
+    def _to_plan_order(self, supplied: tuple[float | None, ...]) -> tuple[float | None, ...]:
+        """Map a tier-3 vector onto `plan.scored`.
+
+        Tier 3's evaluator emits the in-core terms in request order and then
+        appends the structure axis. `plan.scored` keeps the request order, so
+        a structure term that is not last would otherwise be read as whichever
+        in-core term followed it.
+        """
+        from codonforge.orchestrator import structure_diag
+
+        engine = [term for term in self.plan.scored if term != structure_diag.TERM_ID]
+        engine.extend(term for term in self.plan.scored if term == structure_diag.TERM_ID)
+        if len(supplied) != len(engine) or engine == list(self.plan.scored):
+            return supplied
+        by_term = dict(zip(engine, supplied, strict=True))
+        return tuple(by_term[term] for term in self.plan.scored)
+
     def _tier_request(self, cds: str, terms: list[str] | None = None) -> str:
         """The shared document tiers 1 and 2 both take."""
         return json.dumps(
@@ -540,6 +650,7 @@ class Job:
                 "host_profile": self.inputs.host_profile,
                 "host_id": self.inputs.host_id,
                 "host_digest": self.inputs.host_digest,
+                "context_digest": self.inputs.context_digest,
                 # Defaults to every scored term. Tiers 1 and 2 pass their own
                 # narrower list: an out-of-core term has no delta table, so
                 # handing it to tier 1 is a CF-LAND-002 rather than a slow
@@ -615,7 +726,7 @@ class Job:
                     # Best surrogate first, and tier 1 already returns them in that
                     # order. Taking [0] rather than re-sorting avoids introducing a
                     # tie-break this layer would have to define.
-                    cds = _cds_of(report["seeds"][0])
+                    cds = self._repair_local_structure(_cds_of(report["seeds"][0]))
                     self.record_candidate("tier1_dp", cds)
                 self.stage_reports["tier1_seed"] = report
                 self._absorb_warnings(report.get("warnings", []))
@@ -632,8 +743,11 @@ class Job:
                     self.inputs.tier2_sweeps,
                 )
             )
-            cds = _cds_of(report["incumbent"])
-            self.record_candidate("tier2_block_ca", cds)
+            polished = _cds_of(report["incumbent"])
+            cds = self._repair_local_structure(polished)
+            self.record_candidate(
+                "repair" if cds != polished else "tier2_block_ca", cds
+            )
             self.stage_reports["tier2_block_ca"] = report
             self._absorb_warnings(report.get("warnings", []))
 
@@ -648,7 +762,18 @@ class Job:
         """
         report = json.loads(_core.constraint_unsearched(self._tier_request(cds, self.plan.tier1)))
         warnings = report.get("warnings", [])
-        return list(warnings) if isinstance(warnings, list) else []
+        if not isinstance(warnings, list):
+            return []
+        from codonforge.orchestrator import local_structure
+
+        evaluated = local_structure.evaluated_ids(self.inputs.constraint_set)
+        return [
+            warning
+            for warning in warnings
+            if not (
+                warning.get("code") == "CF-FEAS-008" and warning.get("subject") in evaluated
+            )
+        ]
 
     def _repair_seed(self, cds: str) -> str:
         """Continue from a repaired seed, or refuse with the rules still broken."""
@@ -661,7 +786,7 @@ class Job:
                     json.dumps({"code": "CF-SRCH-006", "detail": "seed repair failed"})
                 )
             raise ValueError(json.dumps(problem))
-        repaired = str(report["cds"])
+        repaired = self._repair_local_structure(str(report["cds"]))
         self.record_candidate("repair", repaired)
         warning = report.get("warning")
         if isinstance(warning, dict):

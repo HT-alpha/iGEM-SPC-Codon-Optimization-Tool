@@ -42,7 +42,9 @@ dependencies = [
 name = "cf-burden"
 version = "0.1.0"
 dependencies = [
+ "cf-landscape-api",
  "cf-types",
+ "serde_json",
 ]
 
 [[package]]
@@ -59,6 +61,7 @@ dependencies = [
 name = "cf-epistasis"
 version = "0.1.0"
 dependencies = [
+ "cf-landscape-api",
  "cf-types",
 ]
 
@@ -110,6 +113,7 @@ dependencies = [
 name = "cf-pyext"
 version = "0.1.0"
 dependencies = [
+ "cf-burden",
  "cf-constraints",
  "cf-epistasis",
  "cf-landscape",

@@ -53,6 +53,7 @@ BUILTIN_TERMS = (
     "usage.gc_content",
     "constraint.violation_count",
     "structure.local_accessibility",
+    "burden.growth_cost",
 )
 
 

@@ -34,7 +34,7 @@ from codonforge.modelreg import ArtifactStore, Lockfile, ResolutionRequest, reso
 #: `structure.local_accessibility` updated one, which is how a term ended up
 #: advertised by the CLI and rejected by the resolver. Two remain, because the
 #: Rust one cannot be imported from Python; `TST-CLI-010` holds those together.
-from codonforge.modelreg.resolve import BUILTIN_TERMS
+from codonforge.modelreg.resolve import BUILTIN_TERMS, Pin
 from codonforge.orchestrator import structure_diag
 
 from .budget import ComputeBudget
@@ -79,6 +79,9 @@ class DesignRequest:
     stagnation_window: int = 8
     weights: list[float] = field(default_factory=list)
     host_digest: str = "sha256:" + "0" * 64
+    #: Set by `design()` when the Potts artifact is installed. Excluded from
+    #: the request identity: the lockfile resolution entry is the record.
+    context_digest: str | None = None
     job_id: str | None = None
     checkpoint_dir: str | None = None
     resume: bool = False
@@ -94,7 +97,7 @@ class DesignRequest:
     #: cannot find the checkpoint. Deriving the id from the whole request made
     #: both false: two identical designs got different lockfiles because one
     #: had `--checkpoint-dir`.
-    PLUMBING = ("job_id", "checkpoint_dir", "resume")
+    PLUMBING = ("job_id", "checkpoint_dir", "resume", "context_digest")
 
     def identity(self) -> str:
         """The canonical form of everything that determines the result."""
@@ -214,7 +217,16 @@ def design(
             "a fitted GSE53767 head is not installed",
         )
 
-    unknown = [t for t in request.objectives if t not in BUILTIN_TERMS]
+    from codonforge.orchestrator import local_structure
+
+    local_structure.validate(request.constraints)
+    local_structure.require_engine(
+        request.constraints, structure_diag.TERM_ID in request.objectives
+    )
+
+    from codonforge.epistasis.context import TERM_ID as CONTEXT_TERM
+
+    unknown = [t for t in request.objectives if t not in BUILTIN_TERMS and t != CONTEXT_TERM]
     if unknown:
         raise DesignError(
             "CF-LAND-001",
@@ -229,11 +241,34 @@ def design(
     # resolution. Re-sealing would re-resolve, and a resumed job that
     # re-resolved would observe any artifact promoted while it was stopped -
     # reintroducing at this layer the hazard P1-29 closed at the one below.
+    from codonforge.epistasis.context import TERM_ID as CONTEXT_TERM
+    from codonforge.epistasis.context import ContextError, install_pinned, prepare
+
     resumed_document = _resume_document(request, job_id) if request.resume else None
+    context_window = None
     if resumed_document is not None and "lockfile" in resumed_document:
         lockfile = Lockfile.from_json(resumed_document["lockfile"])
+        for entry in lockfile.resolution:
+            if entry.term_id != CONTEXT_TERM:
+                continue
+            try:
+                installed = install_pinned(store, entry.digest, entry.artifact_id)
+            except ContextError as exc:
+                raise DesignError(exc.code, exc.detail, exit_code=2) from exc
+            request.context_digest = installed["digest"]
+            context_window = int(installed["window"])
+            break
     else:
-        lockfile = _seal(request, store)
+        context_pin = None
+        if CONTEXT_TERM in request.objectives:
+            try:
+                installed = prepare(store, request.host)
+            except ContextError as exc:
+                raise DesignError(exc.code, exc.detail, exit_code=2) from exc
+            request.context_digest = installed["digest"]
+            context_window = int(installed["window"])
+            context_pin = Pin(installed["artifact_id"], installed["digest"])
+        lockfile = _seal(request, store, context_pin)
 
     # Directions come from the providers, through the same registry the tiers
     # build. Never defaulted: a term declared `minimize` and reported as
@@ -252,6 +287,8 @@ def design(
         host_digest=request.host_digest,
         term_weights=list(request.weights) or [1.0] * len(request.objectives),
         stagnation_window=request.stagnation_window,
+        tier2_block=max(8, context_window or 0),
+        context_digest=request.context_digest,
     )
 
     job = Job.submit(
@@ -317,6 +354,7 @@ def _directions_request(request: DesignRequest) -> str:
             "host_profile": request.host_profile,
             "host_id": request.host,
             "host_digest": request.host_digest,
+            "context_digest": request.context_digest,
             "terms": list(request.objectives),
             "weights": [1.0] * len(request.objectives),
             "root_seed": request.seed,
@@ -364,14 +402,18 @@ def _derived_id(prefix: str, material: str) -> str:
     return f"{prefix}_{body}"
 
 
-def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
+def _seal(request: DesignRequest, store: ArtifactStore, context_pin: Pin | None = None) -> Lockfile:
     """Pin the landscape before any search work. `TST-ORCH-001`."""
+    from codonforge.epistasis.context import TERM_ID as CONTEXT_TERM
+
+    pins = {CONTEXT_TERM: context_pin} if context_pin is not None else None
     entries = resolve(
         store,
         ResolutionRequest(
             terms=list(request.objectives),
             host_id=request.host,
             contract_major=1,
+            pins=pins,
         ),
     )
     return seal(
@@ -415,7 +457,9 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     best = job.best_candidate()
     if best is None:
         raise DesignError("CF-CLI-002", "the job produced no candidates", exit_code=1)
-    cds = best.cds
+    members = job.archive.front()
+    chosen, rule, informed, excluded = _recommendation(job, best, members)
+    cds = chosen.cds
 
     document = json.loads(
         _core.sequence_document(
@@ -428,11 +472,6 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     _ = document
     reason = _termination_reason(job, best)
 
-    # Axes `best()` considered. The lists are a byproduct of the same
-    # scalarization loop that produced `best.score` — not a second pass over
-    # capabilities that could drift from it. `TST-CLI-012`.
-    scalarization = json.loads(_core.scalarized_score_report(job._tier_request(best.cds), best.cds))
-
     # Every non-dominated candidate, not just the best-scored one. Emitting a
     # single design from a document named `pareto_front` was defensible while
     # the pipeline was single-objective and produced one; now that tier 3
@@ -440,12 +479,12 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
     # thing the whole tier exists to compute - and would do it in the document
     # a user actually reads. `DEP-CLI-003`, updated.
     #
-    # The best-scored candidate is listed first so a caller reading
-    # `candidates[0]` gets what `best()` reports and the two answers agree on
-    # a single-objective job, where the front has one member anyway.
-    members = job.archive.front()
-    ordered = [c for c in members if c.digest == best.digest]
-    ordered += [c for c in members if c.digest != best.digest]
+    # `candidates[0]` is the recommended candidate. On one objective that is
+    # `best()`. On two or more complete axes it is the knee (`DEP-CLI-005`).
+    ordered = [c for c in members if c.digest == chosen.digest]
+    ordered += [c for c in members if c.digest != chosen.digest]
+    if not ordered:
+        ordered = [chosen]
 
     # DEP-STRU-003: the structure term is computed for reporting, not ranked on.
     # Details and the warning that explains them are produced together, so a
@@ -533,21 +572,82 @@ def _front(job: Job, request: DesignRequest, directions: dict[str, str]) -> dict
         n_evaluations=job.generations_run,
         input_sequence=_baseline(job, request),
         recommended={
-            "candidate_id": f"cand_{best.digest.split(':')[1][:16]}",
-            "rule": "feasible_then_score_then_digest",
-            # CF-ORCH-007's guarantee, stated rather than implied: the reported
-            # answer is the best across every stage, which is only interesting
-            # to a reader when it is *not* the last stage's output.
+            "candidate_id": _candidate_id(chosen.digest),
+            "rule": rule,
+            # True when the named answer is not the last stage's output.
             "differs_from_last_stage": (
                 job.archive.last_recorded() is not None
-                and job.archive.last_recorded().digest != best.digest
+                and job.archive.last_recorded().digest != chosen.digest
             ),
-            # Same discipline CF-ORCH-006 applies to a skipped tier: when the
-            # scalarization excludes an axis that is on the front, say so.
-            "informed_by": list(scalarization["informed_by"]),
-            "not_informed_by": list(scalarization["not_informed_by"]),
+            "informed_by": informed,
+            "not_informed_by": excluded,
         },
     )
+
+
+def _candidate_id(digest: str) -> str:
+    return f"cand_{digest.split(':')[1][:16]}"
+
+
+def _recommendation(
+    job: Job, best: Any, members: list[Any]
+) -> tuple[Any, str, list[str], list[str]]:
+    """Who the front names, and which axes that choice used.
+
+    One objective keeps `feasible_then_score_then_digest`. `archive.best()` is
+    that rule, and `CF-ORCH-007` still compares stages with it. Two or more
+    objectives with at least one complete feasible vector use the knee: the
+    product of the remaining gap to the worst value on each minimized axis,
+    ties broken by the smaller candidate id. The scalar `best()` skips an
+    out-of-core axis, so using it here would put structure in
+    `not_informed_by` on a job that ranked on structure. `DEP-CLI-005`.
+    """
+    scored = list(job.plan.scored)
+    complete = [
+        candidate
+        for candidate in members
+        if candidate.feasible
+        and len(candidate.objectives) == len(scored)
+        and all(value is not None for value in candidate.objectives)
+    ]
+    if len(scored) >= 2 and complete:
+        chosen = _knee(complete)
+        informed = [
+            term for index, term in enumerate(scored) if chosen.objectives[index] is not None
+        ]
+        excluded = [term for term in scored if term not in informed]
+        return chosen, "knee_of_complete_front", informed, excluded
+
+    report = json.loads(_core.scalarized_score_report(job._tier_request(best.cds), best.cds))
+    return (
+        best,
+        "feasible_then_score_then_digest",
+        list(report["informed_by"]),
+        list(report["not_informed_by"]),
+    )
+
+
+def _knee(candidates: list[Any]) -> Any:
+    width = len(candidates[0].objectives)
+    bounds = []
+    for axis in range(width):
+        column = [candidate.objectives[axis] for candidate in candidates]
+        bounds.append((min(column), max(column)))
+    winner = None
+    winner_gap = None
+    winner_id = None
+    for candidate in candidates:
+        gap = 1.0
+        for axis, (low, high) in enumerate(bounds):
+            span = high - low
+            normalized = 0.0 if span == 0.0 else (candidate.objectives[axis] - low) / span
+            gap *= max(0.0, 1.0 - normalized)
+        cid = _candidate_id(candidate.digest)
+        if winner is None or gap > winner_gap or (gap == winner_gap and cid < winner_id):
+            winner = candidate
+            winner_gap = gap
+            winner_id = cid
+    return winner
 
 
 def _termination_reason(job: Job, best: Any) -> str:

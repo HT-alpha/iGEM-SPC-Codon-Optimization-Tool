@@ -44,7 +44,6 @@ _UNBUILT = {
         "Public model channels are not this build (P3-15). This route does not "
         "list the local store as if it were a catalog."
     ),
-    "/v1/observations": "Wet-lab observation ingestion is not implemented.",
     "/v1/recalibrations": "Recalibration jobs are not implemented.",
     "/v1/seeds:import": "Importing an external tool's output is not wired on this route.",
     "/v1/feasibility": (
@@ -348,6 +347,71 @@ class Api:
             return 422, problem(exc.code, exc.code, 422, exc.detail)
         return 200, {"results": results}
 
+    def _candidate_index(self) -> dict[tuple[str, str], str]:
+        found: dict[tuple[str, str], str] = {}
+        with self.lock:
+            records = list(self.records.values())
+        for record in records:
+            front = record.front
+            if not front:
+                continue
+            for candidate in front.get("candidates") or []:
+                sequences = candidate.get("sequences") or []
+                if not sequences:
+                    continue
+                found[(record.status["job_id"], str(candidate.get("candidate_id")))] = sequences[0][
+                    "digest"
+                ]
+        return found
+
+    def observations(self, tenant: str) -> dict[str, Any]:
+        from codonforge.active.observations import ObservationLog
+        from codonforge.active.outcome import fit_outcome
+
+        documents = ObservationLog(self.store.root).list(tenant)
+        return {"observations": documents, "outcome_model": fit_outcome(documents)}
+
+    def submit_observation(self, tenant: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        from codonforge.active.observations import TITLES, ObservationError, ObservationLog, accept
+        from codonforge.active.outcome import fit_outcome
+
+        declared = body.get("tenant_id")
+        if isinstance(declared, str) and declared != tenant:
+            return 403, problem(
+                "CF-AUTH-003",
+                "Artifact belongs to another tenant",
+                403,
+                "observation tenant_id does not match the caller",
+            )
+        try:
+            stored = accept(body, candidates=self._candidate_index())
+        except ObservationError as exc:
+            return 422, problem(exc.code, TITLES.get(exc.code, exc.code), 422, exc.detail)
+        if stored.get("tenant_id") != tenant:
+            return 403, problem(
+                "CF-AUTH-003",
+                "Artifact belongs to another tenant",
+                403,
+                "observation tenant_id does not match the caller",
+            )
+        log = ObservationLog(self.store.root)
+        try:
+            stored = log.append(tenant, stored)
+        except ObservationError as exc:
+            return 422, problem(exc.code, TITLES.get(exc.code, exc.code), 422, exc.detail)
+        documents = log.list(tenant)
+        return 202, {
+            "observation": stored,
+            "outcome_model": fit_outcome(documents),
+            "recalibration": {
+                "state": "not_scheduled",
+                "reason": (
+                    "Recalibration jobs are not implemented. The observation is "
+                    "stored and does not move a channel pointer."
+                ),
+            },
+        }
+
     def _visible(self, tenant: str, job_id: str) -> Record | dict[str, Any]:
         with self.lock:
             record = self.records.get(job_id)
@@ -367,7 +431,6 @@ def _unbuilt_reason(path: str) -> str | None:
     for prefix, key in (
         ("/v1/hosts/", "/v1/hosts"),
         ("/v1/models/", "/v1/models"),
-        ("/v1/observations/", "/v1/observations"),
     ):
         if path.startswith(prefix):
             return f"{path}: {_UNBUILT[key]}"
@@ -573,6 +636,13 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/v1/score" and method == "POST":
             status, payload = self.server.api.score(self._json())
+            self._send(status, payload, problem_body=status >= 400)
+            return
+        if path == "/v1/observations" and method == "GET":
+            self._send(200, self.server.api.observations(tenant))
+            return
+        if path == "/v1/observations" and method == "POST":
+            status, payload = self.server.api.submit_observation(tenant, self._json())
             self._send(status, payload, problem_body=status >= 400)
             return
         parts = [part for part in path.split("/") if part]

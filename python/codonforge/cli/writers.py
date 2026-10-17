@@ -213,6 +213,8 @@ def explain(front: dict[str, Any], status: dict[str, Any], candidate_index: int 
         out.append(f"  not_informed_by  {excluded}")
         out.append("")
 
+    out.extend(_tradeoff_lines(front))
+
     width = max((len(term) for term in front["objective_order"]), default=0)
     out.append("objectives")
     for term, value, direction in zip(
@@ -270,6 +272,33 @@ def explain(front: dict[str, Any], status: dict[str, Any], candidate_index: int 
     )
     out.append(f"summary    termination={front['summary']['termination_reason']}")
     return "\n".join(out) + "\n"
+
+
+def _tradeoff_lines(front: dict[str, Any]) -> list[str]:
+    """Ranges on the emitted front. The numbers are the vectors, not a new score."""
+    order = front.get("objective_order") or []
+    sense = front.get("objective_sense") or []
+    if len(order) < 2 or len(sense) != len(order):
+        return []
+    complete = []
+    for candidate in front.get("candidates") or []:
+        vector = candidate.get("objective_vector") or []
+        if len(vector) == len(order) and all(value is not None for value in vector):
+            complete.append(vector)
+    if len(complete) < 2:
+        return []
+    lines = [f"trade-off  {len(complete)} complete candidates"]
+    moved = False
+    for index, term in enumerate(order):
+        column = [vector[index] for vector in complete]
+        low, high = min(column), max(column)
+        if low != high:
+            moved = True
+        lines.append(f"  {term}  {_number(low)} .. {_number(high)}  {sense[index]}")
+    if not moved:
+        return []
+    lines.append("")
+    return lines
 
 
 def _number(value: float | None) -> str:

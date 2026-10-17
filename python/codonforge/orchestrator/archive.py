@@ -68,7 +68,7 @@ Three keys, in order:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 #: The `provenance.origin` vocabulary from `pareto_front.schema.json`.
@@ -180,7 +180,31 @@ class CandidateArchive:
             objectives=tuple(objectives),
         )
         self._candidates.append(candidate)
+        self.propagate_objectives(digest)
         return candidate
+
+    def propagate_objectives(self, digest: str) -> None:
+        """Copy filled objective slots onto every record of one sequence.
+
+        Tier 3 scores an out-of-core axis that tiers 1 and 2 leave unknown.
+        The front keeps the earliest record, so a later score has to be written
+        back or the axis stays unknown on the candidate the document shows.
+        """
+        group = [candidate for candidate in self._candidates if candidate.digest == digest]
+        if len(group) < 2:
+            return
+        width = max(len(candidate.objectives) for candidate in group)
+        if width == 0:
+            return
+        merged: list[float | None] = [None] * width
+        for candidate in group:
+            for index, value in enumerate(candidate.objectives):
+                if value is not None:
+                    merged[index] = value
+        filled = tuple(merged)
+        for index, candidate in enumerate(self._candidates):
+            if candidate.digest == digest and candidate.objectives != filled:
+                self._candidates[index] = replace(candidate, objectives=filled)
 
     def __len__(self) -> int:
         return len(self._candidates)

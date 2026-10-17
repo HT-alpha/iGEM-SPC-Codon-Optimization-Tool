@@ -20,7 +20,7 @@ Soft-max aggregation:          u_eff = ( Σ_α ( u_α / θ_α )^p )^(1/p),   p =
 Growth-cost penalty:           g(u_eff) = g_max · u_eff^n / (1 + u_eff^n),   n = 2 (default)
 ```
 
-- **`p = 4` soft-max aggregation** rather than a plain mean or a hard `max`. Burden is a bottleneck phenomenon: one exhausted isoacceptor throttles everything, so a mean under-reacts. A hard `max` over-reacts and is non-differentiable, which destroys the delta table. `p = 4` sits between them and is smooth. `p` is a host parameter, fit at capacity tier 1.
+- **`p = 4` soft-max aggregation** rather than a plain mean or a hard `max`. Burden is a bottleneck phenomenon: one exhausted isoacceptor throttles everything, so a mean under-reacts. A hard `max` over-reacts and is non-differentiable, which destroys the delta table. `p = 4` sits between them and is smooth. `p` is a host parameter, fit at capacity tier 1. The formula line above is an L_p norm, which is not between a mean and a max. The implementation uses the power mean `(mean of (u/θ)^p)^(1/p)`. `DEP-BURD-005`.
 - **`g_max ∈ [0, 1]`** is the asymptotic relative growth-rate cost. Bounding it is what makes the penalty saturating.
 - Reported as `burden.growth_cost`, unit `relative_growth_rate`, direction `minimize`.
 

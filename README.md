@@ -170,8 +170,10 @@ defaults.
 
 ## What it does
 
-A design job runs in stages, and the job reports **the best candidate any stage
-produced** — not the last stage's output.
+A design job runs in stages. A single-objective job reports the best candidate
+any stage produced, not the last stage's output. A job with two or more
+complete axes reports the knee of that front (`knee_of_complete_front`).
+`candidates[0]` is that recommendation either way.
 
 | Stage | What it does |
 | --- | --- |
@@ -187,6 +189,10 @@ Every run is pinned: the landscape lockfile is sealed before any search work
 begins, and the same request with the same seed reproduces the same design. A
 job can be checkpointed, cancelled with `SIGINT`, and resumed with `--resume`.
 
+`design_operon` designs each coding sequence on its own, then keeps a
+synonymous swap only when the shared flux-weighted codon demand scores a
+lower `burden.growth_cost`. The caller supplies each flux.
+
 ---
 
 ## What does not work yet
@@ -199,12 +205,6 @@ quietly.
 run synchronously, because that would make every timing assumption in your code
 wrong.
 
-**A multi-objective Pareto front.** A Phase 1 front is a valid
-`pareto_front.schema.json` document with `reduction.method: "none"`, and a
-single-objective job produces a front of one. The document shape, the objective
-order and the objective senses are real; the population loop that produces a
-genuinely multi-objective front is Phase 2.
-
 **Some tiers your budget names.** A budget tier may plan a stage this build
 does not execute — an `exact` budget plans a `decision` stage, which is Phase
 2's. The job reports it as `skipped` and warns with `CF-ORCH-006` naming the
@@ -213,11 +213,19 @@ If a stage the budget planned is missing from `progress.tiers` as `done` and
 there is no `CF-ORCH-006` warning for it, that is a bug worth reporting.
 
 **Most objective terms.** This build ships `usage.cai`,
-`constraint.violation_count` and `structure.local_accessibility` as rankable
-objectives, plus `usage.gc_content` as a **diagnostic**. Requesting anything
-else is refused with `CF-LAND-001` rather than silently optimizing a smaller
-objective set — a job that asked for four objectives must not quietly optimize
-three.
+`constraint.violation_count`, `structure.local_accessibility`,
+`burden.growth_cost`, and `epistasis.context_naturalness` as rankable
+objectives, plus `usage.gc_content` as a **diagnostic**. The context term is
+ranked only when the verified E. coli Potts artifact is installed. A missing
+artifact, or a host that is not *E. coli*, is `CF-LAND-001` and is not scored
+as zero. Requesting anything else is refused with `CF-LAND-001` rather than
+silently optimizing a smaller objective set — a job that asked for four
+objectives must not quietly optimize three.
+
+`burden.growth_cost` is a tier-3 demand-profile mismatch in `[0, 1)`, unit
+`dimensionless`, minimized. It is not a predicted growth rate. Supply is the
+host's `trna.gene_copy_number` when that map is non-empty, otherwise the
+synonymous shares of `codon_usage.table`. A host with neither is `CF-BURD-004`.
 
 `usage.gc_content` is reported and never ranked on, and that is deliberate. GC
 content has no direction: too high and the transcript folds, too low and it
@@ -230,9 +238,13 @@ so. Bound GC as a *constraint* instead, with `Rule::GcWindow`.
 scored out of core, once per generation on the whole population, so tiers 1 and
 2 do not see it — `CF-SRCH-010` says so on every job that asks for it.
 
-**A REST server.** `codonforge.api.serve` serves the job routes. Hosts, models,
-observations, presets, protein input, construct input, and the five-check
-feasibility route answer `CF-CLI-003`.
+**A REST server.** `codonforge.api.serve` serves the job routes and
+`/v1/observations`. Hosts, models, recalibrations, presets, protein input,
+construct input, and the five-check feasibility route answer `CF-CLI-003`.
+An accepted observation is stored. It does not start a recalibration.
+
+**Shadow prices and a joint NSGA-III pass.** `design_operon` does not run
+them. The shared ledger is the flux-weighted codon demand.
 
 ---
 
