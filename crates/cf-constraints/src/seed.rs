@@ -28,6 +28,13 @@ use crate::spec::{ConstraintClass, Rule};
 const MAX_CYCLES: u32 = 8;
 const GC_SWEEPS: u32 = 8;
 const PATTERN_ROUNDS: u32 = 4;
+/// Pair lifts after a feasible seed. One codon at a time cannot trade a
+/// higher-weight synonym for the neighbour that clears the repeat it creates.
+/// `DEP-SRCH-018`.
+const ASCENT_PASSES: u32 = 2;
+const ASCENT_POSITIONS: usize = 24;
+const ASCENT_PARTNERS: usize = 6;
+const ASCENT_NEIGHBOUR: usize = 4;
 const KMER_ROUNDS: u32 = 12;
 
 /// One constraint the checker still reports after seed resolution.
@@ -436,6 +443,7 @@ impl<'a> Solver<'a> {
         let mut cycles = 0u32;
         if self.is_feasible() {
             self.polish()?;
+            self.ascend_cai()?;
             return Ok(0);
         }
         for _ in 0..MAX_CYCLES {
@@ -462,6 +470,7 @@ impl<'a> Solver<'a> {
             }
             if self.is_feasible() {
                 self.polish()?;
+                self.ascend_cai()?;
                 break;
             }
             if self.score() >= before {
@@ -750,6 +759,152 @@ impl<'a> Solver<'a> {
             self.edits = edits_before;
         }
         Ok(())
+    }
+
+    /// Raise CAI inside the feasible set by coordinated pair edits.
+    ///
+    /// Single-codon polish already ran. A higher-weight codon that recreates a
+    /// repeated word is rejected there even when a second codon, a few positions
+    /// away, would clear that word. Two passes, each trying the positions with
+    /// the largest remaining weight gap against a few nearby partners.
+    fn ascend_cai(&mut self) -> Result<()> {
+        if !self.is_feasible() {
+            return Ok(());
+        }
+        for _ in 0..ASCENT_PASSES {
+            if !self.lift_pairs()? {
+                break;
+            }
+            self.polish()?;
+        }
+        Ok(())
+    }
+
+    fn ascent_positions(&self) -> Vec<usize> {
+        let mut ranked = Vec::new();
+        for index in 0..self.seq.codon_count() {
+            if self.seq.is_locked(index) {
+                continue;
+            }
+            let current = self.weights[self.seq.codons()[index].index_usize()];
+            let mut best = current;
+            for synonym in self.seq.synonyms_at(index) {
+                let weight = self.weights[synonym.index_usize()];
+                if weight > best {
+                    best = weight;
+                }
+            }
+            let gap = best - current;
+            if gap > 0.0 {
+                ranked.push((gap, index));
+            }
+        }
+        ranked.sort_by(|left, right| match right.0.total_cmp(&left.0) {
+            Ordering::Equal => left.1.cmp(&right.1),
+            other => other,
+        });
+        ranked
+            .into_iter()
+            .take(ASCENT_POSITIONS)
+            .map(|(_, index)| index)
+            .collect()
+    }
+
+    fn partners_for(&self, hot: &[usize], index: usize) -> Vec<usize> {
+        let mut pool = Vec::new();
+        for &partner in hot {
+            if partner != index {
+                pool.push(partner);
+            }
+        }
+        let last = self.seq.codon_count().saturating_sub(1);
+        let lo = index.saturating_sub(ASCENT_NEIGHBOUR);
+        let hi = (index + ASCENT_NEIGHBOUR).min(last);
+        for partner in lo..=hi {
+            if partner != index && !self.seq.is_locked(partner) {
+                pool.push(partner);
+            }
+        }
+        pool.sort_unstable();
+        pool.dedup();
+        let mut ranked: Vec<(usize, usize)> = pool
+            .into_iter()
+            .map(|partner| (index.abs_diff(partner), partner))
+            .collect();
+        ranked.sort_unstable();
+        ranked
+            .into_iter()
+            .take(ASCENT_PARTNERS)
+            .map(|(_, partner)| partner)
+            .collect()
+    }
+
+    fn lift_pairs(&mut self) -> Result<bool> {
+        if !self.is_feasible() {
+            return Ok(false);
+        }
+        let hot = self.ascent_positions();
+        if hot.is_empty() {
+            return Ok(false);
+        }
+        let mut cai_before = cai_of(&self.seq, self.weights);
+        let mut improved = false;
+        for &index in &hot {
+            if self.seq.is_locked(index) {
+                continue;
+            }
+            let partners = self.partners_for(&hot, index);
+            if partners.is_empty() {
+                continue;
+            }
+            let current_i = self.seq.codons()[index];
+            let syn_i = self.seq.synonyms_at(index).to_vec();
+            let mut best: Option<(f64, usize, Codon, Codon)> = None;
+            for &partner in &partners {
+                let current_j = self.seq.codons()[partner];
+                let syn_j = self.seq.synonyms_at(partner).to_vec();
+                for &codon_i in &syn_i {
+                    for &codon_j in &syn_j {
+                        if codon_i == current_i && codon_j == current_j {
+                            continue;
+                        }
+                        self.set_codon(index, codon_i)?;
+                        self.set_codon(partner, codon_j)?;
+                        let cai = cai_of(&self.seq, self.weights);
+                        let ok = cai > cai_before
+                            && self.gc_penalty <= 1e-9
+                            && self.kmers.excess() == 0
+                            && self.is_feasible();
+                        self.set_codon(partner, current_j)?;
+                        self.set_codon(index, current_i)?;
+                        if !ok {
+                            continue;
+                        }
+                        let replace = match &best {
+                            None => true,
+                            Some((so_far, so_partner, so_i, so_j)) => match cai.total_cmp(so_far) {
+                                Ordering::Greater => true,
+                                Ordering::Less => false,
+                                Ordering::Equal => {
+                                    (partner, codon_i.index(), codon_j.index())
+                                        < (*so_partner, so_i.index(), so_j.index())
+                                }
+                            },
+                        };
+                        if replace {
+                            best = Some((cai, partner, codon_i, codon_j));
+                        }
+                    }
+                }
+            }
+            if let Some((_, partner, codon_i, codon_j)) = best {
+                self.commit(index, codon_i)?;
+                self.commit(partner, codon_j)?;
+                cai_before = cai_of(&self.seq, self.weights);
+                improved = true;
+            }
+        }
+        Ok(improved)
     }
 
     fn set_codon(&mut self, index: usize, codon: Codon) -> Result<Codon> {

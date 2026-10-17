@@ -868,32 +868,22 @@ def test_tst_cli_009_the_front_states_its_answer_rather_than_implying_it(
     result = design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
     front = result.front
 
-    # 1. The recommended candidate is named, and it is the archive's answer -
-    #    not the first entry by coincidence of ordering.
+    # 1. The recommended candidate is named, and candidates[0] is that candidate.
+    #    Two complete axes use the knee. The scalar best() still exists for
+    #    CF-ORCH-007 and for a one-objective job; it is not this answer.
     recommended = front["recommended"]
     assert recommended is not None
-    assert recommended["rule"] == "feasible_then_score_then_digest"
-    best = result.job.best_candidate()
-    assert recommended["candidate_id"] == f"cand_{best.digest.split(':')[1][:16]}", (
-        "the reported id must be the archive's best(), which is the only place "
-        "the selection rule lives"
-    )
+    assert recommended["rule"] == "knee_of_complete_front"
     assert recommended["candidate_id"] == front["candidates"][0]["candidate_id"], (
         "and it must agree with the document's own ordering, or a reader taking "
         "candidates[0] and a reader taking recommended get different designs"
     )
-
-    # TST-CLI-012: the axes that informed that choice are named, from the same
-    # loop as the scalar, not from a second pass over capabilities.
-    report = json.loads(_core.scalarized_score_report(result.job._tier_request(best.cds), best.cds))
-    assert recommended["informed_by"] == report["informed_by"]
-    assert recommended["not_informed_by"] == report["not_informed_by"]
     assert structure_diag.TERM_ID in front["objective_order"]
-    assert structure_diag.TERM_ID in recommended["not_informed_by"], (
-        "an out-of-core axis on the front must be named as excluded from the "
-        "recommendation; silence is the gap this field exists to close"
+    assert structure_diag.TERM_ID in recommended["informed_by"], (
+        "structure is an axis of this job, so the recommendation that ignores it "
+        "is the gap knee_of_complete_front closes"
     )
-    assert structure_diag.TERM_ID not in recommended["informed_by"]
+    assert structure_diag.TERM_ID not in recommended["not_informed_by"]
     assert "usage.cai" in recommended["informed_by"]
     assert set(recommended["informed_by"]) | set(recommended["not_informed_by"]) == set(
         result.job.plan.scored
@@ -970,8 +960,9 @@ def test_tst_cli_012_a_recommendation_names_the_axes_it_ignored(
     recommended = result.front["recommended"]
     assert "informed_by" in recommended
     assert "not_informed_by" in recommended
-    assert structure_diag.TERM_ID in recommended["not_informed_by"]
-    assert structure_diag.TERM_ID not in recommended["informed_by"]
+    assert recommended["rule"] == "knee_of_complete_front"
+    assert structure_diag.TERM_ID in recommended["informed_by"]
+    assert structure_diag.TERM_ID not in recommended["not_informed_by"]
     assert "usage.cai" in recommended["informed_by"]
 
     # A job whose every axis is in-core still emits both lists, so "nothing

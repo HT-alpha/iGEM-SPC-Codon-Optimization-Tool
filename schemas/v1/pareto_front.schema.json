@@ -532,9 +532,10 @@
         },
         "rule": {
           "enum": [
-            "feasible_then_score_then_digest"
+            "feasible_then_score_then_digest",
+            "knee_of_complete_front"
           ],
-          "description": "Named so a change to the selection rule is a schema-visible event rather than a silent shift in which design a user builds."
+          "description": "Named so a change to the selection rule is a schema-visible event rather than a silent shift in which design a user builds. `feasible_then_score_then_digest` is the single-objective rule and the scalar `best()` still uses for CF-ORCH-007. `knee_of_complete_front` is the multi-objective rule when the front has a complete feasible vector: product of the remaining gap to the worst minimized value on each axis, ties broken by the smaller candidate id (`DEP-CLI-005`)."
         },
         "differs_from_last_stage": {
           "type": "boolean",

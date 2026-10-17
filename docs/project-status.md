@@ -1,8 +1,10 @@
 # Project status
 
-Canonical status for the DNA Design Suite at `v2.5.0`. Older notes in
+Canonical status for the DNA Design Suite at `v2.6.0`. Older notes in
 `docs/igem-submission.md` and `CHANGELOG.md` keep the history of how each
-release got here. The benchmark claim is the one recorded for `v2.4.2`.
+release got here. The CAI gate claim is the one recorded for `v2.4.2`. The
+v2.6.0 fronts are in `docs/benchmarks/v2.6.0-phase2.md`. The package version
+stays 0.1.0. `python -m codonforge.cli.main --version` prints 0.1.0.
 
 ## Shipped and working
 
@@ -27,7 +29,23 @@ also be typed.
 
 Structure scoring uses ViennaRNA, installed by the user and not vendored.
 `structure.local_accessibility` is windowed accessibility (`Codons(14)` from
-a 40 nt span). Primer melting temperatures and dimer ΔG are a clean-room
+a 40 nt span). When a job requests it, tier 3 ranks on that penalty and the
+recommended candidate is informed by it. A request with no engine installed
+is `CF-STRU-003`. A CAI-only job does not need the engine. A `local_structure`
+rule with a declared span is measured the same way, and that id is not
+reported as `CF-FEAS-008`. A missing span is `CF-STRU-004`.
+`min_codon_frequency` is still `CF-FEAS-008`.
+
+`burden.growth_cost` is a ranked, dimensionless demand-profile mismatch.
+Supply is gene-copy counts when the host profile has them, otherwise the
+codon-usage table. A profile with neither is `CF-BURD-004`. No gene-copy
+numbers and no s-values are invented. The number is not a growth rate.
+
+A single-objective recommendation is `feasible_then_score_then_digest`. Two
+or more complete axes use `knee_of_complete_front`. The page and
+`--output explain` print the axis ranges of those vectors.
+
+Primer melting temperatures and dimer ΔG are a clean-room
 two-state calculation from SantaLucia 1998 Table 2
 (`docs/primerforge-validation.md`). `POST /v1/primers/candidates` and
 `POST /v1/primers/analyze` are the primer routes.

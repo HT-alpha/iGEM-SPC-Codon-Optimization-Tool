@@ -18,6 +18,7 @@
 //! runs a bounded number of sweeps, so each is a single call. The job layer
 //! sequences them; neither reaches back into Python.
 
+use cf_burden::GrowthCostTerm;
 use cf_constraints::{explain_deviations, resolve_feasible_seed, ConstraintChecker};
 use cf_landscape::terms::constraints::ViolationCountTerm;
 use cf_landscape::terms::structure::LocalAccessibilityTerm;
@@ -85,6 +86,10 @@ pub fn build_registry(
                 registry
                     .register_default(Box::new(LocalAccessibilityTerm::new(STRUCTURE_SPAN_NT)?))?;
             }
+            "burden.growth_cost" => {
+                registry
+                    .register_default(Box::new(GrowthCostTerm::from_host_profile(host_profile)?))?;
+            }
             "constraint.violation_count" => {
                 // Compiled afresh rather than shared: `ConstraintChecker` is not
                 // `Clone`, and the term owns its checker for the life of the
@@ -100,9 +105,10 @@ pub fn build_registry(
                     code::LAND_TERM_UNKNOWN,
                     format!(
                         "no built-in provider supplies {other}; this build ships \
-                         usage.cai, usage.gc_content, constraint.violation_count and \
-                         structure.local_accessibility, and a job is refused rather \
-                         than run against fewer terms than it asked for"
+                         usage.cai, usage.gc_content, constraint.violation_count, \
+                         structure.local_accessibility and burden.growth_cost, and a \
+                         job is refused rather than run against fewer terms than it \
+                         asked for"
                     ),
                 ));
             }

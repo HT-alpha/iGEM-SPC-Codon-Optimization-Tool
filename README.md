@@ -170,8 +170,10 @@ defaults.
 
 ## What it does
 
-A design job runs in stages, and the job reports **the best candidate any stage
-produced** — not the last stage's output.
+A design job runs in stages. A single-objective job reports the best candidate
+any stage produced, not the last stage's output. A job with two or more
+complete axes reports the knee of that front (`knee_of_complete_front`).
+`candidates[0]` is that recommendation either way.
 
 | Stage | What it does |
 | --- | --- |
@@ -199,12 +201,6 @@ quietly.
 run synchronously, because that would make every timing assumption in your code
 wrong.
 
-**A multi-objective Pareto front.** A Phase 1 front is a valid
-`pareto_front.schema.json` document with `reduction.method: "none"`, and a
-single-objective job produces a front of one. The document shape, the objective
-order and the objective senses are real; the population loop that produces a
-genuinely multi-objective front is Phase 2.
-
 **Some tiers your budget names.** A budget tier may plan a stage this build
 does not execute — an `exact` budget plans a `decision` stage, which is Phase
 2's. The job reports it as `skipped` and warns with `CF-ORCH-006` naming the
@@ -213,11 +209,16 @@ If a stage the budget planned is missing from `progress.tiers` as `done` and
 there is no `CF-ORCH-006` warning for it, that is a bug worth reporting.
 
 **Most objective terms.** This build ships `usage.cai`,
-`constraint.violation_count` and `structure.local_accessibility` as rankable
-objectives, plus `usage.gc_content` as a **diagnostic**. Requesting anything
-else is refused with `CF-LAND-001` rather than silently optimizing a smaller
-objective set — a job that asked for four objectives must not quietly optimize
-three.
+`constraint.violation_count`, `structure.local_accessibility` and
+`burden.growth_cost` as rankable objectives, plus `usage.gc_content` as a
+**diagnostic**. Requesting anything else is refused with `CF-LAND-001` rather
+than silently optimizing a smaller objective set — a job that asked for four
+objectives must not quietly optimize three.
+
+`burden.growth_cost` is a tier-3 demand-profile mismatch in `[0, 1)`, unit
+`dimensionless`, minimized. It is not a predicted growth rate. Supply is the
+host's `trna.gene_copy_number` when that map is non-empty, otherwise the
+synonymous shares of `codon_usage.table`. A host with neither is `CF-BURD-004`.
 
 `usage.gc_content` is reported and never ranked on, and that is deliberate. GC
 content has no direction: too high and the transcript folds, too low and it

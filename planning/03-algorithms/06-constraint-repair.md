@@ -47,6 +47,10 @@ Full detection over a fresh sequence is `O(n)` for everything except `local_stru
 
 `local_structure` and `min_codon_frequency` are the two classes Phase 1 does not search. A job that includes one emits `CF-FEAS-008` and does not treat the rule as satisfied. That warning is not a job failure: an empty demonstration set, and a set whose other rules are searchable, still runs. `DEP-CONS-005`.
 
+`DEP-CONS-006`: when ViennaRNA is installed, the Python orchestrator measures `local_structure` on the declared span and removes those ids from the `CF-FEAS-008` list. The Rust checker still reports the rule as undetectable, so the in-core search does not pretend to have folded it. A missing span is `CF-STRU-004`. A missing engine, when the rule or `structure.local_accessibility` was requested, is `CF-STRU-003` and the job does not run. `min_codon_frequency` stays `CF-FEAS-008`.
+
+`DEP-SRCH-018`: after a seed is feasible, two passes try pair edits on the 24 positions with the largest remaining codon-weight gap. Each is tried against its 6 nearest partners, and partners include neighbours within 4 codons, because a 12-mer is cleared next to the codon that created it. An edit is kept only when CAI rises and the sequence stays feasible.
+
 **Overlapping counting is the default** for `kmer_repeat`, matching `count_overlapping()` in the existing `codon_6.0.py` prototype. Python's `str.count` is non-overlapping and undercounts tandem repeats, which are exactly the structures a synthesis vendor rejects. The schema exposes `count_overlapping` so the semantics are explicit rather than inherited by accident.
 
 ---

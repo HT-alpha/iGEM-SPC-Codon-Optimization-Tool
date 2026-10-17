@@ -309,10 +309,10 @@ def test_a_missing_term_fails_by_name(store: ArtifactStore) -> None:
     with pytest.raises(RegistryError) as excinfo:
         resolve(
             store,
-            ResolutionRequest(terms=["burden.growth_cost"], host_id=HOST, contract_major=1),
+            ResolutionRequest(terms=["kinetics.not_a_term"], host_id=HOST, contract_major=1),
         )
     assert excinfo.value.code == "CF-RESOLVE-001"
-    assert "burden.growth_cost" in excinfo.value.detail
+    assert "kinetics.not_a_term" in excinfo.value.detail
 
 
 def test_contract_major_mismatch_is_refused(store: ArtifactStore) -> None:

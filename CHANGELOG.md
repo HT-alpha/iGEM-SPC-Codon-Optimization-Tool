@@ -1,5 +1,49 @@
 # Changelog
 
+## v2.6.0
+
+Structure and host burden are ranked objectives, and a job that asks for more
+than one complete axis recommends the knee of that front.
+
+`structure.local_accessibility` stays the windowed accessibility penalty
+(span 40 nt, window 6 nt, 37°C, ViennaRNA, lower is better). Tier 3 scores it
+once per generation. Tiers 1 and 2 do not, and say so with `CF-SRCH-010`. A
+job that asks for the term, or for a `local_structure` rule, and has no
+ViennaRNA installed is refused with `CF-STRU-003`. A CAI-only job still runs.
+The measured value is the structure axis of the recommended vector. When
+burden is also requested, that axis is the fold, not the burden number.
+
+`local_structure` rules with a declared span are measured with ViennaRNA.
+Those ids are no longer `CF-FEAS-008`. A missing span is `CF-STRU-004`.
+`min_codon_frequency` is still `CF-FEAS-008`. The Rust checker still lists
+`local_structure` as undetectable; the Python job is what drops the warning
+after it has measured the rule.
+
+`burden.growth_cost` is a demand-profile mismatch on the synonymous codon
+shares. Supply is `trna.gene_copy_number` when that map is non-empty,
+otherwise `codon_usage.table`. Neither is invented. The aggregation is the
+power mean of order 4, then `g = u^2 / (1 + u^2)` with the tier-3 ceiling 1.
+The unit is dimensionless. It is not a growth rate. A codon pile-up scores
+worse than the host mix. `DEP-BURD-005`.
+
+The recommendation rule for one objective is still
+`feasible_then_score_then_digest`. For two or more complete axes it is
+`knee_of_complete_front`. `candidates[0]` is that candidate. `--output explain`
+and the page print the range of each axis over the complete feasible vectors.
+`CF-ORCH-007` still compares the scalar best across stages.
+
+On the elastin-like repeat (`elp_vpgvg.fa`, 306 nt) under
+`constraints_assembly.json` and `examples/mg1655_ribosomal_usage.json`, seed
+7, budget `fast`, generations 0, the feasible CDS has independent ribosomal
+CAI 0.4380255552056712. The v2.5.0 feasible value on the same table was
+0.3699530182864034. The same CDS is what budget `standard` and 4 generations
+returns for CAI only. The protein is unchanged. Measured fronts for rpsL,
+BBa_E0040_onestop, waaS, and the elastin-like repeat are in
+`docs/benchmarks/v2.6.0-phase2.md`.
+
+The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
 ## v2.5.1
 
 A design with hard constraints no longer stops at tier 1. When the dynamic

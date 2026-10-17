@@ -44,18 +44,28 @@ def _assembly() -> dict:
 
 
 def test_seed_repair_returns_a_feasible_elastin_design(tmp_path: Path) -> None:
+    import importlib
+
+    sys.path.insert(0, str(ROOT / "benchmarks" / "validation"))
+    cai_independent = importlib.import_module("cai_independent")
+    ribosomal = json.loads(
+        (ROOT / "examples" / "mg1655_ribosomal_usage.json").read_text(encoding="utf-8")
+    )
+    weights = cai_independent.load_ribosomal_weights(
+        ROOT / "examples" / "mg1655_ribosomal_usage.json"
+    )
     cds = _fasta("elp_vpgvg.fa")
     result = design(
         DesignRequest(
             host=HOST,
             cds=cds,
-            host_profile=host_profile(),
+            host_profile=ribosomal,
             objectives=["usage.cai"],
             constraints=_assembly(),
             translation_table=11,
             budget="fast",
             seed=7,
-            generations=2,
+            generations=0,
             host_digest="sha256:" + "1" * 64,
             job_id="job_01JBQ8Z4K7M2N3P5R6T7V8W9XY",
         ),
@@ -66,6 +76,9 @@ def test_seed_repair_returns_a_feasible_elastin_design(tmp_path: Path) -> None:
     designed = result.front["candidates"][0]["sequences"][0]["cds"]
     assert designed != cds
     assert result.front["candidates"][0]["constraint_report"]["feasible"]
+    assert cai_independent.translate(designed) == cai_independent.translate(cds)
+    measured = float(cai_independent.score(designed, weights)["cai"])
+    assert measured > 0.369953, measured
     assert any(warning["code"] == "CF-SRCH-017" for warning in result.status["warnings"])
     states = {tier["tier"]: tier["state"] for tier in result.status["progress"]["tiers"]}
     assert states["tier1_seed"] == "done"
