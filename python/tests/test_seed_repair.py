@@ -201,9 +201,7 @@ def _request_from(result, profile: dict, cds: str) -> DesignRequest:
 
 
 def test_biobrick_preset_removes_an_ecori_site(tmp_path: Path) -> None:
-    preset = json.loads(
-        (ROOT / "examples" / "biobrick_rfc10.json").read_text(encoding="utf-8")
-    )
+    preset = json.loads((ROOT / "examples" / "biobrick_rfc10.json").read_text(encoding="utf-8"))
     cds = "ATGGAATTCAAATAA"
     result = _design(tmp_path, cds, host_profile(), preset)
     assert result.job.state == "succeeded", result.status.get("problem")
@@ -231,3 +229,77 @@ def test_importing_main_from_the_package_still_works() -> None:
         from codonforge.cli import main
 
         assert callable(main)
+
+
+def _corpus_cds(gene: str) -> str:
+    import gzip
+
+    found = ""
+    current = None
+    buf: list[str] = []
+    path = ROOT / "benchmarks" / "corpus" / "NC_000913.3_cds.fna.gz"
+    with gzip.open(path, "rt") as handle:
+        for line in handle:
+            if line.startswith(">"):
+                if current == gene:
+                    found = "".join(buf)
+                    break
+                current = None
+                if "[gene=" in line:
+                    current = line.split("[gene=", 1)[1].split("]", 1)[0]
+                buf = []
+            else:
+                buf.append(line.strip())
+        else:
+            if current == gene:
+                found = "".join(buf)
+    if not found:
+        raise AssertionError(f"{gene} missing from the corpus CDS")
+    return found.upper()
+
+
+def test_rpoc_assembly_seed_is_feasible(tmp_path: Path) -> None:
+    """rpoC assembly used to stop with GC windows still open.
+
+    Single-codon sweeps left five 50 nt windows outside the band, and k-mer
+    repair refuses to edit while that penalty remains, so the job was
+    ``CF-SRCH-006``. A synonymous CDS exists. ``DEP-SRCH-023`` tries one pair
+    inside the stuck window, at most four times, and only after a cycle that
+    made no progress. Skipping that branch fails this test: the state goes
+    back to failed and the problem code is ``CF-SRCH-006``.
+    """
+    import importlib
+
+    sys.path.insert(0, str(ROOT / "benchmarks" / "validation"))
+    cai_independent = importlib.import_module("cai_independent")
+    cds = _corpus_cds("rpoC")
+    assert cds.startswith("GTG")
+    ribosomal = json.loads(
+        (ROOT / "examples" / "mg1655_ribosomal_usage.json").read_text(encoding="utf-8")
+    )
+    weights = cai_independent.load_ribosomal_weights(
+        ROOT / "examples" / "mg1655_ribosomal_usage.json"
+    )
+    result = design(
+        DesignRequest(
+            host=HOST,
+            cds=cds,
+            host_profile=ribosomal,
+            objectives=["usage.cai"],
+            constraints=_assembly(),
+            translation_table=11,
+            budget="fast",
+            seed=7,
+            generations=0,
+            stagnation_window=21,
+            segment=2,
+            host_digest="sha256:" + "ab" * 32,
+        ),
+        ArtifactStore(tmp_path / "artifacts"),
+    )
+    assert result.job.state == "succeeded", result.status.get("problem")
+    assert result.front is not None
+    designed = result.front["candidates"][0]["sequences"][0]["cds"]
+    assert cai_independent.translate(designed) == cai_independent.translate(cds)
+    assert result.front["candidates"][0]["constraint_report"]["feasible"]
+    assert float(cai_independent.score(designed, weights)["cai"]) == 0.9593415607455033

@@ -960,6 +960,7 @@ impl<'a> Solver<'a> {
 
     fn run(&mut self) -> Result<u32> {
         let mut cycles = 0u32;
+        let mut escapes = 0u32;
         if self.is_feasible() {
             self.polish()?;
             self.ascend_cai()?;
@@ -996,6 +997,15 @@ impl<'a> Solver<'a> {
                 break;
             }
             if self.score() >= before {
+                // Single-codon GC sweeps stop while a window is still outside
+                // the band, and k-mer repair will not edit until that penalty
+                // is gone. A pair inside the window can move the count when no
+                // one codon can. This runs only after a cycle made no progress,
+                // so a seed that already became feasible never reaches it.
+                if escapes < 4 && self.ease_gc_pairs()? {
+                    escapes += 1;
+                    continue;
+                }
                 break;
             }
         }
@@ -1011,6 +1021,120 @@ impl<'a> Solver<'a> {
         let kmers = self.kmers.excess() as u128;
         let gc = (self.gc_penalty * 1_000_000.0).max(0.0) as u128;
         (patterns << 96) | (kmers << 64) | gc
+    }
+
+    fn gc_offender_total(&self) -> u32 {
+        self.bands.iter().map(|band| band.offenders).sum()
+    }
+
+    /// Codons that overlap `[start, end)`, skipping a locked start or stop.
+    fn codons_covering(&self, start: usize, end: usize) -> Vec<usize> {
+        if self.seq.codon_count() == 0 || end <= self.cds_off {
+            return Vec::new();
+        }
+        let last = self.seq.codon_count() - 1;
+        let first = start.saturating_sub(self.cds_off) / 3;
+        let last_nt = end.saturating_sub(1).saturating_sub(self.cds_off);
+        let end_codon = (last_nt / 3).min(last);
+        (first..=end_codon)
+            .filter(|index| !self.seq.is_locked(*index))
+            .collect()
+    }
+
+    fn first_outside_gc_window(&self) -> Option<(usize, usize)> {
+        let n = self.nt.len();
+        for band in &self.bands {
+            if band.offenders == 0 || band.window == 0 || n < band.window {
+                continue;
+            }
+            for start in 0..=n - band.window {
+                let end = start + band.window;
+                if self.overlaps_editable(start, end)
+                    && window_outside(self.prefix_at(end) - self.prefix_at(start), band)
+                {
+                    return Some((start, end));
+                }
+            }
+        }
+        None
+    }
+
+    /// One pair of synonymous edits inside a GC window that is still outside
+    /// its band after the single-codon sweeps.
+    ///
+    /// The pair may raise k-mer excess. The next cycle repairs repeats once
+    /// the window count has moved. Pattern hits are not allowed to rise.
+    fn ease_gc_pairs(&mut self) -> Result<bool> {
+        let before = self.gc_offender_total();
+        if before == 0 {
+            return Ok(false);
+        }
+        let Some((start, end)) = self.first_outside_gc_window() else {
+            return Ok(false);
+        };
+        let mut codons = self.codons_covering(start, end);
+        if codons.len() > 10 {
+            let lo = codons.len() / 2 - 5;
+            codons = codons[lo..lo + 10].to_vec();
+        }
+        if codons.len() < 2 {
+            return Ok(false);
+        }
+        let patterns_before = self.pattern_count();
+        let mut best: Option<(u32, usize, usize, Codon, Codon)> = None;
+        for left in 0..codons.len() {
+            for right in (left + 1)..codons.len() {
+                let i = codons[left];
+                let j = codons[right];
+                let current_i = self.seq.codons()[i];
+                let current_j = self.seq.codons()[j];
+                let syn_i = self.seq.synonyms_at(i).to_vec();
+                let syn_j = self.seq.synonyms_at(j).to_vec();
+                for &synonym_i in &syn_i {
+                    for &synonym_j in &syn_j {
+                        if synonym_i == current_i && synonym_j == current_j {
+                            continue;
+                        }
+                        self.set_codon(i, synonym_i)?;
+                        self.set_codon(j, synonym_j)?;
+                        let trial = self.gc_offender_total();
+                        let patterns = self.pattern_count();
+                        self.set_codon(j, current_j)?;
+                        self.set_codon(i, current_i)?;
+                        if trial >= before || patterns > patterns_before {
+                            continue;
+                        }
+                        let replace = best
+                            .map(|(so_far, bi, bj, incumbent_i, incumbent_j)| {
+                                trial < so_far
+                                    || (trial == so_far
+                                        && (i < bi
+                                            || (i == bi
+                                                && (j < bj
+                                                    || (j == bj
+                                                        && (self
+                                                            .prefer(synonym_i, incumbent_i)
+                                                            || (synonym_i == incumbent_i
+                                                                && self.prefer(
+                                                                    synonym_j,
+                                                                    incumbent_j,
+                                                                ))))))))
+                            })
+                            .unwrap_or(true);
+                        if replace {
+                            best = Some((trial, i, j, synonym_i, synonym_j));
+                        }
+                    }
+                }
+            }
+        }
+        let Some((_, i, j, synonym_i, synonym_j)) = best else {
+            return Ok(false);
+        };
+        self.commit(i, synonym_i)?;
+        self.commit(j, synonym_j)?;
+        self.recompute_gc();
+        Ok(self.gc_offender_total() < before)
     }
 
     fn gc_sweeps(&mut self) -> Result<()> {
@@ -2099,15 +2223,12 @@ impl<'a> Solver<'a> {
     /// violation is actionable. Phase 1 puts every such violation in one of
     /// three buckets, and each bucket has one incremental source:
     ///
-    /// * GC windows. `gc_penalty` sums `band_penalty` over windows that overlap
-    ///   an editable span, which is the checker's `actionable` test. On an
-    ///   `ACGT` construct the penalty's fraction is `gc_count / window`, the
-    ///   same value `GcIndex::fraction` returns, and a window is outside the
-    ///   band under the same strict comparison. A positive penalty of at least
-    ///   one part in a billion is a real window (the quantum is `1/window`
-    ///   for any window this threshold can see). A penalty of exact `0.0` is
-    ///   no window. A residual in between is float dust from adding and
-    ///   subtracting those quanta, and is re-read from the prefix.
+    /// * GC windows. `band.offenders` counts windows `window_outside` would
+    ///   emit, maintained by an integer delta on each codon edit. That is the
+    ///   checker's actionable test. The float `gc_penalty` still drives the
+    ///   sweeps, but it is not the feasibility bit: after incremental edits it
+    ///   can sit in `(0, 1e-9]` and a full re-scan of every window was the
+    ///   cost of trusting it.
     /// * K-mer repeats. `KmerBook` packs the same overlapping words the
     ///   checker does, including flanks, and `actionable_excess` counts only
     ///   keys that exceed `max_occurrences` and have an occurrence touching an
@@ -2132,7 +2253,10 @@ impl<'a> Solver<'a> {
     fn is_feasible(&self) -> bool {
         let started = seed_profile_on().then(Instant::now);
         let feasible = if self.acgt {
-            !self.gc_has_actionable_violation()
+            // Offender counts are the integer windows `window_outside` would
+            // emit. The float penalty can sit in (0, 1e-9] after incremental
+            // edits and used to re-scan every window on each call.
+            self.gc_offender_total() == 0
                 && self.kmers.actionable_excess() == 0
                 && self.pattern_count() == 0
         } else {
@@ -2198,34 +2322,6 @@ impl<'a> Solver<'a> {
             debug_assert!(next >= 0, "gc offender count went negative");
             band.offenders = next.max(0) as u32;
         }
-    }
-
-    fn gc_has_actionable_violation(&self) -> bool {
-        if self.gc_penalty > 1e-9 {
-            return true;
-        }
-        if self.gc_penalty == 0.0 {
-            return false;
-        }
-        self.live_gc_penalty() > 0.0
-    }
-
-    fn live_gc_penalty(&self) -> f64 {
-        let mut penalty = 0.0;
-        let n = self.nt.len();
-        for band in &self.bands {
-            if band.window == 0 || n < band.window {
-                continue;
-            }
-            for start in 0..=n - band.window {
-                let end = start + band.window;
-                if !self.overlaps_editable(start, end) {
-                    continue;
-                }
-                penalty += band_penalty(self.prefix_at(end) - self.prefix_at(start), band);
-            }
-        }
-        penalty
     }
 
     fn pattern_count(&self) -> usize {

@@ -53,6 +53,8 @@ Full detection over a fresh sequence is `O(n)` for everything except `local_stru
 
 `DEP-SRCH-021`: that neighbourhood misses the other copy of a scattered 12-mer, and it misses a GC-window repair more than four codons away. After the local pairs, further passes try every counted codon that is still below its heaviest synonym. If the heavier codon breaks a rule, the pass tries synonyms at the codons that overlap the new violation — the other 12-mer copy, the GC window, or the motif span — and keeps a pair, or a bounded triple, only when CAI rises and the sequence stays feasible. The seed stays deterministic. The in-loop repair operator is unchanged.
 
+`DEP-SRCH-023`: before a seed is feasible, the single-codon GC sweeps can stop while a window is still outside its band, and k-mer repair will not edit until that penalty is gone. rpoC under the assembly set stalled there (five 50 nt windows, 28 repeated 12-mers) even though a synonymous CDS exists. After a cycle that does not lower the progress score, at most four times, one pair of codons inside the first outside window is tried. The pair is kept when the offender count falls and pattern hits do not rise. K-mer excess may rise; the next cycle repairs it. A seed that is already feasible never takes this branch. The in-loop operator is unchanged.
+
 **Overlapping counting is the default** for `kmer_repeat`, matching `count_overlapping()` in the existing `codon_6.0.py` prototype. Python's `str.count` is non-overlapping and undercounts tandem repeats, which are exactly the structures a synthesis vendor rejects. The schema exposes `count_overlapping` so the semantics are explicit rather than inherited by accident.
 
 ---

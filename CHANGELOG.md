@@ -5,6 +5,35 @@
 Package version stays 0.1.0. This note is the DNA Design Suite delta on top
 of v2.9.2.
 
+rpoC under the assembly rules returned `CF-SRCH-006`. Single-codon GC
+sweeps left 50 nt windows outside the band, and k-mer repair will not edit
+while that penalty remains, so the cycle stopped. A synonymous CDS exists.
+After a cycle that made no progress, seed repair now tries at most four
+pair edits inside the first outside window (`DEP-SRCH-023`). A pair is kept
+only when the offender count falls and pattern hits do not rise. A seed
+that is already feasible never takes the branch. rpoC assembly, seed 7,
+budget fast, generations 0, is now feasible at CAI 0.9593415607455033
+(SHA-256 `7e80dcaa96a48b33e0078568ff2d6e5638a3cdedc6d6b001d5401ebe66397ca7`).
+The published assembly pins are unchanged, including waaS
+0.9259163095438141 and yeeJ 0.9727484991594185. Empty-constraint CAI stays
+1 except rpoC, whose locked GTG start is scored as Val
+(`exp(log(0.245665) / 1363) = 0.998970606154696`). That is the table, not a
+search miss.
+
+Feasibility inside seed repair now uses the integer GC offender counts
+instead of re-scanning every window when the float penalty is above
+`1e-9`. On the harsh yeeJ seed (assembly plus a 30 nt GC band, homopolymer
+5, and a 10-mer cap of 2), the same CDS
+(`e8afe2becefe5a7e49beca4891ffd398d5a5a95e586bdca172c1522e735bae5e`, CAI
+0.9667370523709706) goes from 4.694 s to 3.723 s. `is_feasible` is 31228
+calls, 0.987 s before and 0.0015 s after. `climb` is 3.220 s before and
+2.273 s after. Ordinary assembly yeeJ is the same CDS as the v2.9.4 table
+and its wall does not move by a measurable amount: `is_feasible` there was
+already 0.029 s. The numbers and the harness are
+`docs/benchmarks/v2.9.4-harsh-perf.md`. waaS under that stricter set still
+returns `CF-SRCH-006`. That set is a stress case. It is not a claim that a
+feasible CDS must exist.
+
 Assembly CAI was stuck on the first feasible seed. Tier 1 still refuses GC
 windows and scattered 12-mers (`CF-SRCH-017`). Seed repair used to stop at
 that first feasible CDS, then NSGA's uniform synonymous moves did not raise
