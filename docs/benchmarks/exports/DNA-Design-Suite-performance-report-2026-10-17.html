@@ -1,0 +1,1794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DNA Design Suite performance report, 17 October 2026</title>
+<style>
+  body { font: 16px/1.5 Georgia, serif; max-width: 1080px; margin: 2rem auto; padding: 0 1.25rem; color: #1c1c1c; }
+  h1, h2, h3 { font-family: "Segoe UI", sans-serif; line-height: 1.25; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.84em; }
+  pre { background: #f4f4f4; padding: 0.8rem 1rem; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0 1.4rem; font-size: 0.86em; }
+  th, td { border-bottom: 1px solid #ddd; padding: 0.28rem 0.4rem; text-align: left; vertical-align: top; }
+  th { border-bottom: 2px solid #222; }
+</style>
+</head>
+<body>
+<h1>DNA Design Suite — full performance report (v2.9.4)</h1>
+<p>Standalone export of the 17 October 2026 measurement. The repository copy is <code>docs/benchmarks/v2.9.4-full-performance-report.md</code>.</p>
+<p>Measured on 17 October 2026 against commit <code>b8065f71d99f0cddc5968e3904b97d5f07b937e4</code>
+(PR #33, “Harsh performance suite, and a fix for rpoC assembly stalling”).
+Package version is 0.1.0. No tag was cut. Optimizer behaviour was left as
+that commit shipped it.</p>
+<p>The machine-readable rows sit beside this file:
+<a href="DNA-Design-Suite-performance-rows-2026-10-17.json"><code>DNA-Design-Suite-performance-rows-2026-10-17.json</code></a>.
+An HTML rendering is <code>DNA-Design-Suite-performance-report-2026-10-17.html</code>.</p>
+<h2>Executive summary</h2>
+<p>On a release build (Cargo <code>opt-level</code> 3, thin LTO), CodonForge and PrimerForge
+match every published output pin from the v2.9.4 harsh suite: 76 rows, no pin
+failures, and the same CAI values, CDS hashes, primer pairs, ΔG values, operon
+joint costs, and the CAI-only <code>GATE-BEN-001</code> claim of 50 of 50. The opt-level 1
+build that earlier notes used returns those same outputs. Headline wall times
+on this 4-vCPU Xeon put the long path in seed repair. yeeJ (7077 nt) is 0.526 s
+with empty constraints (CAI 1), 2.727 s under the assembly rules (CAI
+0.9727484991594185, of which seed repair is 1.764 s), 4.203 s under the tighter harsh set, and
+4.012 s at budget <code>standard</code> with 4 generations, which does not change that
+assembly CDS. CAI plus structure on yeeJ is 3.458 s at the pinned vector
+<code>[0.9723247970586831, 2.4166863375261896]</code>. PrimerForge on the 7077 nt yeeJ
+template with 300 nt flanks is 0.052 s and returns the pinned pair
+<code>TGACCGACAAATATTATG</code> / <code>GAACTACAGTGGTTTAAA</code>, product 6843, ΔG −1.283850000000001.
+A single design stays near 53 MiB RSS. Three API designs serialized by
+<code>Api.run_lock</code> peak at 63112 KiB. waaS under the unpublished harsh constraint
+set still stops at <code>CF-SRCH-006</code> in 0.059 s.</p>
+<h2>Environment</h2>
+<table>
+<thead>
+<tr>
+<th>item</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>commit</td>
+<td><code>b8065f71d99f0cddc5968e3904b97d5f07b937e4</code></td>
+</tr>
+<tr>
+<td>package</td>
+<td>codonforge 0.1.0 (<code>codonforge._core.version()</code>)</td>
+</tr>
+<tr>
+<td>OS</td>
+<td>Ubuntu 24.04.4 LTS, kernel 6.12.94+</td>
+</tr>
+<tr>
+<td>CPU</td>
+<td><code>Intel(R) Xeon(R) Processor</code>, family 6 model 207, 4 vCPU, KVM</td>
+</tr>
+<tr>
+<td>RAM</td>
+<td>15 GiB</td>
+</tr>
+<tr>
+<td>rustc</td>
+<td>1.98.1 (<code>48a229cea</code>, 2026-09-01)</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.12.3</td>
+</tr>
+<tr>
+<td>maturin</td>
+<td>1.15.0</td>
+</tr>
+<tr>
+<td>ViennaRNA</td>
+<td>2.7.2, imported as <code>RNA</code></td>
+</tr>
+<tr>
+<td>host id</td>
+<td><code>escherichia_coli:511145/BL21</code></td>
+</tr>
+<tr>
+<td>weights</td>
+<td><code>examples/mg1655_ribosomal_usage.json</code></td>
+</tr>
+<tr>
+<td>translation table</td>
+<td>11</td>
+</tr>
+<tr>
+<td>seed</td>
+<td>7</td>
+</tr>
+<tr>
+<td>stagnation window</td>
+<td>21 where the harness sets it</td>
+</tr>
+</tbody>
+</table>
+<p>Headline numbers below are Cargo profile <code>release</code>: <code>opt-level</code> 3 (the Cargo
+default; <code>Cargo.toml</code> does not override it), <code>lto = "thin"</code>,
+<code>codegen-units = 1</code>, <code>panic = "abort"</code>. The installed extension
+<code>python/codonforge/_core.abi3.so</code> was byte-identical to
+<code>target/release/libcf_pyext.so</code> while these rows were taken.</p>
+<p>The comparison column marked opt-level 1 is Cargo profile <code>dev</code> with
+<code>opt-level = 1</code>, which is what <code>make build</code> (<code>maturin develop</code>) produces.
+<code>docs/benchmarks/v2.9.2-profiles.md</code>, <code>v2.9.3-profiles.md</code>, and
+<code>v2.9.4-harsh-perf.md</code> were measured on that profile. Both profiles were
+built and run on this machine on the same day.</p>
+<p>Each harness row is its own process. Wall time is <code>time.perf_counter</code> around
+the call the harness names (the design, the seed, or <code>primer_search</code>). It
+does not include interpreter startup. Peak RSS is <code>ru_maxrss</code> for that
+process. Linux reports kilobytes. CAI in the harsh tables is
+<code>benchmarks/validation/cai_independent.py</code> unless a cell says “engine vector”.</p>
+<h2>Method and commands to reproduce</h2>
+<p>From the repository root, after <code>make setup</code> and
+<code>.venv/bin/pip install 'ViennaRNA==2.7.2'</code>.</p>
+<p>Opt-level 1, the profile the older notes use:</p>
+<pre><code class="language-sh">.venv/bin/maturin develop
+.venv/bin/python tools/harsh_perf.py --suite all --out /tmp/cf-perf/opt1-harsh.json
+.venv/bin/python tools/profile_suite.py --suite all --out /tmp/cf-perf/opt1-profiles.json
+.venv/bin/python tools/challenging_perf.py --suite sweep --out /tmp/cf-perf/opt1-sweep.json
+.venv/bin/python tools/challenging_perf.py --suite standard \
+  --from /tmp/cf-perf/opt1-sweep.json --out /tmp/cf-perf/opt1-standard.json
+</code></pre>
+<p>Release, the headline profile:</p>
+<pre><code class="language-sh">.venv/bin/maturin develop --release
+.venv/bin/python tools/harsh_perf.py --suite all --out /tmp/cf-perf/rel-harsh.json
+.venv/bin/python tools/profile_suite.py --suite all --out /tmp/cf-perf/rel-profiles.json
+.venv/bin/python tools/challenging_perf.py --suite sweep --out /tmp/cf-perf/rel-sweep.json
+.venv/bin/python tools/challenging_perf.py --suite standard \
+  --from /tmp/cf-perf/rel-sweep.json --out /tmp/cf-perf/rel-standard.json
+</code></pre>
+<p><code>harsh_perf.py --suite all</code> is pins, design, seed, objectives, operon,
+primers, the API job path, and <code>GATE-BEN-001</code>. It exits 1 when any pin's
+<code>ok</code> is false. The timeout is 300 s per row. <code>profile_suite.py</code> is stage
+timings, seed counters, primer regions, structure, operon, cProfile, and
+Potts. <code>challenging_perf.py</code> is the v2.9.1 sweep (budget <code>fast</code>; structure
+jobs use 2 generations) and a <code>standard</code> rerun of the four slowest design
+jobs at 4 generations.</p>
+<p>On this machine the release pass took 91 s (harsh), 37 s (profile), 26 s
+(sweep), and 14 s (standard). The opt-level 1 pass took 103 s, 44 s, 29 s,
+and 16 s. Every suite exited 0. No row timed out.</p>
+<p>Sequences are the shipped validation FASTA files plus <code>rpoB</code>, <code>rpoC</code>,
+<code>yfhM</code>, <code>thrA</code>, and <code>aceB</code> read from
+<code>benchmarks/corpus/NC_000913.3_cds.fna.gz</code>. No sequence was invented.
+Assembly rules are <code>benchmarks/validation/constraints_assembly.json</code>.
+Golden Gate and BioBrick are <code>examples/golden_gate.json</code> and
+<code>examples/biobrick_rfc10.json</code>. The harsh set is that assembly file plus a
+30 nt GC window in [0.35, 0.65], a homopolymer cap of 5, and a 10-mer cap
+of 2 (<code>constraint_set_id</code> <code>cst_harsh_assembly</code>). It is a stress set. It is
+not a published feasibility claim.</p>
+<h2>CodonForge</h2>
+<p>Budget <code>fast</code> with generations 0 runs tier 1 and tier 2. A structure
+objective is L0, so those jobs use 2 generations. Budget <code>standard</code> with
+generations 4 adds tier 3. Every succeeded design in these tables translated
+back to the input protein and had zero actionable violations under the
+constraint set it was given.</p>
+<p>The same yeeJ assembly job (fast, generations 0) was launched by four
+release harnesses. Walls were 2.727 s (harsh design), 2.460 s (harsh pin),
+2.532 s (profile stages), and 2.371 s (challenging sweep). The CDS hash was
+<code>72bd74389f99f3aba3dfcb5422c05c91db606adaacb65f67a5a80f881dc6e540</code> every
+time. Treat a tenth of a second on a multi-second row as run noise. The
+tables use one named row each.</p>
+<h3>Empty constraints, CAI, budget fast, generations 0</h3>
+<p>Source: release <code>harsh_perf.py</code> pins. CAI 1 means every counted codon is on
+its heaviest synonym. rpoC starts with GTG. The start stays locked, and
+table 11 reads GTG as valine, so empty-constraint CAI is the closed form
+<code>exp(log(0.245665) / 1363) = 0.998970606154696</code>. That row is pinned to the
+closed form.</p>
+<table>
+<thead>
+<tr>
+<th>gene</th>
+<th style="text-align: right;">nt</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">opt-1 s</th>
+<th style="text-align: right;">RSS KiB</th>
+<th style="text-align: right;">CAI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rpsL</td>
+<td style="text-align: right;">375</td>
+<td style="text-align: right;">0.046</td>
+<td style="text-align: right;">0.051</td>
+<td style="text-align: right;">47488</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>elastin_vpgvg20</td>
+<td style="text-align: right;">306</td>
+<td style="text-align: right;">0.069</td>
+<td style="text-align: right;">0.045</td>
+<td style="text-align: right;">47564</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>gfp_BBa_E0040</td>
+<td style="text-align: right;">717</td>
+<td style="text-align: right;">0.064</td>
+<td style="text-align: right;">0.065</td>
+<td style="text-align: right;">47476</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>mrfp_BBa_E1010</td>
+<td style="text-align: right;">675</td>
+<td style="text-align: right;">0.062</td>
+<td style="text-align: right;">0.065</td>
+<td style="text-align: right;">47488</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>mcherry_BBa_J06504</td>
+<td style="text-align: right;">711</td>
+<td style="text-align: right;">0.065</td>
+<td style="text-align: right;">0.066</td>
+<td style="text-align: right;">47488</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>bla</td>
+<td style="text-align: right;">861</td>
+<td style="text-align: right;">0.078</td>
+<td style="text-align: right;">0.081</td>
+<td style="text-align: right;">47740</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>waaS</td>
+<td style="text-align: right;">936</td>
+<td style="text-align: right;">0.071</td>
+<td style="text-align: right;">0.074</td>
+<td style="text-align: right;">47620</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>aceB</td>
+<td style="text-align: right;">1602</td>
+<td style="text-align: right;">0.132</td>
+<td style="text-align: right;">0.141</td>
+<td style="text-align: right;">48068</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>yagF</td>
+<td style="text-align: right;">1968</td>
+<td style="text-align: right;">0.164</td>
+<td style="text-align: right;">0.176</td>
+<td style="text-align: right;">48128</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>thrA</td>
+<td style="text-align: right;">2463</td>
+<td style="text-align: right;">0.193</td>
+<td style="text-align: right;">0.241</td>
+<td style="text-align: right;">48240</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>lacZ</td>
+<td style="text-align: right;">3075</td>
+<td style="text-align: right;">0.239</td>
+<td style="text-align: right;">0.262</td>
+<td style="text-align: right;">48400</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>rpoB</td>
+<td style="text-align: right;">4029</td>
+<td style="text-align: right;">0.307</td>
+<td style="text-align: right;">0.333</td>
+<td style="text-align: right;">48704</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>rpoC</td>
+<td style="text-align: right;">4224</td>
+<td style="text-align: right;">0.322</td>
+<td style="text-align: right;">0.379</td>
+<td style="text-align: right;">48740</td>
+<td style="text-align: right;">0.998970606154696</td>
+</tr>
+<tr>
+<td>yfhM</td>
+<td style="text-align: right;">4962</td>
+<td style="text-align: right;">0.380</td>
+<td style="text-align: right;">0.443</td>
+<td style="text-align: right;">49012</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td>yeeJ</td>
+<td style="text-align: right;">7077</td>
+<td style="text-align: right;">0.526</td>
+<td style="text-align: right;">0.563</td>
+<td style="text-align: right;">50740</td>
+<td style="text-align: right;">1</td>
+</tr>
+</tbody>
+</table>
+<p>aceB and thrA contain native <code>AGG</code>. With empty constraints the CAI-only run
+removes it and scores 1. The v2.9.1 note recorded the same outcome.</p>
+<h3>Assembly constraints, CAI</h3>
+<p>Assembly is GC windows, homopolymers, repeats, and the Golden Gate / BioBrick
+sites in <code>constraints_assembly.json</code>. The floor column is the v2.9.4
+search-escape CAI (<code>docs/benchmarks/v2.9.4-search-escape.md</code>). Every floor
+gene meets it. rpoB, rpoC, yfhM, and lacZ are recorded results from this
+tree. They were not in that floor table.</p>
+<p>Fast rows are budget <code>fast</code>, generations 0. Standard rows are budget
+<code>standard</code>, generations 4. Where both were run, the CDS hash matches, so
+the extra generations did not move the recommended sequence.</p>
+<table>
+<thead>
+<tr>
+<th>gene</th>
+<th style="text-align: right;">nt</th>
+<th>budget</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">opt-1 s</th>
+<th style="text-align: right;">seed s</th>
+<th style="text-align: right;">RSS KiB</th>
+<th style="text-align: right;">CAI</th>
+<th>vs floor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rpsL</td>
+<td style="text-align: right;">375</td>
+<td>fast</td>
+<td style="text-align: right;">0.070</td>
+<td style="text-align: right;">0.083</td>
+<td style="text-align: right;">0.022</td>
+<td style="text-align: right;">47644</td>
+<td style="text-align: right;">0.9866866273575934</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>elastin_vpgvg20</td>
+<td style="text-align: right;">306</td>
+<td>fast</td>
+<td style="text-align: right;">0.421</td>
+<td style="text-align: right;">0.578</td>
+<td style="text-align: right;">0.367</td>
+<td style="text-align: right;">47500</td>
+<td style="text-align: right;">0.4642192192077335</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>gfp_BBa_E0040</td>
+<td style="text-align: right;">717</td>
+<td>fast</td>
+<td style="text-align: right;">0.128</td>
+<td style="text-align: right;">0.167</td>
+<td style="text-align: right;">0.056</td>
+<td style="text-align: right;">47888</td>
+<td style="text-align: right;">0.9725744807921104</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>mrfp_BBa_E1010</td>
+<td style="text-align: right;">675</td>
+<td>fast</td>
+<td style="text-align: right;">0.124</td>
+<td style="text-align: right;">0.164</td>
+<td style="text-align: right;">0.054</td>
+<td style="text-align: right;">47740</td>
+<td style="text-align: right;">0.9605695971330996</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>mcherry_BBa_J06504</td>
+<td style="text-align: right;">711</td>
+<td>fast</td>
+<td style="text-align: right;">0.145</td>
+<td style="text-align: right;">0.183</td>
+<td style="text-align: right;">0.071</td>
+<td style="text-align: right;">47816</td>
+<td style="text-align: right;">0.9644182772231985</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>bla</td>
+<td style="text-align: right;">861</td>
+<td>fast</td>
+<td style="text-align: right;">0.174</td>
+<td style="text-align: right;">0.217</td>
+<td style="text-align: right;">0.088</td>
+<td style="text-align: right;">47820</td>
+<td style="text-align: right;">0.9847528752532632</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>waaS</td>
+<td style="text-align: right;">936</td>
+<td>fast</td>
+<td style="text-align: right;">0.243</td>
+<td style="text-align: right;">0.313</td>
+<td style="text-align: right;">0.152</td>
+<td style="text-align: right;">47948</td>
+<td style="text-align: right;">0.9259163095438141</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>yagF</td>
+<td style="text-align: right;">1968</td>
+<td>fast</td>
+<td style="text-align: right;">0.597</td>
+<td style="text-align: right;">0.863</td>
+<td style="text-align: right;">0.397</td>
+<td style="text-align: right;">48688</td>
+<td style="text-align: right;">0.9453398274862173</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>lacZ</td>
+<td style="text-align: right;">3075</td>
+<td>fast</td>
+<td style="text-align: right;">0.636</td>
+<td style="text-align: right;">0.860</td>
+<td style="text-align: right;">0.345</td>
+<td style="text-align: right;">49772</td>
+<td style="text-align: right;">0.9665531384697095</td>
+<td>recorded</td>
+</tr>
+<tr>
+<td>rpoB</td>
+<td style="text-align: right;">4029</td>
+<td>fast</td>
+<td style="text-align: right;">0.665</td>
+<td style="text-align: right;">0.826</td>
+<td style="text-align: right;">0.293</td>
+<td style="text-align: right;">51020</td>
+<td style="text-align: right;">0.9830194072110617</td>
+<td>recorded</td>
+</tr>
+<tr>
+<td>rpoC</td>
+<td style="text-align: right;">4224</td>
+<td>fast</td>
+<td style="text-align: right;">1.197</td>
+<td style="text-align: right;">1.469</td>
+<td style="text-align: right;">0.768</td>
+<td style="text-align: right;">51368</td>
+<td style="text-align: right;">0.9593415607455033</td>
+<td>recorded</td>
+</tr>
+<tr>
+<td>yfhM</td>
+<td style="text-align: right;">4962</td>
+<td>fast</td>
+<td style="text-align: right;">1.519</td>
+<td style="text-align: right;">1.570</td>
+<td style="text-align: right;">0.924</td>
+<td style="text-align: right;">51664</td>
+<td style="text-align: right;">0.9605558574962288</td>
+<td>recorded</td>
+</tr>
+<tr>
+<td>yeeJ</td>
+<td style="text-align: right;">7077</td>
+<td>fast</td>
+<td style="text-align: right;">2.727</td>
+<td style="text-align: right;">2.825</td>
+<td style="text-align: right;">1.764</td>
+<td style="text-align: right;">53332</td>
+<td style="text-align: right;">0.9727484991594185</td>
+<td>equal</td>
+</tr>
+<tr>
+<td>yfhM</td>
+<td style="text-align: right;">4962</td>
+<td>standard ×4</td>
+<td style="text-align: right;">3.081</td>
+<td style="text-align: right;">3.716</td>
+<td style="text-align: right;">0.831</td>
+<td style="text-align: right;">52184</td>
+<td style="text-align: right;">0.9605558574962288</td>
+<td>same CDS</td>
+</tr>
+<tr>
+<td>yeeJ</td>
+<td style="text-align: right;">7077</td>
+<td>standard ×4</td>
+<td style="text-align: right;">4.012</td>
+<td style="text-align: right;">4.749</td>
+<td style="text-align: right;">1.679</td>
+<td style="text-align: right;">53704</td>
+<td style="text-align: right;">0.9727484991594185</td>
+<td>same CDS</td>
+</tr>
+</tbody>
+</table>
+<p>Seed seconds are <code>resolve_feasible_seed</code> wrapped inside that same design
+row, so they sit under the wall time beside them. A direct seed call, with
+no tier 1 or tier 2 around it, is a bit lower: yeeJ assembly 1.655 s, yfhM
+0.794 s, rpoC 0.785 s, waaS 0.151 s, elastin 0.377 s. yeeJ fast hash
+<code>72bd74389f99f3aba3dfcb5422c05c91db606adaacb65f67a5a80f881dc6e540</code> (733
+edits, 3 cycles). waaS hash
+<code>d227b303a3c477cea7f5ed35c3a0fbcb783cb9169fa38a3737e0fe7699419f16</code>. rpoC hash
+<code>7e80dcaa96a48b33e0078568ff2d6e5638a3cdedc6d6b001d5401ebe66397ca7</code>. yfhM hash
+<code>69f1b9d902f6ffd54bb3391eac1f6fbfa6f27901a49ff2089a7f40befdd621be</code>. lacZ hash
+<code>7d83594101155870cad004b71cd93765bad9fa27fd5d9d7dd96dbd2d551a8fad</code>.</p>
+<p>Elastin’s engine vector is <code>0.4642192192077335</code>. The independent checker
+prints <code>0.46421921920773357</code>, one unit in the last place higher. The pin
+accepts that. See the correctness section.</p>
+<p>Inside the yeeJ fast design (release, 2.727 s): <code>resolve_feasible_seed</code>
+1.764 s, tier 2 polish 0.253 s, tier 1 seed 0.112 s. The standard run adds
+tier 3 at 1.485 s, of which <code>repair</code> is 5 calls and 0.556 s. The recommended
+CDS does not change.</p>
+<h3>Golden Gate and BioBrick</h3>
+<p>Genes at or under 2500 nt where the v2.9.3 local dynamic program is a full
+optimum. Release harsh pins. Gap is DP CAI minus achieved CAI. Every gap is 0.
+Wall times are all under 0.2 s. Opt-level 1 is within a few hundredths.</p>
+<table>
+<thead>
+<tr>
+<th>gene</th>
+<th style="text-align: right;">nt</th>
+<th>set</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">CAI</th>
+<th style="text-align: right;">gap</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rpsL</td>
+<td style="text-align: right;">375</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.044</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>rpsL</td>
+<td style="text-align: right;">375</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.045</td>
+<td style="text-align: right;">0.9904970702046313</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>elastin_vpgvg20</td>
+<td style="text-align: right;">306</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.044</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>elastin_vpgvg20</td>
+<td style="text-align: right;">306</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.044</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>gfp_BBa_E0040</td>
+<td style="text-align: right;">717</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.066</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>gfp_BBa_E0040</td>
+<td style="text-align: right;">717</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.065</td>
+<td style="text-align: right;">0.9952923787903273</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>mrfp_BBa_E1010</td>
+<td style="text-align: right;">675</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.071</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>mrfp_BBa_E1010</td>
+<td style="text-align: right;">675</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.067</td>
+<td style="text-align: right;">0.9793498378226791</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>mcherry_BBa_J06504</td>
+<td style="text-align: right;">711</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.068</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>mcherry_BBa_J06504</td>
+<td style="text-align: right;">711</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.067</td>
+<td style="text-align: right;">0.980266655240815</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>bla</td>
+<td style="text-align: right;">861</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.084</td>
+<td style="text-align: right;">0.9986126172738556</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>bla</td>
+<td style="text-align: right;">861</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.080</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>waaS</td>
+<td style="text-align: right;">936</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.072</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>waaS</td>
+<td style="text-align: right;">936</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.073</td>
+<td style="text-align: right;">0.9960797791188929</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>yagF</td>
+<td style="text-align: right;">1968</td>
+<td>golden_gate</td>
+<td style="text-align: right;">0.167</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td>yagF</td>
+<td style="text-align: right;">1968</td>
+<td>biobrick_rfc10</td>
+<td style="text-align: right;">0.166</td>
+<td style="text-align: right;">0.9962844172253809</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+<p>rpoB is 4029 nt, past the length where that DP table claims a full optimum.
+The challenging sweep still designs it. Release: Golden Gate 0.302 s, CAI
+0.999709780691428; BioBrick 0.303 s, CAI 0.9930619119141477. Both vectors
+match the v2.9.1 challenging note. Zero actionable violations.</p>
+<h3>Harsh assembly</h3>
+<p>The stress set described above. Budget <code>fast</code>, generations 0. waaS returns
+<code>CF-SRCH-006</code>. The suite records that as best-effort. The pin stays ok
+because this set was never a feasibility claim.</p>
+<table>
+<thead>
+<tr>
+<th>gene</th>
+<th style="text-align: right;">nt</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">opt-1 s</th>
+<th style="text-align: right;">seed s</th>
+<th style="text-align: right;">RSS KiB</th>
+<th>result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>waaS</td>
+<td style="text-align: right;">936</td>
+<td style="text-align: right;">0.059</td>
+<td style="text-align: right;">0.084</td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;">36620</td>
+<td><code>CF-SRCH-006</code></td>
+</tr>
+<tr>
+<td>elastin_vpgvg20</td>
+<td style="text-align: right;">306</td>
+<td style="text-align: right;">0.601</td>
+<td style="text-align: right;">0.836</td>
+<td style="text-align: right;">0.543</td>
+<td style="text-align: right;">47572</td>
+<td>CAI 0.39695841137981935, feasible</td>
+</tr>
+<tr>
+<td>yeeJ</td>
+<td style="text-align: right;">7077</td>
+<td style="text-align: right;">4.203</td>
+<td style="text-align: right;">5.164</td>
+<td style="text-align: right;">3.161</td>
+<td style="text-align: right;">54316</td>
+<td>CAI 0.9667370523709706, feasible</td>
+</tr>
+</tbody>
+</table>
+<p>yeeJ harsh hash
+<code>e8afe2becefe5a7e49beca4891ffd398d5a5a95e586bdca172c1522e735bae5e</code>.
+2108 edits. The same hash as <code>docs/benchmarks/v2.9.4-harsh-rows.json</code>.</p>
+<h3>Multi-objective</h3>
+<p>Vectors are engine objective vectors, in the order of the objectives column.
+Release. The harness column says which suite produced the row. Harsh and
+profile agree on the shared vectors (yeeJ structure, rpsL / lacZ Potts).</p>
+<table>
+<thead>
+<tr>
+<th>case</th>
+<th>harness</th>
+<th style="text-align: right;">gen</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">opt-1 s</th>
+<th style="text-align: right;">RSS KiB</th>
+<th>vector</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yeeJ CAI + structure, assembly</td>
+<td>harsh</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3.458</td>
+<td style="text-align: right;">4.236</td>
+<td style="text-align: right;">53976</td>
+<td><code>[0.9723247970586831, 2.4166863375261896]</code></td>
+</tr>
+<tr>
+<td>rpoB CAI + structure, assembly</td>
+<td>harsh</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1.204</td>
+<td style="text-align: right;">1.490</td>
+<td style="text-align: right;">51336</td>
+<td><code>[0.9826612532623645, 2.5240523442669134]</code></td>
+</tr>
+<tr>
+<td>lacZ CAI + structure, assembly</td>
+<td>profile</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1.384</td>
+<td style="text-align: right;">1.664</td>
+<td style="text-align: right;">45976</td>
+<td><code>[0.9646814771830261, 2.7308022282793587]</code></td>
+</tr>
+<tr>
+<td>waaS CAI + structure, assembly</td>
+<td>profile</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0.795</td>
+<td style="text-align: right;">0.913</td>
+<td style="text-align: right;">43656</td>
+<td><code>[0.918127802287275, 1.8122103971546997]</code></td>
+</tr>
+<tr>
+<td>elastin CAI + structure, assembly</td>
+<td>profile</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1.348</td>
+<td style="text-align: right;">1.563</td>
+<td style="text-align: right;">44200</td>
+<td><code>[0.46212767144714184, 3.0970951335253227]</code></td>
+</tr>
+<tr>
+<td>rpsL CAI + structure, assembly</td>
+<td>profile</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0.239</td>
+<td style="text-align: right;">0.261</td>
+<td style="text-align: right;">43356</td>
+<td><code>[0.985816320550702, 2.6050213909252715]</code></td>
+</tr>
+<tr>
+<td>yeeJ CAI + burden, assembly</td>
+<td>harsh</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">4.061</td>
+<td style="text-align: right;">4.809</td>
+<td style="text-align: right;">54492</td>
+<td><code>[0.9727484991594185, 0.5759101658578069]</code></td>
+</tr>
+<tr>
+<td>waaS CAI + burden, assembly</td>
+<td>profile</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.299</td>
+<td style="text-align: right;">0.400</td>
+<td style="text-align: right;">43492</td>
+<td><code>[0.8995843357003364, 0.4991567438774198]</code></td>
+</tr>
+<tr>
+<td>rpoB CAI + burden, empty</td>
+<td>profile</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.636</td>
+<td style="text-align: right;">0.727</td>
+<td style="text-align: right;">45452</td>
+<td><code>[1.0, 0.6171608892818251]</code></td>
+</tr>
+<tr>
+<td>aceB CAI + burden, empty</td>
+<td>sweep</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.257</td>
+<td style="text-align: right;">0.271</td>
+<td style="text-align: right;">44216</td>
+<td><code>[0.9530633221854043, 0.510773980693139]</code></td>
+</tr>
+<tr>
+<td>waaS CAI + structure + burden</td>
+<td>harsh</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0.859</td>
+<td style="text-align: right;">1.019</td>
+<td style="text-align: right;">48320</td>
+<td><code>[0.8995843357003364, 1.8212043757005512, 0.4991567438774198]</code></td>
+</tr>
+<tr>
+<td>yeeJ CAI + Potts, empty</td>
+<td>harsh</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">1.638</td>
+<td style="text-align: right;">2.103</td>
+<td style="text-align: right;">53292</td>
+<td><code>[0.9788608339049295, -0.6223316995686843]</code></td>
+</tr>
+<tr>
+<td>rpoC CAI + Potts, empty</td>
+<td>harsh</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.815</td>
+<td style="text-align: right;">1.006</td>
+<td style="text-align: right;">52900</td>
+<td><code>[0.9414664807691052, -0.59740611181569]</code></td>
+</tr>
+<tr>
+<td>lacZ CAI + Potts, empty</td>
+<td>harsh</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.673</td>
+<td style="text-align: right;">0.885</td>
+<td style="text-align: right;">52856</td>
+<td><code>[0.8859755189212043, -0.5677755453484393]</code></td>
+</tr>
+<tr>
+<td>waaS CAI + Potts, empty</td>
+<td>profile</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.405</td>
+<td style="text-align: right;">0.472</td>
+<td style="text-align: right;">47200</td>
+<td><code>[0.9593146794501609, -0.5143818504117195]</code></td>
+</tr>
+<tr>
+<td>rpsL CAI + Potts, empty</td>
+<td>harsh</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.342</td>
+<td style="text-align: right;">0.392</td>
+<td style="text-align: right;">52876</td>
+<td><code>[0.9303092945130915, -0.5887977805472148]</code></td>
+</tr>
+</tbody>
+</table>
+<p>Potts is <code>epistasis.context_naturalness</code>. It is available and it ran. The
+second component is the engine’s naturalness term (negative). Empty
+constraints, so these rows do not pay assembly seed repair. yeeJ’s 1.638 s
+still includes the front. Wrapped Rust stages on that row are tier 2
+0.348 s and tier 1 0.078 s.</p>
+<p>Fold counts on the structure rows, release profile suite: rpsL 12 hits,
+3 full folds, 10 local edits; waaS 13 / 2 / 18; elastin 16 / 4 / 4; lacZ
+14 / 1 / 21; yeeJ 12 / 1 / 18. The yeeJ counts are the published pin.</p>
+<p>yeeJ CAI plus burden keeps the assembly-only CDS (same hash) and adds the
+burden axis. The wall is higher than assembly-only because tier 2 has a
+second term to score: tier 2 is 1.295 s against 0.253 s on the CAI-only
+design row.</p>
+<p>Standard, 4 generations, challenging suite, release. These are the four
+slowest design jobs in that sweep.</p>
+<table>
+<thead>
+<tr>
+<th>case</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">RSS KiB</th>
+<th>vector</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yeeJ CAI + structure, assembly</td>
+<td style="text-align: right;">4.951</td>
+<td style="text-align: right;">50540</td>
+<td><code>[0.9719613556538297, 2.414045979917117]</code></td>
+</tr>
+<tr>
+<td>yeeJ CAI, assembly</td>
+<td style="text-align: right;">3.833</td>
+<td style="text-align: right;">50460</td>
+<td><code>[0.9727484991594185]</code></td>
+</tr>
+<tr>
+<td>elastin CAI + structure, assembly</td>
+<td style="text-align: right;">1.876</td>
+<td style="text-align: right;">44780</td>
+<td><code>[0.46212767144714184, 3.0970951335253227]</code></td>
+</tr>
+<tr>
+<td>lacZ CAI + structure, assembly</td>
+<td style="text-align: right;">1.857</td>
+<td style="text-align: right;">45824</td>
+<td><code>[0.9649191059215455, 2.7217215882027954]</code></td>
+</tr>
+</tbody>
+</table>
+<p>The yeeJ CAI row matches the fast CDS. The two structure fronts move by a
+few thousandths relative to the 2-generation rows. The v2.9.1 standard rerun
+picked rpoB assembly instead of elastin structure, because rpoB assembly was
+slow then (7.156 s) and is 0.665 s here.</p>
+<h3>Operon</h3>
+<p>Joint growth cost, two passes, fluxes 1 and 2, budget <code>fast</code>. Release harsh
+suite. Proteins match on every cistron.</p>
+<table>
+<thead>
+<tr>
+<th>operon</th>
+<th>nt</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">opt-1 s</th>
+<th style="text-align: right;">RSS KiB</th>
+<th style="text-align: right;">joint</th>
+<th>swaps per pass</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rpsL + waaS</td>
+<td>375 + 936</td>
+<td style="text-align: right;">0.382</td>
+<td style="text-align: right;">0.350</td>
+<td style="text-align: right;">47796</td>
+<td style="text-align: right;">0.4475618327684962</td>
+<td><code>[22, 0]</code></td>
+</tr>
+<tr>
+<td>lacZ + thrA</td>
+<td>3075 + 2463</td>
+<td style="text-align: right;">1.611</td>
+<td style="text-align: right;">1.755</td>
+<td style="text-align: right;">48548</td>
+<td style="text-align: right;">0.4452346719259927</td>
+<td><code>[26, 0]</code></td>
+</tr>
+<tr>
+<td>yeeJ + rpoB</td>
+<td>7077 + 4029</td>
+<td style="text-align: right;">3.517</td>
+<td style="text-align: right;">3.937</td>
+<td style="text-align: right;">51080</td>
+<td style="text-align: right;">0.44521127470895777</td>
+<td><code>[42, 1]</code></td>
+</tr>
+</tbody>
+</table>
+<p>The first two joints and swap counts match <code>v2.9.3-profiles.md</code> and the
+v2.9.1 challenging note. yeeJ + rpoB is the longer case added in the harsh
+suite. Its joint matches the published harsh row.</p>
+<h3>Phase split on the slow seeds</h3>
+<p><code>CF_SEED_PROFILE</code> on the release seed rows. Inclusive: <code>climb</code> contains
+<code>kmer_replace</code>, <code>ascend</code>, <code>gc_delta</code>, and the sweeps. <code>is_feasible</code> is the
+integer offender check. <code>checker_check</code> (the full checker fallback) is 0
+calls on both yeeJ seeds.</p>
+<table>
+<thead>
+<tr>
+<th>function</th>
+<th style="text-align: right;">yeeJ assembly calls</th>
+<th style="text-align: right;">seconds</th>
+<th style="text-align: right;">yeeJ harsh calls</th>
+<th style="text-align: right;">seconds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>climb</code></td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">1.035</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">2.072</td>
+</tr>
+<tr>
+<td><code>kmer_replace</code></td>
+<td style="text-align: right;">147250</td>
+<td style="text-align: right;">0.335</td>
+<td style="text-align: right;">195161</td>
+<td style="text-align: right;">0.831</td>
+</tr>
+<tr>
+<td><code>ascend</code></td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">0.358</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">0.543</td>
+</tr>
+<tr>
+<td><code>fix_kmers</code></td>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;">0.098</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;">0.232</td>
+</tr>
+<tr>
+<td><code>gc_delta</code></td>
+<td style="text-align: right;">270430</td>
+<td style="text-align: right;">0.086</td>
+<td style="text-align: right;">342977</td>
+<td style="text-align: right;">0.174</td>
+</tr>
+<tr>
+<td><code>polish</code></td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">0.098</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">0.148</td>
+</tr>
+<tr>
+<td><code>gc_sweeps</code></td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.067</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">0.115</td>
+</tr>
+<tr>
+<td><code>is_feasible</code></td>
+<td style="text-align: right;">22823</td>
+<td style="text-align: right;">0.0011</td>
+<td style="text-align: right;">31228</td>
+<td style="text-align: right;">0.0014</td>
+</tr>
+<tr>
+<td>seed wall</td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;">1.655</td>
+<td style="text-align: right;"></td>
+<td style="text-align: right;">3.161</td>
+</tr>
+</tbody>
+</table>
+<p>Call counts on the harsh yeeJ seed match the “after” column of
+<code>v2.9.4-harsh-perf.md</code> (195161 <code>kmer_replace</code>, 342977 <code>gc_delta</code>, 31228
+<code>is_feasible</code>). The seconds there were opt-level 1 (<code>kmer_replace</code> 0.938 s,
+<code>ascend</code> 0.724 s, <code>gc_delta</code> 0.361 s, climb 2.268 s). Release does the same
+calls faster.</p>
+<p>cProfile of the release yeeJ assembly design (<code>profile_suite.py</code>, cumulative
+seconds inside that process): <code>design</code> 2.367 s, of which
+<code>resolve_feasible_seed</code> is 1.599 s, tier 2 polish 0.190 s, and
+<code>structure_diag.annotate</code> → ViennaRNA <code>pfl_fold_up</code> 0.436 s. That
+annotation runs because structure is not an objective on a CAI-only job
+(<code>design.py</code> skips it when the term is already scored). It is about a
+sixth of the design call on yeeJ, after the seed. The profiled wrapper also
+spends 0.211 s in <code>_sequences</code> loading the corpus. That cost is the harness,
+measured inside cProfile, and is outside <code>design()</code>.</p>
+<h2>PrimerForge</h2>
+<p>Release harsh suite unless the row says profile. Primer length 18–25 except
+the oligo pools, which request 12–36. Tm target 60 °C. The 40-oligo cap
+still truncates the ranked set at 1600 survivors. ΔG is
+<code>hetero_dimer_dG</code> in kcal/mol.</p>
+<table>
+<thead>
+<tr>
+<th>case</th>
+<th>template</th>
+<th style="text-align: right;">windows</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">opt-1 s</th>
+<th style="text-align: right;">RSS KiB</th>
+<th>pair</th>
+<th style="text-align: right;">product</th>
+<th style="text-align: right;">ΔG</th>
+<th style="text-align: right;">survivors</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yeeJ flank 300, pin</td>
+<td>7077</td>
+<td style="text-align: right;">4472</td>
+<td style="text-align: right;">0.052</td>
+<td style="text-align: right;">0.067</td>
+<td style="text-align: right;">37000</td>
+<td><code>TGACCGACAAATATTATG</code> / <code>GAACTACAGTGGTTTAAA</code></td>
+<td style="text-align: right;">6843</td>
+<td style="text-align: right;">−1.283850000000001</td>
+<td style="text-align: right;">1600</td>
+</tr>
+<tr>
+<td>yfhM flank 300</td>
+<td>4962</td>
+<td style="text-align: right;">4472</td>
+<td style="text-align: right;">0.056</td>
+<td style="text-align: right;">0.065</td>
+<td style="text-align: right;">40320</td>
+<td><code>GCCTTCTGAAGTTACTAA</code> / <code>ATCTGGTTCAGTAAGTTC</code></td>
+<td style="text-align: right;">4653</td>
+<td style="text-align: right;">−4.680499999999995</td>
+<td style="text-align: right;">1600</td>
+</tr>
+<tr>
+<td>rpoC flank 300</td>
+<td>4224</td>
+<td style="text-align: right;">4472</td>
+<td style="text-align: right;">0.041</td>
+<td style="text-align: right;">0.048</td>
+<td style="text-align: right;">38032</td>
+<td><code>GGTAAAAGATTACGAGTG</code> / <code>GATAACGTTCTCTTTCAG</code></td>
+<td style="text-align: right;">3865</td>
+<td style="text-align: right;">−6.250615000000003</td>
+<td style="text-align: right;">1160</td>
+</tr>
+<tr>
+<td>yeeJ oligo 12–36</td>
+<td>7077</td>
+<td style="text-align: right;">13850</td>
+<td style="text-align: right;">0.066</td>
+<td style="text-align: right;">0.076</td>
+<td style="text-align: right;">37508</td>
+<td><code>CCAATACGGTGCC</code> / <code>CGTGTAATGCCCC</code></td>
+<td style="text-align: right;">6734</td>
+<td style="text-align: right;">−2.123515000000003</td>
+<td style="text-align: right;">1600, truncated</td>
+</tr>
+<tr>
+<td>yfhM oligo 12–36</td>
+<td>4962</td>
+<td style="text-align: right;">13850</td>
+<td style="text-align: right;">0.080</td>
+<td style="text-align: right;">0.076</td>
+<td style="text-align: right;">38844</td>
+<td><code>GTTACGCGTAGCC</code> / <code>GCCGCTACGTAAC</code></td>
+<td style="text-align: right;">4573</td>
+<td style="text-align: right;">−5.792715000000001</td>
+<td style="text-align: right;">1600, truncated</td>
+</tr>
+</tbody>
+</table>
+<p>The yeeJ flank-300 document SHA-256 is
+<code>5f1fa115bcefde58d0c3d92a35e7adbc5fcbf04bf78b6efe43bf75f946aa149f</code>.
+That is the pin shared with <code>test_profile_identity</code> and with the v2.9.2 /
+v2.9.3 profile notes. The API primer job returns the same pair, the same
+product, and the same ΔG (HTTP 202, search 0.106 s inside the API row).</p>
+<p>The oligo pairs and the yfhM / rpoC flank pairs match the recorded (not
+pinned) pairs in <code>v2.9.4-harsh-perf.md</code>. The wide pool is the slowest
+primer row at 0.080 s.</p>
+<p>Phase split on the release yeeJ oligo pool (0.066 s): <code>tm_prefilter</code> 12513
+calls, 0.024 s; <code>rank</code> 0.018 s; <code>dimer</code> 1680 calls, 0.011 s. On the pinned
+18–25 search, <code>rank</code> is 0.019 s and <code>dimer</code> is 0.017 s. GC and homopolymer
+screens are under 0.001 s.</p>
+<p>Profile-suite regions, release. All nine document SHA-256 values match
+<code>v2.9.3-profile-rows.json</code>. The synthetic <code>ACGT</code> flanks are refused because
+the dimer is below −9 kcal/mol. They are a repeat, not a biological flank.
+Two rows share the name <code>yeeJ region 1000 flank 300</code> and differ in geometry;
+the product size tells them apart.</p>
+<table>
+<thead>
+<tr>
+<th>case</th>
+<th style="text-align: right;">wall s</th>
+<th style="text-align: right;">v2.9.3 wall s</th>
+<th style="text-align: right;">product</th>
+<th style="text-align: right;">ΔG</th>
+<th>refused</th>
+<th>SHA-256 prefix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yeeJ region 1000, flank 50</td>
+<td style="text-align: right;">0.002</td>
+<td style="text-align: right;">0.003</td>
+<td style="text-align: right;">1072</td>
+<td style="text-align: right;">−3.507365</td>
+<td>no</td>
+<td><code>e57132f535a1</code></td>
+</tr>
+<tr>
+<td>yeeJ region 1000, flank 100</td>
+<td style="text-align: right;">0.043</td>
+<td style="text-align: right;">0.055</td>
+<td style="text-align: right;">1180</td>
+<td style="text-align: right;">−2.1353599999999986</td>
+<td>no</td>
+<td><code>8c8d3c988daf</code></td>
+</tr>
+<tr>
+<td>yeeJ region 1000, flank 200</td>
+<td style="text-align: right;">0.044</td>
+<td style="text-align: right;">0.057</td>
+<td style="text-align: right;">1249</td>
+<td style="text-align: right;">−2.753985</td>
+<td>no</td>
+<td><code>cc92049d4ea1</code></td>
+</tr>
+<tr>
+<td>yeeJ region 1000, flank 300 (mid window)</td>
+<td style="text-align: right;">0.050</td>
+<td style="text-align: right;">0.077</td>
+<td style="text-align: right;">1249</td>
+<td style="text-align: right;">−2.753985</td>
+<td>no</td>
+<td><code>e40da98e67dc</code></td>
+</tr>
+<tr>
+<td>yeeJ region 300, flank 300</td>
+<td style="text-align: right;">0.057</td>
+<td style="text-align: right;">0.071</td>
+<td style="text-align: right;">822</td>
+<td style="text-align: right;">−1.8601799999999997</td>
+<td>no</td>
+<td><code>04f69cb6ad99</code></td>
+</tr>
+<tr>
+<td>yeeJ region 1000, flank 300 (from nt 300)</td>
+<td style="text-align: right;">0.051</td>
+<td style="text-align: right;">0.076</td>
+<td style="text-align: right;">1394</td>
+<td style="text-align: right;">−1.7191900000000047</td>
+<td>no</td>
+<td><code>250193a8e2fa</code></td>
+</tr>
+<tr>
+<td>yeeJ region 6477, flank 300</td>
+<td style="text-align: right;">0.050</td>
+<td style="text-align: right;">0.064</td>
+<td style="text-align: right;">6843</td>
+<td style="text-align: right;">−1.283850000000001</td>
+<td>no</td>
+<td><code>5f1fa115</code></td>
+</tr>
+<tr>
+<td>rpsL whole CDS, flank 40</td>
+<td style="text-align: right;">0.001</td>
+<td style="text-align: right;">0.002</td>
+<td style="text-align: right;">371</td>
+<td style="text-align: right;">−3.9297299999999993</td>
+<td>no</td>
+<td><code>ccc17c9e987e</code></td>
+</tr>
+<tr>
+<td>yeeJ synthetic <code>ACGT</code> flanks</td>
+<td style="text-align: right;">0.039</td>
+<td style="text-align: right;">0.054</td>
+<td style="text-align: right;">7395</td>
+<td style="text-align: right;">−20.754845000000046</td>
+<td>yes</td>
+<td><code>0754bf08ea42</code></td>
+</tr>
+</tbody>
+</table>
+<p>Challenging sweep, release, 300 nt CDS flanks, lengths 18–25: yeeJ 0.059 s,
+product 6843, ΔG −1.283850000000001, not refused; rpoB 0.060 s, product
+3908, ΔG −3.387435, not refused; yeeJ with synthetic flanks 0.051 s,
+product 7395, ΔG −20.754845000000046, refused. The rpoB pair’s ΔG matches
+the v2.9.1 challenging note.</p>
+<h2>API and GATE-BEN-001</h2>
+<p>One release harsh row posts three designs at once (rpsL empty CAI, waaS
+assembly CAI, rpsL CAI + burden), then one yeeJ primer search, then the
+refusals the suite requires.</p>
+<table>
+<thead>
+<tr>
+<th>check</th>
+<th>result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>three design accepts</td>
+<td>HTTP 202, accept wall 0.006 s</td>
+</tr>
+<tr>
+<td>three designs finished</td>
+<td>all <code>succeeded</code>; vectors <code>[1.0]</code>, <code>[0.9259163095438141]</code>, <code>[1.0, 0.6171608892818251]</code></td>
+</tr>
+<tr>
+<td>overlap</td>
+<td>accepts overlap; <code>Api.run_lock</code> runs the designs one at a time</td>
+</tr>
+<tr>
+<td>row wall</td>
+<td>0.958 s</td>
+</tr>
+<tr>
+<td>peak RSS</td>
+<td>63112 KiB, the highest RSS in the release harsh suite</td>
+</tr>
+<tr>
+<td>primer</td>
+<td>the pinned yeeJ pair, product 6843, ΔG −1.283850000000001</td>
+</tr>
+<tr>
+<td><code>design(..., background=True)</code></td>
+<td><code>CF-CLI-003</code></td>
+</tr>
+<tr>
+<td><code>GET /v1/hosts</code>, <code>POST /v1/feasibility</code></td>
+<td>HTTP 501, <code>CF-CLI-003</code></td>
+</tr>
+<tr>
+<td><code>epistasis.dwell_deviation</code> without a fitted head</td>
+<td><code>CF-LAND-001</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>GATE-BEN-001</code> is the stored CAI-only claim, then a fresh <code>run_cai_only</code>.
+Release: claimed 50 of 50, <code>codonforge_ge_greedy</code> 50, <code>behind_greedy</code> empty,
+zero genes below the stored CodonForge CAI. Wall 5.985 s, RSS 50332 KiB.
+Opt-level 1: 6.314 s, same claim. This is the CAI comparison against
+<code>cai_greedy</code> on 50 <em>E. coli</em> K-12 proteins. It is not an MFE comparison and
+not LinearDesign or CDSfold.</p>
+<h2>Comparison to prior baselines</h2>
+<p>Outputs were compared field by field. Wall times from older notes were
+measured on machines that report the same CPU string (<code>Intel(R) Xeon(R)
+Processor</code>) and the same ViennaRNA 2.7.2. They are still different runs.
+A few tenths of a second on a long row is what this machine showed between
+two launches of the same job.</p>
+<h3>Harsh v2.9.4, same commit, same outputs</h3>
+<p><code>docs/benchmarks/v2.9.4-harsh-rows.json</code> was produced by <code>harsh_perf.py</code> on
+this commit at opt-level 1. This release run and this opt-level 1 run match
+that file on state, CAI, objective vector, CDS SHA-256, primer sequences,
+product size, ΔG, document SHA-256, operon joint cost, swap counts,
+feasibility, problem code, and the gate claim. The diff count on those
+fields is 0 across 76 rows. What moved is wall time.</p>
+<table>
+<thead>
+<tr>
+<th>case</th>
+<th style="text-align: right;">published harsh s (opt-1)</th>
+<th style="text-align: right;">this opt-1 s</th>
+<th style="text-align: right;">this release s</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yeeJ empty CAI</td>
+<td style="text-align: right;">0.533</td>
+<td style="text-align: right;">0.563</td>
+<td style="text-align: right;">0.526</td>
+</tr>
+<tr>
+<td>yeeJ assembly</td>
+<td style="text-align: right;">2.785</td>
+<td style="text-align: right;">2.825</td>
+<td style="text-align: right;">2.727</td>
+</tr>
+<tr>
+<td>yeeJ assembly standard ×4</td>
+<td style="text-align: right;">4.452</td>
+<td style="text-align: right;">4.749</td>
+<td style="text-align: right;">4.012</td>
+</tr>
+<tr>
+<td>yeeJ harsh assembly</td>
+<td style="text-align: right;">4.845</td>
+<td style="text-align: right;">5.164</td>
+<td style="text-align: right;">4.203</td>
+</tr>
+<tr>
+<td>yeeJ CAI + structure</td>
+<td style="text-align: right;">3.956</td>
+<td style="text-align: right;">4.236</td>
+<td style="text-align: right;">3.458</td>
+</tr>
+<tr>
+<td>yeeJ CAI + burden</td>
+<td style="text-align: right;">4.484</td>
+<td style="text-align: right;">4.809</td>
+<td style="text-align: right;">4.061</td>
+</tr>
+<tr>
+<td>yeeJ CAI + Potts</td>
+<td style="text-align: right;">1.796</td>
+<td style="text-align: right;">2.103</td>
+<td style="text-align: right;">1.638</td>
+</tr>
+<tr>
+<td>yfhM assembly</td>
+<td style="text-align: right;">1.536</td>
+<td style="text-align: right;">1.570</td>
+<td style="text-align: right;">1.519</td>
+</tr>
+<tr>
+<td>yfhM assembly standard ×4</td>
+<td style="text-align: right;">3.543</td>
+<td style="text-align: right;">3.716</td>
+<td style="text-align: right;">3.081</td>
+</tr>
+<tr>
+<td>rpoC assembly</td>
+<td style="text-align: right;">1.401</td>
+<td style="text-align: right;">1.469</td>
+<td style="text-align: right;">1.197</td>
+</tr>
+<tr>
+<td>rpoB CAI + structure</td>
+<td style="text-align: right;">1.385</td>
+<td style="text-align: right;">1.490</td>
+<td style="text-align: right;">1.204</td>
+</tr>
+<tr>
+<td>operon yeeJ + rpoB</td>
+<td style="text-align: right;">3.706</td>
+<td style="text-align: right;">3.937</td>
+<td style="text-align: right;">3.517</td>
+</tr>
+<tr>
+<td>GATE-BEN-001</td>
+<td style="text-align: right;">5.899</td>
+<td style="text-align: right;">6.314</td>
+<td style="text-align: right;">5.985</td>
+</tr>
+<tr>
+<td>yeeJ primer flank 300</td>
+<td style="text-align: right;">0.061</td>
+<td style="text-align: right;">0.067</td>
+<td style="text-align: right;">0.052</td>
+</tr>
+<tr>
+<td>yeeJ oligo 12–36</td>
+<td style="text-align: right;">0.072</td>
+<td style="text-align: right;">0.076</td>
+<td style="text-align: right;">0.066</td>
+</tr>
+</tbody>
+</table>
+<p>Release is faster than both opt-level 1 runs on the long rows, by roughly
+10–20% against the published note and more against this machine’s opt-level
+1 pass (yeeJ harsh 5.164 s → 4.203 s). The call counts did not change. This
+is the effect of <code>opt-level</code> 3 and thin LTO on the same seed repair, not a
+new search.</p>
+<h3>v2.9.4 search-escape CAI</h3>
+<p><code>docs/benchmarks/v2.9.4-search-escape.md</code> is the quality floor. This run
+meets every assembly CAI in that table at equality (the harsh pin
+<code>assembly_floor</code>). waaS is 0.9259163095438141. yeeJ is 0.9727484991594185.
+rpsL is 0.9866866273575934. Elastin’s engine vector is
+0.4642192192077335. Fast and standard return the same CDS on yeeJ, yfhM,
+and the floor genes that were checked at both budgets, which is what that
+note reported: the gain is in the seed, and tier 3 does not replace it.</p>
+<h3>v2.9.3 and v2.9.2 profiles</h3>
+<p>Those notes used opt-level 1, before the v2.9.4 seed escape
+(<code>DEP-SRCH-021</code>, <code>DEP-SRCH-022</code>) and the rpoC pair escape (<code>DEP-SRCH-023</code>).
+Assembly CAI is higher now, and the seed does more work, so a higher wall
+on an assembly row is a different search. Empty-constraint CAI, Potts
+vectors on rpsL / waaS / lacZ, the rpsL structure vector, the two shorter
+operons, and all nine primer document hashes are the same numbers as
+<code>v2.9.3-profiles.md</code> (and the primer hashes match v2.9.2, which v2.9.3
+already rechecked).</p>
+<p>Profile-suite walls, assembly CAI, generations 0. v2.9.3 is the published
+opt-level 1 number. “Now” is this release profile run.</p>
+<table>
+<thead>
+<tr>
+<th>case</th>
+<th style="text-align: right;">v2.9.2 s</th>
+<th style="text-align: right;">v2.9.3 s</th>
+<th>v2.9.3 vector</th>
+<th style="text-align: right;">now s</th>
+<th>now vector</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yeeJ assembly</td>
+<td style="text-align: right;">3.048</td>
+<td style="text-align: right;">1.175</td>
+<td><code>[0.9580065306093907]</code></td>
+<td style="text-align: right;">2.532</td>
+<td><code>[0.9727484991594185]</code></td>
+</tr>
+<tr>
+<td>rpoB assembly</td>
+<td style="text-align: right;">2.057</td>
+<td style="text-align: right;">0.589</td>
+<td><code>[0.9798209521813181]</code></td>
+<td style="text-align: right;">0.644</td>
+<td><code>[0.9830194072110617]</code></td>
+</tr>
+<tr>
+<td>lacZ assembly</td>
+<td style="text-align: right;">0.646</td>
+<td style="text-align: right;">0.418</td>
+<td><code>[0.9516318473376221]</code></td>
+<td style="text-align: right;">0.617</td>
+<td><code>[0.9665531384697095]</code></td>
+</tr>
+<tr>
+<td>yagF assembly</td>
+<td style="text-align: right;">0.433</td>
+<td style="text-align: right;">0.317</td>
+<td><code>[0.9286425884184984]</code></td>
+<td style="text-align: right;">0.566</td>
+<td><code>[0.9453398274862173]</code></td>
+</tr>
+<tr>
+<td>waaS assembly</td>
+<td style="text-align: right;">0.155</td>
+<td style="text-align: right;">0.127</td>
+<td><code>[0.9173459052341191]</code></td>
+<td style="text-align: right;">0.228</td>
+<td><code>[0.9259163095438141]</code></td>
+</tr>
+<tr>
+<td>elastin assembly</td>
+<td style="text-align: right;">0.099</td>
+<td style="text-align: right;">0.113</td>
+<td><code>[0.43802555520567116]</code></td>
+<td style="text-align: right;">0.391</td>
+<td><code>[0.4642192192077335]</code></td>
+</tr>
+<tr>
+<td>rpsL assembly</td>
+<td style="text-align: right;">0.060</td>
+<td style="text-align: right;">0.057</td>
+<td><code>[0.9866866273575934]</code></td>
+<td style="text-align: right;">0.067</td>
+<td><code>[0.9866866273575934]</code></td>
+</tr>
+<tr>
+<td>rpoB CAI + burden, empty</td>
+<td style="text-align: right;">0.701</td>
+<td style="text-align: right;">0.688</td>
+<td><code>[1.0, 0.6171608892818251]</code></td>
+<td style="text-align: right;">0.636</td>
+<td>same vector</td>
+</tr>
+<tr>
+<td>waaS CAI + burden, assembly</td>
+<td style="text-align: right;">0.257</td>
+<td style="text-align: right;">0.225</td>
+<td><code>[0.9173459052341191, 0.5636056357592945]</code></td>
+<td style="text-align: right;">0.299</td>
+<td><code>[0.8995843357003364, 0.4991567438774198]</code></td>
+</tr>
+</tbody>
+</table>
+<p>rpsL did not move. The other assembly CAIs rose, which is the search-escape
+result, and the seed got slower where the extra repairs do real work
+(elastin 0.113 s → 0.391 s on this profile run). waaS burden moved with the
+new feasible CDS: both axes changed. rpoB CAI + burden with empty
+constraints is the same vector and a similar wall.</p>
+<p>Structure vectors that changed with the seed, from the v2.9.3 profile note
+to this release profile run:</p>
+<table>
+<thead>
+<tr>
+<th>gene</th>
+<th>v2.9.3</th>
+<th>now</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rpsL</td>
+<td><code>[0.985816320550702, 2.6050213909252715]</code></td>
+<td>same</td>
+</tr>
+<tr>
+<td>waaS</td>
+<td><code>[0.9096294894349499, 1.7845726655476362]</code></td>
+<td><code>[0.918127802287275, 1.8122103971546997]</code></td>
+</tr>
+<tr>
+<td>elastin</td>
+<td><code>[0.4236181040759199, 3.3760051578497814]</code></td>
+<td><code>[0.46212767144714184, 3.0970951335253227]</code></td>
+</tr>
+<tr>
+<td>lacZ</td>
+<td><code>[0.9497890800680886, 2.7181800037278987]</code></td>
+<td><code>[0.9646814771830261, 2.7308022282793587]</code></td>
+</tr>
+<tr>
+<td>yeeJ</td>
+<td><code>[0.9575892496987667, 2.408954059933615]</code></td>
+<td><code>[0.9723247970586831, 2.4166863375261896]</code></td>
+</tr>
+</tbody>
+</table>
+<p>Potts, unchanged: rpsL <code>[0.9303092945130915, -0.5887977805472148]</code>, waaS
+<code>[0.9593146794501609, -0.5143818504117195]</code>, lacZ
+<code>[0.8859755189212043, -0.5677755453484393]</code>. Tier 2 on lacZ was 3.401 s in
+v2.9.2, 0.218 s in v2.9.3, and 0.153 s in this release profile row.</p>
+<h3>v2.9.1 challenging sweep</h3>
+<p>That note is opt-level 1, before the v2.9.2 seed rewrite. yeeJ assembly CAI
+was 21.202 s at CAI 0.9580065306093907. The same sweep row here, release,
+is 2.371 s at CAI 0.9727484991594185. rpoB assembly was 5.275 s at
+0.9798209521813181 and is 0.641 s at 0.9830194072110617. yeeJ CAI + structure
+was 24.124 s at <code>[0.9575892496987667, 2.408954059933615]</code> and is 3.392 s in
+this release sweep at the v2.9.4 structure pin. Empty-constraint CAI was
+already 1 and already sub-second; yeeJ empty was 0.549 s and is 0.576 s.
+Golden Gate and BioBrick on rpoB are the same CAI as that note.</p>
+<p>Those drops are the cumulative search work from v2.9.2 through v2.9.4,
+measured again here. They are not a property of the release switch alone.
+The opt-level 1 column of the harsh table is the right like-for-like
+comparison for this commit.</p>
+<h2>Bottlenecks, ranked</h2>
+<p>Ranked from the release counters on this machine. Inclusive times overlap,
+so the rank is by the outermost cost that a change would have to move.</p>
+<ol>
+<li>
+<p><strong>Seed repair on long, constrained CDS.</strong> yeeJ harsh seed 3.161 s of a
+   4.203 s design. <code>climb</code> is 2.072 s. Inside it, <code>kmer_replace</code> is 0.831 s
+   (195161 calls) and <code>ascend</code> is 0.543 s. <code>gc_delta</code> is 0.174 s.
+   <code>is_feasible</code> is 0.0014 s over 31228 calls, which is the v2.9.4
+   predicate change holding. The same order appears on ordinary yeeJ
+   assembly (climb 1.035 s, ascend 0.358 s, <code>kmer_replace</code> 0.335 s) and on
+   yfhM and rpoC, where <code>kmer_replace</code> and <code>ascend</code> are the two largest
+   leaves. This is the same ranking the harsh note left in place.</p>
+</li>
+<li>
+<p><strong>Tier 3 repair when generations are turned on.</strong> yeeJ assembly standard
+   adds 1.485 s of tier 3 (repair 0.556 s) and keeps the generations-0 CDS.
+   yfhM standard spends 1.722 s in tier 3 (repair 0.758 s) for the same
+   outcome. The feasibility gate and the breed check are a few hundredths.</p>
+</li>
+<li>
+<p><strong>Structure L0 folding, once structure is an objective.</strong> On yeeJ CAI +
+   structure, tier 3 is 1.464 s beside a 1.646 s seed. <code>l0_batch</code> is 0.637 s
+   and repair is 0.753 s. Fold traffic is 1 full fold, 18 local edits, 12
+   cache hits. rpoB structure is dominated by <code>l0_batch</code> (0.405 s) plus
+   repair (0.344 s).</p>
+</li>
+<li>
+<p><strong>ViennaRNA accessibility annotation on CAI-only fronts.</strong> 0.436 s of
+   <code>pfl_fold_up</code> on the yeeJ assembly cProfile, after the search has
+   finished. It is how the front reports a structure detail for a job that
+   did not optimize structure. It does not run when structure is already
+   an objective.</p>
+</li>
+<li>
+<p><strong><code>GATE-BEN-001</code> as a batch.</strong> 5.985 s for 50 sequential CAI designs.
+   That is the longest single row. It is fifty short jobs, not one slow
+   gene. yeeJ alone at empty constraints is 0.526 s.</p>
+</li>
+<li>
+<p><strong>Potts tier 2 is no longer the lacZ spike from v2.9.2.</strong> lacZ tier 2 is
+   0.153 s. yeeJ CAI + Potts still costs 1.638 s end to end, with only
+   0.43 s in the wrapped tier 1 and tier 2 calls. The rest sits in the
+   front, including the annotation in item 4.</p>
+</li>
+<li>
+<p><strong>PrimerForge is small next to seed repair.</strong> The slowest primer row is
+   0.080 s (yfhM, lengths 12–36, 13850 windows). Time goes to <code>tm_prefilter</code>,
+   <code>rank</code>, and <code>dimer</code>, in that order on the wide pool. The 40-oligo cap
+   still stops the survivor list at 1600. Raising it would change which
+   pairs are scored. It was not raised.</p>
+</li>
+<li>
+<p><strong>API serialization.</strong> Three accepts return in 0.006 s. The designs then
+   run one at a time under <code>Api.run_lock</code>, and the row takes 0.958 s. Peak
+   RSS is 62 MiB because one process holds the server and the jobs.</p>
+</li>
+</ol>
+<h2>Correctness and pin status</h2>
+<table>
+<thead>
+<tr>
+<th>check</th>
+<th>status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>harsh_perf.py --suite all</code>, release</td>
+<td>pass, <code>pin_failures</code> empty, exit 0</td>
+</tr>
+<tr>
+<td><code>harsh_perf.py --suite all</code>, opt-level 1</td>
+<td>pass, <code>pin_failures</code> empty, exit 0</td>
+</tr>
+<tr>
+<td>release vs opt-level 1 on CAI, vectors, CDS hashes, primer pairs, ΔG, operon joints, gate</td>
+<td>identical</td>
+</tr>
+<tr>
+<td>release vs published <code>v2.9.4-harsh-rows.json</code> on those fields</td>
+<td>identical, 76 rows</td>
+</tr>
+<tr>
+<td>assembly CAI floors from <code>v2.9.4-search-escape.md</code></td>
+<td>pass, at equality</td>
+</tr>
+<tr>
+<td>Golden Gate / BioBrick DP gaps, genes ≤ 2500 nt with a full optimum</td>
+<td>pass, gap 0, 16 rows</td>
+</tr>
+<tr>
+<td>yeeJ structure vector and fold counts</td>
+<td>pass</td>
+</tr>
+<tr>
+<td>yeeJ primer 300 nt flanks</td>
+<td>pass, pair, product 6843, ΔG, document SHA-256</td>
+</tr>
+<tr>
+<td>nine profile-suite primer documents vs v2.9.3</td>
+<td>pass, SHA-256 multiset equal</td>
+</tr>
+<tr>
+<td><code>GATE-BEN-001</code></td>
+<td>pass, CAI-only, 50 of 50, 0 regressions vs the stored scores</td>
+</tr>
+<tr>
+<td>protein identity and actionable violations on succeeded designs</td>
+<td>pass</td>
+</tr>
+<tr>
+<td>refusals (<code>CF-CLI-003</code>, HTTP 501, <code>CF-LAND-001</code>)</td>
+<td>pass</td>
+</tr>
+<tr>
+<td>waaS harsh assembly</td>
+<td><code>CF-SRCH-006</code> in 0.059 s, as recorded, pin ok</td>
+</tr>
+<tr>
+<td>rpoC assembly</td>
+<td>feasible, CAI 0.9593415607455033, the post-#33 CDS</td>
+</tr>
+</tbody>
+</table>
+<p>Four rows differ by one unit in the last place between the independent CAI
+checker and <code>usage.cai</code>: elastin assembly (<code>0.46421921920773357</code> vs
+<code>0.4642192192077335</code>), elastin harsh, rpoC Potts, and lacZ Potts. The same
+pairs are in the published harsh JSON. The pins use a <code>1e-12</code> tolerance on
+floors and exact equality on the structure vector, and they pass. No search
+result was changed for this report.</p>
+<p>No optimizer change, no new constraint, and no new sequence went into this
+measurement. A correctness bug that would have justified an optimizer edit
+did not show up.</p>
+<h2>Honest limits</h2>
+<p>This run measured wall time, the harness phase counters, peak RSS, feasibility,
+CAI and objective vectors, and primer pair / ΔG pins, on one VM, one shot
+per row.</p>
+<ul>
+<li>Rows are single launches. The yeeJ assembly fast wall on release spanned
+  2.371 s to 2.727 s across harnesses. There is no median and no instruction
+  or cache-miss profile.</li>
+<li>The published harsh, v2.9.3, and v2.9.2 numbers come from earlier runs
+  that report the same CPU string. Cross-note wall ratios of a few percent
+  are not a controlled A/B on one binary.</li>
+<li>Release versus opt-level 1 is one rebuild of each profile, run back to
+  back on this VM, with the machine otherwise quiet enough to finish, and
+  still a shared KVM guest.</li>
+<li><code>GATE-BEN-001</code> stays the CAI-only gate. LinearDesign, CDSfold, and DNA
+  Chisel were not rerun. The v2.9.3 external comparison already records
+  that boundary.</li>
+<li>The harsh constraint set is a stress set. waaS failing it is a measured
+  <code>CF-SRCH-006</code>, not a new feasibility theorem and not a defect against the
+  assembly file.</li>
+<li>Checkpoint resume, wheel cold-start, and the browser UI were not timed.
+  The API row is in-process <code>serve</code> traffic for three jobs and one primer
+  search.</li>
+<li>Seed 7 is the published pin seed. The repair does not read the job seed;
+  that was established in the search-escape note and was not re-swept here.</li>
+<li>Genes are the shipped panel and validation FASTA set. Nothing was added
+  to make a longer CDS.</li>
+<li>The 40-oligo primer cap stayed at 40. A larger pool would change the
+  ranked pairs and the ΔG that gets reported.</li>
+<li>ViennaRNA was present (2.7.2). Structure rows need it. Without it those
+  rows fail or skip, and this report would not have the structure vectors.</li>
+<li>Package version stays 0.1.0. This document does not tag a release.</li>
+</ul>
+</body>
+</html>
