@@ -395,14 +395,29 @@ struct KmerCfg {
 struct KmerBook {
     rules: Vec<KmerCfg>,
     counts: Vec<HashMap<u64, u32>>,
+    /// Occurrences of each key whose span overlaps an editable nucleotide.
+    ///
+    /// The checker's k-mer violation is actionable when any occurrence touches
+    /// an editable span. A repeat that lives entirely in a flank or a locked
+    /// codon still adds to [`Self::excess`] — repair uses that total — but it
+    /// does not add to [`Self::actionable_excess`].
+    touching: Vec<HashMap<u64, u32>>,
     excess: Vec<u64>,
+    /// Sum of `count - max` over keys that exceed the limit and have at least
+    /// one editable occurrence. Zero exactly when `ConstraintChecker::check`
+    /// would report no actionable blocking k-mer violation for these rules.
+    actionable_excess: Vec<u64>,
+    editable: Vec<(usize, usize)>,
 }
 
 impl KmerBook {
-    fn build(nt: &[u8], rules: Vec<KmerCfg>) -> Self {
+    fn build(nt: &[u8], rules: Vec<KmerCfg>, editable: &[(usize, usize)]) -> Self {
         let mut book = Self {
             counts: vec![HashMap::new(); rules.len()],
+            touching: vec![HashMap::new(); rules.len()],
             excess: vec![0; rules.len()],
+            actionable_excess: vec![0; rules.len()],
+            editable: editable.to_vec(),
             rules,
         };
         let rule_count = book.rules.len();
@@ -414,7 +429,8 @@ impl KmerBook {
             }
             for pos in 0..=nt.len() - k {
                 if let Some(key) = pack(nt, pos, k, canonical) {
-                    book.bump(rule_index, key, 1);
+                    let touches = spans_overlap(&book.editable, pos, pos + k);
+                    book.bump(rule_index, key, 1, touches);
                 }
             }
         }
@@ -425,20 +441,42 @@ impl KmerBook {
         self.excess.iter().sum()
     }
 
-    fn bump(&mut self, rule: usize, key: u64, delta: i32) {
+    fn actionable_excess(&self) -> u64 {
+        self.actionable_excess.iter().sum()
+    }
+
+    fn bump(&mut self, rule: usize, key: u64, delta: i32, touches: bool) {
         let max = self.rules[rule].max_occurrences;
         let before = self.counts[rule].get(&key).copied().unwrap_or(0);
+        let before_touch = self.touching[rule].get(&key).copied().unwrap_or(0);
         let before_over = u64::from(before.saturating_sub(max));
+        let before_act = actionable_over(before, before_touch, max);
         let next = before as i32 + delta;
+        let touch_delta = if touches { delta } else { 0 };
+        let next_touch = before_touch as i32 + touch_delta;
         if next <= 0 {
+            debug_assert!(
+                next_touch <= 0,
+                "editable occurrences outlived the k-mer count"
+            );
             self.counts[rule].remove(&key);
+            self.touching[rule].remove(&key);
             self.excess[rule] -= before_over;
+            self.actionable_excess[rule] -= before_act;
             return;
         }
         let after = next as u32;
+        let after_touch = next_touch.max(0) as u32;
         self.counts[rule].insert(key, after);
+        if after_touch == 0 {
+            self.touching[rule].remove(&key);
+        } else {
+            self.touching[rule].insert(key, after_touch);
+        }
         let after_over = u64::from(after.saturating_sub(max));
+        let after_act = actionable_over(after, after_touch, max);
         self.excess[rule] = self.excess[rule] - before_over + after_over;
+        self.actionable_excess[rule] = self.actionable_excess[rule] - before_act + after_act;
     }
 
     fn replace(&mut self, nt: &mut [u8], at: usize, bases: [u8; 3]) {
@@ -459,10 +497,24 @@ impl KmerBook {
             let hi = (at + 3).min(nt.len() - k + 1);
             for pos in lo..hi {
                 if let Some(key) = pack(nt, pos, k, canonical) {
-                    self.bump(rule_index, key, delta);
+                    let touches = spans_overlap(&self.editable, pos, pos + k);
+                    self.bump(rule_index, key, delta, touches);
                 }
             }
         }
+    }
+}
+
+/// `count - max` when this key is an actionable k-mer violation, else 0.
+///
+/// One violation in the checker is one over-limit key, and it is actionable
+/// when `touching > 0`. The sum of these contributions is zero under the same
+/// condition as "no actionable blocking k-mer violation".
+fn actionable_over(count: u32, touching: u32, max: u32) -> u64 {
+    if count > max && touching > 0 {
+        u64::from(count - max)
+    } else {
+        0
     }
 }
 
@@ -506,6 +558,9 @@ struct Solver<'a> {
     editable: Vec<(usize, usize)>,
     homo_rules: Vec<(Option<u8>, usize)>,
     homo_penalty: u64,
+    /// Every byte of `nt` is `A/C/G/T`. Codons are, and flanks are normalized
+    /// to that alphabet before a solver exists. The GC proof below uses it.
+    acgt: bool,
     edits: u32,
     tie: TieBreak,
 }
@@ -525,11 +580,14 @@ impl<'a> Solver<'a> {
         nt.extend_from_slice(seq.three_prime_flank());
         let prefix = gc_prefix(&nt);
         let bands = gc_bands(checker);
-        let gc_penalty = gc_penalty_of(&nt, &prefix, &bands, &editable_spans_of(&seq));
-        let kmers = KmerBook::build(&nt, kmer_rules(checker));
         let editable = editable_spans_of(&seq);
+        let gc_penalty = gc_penalty_of(&nt, &prefix, &bands, &editable);
+        let kmers = KmerBook::build(&nt, kmer_rules(checker), &editable);
         let homo_rules = homo_rules(checker);
         let homo_penalty = homo_total(&nt, 0, None, &homo_rules, &editable);
+        let acgt = nt
+            .iter()
+            .all(|base| matches!(base, b'A' | b'C' | b'G' | b'T'));
         Ok(Self {
             seq,
             checker,
@@ -543,6 +601,7 @@ impl<'a> Solver<'a> {
             editable,
             homo_rules,
             homo_penalty,
+            acgt,
             edits: 0,
             tie,
         })
@@ -1206,18 +1265,71 @@ impl<'a> Solver<'a> {
         ConstructView::new(&self.nt, vec![(start, end)]).with_editable_spans(self.editable.clone())
     }
 
+    /// Whether the checker would accept this sequence.
+    ///
+    /// Equal to `ConstraintChecker::is_feasible` on this solver's view. The
+    /// checker reports a candidate infeasible exactly when some blocking
+    /// violation is actionable. Phase 1 puts every such violation in one of
+    /// three buckets, and each bucket has one incremental source:
+    ///
+    /// * GC windows. `gc_penalty` sums `band_penalty` over windows that overlap
+    ///   an editable span, which is the checker's `actionable` test. On an
+    ///   `ACGT` construct the penalty's fraction is `gc_count / window`, the
+    ///   same value `GcIndex::fraction` returns, and a window is outside the
+    ///   band under the same strict comparison. A positive penalty of at least
+    ///   one part in a billion is a real window (the quantum is `1/window`
+    ///   for any window this threshold can see). A penalty of exact `0.0` is
+    ///   no window. A residual in between is float dust from adding and
+    ///   subtracting those quanta, and is re-read from the prefix.
+    /// * K-mer repeats. `KmerBook` packs the same overlapping words the
+    ///   checker does, including flanks, and `actionable_excess` counts only
+    ///   keys that exceed `max_occurrences` and have an occurrence touching an
+    ///   editable span. A flank repeat that never touches the CDS keeps
+    ///   `excess > 0` and `actionable_excess == 0`, so it does not flip this
+    ///   predicate. Raw `excess` stays the repair objective.
+    /// * Patterns (motifs, restriction sites, codon bans, regex, homopolymers).
+    ///   `pattern_count` is the checker's own `check_patterns` list restricted
+    ///   to blocking actionable pattern rules.
+    ///
+    /// Scope is not a fourth bucket. The checker applies CDS scope to motifs
+    /// and ignores it for k-mers, GC, and homopolymers; the three sources
+    /// above do the same. Advisory and disabled rules are in none of them,
+    /// and `is_feasible` ignores those too. Undetectable rules are listed on
+    /// the report rather than turned into violations.
+    ///
+    /// A construct that is not `ACGT` cannot use the GC proof (`fraction`
+    /// drops masked bases from the denominator and the prefix does not), so
+    /// that case asks the checker. Codon bytes and normalized flanks are
+    /// `ACGT`, which is every sequence this solver builds.
     fn is_feasible(&self) -> bool {
         let started = seed_profile_on().then(Instant::now);
-        let view = self.view();
-        let check_started = seed_profile_on().then(Instant::now);
-        let feasible = self.checker.is_feasible(&view);
-        if let Some(check_started) = check_started {
-            SEED_PROFILE.checker_check.record(check_started);
-        }
+        let feasible = if self.acgt {
+            !self.gc_has_actionable_violation()
+                && self.kmers.actionable_excess() == 0
+                && self.pattern_count() == 0
+        } else {
+            let view = self.view();
+            let check_started = seed_profile_on().then(Instant::now);
+            let feasible = self.checker.is_feasible(&view);
+            if let Some(check_started) = check_started {
+                SEED_PROFILE.checker_check.record(check_started);
+            }
+            feasible
+        };
         if let Some(started) = started {
             SEED_PROFILE.is_feasible.record(started);
         }
         feasible
+    }
+
+    fn gc_has_actionable_violation(&self) -> bool {
+        if self.gc_penalty > 1e-9 {
+            return true;
+        }
+        if self.gc_penalty == 0.0 {
+            return false;
+        }
+        gc_penalty_of(&self.nt, &self.prefix, &self.bands, &self.editable) > 0.0
     }
 
     fn pattern_count(&self) -> usize {
@@ -1907,5 +2019,194 @@ mod tests {
         solver.set_codon(index, original).unwrap();
         let restored = homo_total(&solver.nt, 0, None, &solver.homo_rules, &solver.editable);
         assert_eq!(solver.homo_penalty, restored);
+    }
+
+    fn assert_feasible_matches(solver: &Solver<'_>, label: &str) {
+        let view = solver.view();
+        let violations = solver.checker.check(&view);
+        let checker_feasible = !violations
+            .iter()
+            .any(|violation| violation.class == ConstraintClass::Blocking && violation.actionable);
+        assert_eq!(
+            solver.is_feasible(),
+            checker_feasible,
+            "{label}: incremental feasible={} gc={} actionable_kmer_excess={} raw_excess={} patterns={} violations={violations:?}",
+            solver.is_feasible(),
+            solver.gc_penalty,
+            solver.kmers.actionable_excess(),
+            solver.kmers.excess(),
+            solver.pattern_count(),
+        );
+    }
+
+    /// A repeat that never touches an editable base is not the candidate's
+    /// problem. `excess` still counts it. `is_feasible` must not.
+    #[test]
+    fn flank_repeat_is_not_actionable_and_stays_feasible() {
+        use crate::spec::{HomopolymerBase, Strand};
+
+        let compiled = checker(vec![
+            (
+                "c_gc",
+                Rule::GcWindow {
+                    window_nt: 12,
+                    min: 0.0,
+                    max: 1.0,
+                },
+            ),
+            (
+                "c_kmer",
+                Rule::KmerRepeat {
+                    k: 8,
+                    max_occurrences: 1,
+                    count_overlapping: true,
+                    canonical_strand: false,
+                },
+            ),
+            (
+                "c_homo",
+                Rule::Homopolymer {
+                    base: HomopolymerBase::Any,
+                    max_run: 20,
+                },
+            ),
+            (
+                "c_ecori",
+                Rule::RestrictionSite {
+                    enzyme: "EcoRI".into(),
+                    site: "GAATTC".into(),
+                    strand: Strand::Both,
+                    max_occurrences: 0,
+                },
+            ),
+        ]);
+        // `ACGTACGT` three times, all inside the 16 nt flank. The CDS is short
+        // enough that none of its own 8-mers repeat, and the repeated flank
+        // words end before the first editable base.
+        let sequence = CodonSequence::from_cds("ATGGCTTGGCAGTAA", 11)
+            .unwrap()
+            .with_five_prime_flank("ACGTACGTACGTACGT")
+            .unwrap();
+        let weights = weights_one();
+        let solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
+        assert!(
+            solver.kmers.excess() > 0,
+            "the flank repeat must be counted"
+        );
+        assert_eq!(solver.kmers.actionable_excess(), 0);
+        assert!(
+            solver.is_feasible(),
+            "a flank-only repeat is not infeasible"
+        );
+        assert_feasible_matches(&solver, "flank repeat");
+    }
+
+    #[test]
+    fn incremental_feasibility_matches_the_checker_over_random_edits() {
+        use crate::spec::{HomopolymerBase, Strand};
+        use cf_types::LockReason;
+
+        let compiled = checker(vec![
+            (
+                "c_gc",
+                Rule::GcWindow {
+                    window_nt: 12,
+                    min: 0.1,
+                    max: 0.7,
+                },
+            ),
+            (
+                "c_kmer",
+                Rule::KmerRepeat {
+                    k: 8,
+                    max_occurrences: 1,
+                    count_overlapping: true,
+                    canonical_strand: true,
+                },
+            ),
+            (
+                "c_homo",
+                Rule::Homopolymer {
+                    base: HomopolymerBase::Any,
+                    max_run: 6,
+                },
+            ),
+            (
+                "c_ecori",
+                Rule::RestrictionSite {
+                    enzyme: "EcoRI".into(),
+                    site: "GAATTC".into(),
+                    strand: Strand::Both,
+                    max_occurrences: 0,
+                },
+            ),
+            (
+                "c_motif",
+                Rule::ForbiddenMotif {
+                    motif: "CCC".into(),
+                    strand: Strand::Both,
+                    max_occurrences: 0,
+                },
+            ),
+            (
+                "c_regex",
+                Rule::CustomRegex {
+                    pattern: "CCA".into(),
+                    max_occurrences: 0,
+                    flags: vec![],
+                },
+            ),
+        ]);
+        // One of each editable family, so the 8-mers do not already repeat.
+        // Alanine can enter the GC band, proline can enter CCC or CCA.
+        let cds = "ATGGCTGCATGGCAGTTACGTGGACCTAAC TAA".replace(' ', "");
+        let mut sequence = CodonSequence::from_cds(&cds, 11)
+            .unwrap()
+            .with_five_prime_flank("ACGTACGTACGTACGT")
+            .unwrap()
+            .with_three_prime_flank("TTAA")
+            .unwrap();
+        sequence.add_lock(5, 6, LockReason::UserLocked).unwrap();
+        let weights = weights_one();
+        let mut solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
+        assert_feasible_matches(&solver, "initial");
+        assert!(
+            solver.kmers.excess() > solver.kmers.actionable_excess(),
+            "the flank repeat has to keep raw excess above the actionable excess"
+        );
+
+        let mut state = 0x1234_5678_9ABC_DEF0u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut saw_feasible = solver.is_feasible();
+        let mut saw_infeasible = !saw_feasible;
+        let mut saw_flank_only = solver.is_feasible() && solver.kmers.excess() > 0;
+        let positions = solver.seq.codon_count();
+        for step in 0..400 {
+            let index = (next() as usize) % positions;
+            if solver.seq.is_locked(index) {
+                continue;
+            }
+            let synonyms = solver.seq.synonyms_at(index);
+            let codon = synonyms[(next() as usize) % synonyms.len()];
+            solver.set_codon(index, codon).unwrap();
+            assert_feasible_matches(&solver, &format!("step {step} codon {index}"));
+            if solver.is_feasible() {
+                saw_feasible = true;
+                if solver.kmers.excess() > 0 {
+                    saw_flank_only = true;
+                }
+            } else {
+                saw_infeasible = true;
+            }
+        }
+        assert!(
+            saw_feasible && saw_infeasible && saw_flank_only,
+            "walk missed a verdict: feasible={saw_feasible} infeasible={saw_infeasible} flank_only={saw_flank_only}"
+        );
     }
 }
