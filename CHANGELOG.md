@@ -20,7 +20,10 @@ codon-sized probe: `repair` 0.746 s; `l0_batch` 0.658 s; wall 3.060 s. The
 vector stays `[0.9575892496987667, 2.408954059933615]`. Fold counts stay
 1 full fold, 21 local edits, 12 hits. The v2.9.2 note's 3.202 s tier 3 was
 `opt-level = 1`, which is what `make build` produces. These two numbers are
-the release profile, measured the same way on both sides.
+the release profile, measured the same way on both sides. Merged with
+v2.9.3, the same release job is wall 1.977 s. Tier 3 is still 1.480 s
+(`repair` 0.752 s, `l0_batch` 0.656 s). The wall drop is the v2.9.3 seed
+(0.157 s) and `explain_baseline` (0.003 s).
 
 Primer search still returns `product_sequence` on every pair. That document
 is still 166429 bytes and the same SHA-256. `GET /v1/primers/{id}` and

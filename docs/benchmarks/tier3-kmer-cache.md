@@ -37,6 +37,18 @@ The vector on both sides is `[0.9575892496987667, 2.408954059933615]`.
 Fold counts on both sides are hits 12, full folds 1, local edits 21.
 `python/tests/test_profile_identity.py` pins those.
 
+## After v2.9.3
+
+`origin/main` at `4f04707` makes `Solver::is_feasible` and `pattern_count`
+incremental and speeds `explain_deviations`. Those paths do not call
+`ConstraintChecker::check` on an `ACGT` construct, so the thread-local
+k-mer index stays on tier 3 repair. Re-measured on the combined tree,
+release profile, same job: `repair` 6 calls, 0.752 s; `l0_batch` 2 calls,
+0.656 s; `search_tier3_segment` 1.480 s. The vector and the fold counts
+are the same. Wall is 1.977 s. The drop from 3.060 s is the seed
+(0.157 s) and `explain_baseline` (0.003 s), not a change inside the
+generation loop.
+
 Skipping the pre-mutation check when the parent was feasible would change
 which children enter repair: two feasible parents can breed an infeasible
 child, and the violation list is what `violation_directed` reads. That
