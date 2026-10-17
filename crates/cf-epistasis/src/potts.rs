@@ -441,6 +441,107 @@ pub fn mean_log_probability_delta(
         return Err("the two assignments have different lengths".to_string());
     }
     let (theta, families) = prepared(model)?;
+    let (_, total_count) =
+        sum_log_probability(before, &theta, model.window, &families, 0..before.len());
+    delta_of_slices(before, after, &theta, model.window, &families, total_count)
+}
+
+/// Same change as [`mean_log_probability_delta`], writing `edits` into
+/// `codons` for the after-sum and restoring them afterwards.
+///
+/// `total_count` is the number of positions with a synonymous choice on the
+/// unedited assignment. A synonymous edit does not change it, so the caller
+/// can compute it once per sequence instead of once per synonym.
+fn delta_in_place(
+    codons: &mut [u8],
+    edits: &[(usize, u8)],
+    theta: &[f64],
+    window: usize,
+    families: &Families,
+    total_count: u64,
+) -> Result<f64, String> {
+    let mut saved: Vec<(usize, u8)> = Vec::with_capacity(edits.len());
+    for &(index, codon) in edits {
+        if index >= codons.len() {
+            restore(codons, &saved);
+            return Err(format!("codon {index} is outside the sequence"));
+        }
+        if saved.iter().all(|(seen, _)| *seen != index) {
+            saved.push((index, codons[index]));
+        }
+        codons[index] = codon;
+    }
+    let mut changed = Vec::new();
+    for &(index, previous) in &saved {
+        if codons[index] != previous {
+            changed.push(index);
+        }
+    }
+    changed.sort_unstable();
+    if changed.is_empty() {
+        restore(codons, &saved);
+        return Ok(0.0);
+    }
+    restore(codons, &saved);
+    let affected = affected_positions(codons.len(), &changed, window);
+    let (before_sum, before_count) =
+        sum_log_probability(codons, theta, window, families, affected.iter().copied());
+    for &(index, codon) in edits {
+        codons[index] = codon;
+    }
+    let (after_sum, after_count) =
+        sum_log_probability(codons, theta, window, families, affected.iter().copied());
+    restore(codons, &saved);
+    if total_count == 0 || before_count != after_count {
+        return Err("no position had a synonymous choice".to_string());
+    }
+    Ok((after_sum - before_sum) / total_count as f64)
+}
+
+/// Theta, families, and the synonymous-position count for one assignment.
+///
+/// Built once per delta table. Each synonym writes its codon into the shared
+/// buffer, reads the window sum, and restores the codon.
+pub(crate) struct PottsField {
+    theta: Vec<f64>,
+    families: Families,
+    window: usize,
+    total_count: u64,
+}
+
+impl PottsField {
+    pub(crate) fn bind(model: &PottsModel, codons: &[u8]) -> Result<Self, String> {
+        let (theta, families) = prepared(model)?;
+        let (_, total_count) =
+            sum_log_probability(codons, &theta, model.window, &families, 0..codons.len());
+        Ok(Self {
+            theta,
+            families,
+            window: model.window,
+            total_count,
+        })
+    }
+
+    pub(crate) fn delta(&self, codons: &mut [u8], edits: &[(usize, u8)]) -> Result<f64, String> {
+        delta_in_place(
+            codons,
+            edits,
+            &self.theta,
+            self.window,
+            &self.families,
+            self.total_count,
+        )
+    }
+}
+
+fn delta_of_slices(
+    before: &[u8],
+    after: &[u8],
+    theta: &[f64],
+    window: usize,
+    families: &Families,
+    total_count: u64,
+) -> Result<f64, String> {
     let mut changed = Vec::new();
     for (index, (left, right)) in before.iter().zip(after).enumerate() {
         if left != right {
@@ -450,35 +551,31 @@ pub fn mean_log_probability_delta(
     if changed.is_empty() {
         return Ok(0.0);
     }
-    let mut affected = Vec::new();
-    for index in 0..before.len() {
-        if changed
-            .iter()
-            .any(|&site| index.abs_diff(site) <= model.window)
-        {
-            affected.push(index);
-        }
-    }
-    let (before_sum, before_count) = sum_log_probability(
-        before,
-        &theta,
-        model.window,
-        &families,
-        affected.iter().copied(),
-    );
-    let (after_sum, after_count) = sum_log_probability(
-        after,
-        &theta,
-        model.window,
-        &families,
-        affected.iter().copied(),
-    );
-    let (_, total_count) =
-        sum_log_probability(before, &theta, model.window, &families, 0..before.len());
+    let affected = affected_positions(before.len(), &changed, window);
+    let (before_sum, before_count) =
+        sum_log_probability(before, theta, window, families, affected.iter().copied());
+    let (after_sum, after_count) =
+        sum_log_probability(after, theta, window, families, affected.iter().copied());
     if total_count == 0 || before_count != after_count {
         return Err("no position had a synonymous choice".to_string());
     }
     Ok((after_sum - before_sum) / total_count as f64)
+}
+
+fn affected_positions(length: usize, changed: &[usize], window: usize) -> Vec<usize> {
+    let mut affected = Vec::new();
+    for index in 0..length {
+        if changed.iter().any(|&site| index.abs_diff(site) <= window) {
+            affected.push(index);
+        }
+    }
+    affected
+}
+
+fn restore(codons: &mut [u8], saved: &[(usize, u8)]) {
+    for &(index, previous) in saved {
+        codons[index] = previous;
+    }
 }
 
 fn prepared(model: &PottsModel) -> Result<(Vec<f64>, Families), String> {
@@ -664,5 +761,86 @@ mod tests {
             "delta {delta} rescore {expected}"
         );
         assert!(delta.abs() > 1e-6, "the edit did not move the score");
+    }
+
+    #[test]
+    fn inplace_delta_is_bit_identical_to_the_slice_delta() {
+        let families = Families::bacterial();
+        let mut state = 0xA5A5_F00D_1234_5678u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for case in 0..48 {
+            let window = 1 + (next() as usize % 3);
+            let mut model = PottsModel {
+                window,
+                h: vec![0.0; 64],
+                couplings: vec![0.0; window * 4096],
+            };
+            for _ in 0..24 {
+                let index = next() as usize % 64;
+                model.h[index] = (next() % 200) as f64 / 25.0 - 4.0;
+            }
+            for _ in 0..80 {
+                let index = next() as usize % model.couplings.len();
+                model.couplings[index] = (next() % 200) as f64 / 40.0 - 2.5;
+            }
+            // A coupling at exactly `window` so a short window is a different sum.
+            let anchor = Codon::from_bytes(b"GCT").unwrap().index() as usize;
+            let neighbor = Codon::from_bytes(b"CGT").unwrap().index() as usize;
+            let matrix = (window - 1) * 4096;
+            model.couplings[matrix + anchor * 64 + neighbor] = 1.25;
+            let length = 12;
+            let mut codons = Vec::with_capacity(length);
+            for position in 0..length {
+                codons.push(if position % 5 == 0 {
+                    anchor as u8
+                } else if position % 5 == window.min(4) {
+                    neighbor as u8
+                } else {
+                    (next() % 64) as u8
+                });
+            }
+            let mut edits = Vec::new();
+            for _ in 0..2 {
+                let index = next() as usize % length;
+                let family = &families.members[codons[index] as usize];
+                if family.len() <= 1 {
+                    continue;
+                }
+                let codon = family[next() as usize % family.len()];
+                edits.push((index, codon));
+            }
+            if edits.is_empty() {
+                continue;
+            }
+            let mut after = codons.clone();
+            for &(index, codon) in &edits {
+                after[index] = codon;
+            }
+            let (theta, prepared_families) = prepared(&model).unwrap();
+            let (_, total_count) =
+                sum_log_probability(&codons, &theta, window, &prepared_families, 0..codons.len());
+            let expected = mean_log_probability_delta(&codons, &after, &model).unwrap();
+            let mut working = codons.clone();
+            let got = delta_in_place(
+                &mut working,
+                &edits,
+                &theta,
+                window,
+                &prepared_families,
+                total_count,
+            )
+            .unwrap();
+            assert_eq!(working, codons, "case {case} left the codon buffer edited");
+            assert_eq!(
+                got.to_bits(),
+                expected.to_bits(),
+                "case {case} window {window} inplace {got} slice {expected}"
+            );
+        }
     }
 }
