@@ -98,21 +98,66 @@ fn assert_repaired_with(name: &str, weights: &[f64; 64]) -> String {
     report.sequence.cds_string()
 }
 
+fn geometric_cai(cds: &str, weights: &[f64; 64]) -> f64 {
+    let sequence = CodonSequence::from_cds(cds, 11).unwrap();
+    let mut sum = 0.0;
+    let mut counted = 0usize;
+    for (index, codon) in sequence.codons().iter().copied().enumerate() {
+        if sequence.table().is_stop(codon) || sequence.synonyms_at(index).len() <= 1 {
+            continue;
+        }
+        let weight = weights[codon.index_usize()];
+        if weight == 0.0 {
+            return 0.0;
+        }
+        sum += weight.ln();
+        counted += 1;
+    }
+    if counted == 0 {
+        1.0
+    } else {
+        (sum / counted as f64).exp()
+    }
+}
+
 fn assert_repaired(name: &str) {
-    let repaired = assert_repaired_with(name, &weights());
-    // Ribosomal weights. Feasibility still holds if an accept/reject flips and
-    // a different synonymous seed is returned, so the sequence itself is pinned.
-    let expected = match name {
-        "elp_vpgvg.fa" => "067af67421dbeb2dc933198ea718fd2d9b7e1b11a2e6c9e725dbf0ac2f5c4da9",
-        "yagF.fa" => "720ee3bdcc76e18b75afadf7a801238941aa1b79052f0574ab12a5033e45cab9",
-        "waaS.fa" => "11cdd2fb04a48e29ff284107103ddab0c83e741341b7bf9926fff06d8b90627d",
-        "yeeJ.fa" => "686adf6a7ed03ac848270c94afbb9f7bbfd7873dbf926bc03390001d80eb9b4c",
+    let table = weights();
+    let repaired = assert_repaired_with(name, &table);
+    // Ribosomal weights. The digest pins the sequence after the conflict climb
+    // and the four-start keep (`DEP-SRCH-021`, `DEP-SRCH-022`). The CAI floor
+    // is that sequence's CAI, which is at least the v2.9.3 seed-7 assembly
+    // number. waaS's floor is above 0.9220206722508919: stopping at the first
+    // feasible start (the weight-ordered one) returns 0.9212217911296222.
+    let (expected, floor) = match name {
+        "elp_vpgvg.fa" => (
+            "848d0378fa464d9a65a26c663646614a82e082abf4ed14e5d3344497eec5c910",
+            0.4642192192077335,
+        ),
+        "yagF.fa" => (
+            "773523e6566cfdcf0996ac51123ffd332c78e5a4703ed40062949e20644cb514",
+            0.9453398274862173,
+        ),
+        "waaS.fa" => (
+            "d227b303a3c477cea7f5ed35c3a0fbcb783cb9169fa38a3737e0fe7699419f16",
+            0.9259163095438141,
+        ),
+        "yeeJ.fa" => (
+            "72bd74389f99f3aba3dfcb5422c05c91db606adaacb65f67a5a80f881dc6e540",
+            0.9727484991594185,
+        ),
+        "rpsL.fa" => (
+            "0624d04f50821da0804a0cf91fa59b9a6bde2ba8ef6156bb79e9680ba09eedfc",
+            0.9866866273575934,
+        ),
         other => panic!("no pinned seed for {other}"),
     };
     let mut hasher = Sha256::new();
     hasher.update(repaired.as_bytes());
     let digest = format!("{:x}", hasher.finalize());
+    let cai = geometric_cai(&repaired, &table);
+    eprintln!("{name}: cai={cai:.16} sha256={digest}");
     assert_eq!(digest, expected, "{name} seed changed");
+    assert!(cai + 1e-12 >= floor, "{name} CAI {cai} fell below {floor}");
 }
 
 #[test]
@@ -138,4 +183,9 @@ fn seed_repairs_waas() {
 #[test]
 fn seed_repairs_yeej() {
     assert_repaired("yeeJ.fa");
+}
+
+#[test]
+fn seed_repairs_rpsl() {
+    assert_repaired("rpsL.fa");
 }

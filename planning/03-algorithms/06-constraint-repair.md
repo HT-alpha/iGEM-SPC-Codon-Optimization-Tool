@@ -51,6 +51,8 @@ Full detection over a fresh sequence is `O(n)` for everything except `local_stru
 
 `DEP-SRCH-018`: after a seed is feasible, two passes try pair edits on the 24 positions with the largest remaining codon-weight gap. Each is tried against its 6 nearest partners, and partners include neighbours within 4 codons, because a 12-mer is cleared next to the codon that created it. An edit is kept only when CAI rises and the sequence stays feasible.
 
+`DEP-SRCH-021`: that neighbourhood misses the other copy of a scattered 12-mer, and it misses a GC-window repair more than four codons away. After the local pairs, further passes try every counted codon that is still below its heaviest synonym. If the heavier codon breaks a rule, the pass tries synonyms at the codons that overlap the new violation — the other 12-mer copy, the GC window, or the motif span — and keeps a pair, or a bounded triple, only when CAI rises and the sequence stays feasible. The seed stays deterministic. The in-loop repair operator is unchanged.
+
 **Overlapping counting is the default** for `kmer_repeat`, matching `count_overlapping()` in the existing `codon_6.0.py` prototype. Python's `str.count` is non-overlapping and undercounts tandem repeats, which are exactly the structures a synthesis vendor rejects. The schema exposes `count_overlapping` so the semantics are explicit rather than inherited by accident.
 
 ---
@@ -278,10 +280,14 @@ Tier 1's DP is a regular-language search. A GC window and a scattered k-mer repe
 
 `resolve_feasible_seed` runs once, after that refusal and before tier 2. It is not the in-loop operator of §3. The in-loop operator stays bounded and may give up inside NSGA, leaving the individual infeasible for constraint-domination. The seed resolver's job is different: produce one feasible coding sequence the later tiers can start from, or report that none of its deterministic attempts found one.
 
-It tries two tie orders (higher relative adaptiveness, then lower codon index) and, within each, two starts (the most-frequent-codon assignment, then the input). It stops at the first feasible sequence. A feasible result beats an infeasible one; two feasible results keep the higher CAI, then the fewer committed codon edits. Edits count committed changes only. A polish that breaks feasibility is discarded and the pre-polish edit count is kept. The final word is `ConstraintChecker::is_feasible`, not the incremental book the search consulted along the way.
+It tries two tie orders (higher relative adaptiveness, then lower codon index) and, within each, two starts (the most-frequent-codon assignment, then the input). Every attempt is scored. A feasible result beats an infeasible one; two feasible results keep the higher CAI, then the fewer committed codon edits. The first feasible attempt does not end the search. Edits count committed changes only. A polish that breaks feasibility is discarded and the pre-polish edit count is kept. The final word is `ConstraintChecker::is_feasible`, not the incremental book the search consulted along the way.
 
 When a feasible seed exists, the job continues through tier 2 and, on a standard or exact budget, tier 3. The status carries `CF-SRCH-017`: tier 1 could not carry the non-local rule, and the sequence later tiers started from was built by this resolver. `CF-SRCH-006` is not also emitted on that path. The stage report for `tier1_seed` is recorded before the refusal is absorbed, so that tier is `done`.
 
 When no attempt is feasible, the job fails. The problem is `CF-SRCH-006`, stage `tier1`, subject `seed_repair`, and the detail lists the residual rule ids and what to change. The CLI exits 3. The unchanged input is not presented as a design. Tiers that have no stage report are `skipped`.
 
 `DEP-SRCH-015` — Hard constraints that tier 1 cannot carry are repaired once, as a seed, rather than ending the job. The proposal's repair operator inside search is this seed plus the existing bounded in-loop operator. The seed is deterministic and does not use the tabu ledger; those properties belong to §3 and stay there. A rule class this version does not search is `CF-FEAS-008` (§2), a warning, not a silent pass and not a job failure.
+
+`DEP-SRCH-021` — Once that seed is feasible, CAI ascent is not limited to the 24-by-6 local pairs of `DEP-SRCH-018`. A heavier codon is tried together with a repair at the violation it creates, including a 12-mer copy elsewhere in the CDS and a GC window wider than four codons. An edit that does not raise CAI, or that leaves the checker unsatisfied, is discarded.
+
+`DEP-SRCH-022` — The four attempts are all scored. Stopping at the first feasible sequence left the higher-CAI attempt unbuilt: on waaS the weight-ordered most-frequent start is feasible and the low-index start of the same assignment is a higher CAI. The seed stays deterministic. No job seed is read here.

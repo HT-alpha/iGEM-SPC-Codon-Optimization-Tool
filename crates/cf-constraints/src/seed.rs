@@ -16,7 +16,7 @@
 //! `DEP-SRCH-015`.
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering};
 use std::time::Instant;
 
@@ -52,6 +52,7 @@ struct SeedProfile {
     fix_kmer_pairs: SeedCounter,
     polish: SeedCounter,
     ascend: SeedCounter,
+    climb: SeedCounter,
     homo: SeedCounter,
     gc_delta: SeedCounter,
     prefix: SeedCounter,
@@ -71,6 +72,7 @@ static SEED_PROFILE: SeedProfile = SeedProfile {
     fix_kmer_pairs: SeedCounter::new(),
     polish: SeedCounter::new(),
     ascend: SeedCounter::new(),
+    climb: SeedCounter::new(),
     homo: SeedCounter::new(),
     gc_delta: SeedCounter::new(),
     prefix: SeedCounter::new(),
@@ -113,6 +115,7 @@ fn dump_seed_profile() {
             row("fix_kmer_pairs", &SEED_PROFILE.fix_kmer_pairs),
             row("polish", &SEED_PROFILE.polish),
             row("ascend", &SEED_PROFILE.ascend),
+            row("climb", &SEED_PROFILE.climb),
             row("homo_touching", &SEED_PROFILE.homo),
             row("gc_delta", &SEED_PROFILE.gc_delta),
             row("prefix_update", &SEED_PROFILE.prefix),
@@ -142,6 +145,13 @@ const ASCENT_PASSES: u32 = 2;
 const ASCENT_POSITIONS: usize = 24;
 const ASCENT_PARTNERS: usize = 6;
 const ASCENT_NEIGHBOUR: usize = 4;
+/// Conflict climbs after the local pairs. A repeated 12-mer's other copy, and
+/// a codon that can give a GC window back a base, are often outside the four
+/// codons `DEP-SRCH-018` searches. `DEP-SRCH-021`.
+const CLIMB_PASSES: u32 = 6;
+const CLIMB_SITES: usize = 48;
+const CLIMB_PAIR_SITES: usize = 6;
+const CLIMB_PARTNER_TRIALS: usize = 48;
 const KMER_ROUNDS: u32 = 12;
 
 /// One constraint the checker still reports after seed resolution.
@@ -200,10 +210,14 @@ impl std::fmt::Debug for SeedReport {
 
 /// Resolve one synonymous seed.
 ///
-/// Tries the most-frequent-codon assignment first, then the input. A feasible
-/// result outranks an infeasible one. Two feasible results keep the higher
-/// CAI on `weights` (stops and single-codon families excluded; a counted
-/// weight of 0 scores 0).
+/// Scores four deterministic attempts: two tie orders (higher relative
+/// adaptiveness, then lower codon index) and, within each, two starts (the
+/// most-frequent-codon assignment, then the input). A feasible result
+/// outranks an infeasible one. Two feasible results keep the higher CAI on
+/// `weights` (stops and single-codon families excluded; a counted weight of
+/// 0 scores 0), then the fewer committed edits. The first feasible attempt
+/// does not end the search: on the assembly set that attempt is not always
+/// the highest CAI. `DEP-SRCH-022`.
 pub fn resolve_feasible_seed(
     sequence: &CodonSequence,
     checker: &ConstraintChecker,
@@ -212,11 +226,7 @@ pub fn resolve_feasible_seed(
     arm_seed_profile();
     let unsearched = unsearched_rules(checker);
     let mut best: Option<Attempt> = None;
-    let mut solved = false;
     for tie in [TieBreak::Weight, TieBreak::LowIndex] {
-        if solved {
-            break;
-        }
         for start in [most_frequent(sequence, weights)?, sequence.clone()] {
             let mut solver = Solver::new(start, checker, weights, tie)?;
             let cycles = solver.run()?;
@@ -236,13 +246,9 @@ pub fn resolve_feasible_seed(
             if improved {
                 best = Some(attempt);
             }
-            if best.as_ref().is_some_and(|item| item.feasible) {
-                solved = true;
-                break;
-            }
         }
     }
-    let attempt = best.expect("two starts were attempted");
+    let attempt = best.expect("four starts were attempted");
     let solver = Solver::new(attempt.seq, checker, weights, TieBreak::Weight)?;
     let residual = if attempt.feasible {
         Vec::new()
@@ -330,6 +336,38 @@ struct Attempt {
     cycles: u32,
     edits: u32,
     cai: f64,
+}
+
+struct ClimbChoice {
+    cai: f64,
+    primary: Codon,
+    partners: Vec<(usize, Codon)>,
+}
+
+impl ClimbChoice {
+    fn beats(&self, other: &Self) -> bool {
+        match self.cai.total_cmp(&other.cai) {
+            Ordering::Greater => true,
+            Ordering::Less => false,
+            Ordering::Equal => match self.partners.len().cmp(&other.partners.len()) {
+                Ordering::Less => true,
+                Ordering::Greater => false,
+                Ordering::Equal => {
+                    let left = self
+                        .partners
+                        .iter()
+                        .map(|(site, codon)| (*site, codon.index()))
+                        .chain(std::iter::once((usize::MAX, self.primary.index())));
+                    let right = other
+                        .partners
+                        .iter()
+                        .map(|(site, codon)| (*site, codon.index()))
+                        .chain(std::iter::once((usize::MAX, other.primary.index())));
+                    left.cmp(right) == Ordering::Less
+                }
+            },
+        }
+    }
 }
 
 impl Attempt {
@@ -841,6 +879,10 @@ struct Solver<'a> {
     nt: Vec<u8>,
     cds_off: usize,
     prefix: Vec<u32>,
+    /// GC-count edits not yet written into `prefix`. Each entry adds `delta`
+    /// to every prefix index at or after `from`. Trials push and cancel these
+    /// instead of rewriting the tail, which is the whole construct.
+    prefix_adds: Vec<(usize, i32)>,
     gc_penalty: f64,
     bands: Vec<GcBand>,
     kmers: KmerBook,
@@ -895,6 +937,7 @@ impl<'a> Solver<'a> {
             nt,
             cds_off,
             prefix,
+            prefix_adds: Vec::new(),
             gc_penalty,
             bands,
             kmers,
@@ -920,6 +963,8 @@ impl<'a> Solver<'a> {
         if self.is_feasible() {
             self.polish()?;
             self.ascend_cai()?;
+            self.climb_conflicts()?;
+            self.finish_prefix();
             return Ok(0);
         }
         for _ in 0..MAX_CYCLES {
@@ -947,12 +992,14 @@ impl<'a> Solver<'a> {
             if self.is_feasible() {
                 self.polish()?;
                 self.ascend_cai()?;
+                self.climb_conflicts()?;
                 break;
             }
             if self.score() >= before {
                 break;
             }
         }
+        self.finish_prefix();
         Ok(cycles)
     }
 
@@ -1437,6 +1484,387 @@ impl<'a> Solver<'a> {
         Ok(improved)
     }
 
+    /// Raise CAI by repairing the constraint a higher-weight codon breaks.
+    ///
+    /// `DEP-SRCH-018` only pairs a hot codon with a neighbour a few positions
+    /// away. A unique 12-mer is broken by editing the other copy, which can sit
+    /// anywhere in the CDS, and a GC window of 50 nt can be repaired by a codon
+    /// that is inside the window and outside that neighbourhood. Each pass tries
+    /// every counted position that is not already on its heaviest synonym. The
+    /// edit is kept only when the geometric mean rises and the sequence stays
+    /// feasible. `DEP-SRCH-021`.
+    fn climb_conflicts(&mut self) -> Result<()> {
+        let started = seed_profile_on().then(Instant::now);
+        let result = self.climb_conflicts_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.climb.record(started);
+        }
+        result
+    }
+
+    fn climb_conflicts_inner(&mut self) -> Result<()> {
+        if !self.is_feasible() {
+            return Ok(());
+        }
+        for _ in 0..CLIMB_PASSES {
+            let order = self.climb_positions();
+            if order.is_empty() {
+                break;
+            }
+            let mut improved = false;
+            for index in order {
+                if self.lift_at(index)? {
+                    improved = true;
+                }
+            }
+            if !improved {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn climb_positions(&self) -> Vec<usize> {
+        let mut ranked = Vec::new();
+        for index in 0..self.seq.codon_count() {
+            if self.seq.is_locked(index) || !self.position_counted(index) {
+                continue;
+            }
+            let current = self.seq.codons()[index];
+            let current_weight = self.weights[current.index_usize()];
+            let mut best = current_weight;
+            for synonym in self.seq.synonyms_at(index) {
+                let weight = self.weights[synonym.index_usize()];
+                if weight > best {
+                    best = weight;
+                }
+            }
+            let gap = best - current_weight;
+            if gap > 0.0 {
+                ranked.push((gap, index));
+            }
+        }
+        ranked.sort_by(|left, right| match right.0.total_cmp(&left.0) {
+            Ordering::Equal => left.1.cmp(&right.1),
+            other => other,
+        });
+        ranked.into_iter().map(|(_, index)| index).collect()
+    }
+
+    fn position_counted(&self, index: usize) -> bool {
+        let codon = self.seq.codons()[index];
+        !self.seq.table().is_stop(codon) && self.seq.synonyms_at(index).len() > 1
+    }
+
+    /// Log-weight change of replacing `from` with `to` at `index`.
+    ///
+    /// `None` when the replacement introduces a counted weight of 0, which
+    /// makes the geometric mean 0. An uncounted position contributes 0.
+    /// Leaving a zero weight is an infinite rise.
+    fn log_shift(&self, index: usize, from: Codon, to: Codon) -> Option<f64> {
+        if !self.position_counted(index) {
+            return Some(0.0);
+        }
+        let old_weight = self.weights[from.index_usize()];
+        let new_weight = self.weights[to.index_usize()];
+        if new_weight == 0.0 && old_weight > 0.0 {
+            return None;
+        }
+        if old_weight == 0.0 && new_weight > 0.0 {
+            return Some(f64::INFINITY);
+        }
+        if old_weight == 0.0 || new_weight == 0.0 {
+            return Some(0.0);
+        }
+        Some(new_weight.ln() - old_weight.ln())
+    }
+
+    fn lift_at(&mut self, index: usize) -> Result<bool> {
+        if self.seq.is_locked(index) || !self.position_counted(index) {
+            return Ok(false);
+        }
+        let current = self.seq.codons()[index];
+        let cai_before = cai_of(&self.seq, self.weights);
+        let mut synonyms: Vec<Codon> = self.seq.synonyms_at(index).to_vec();
+        synonyms.retain(|codon| {
+            *codon != current
+                && self
+                    .log_shift(index, current, *codon)
+                    .is_some_and(|shift| shift > 0.0)
+        });
+        synonyms.sort_by(|left, right| {
+            let left_shift = self.log_shift(index, current, *left).unwrap_or(0.0);
+            let right_shift = self.log_shift(index, current, *right).unwrap_or(0.0);
+            match right_shift.total_cmp(&left_shift) {
+                Ordering::Equal => left.index().cmp(&right.index()),
+                other => other,
+            }
+        });
+        let mut best: Option<ClimbChoice> = None;
+        for synonym in synonyms {
+            let primary_shift = self.log_shift(index, current, synonym).unwrap_or(0.0);
+            self.set_codon(index, synonym)?;
+            if self.is_feasible() {
+                self.note_climb(synonym, Vec::new(), cai_before, &mut best);
+            } else {
+                let sites = self.violation_sites(index);
+                let singles = self.single_repairs(primary_shift, &sites);
+                let mut repaired = false;
+                for (site, codon) in singles {
+                    let partner = self.seq.codons()[site];
+                    self.set_codon(site, codon)?;
+                    if self.is_feasible() {
+                        repaired = true;
+                        self.note_climb(synonym, vec![(site, codon)], cai_before, &mut best);
+                    }
+                    self.set_codon(site, partner)?;
+                }
+                if !repaired {
+                    for partners in self.pair_repairs(primary_shift, &sites) {
+                        let saved: Vec<(usize, Codon)> = partners
+                            .iter()
+                            .map(|(site, _)| (*site, self.seq.codons()[*site]))
+                            .collect();
+                        for &(site, codon) in &partners {
+                            self.set_codon(site, codon)?;
+                        }
+                        if self.is_feasible() {
+                            self.note_climb(synonym, partners.clone(), cai_before, &mut best);
+                        }
+                        for (site, codon) in saved.into_iter().rev() {
+                            self.set_codon(site, codon)?;
+                        }
+                    }
+                }
+            }
+            self.set_codon(index, current)?;
+        }
+        let Some(choice) = best else {
+            return Ok(false);
+        };
+        self.commit(index, choice.primary)?;
+        for (site, codon) in choice.partners {
+            self.commit(site, codon)?;
+        }
+        Ok(true)
+    }
+
+    fn note_climb(
+        &mut self,
+        primary: Codon,
+        partners: Vec<(usize, Codon)>,
+        cai_before: f64,
+        best: &mut Option<ClimbChoice>,
+    ) {
+        let cai = cai_of(&self.seq, self.weights);
+        if cai <= cai_before {
+            return;
+        }
+        let choice = ClimbChoice {
+            cai,
+            primary,
+            partners,
+        };
+        let replace = match best.as_ref() {
+            None => true,
+            Some(incumbent) => choice.beats(incumbent),
+        };
+        if replace {
+            *best = Some(choice);
+        }
+    }
+
+    fn single_repairs(&self, primary_shift: f64, sites: &[usize]) -> Vec<(usize, Codon)> {
+        let mut candidates = Vec::new();
+        for &site in sites {
+            let current = self.seq.codons()[site];
+            for &codon in self.seq.synonyms_at(site) {
+                if codon == current {
+                    continue;
+                }
+                let Some(partner_shift) = self.log_shift(site, current, codon) else {
+                    continue;
+                };
+                let total = primary_shift + partner_shift;
+                if total <= 0.0 {
+                    continue;
+                }
+                candidates.push((total, site, codon));
+            }
+        }
+        candidates.sort_by(|left, right| match right.0.total_cmp(&left.0) {
+            Ordering::Equal => (left.1, left.2.index()).cmp(&(right.1, right.2.index())),
+            other => other,
+        });
+        candidates.truncate(CLIMB_PARTNER_TRIALS);
+        candidates
+            .into_iter()
+            .map(|(_, site, codon)| (site, codon))
+            .collect()
+    }
+
+    fn pair_repairs(&self, primary_shift: f64, sites: &[usize]) -> Vec<Vec<(usize, Codon)>> {
+        let sites = &sites[..sites.len().min(CLIMB_PAIR_SITES)];
+        let mut candidates = Vec::new();
+        for left in 0..sites.len() {
+            for right in (left + 1)..sites.len() {
+                let site_a = sites[left];
+                let site_b = sites[right];
+                let current_a = self.seq.codons()[site_a];
+                let current_b = self.seq.codons()[site_b];
+                for &codon_a in self.seq.synonyms_at(site_a) {
+                    if codon_a == current_a {
+                        continue;
+                    }
+                    let Some(shift_a) = self.log_shift(site_a, current_a, codon_a) else {
+                        continue;
+                    };
+                    for &codon_b in self.seq.synonyms_at(site_b) {
+                        if codon_b == current_b {
+                            continue;
+                        }
+                        let Some(shift_b) = self.log_shift(site_b, current_b, codon_b) else {
+                            continue;
+                        };
+                        let total = primary_shift + shift_a + shift_b;
+                        if total <= 0.0 {
+                            continue;
+                        }
+                        candidates.push((total, vec![(site_a, codon_a), (site_b, codon_b)]));
+                    }
+                }
+            }
+        }
+        candidates.sort_by(|left, right| match right.0.total_cmp(&left.0) {
+            Ordering::Equal => {
+                let key = |partners: &Vec<(usize, Codon)>| -> Vec<(usize, u8)> {
+                    partners
+                        .iter()
+                        .map(|(site, codon)| (*site, codon.index()))
+                        .collect()
+                };
+                key(&left.1).cmp(&key(&right.1))
+            }
+            other => other,
+        });
+        candidates.truncate(CLIMB_PARTNER_TRIALS);
+        candidates
+            .into_iter()
+            .map(|(_, partners)| partners)
+            .collect()
+    }
+
+    /// Codons that overlap a violation created by the edit at `primary`.
+    ///
+    /// The sequence was feasible before that edit, so every current violation
+    /// was introduced by it. Sites are nearest-first and capped. A 50 nt GC
+    /// window fits under the cap.
+    fn violation_sites(&self, primary: usize) -> Vec<usize> {
+        let mut sites = BTreeSet::new();
+        let at = self.cds_off + primary * 3;
+        for (start, end, _) in self.pattern_spans() {
+            self.collect_codons(start, end, primary, &mut sites);
+        }
+        self.collect_gc_sites(at, primary, &mut sites);
+        self.collect_kmer_sites(at, primary, &mut sites);
+        let mut ranked: Vec<(usize, usize)> = sites
+            .into_iter()
+            .map(|index| (index.abs_diff(primary), index))
+            .collect();
+        ranked.sort_unstable();
+        ranked
+            .into_iter()
+            .take(CLIMB_SITES)
+            .map(|(_, index)| index)
+            .collect()
+    }
+
+    fn collect_gc_sites(&self, at: usize, primary: usize, sites: &mut BTreeSet<usize>) {
+        let n = self.nt.len();
+        for band in &self.bands {
+            if band.window == 0 || n < band.window || band.offenders == 0 {
+                continue;
+            }
+            let lo = at.saturating_sub(band.window - 1);
+            let hi = (at + 3).min(n - band.window + 1);
+            for start in lo..hi {
+                let end = start + band.window;
+                if !self.overlaps_editable(start, end) {
+                    continue;
+                }
+                let count = self.prefix_at(end) - self.prefix_at(start);
+                if window_outside(count, band) {
+                    self.collect_codons(start, end, primary, sites);
+                }
+            }
+        }
+    }
+
+    fn collect_kmer_sites(&self, at: usize, primary: usize, sites: &mut BTreeSet<usize>) {
+        let n = self.nt.len();
+        for (rule_index, rule) in self.kmers.rules.iter().enumerate() {
+            let k = rule.k;
+            if k == 0 || k > 32 || n < k {
+                continue;
+            }
+            let lo = at.saturating_sub(k - 1);
+            let hi = (at + 3).min(n - k + 1);
+            let mut keys = Vec::new();
+            for pos in lo..hi {
+                if let Some(key) = pack(&self.nt, pos, k, rule.canonical) {
+                    let count = self.kmers.counts[rule_index]
+                        .get(&key)
+                        .copied()
+                        .unwrap_or(0);
+                    let touch = self.kmers.touching[rule_index]
+                        .get(&key)
+                        .copied()
+                        .unwrap_or(0);
+                    if count > rule.max_occurrences && touch > 0 {
+                        keys.push(key);
+                    }
+                }
+            }
+            if keys.is_empty() {
+                continue;
+            }
+            keys.sort_unstable();
+            keys.dedup();
+            for pos in 0..=n - k {
+                if let Some(key) = pack(&self.nt, pos, k, rule.canonical) {
+                    if keys.binary_search(&key).is_ok() {
+                        self.collect_codons(pos, pos + k, primary, sites);
+                    }
+                }
+            }
+        }
+    }
+
+    fn collect_codons(
+        &self,
+        start: usize,
+        end: usize,
+        primary: usize,
+        sites: &mut BTreeSet<usize>,
+    ) {
+        let cds_end = self.cds_off + self.seq.codon_count() * 3;
+        if end <= self.cds_off || start >= cds_end || end <= start {
+            return;
+        }
+        let from_nt = start.max(self.cds_off);
+        let to_nt = end.min(cds_end);
+        if to_nt <= from_nt {
+            return;
+        }
+        let first = (from_nt - self.cds_off) / 3;
+        let last = (to_nt - 1 - self.cds_off) / 3;
+        for index in first..=last {
+            if index != primary && !self.seq.is_locked(index) {
+                sites.insert(index);
+            }
+        }
+    }
+
     fn set_codon(&mut self, index: usize, codon: Codon) -> Result<Codon> {
         let old = self.seq.substitute(index, codon)?;
         if old == codon {
@@ -1477,6 +1905,9 @@ impl<'a> Solver<'a> {
         if old != codon {
             self.edits += 1;
         }
+        // A committed edit is not a trial. Materializing keeps the add list
+        // at the depth of the edits currently being probed.
+        self.flush_prefix();
         Ok(())
     }
 
@@ -1503,7 +1934,7 @@ impl<'a> Solver<'a> {
                 if !self.overlaps_editable(start, end) {
                     continue;
                 }
-                let before = self.prefix[end] - self.prefix[start];
+                let before = self.prefix_at(end) - self.prefix_at(start);
                 let after = adjusted_gc(before, &self.nt, at, bases, start, end);
                 delta += band_penalty(after, band) - band_penalty(before, band);
             }
@@ -1511,35 +1942,91 @@ impl<'a> Solver<'a> {
         delta
     }
 
-    /// Keep `prefix` equal to a rebuild from `nt`.
+    /// Record the GC-count change of a codon without walking the suffix.
     ///
-    /// The three edited bases are rewritten from the entry before them. Every
-    /// later entry is the count through those bases plus the untouched suffix,
-    /// so it moves by one integer: the new codon's GC count minus the old
-    /// one's. A codon whose GC count does not change leaves the tail alone,
-    /// including when the GC moves from one base of the codon to another; the
-    /// three-base rewrite still records that. Counts stay exact integers.
+    /// `prefix[i]` is the GC count of `nt[..i]` at the last flush. A base
+    /// whose GC bit flips adds that delta to every later prefix index. Those
+    /// adds sit in `prefix_adds` until [`Self::flush_prefix`], so a trial can
+    /// change a codon and put it back without rewriting the whole construct.
+    /// Counts stay exact integers.
     fn shift_prefix(&mut self, at: usize, old: Codon, bases: [u8; 3]) {
         let old_bases = old.to_bytes();
-        let mut delta = 0i32;
         for offset in 0..3 {
-            delta += gc_bit(bases[offset]) as i32 - gc_bit(old_bases[offset]) as i32;
-        }
-        let mut running = self.prefix[at];
-        for offset in 0..3 {
-            running += gc_bit(self.nt[at + offset]);
-            self.prefix[at + 1 + offset] = running;
-        }
-        if delta != 0 {
-            for slot in at + 4..=self.nt.len() {
-                let next = self.prefix[slot] as i32 + delta;
-                debug_assert!(next >= 0, "gc prefix went negative");
-                self.prefix[slot] = next as u32;
+            let delta = gc_bit(bases[offset]) as i32 - gc_bit(old_bases[offset]) as i32;
+            if delta != 0 {
+                self.push_suffix_add(at + 1 + offset, delta);
             }
         }
     }
 
+    fn prefix_at(&self, index: usize) -> u32 {
+        prefix_value(&self.prefix, &self.prefix_adds, index)
+    }
+
+    fn suffix_extra(&self, index: usize) -> i32 {
+        let mut total = 0i32;
+        for &(from, delta) in &self.prefix_adds {
+            if from <= index {
+                total += delta;
+            }
+        }
+        total
+    }
+
+    fn push_suffix_add(&mut self, from: usize, delta: i32) {
+        if delta == 0 {
+            return;
+        }
+        if let Some(index) = self
+            .prefix_adds
+            .iter()
+            .position(|(start, _)| *start == from)
+        {
+            let next = self.prefix_adds[index].1 + delta;
+            if next == 0 {
+                self.prefix_adds.swap_remove(index);
+            } else {
+                self.prefix_adds[index].1 = next;
+            }
+        } else {
+            self.prefix_adds.push((from, delta));
+        }
+    }
+
+    fn flush_prefix(&mut self) {
+        if self.prefix_adds.is_empty() {
+            return;
+        }
+        for index in 1..=self.nt.len() {
+            let extra = self.suffix_extra(index);
+            if extra != 0 {
+                let next = self.prefix[index] as i32 + extra;
+                debug_assert!(next >= 0, "gc prefix went negative");
+                self.prefix[index] = next as u32;
+            }
+        }
+        self.prefix_adds.clear();
+    }
+
+    fn finish_prefix(&mut self) {
+        self.flush_prefix();
+        debug_assert!(
+            self.prefix_sound(),
+            "gc prefix drifted from the nucleotide buffer"
+        );
+    }
+
+    fn prefix_sound(&self) -> bool {
+        let rebuilt = gc_prefix(&self.nt);
+        rebuilt.len() == self.prefix.len()
+            && rebuilt
+                .iter()
+                .enumerate()
+                .all(|(index, count)| self.prefix_at(index) == *count)
+    }
+
     fn recompute_gc(&mut self) {
+        self.flush_prefix();
         self.gc_penalty = gc_penalty_of(&self.nt, &self.prefix, &self.bands, &self.editable);
     }
 
@@ -1701,7 +2188,8 @@ impl<'a> Solver<'a> {
                 if !spans_overlap(&self.editable, start, end) {
                     continue;
                 }
-                let before = self.prefix[end] - self.prefix[start];
+                let before = prefix_value(&self.prefix, &self.prefix_adds, end)
+                    - prefix_value(&self.prefix, &self.prefix_adds, start);
                 let after = adjusted_gc(before, &self.nt, at, bases, start, end);
                 delta += i32::from(window_outside(after, band))
                     - i32::from(window_outside(before, band));
@@ -1719,7 +2207,25 @@ impl<'a> Solver<'a> {
         if self.gc_penalty == 0.0 {
             return false;
         }
-        gc_penalty_of(&self.nt, &self.prefix, &self.bands, &self.editable) > 0.0
+        self.live_gc_penalty() > 0.0
+    }
+
+    fn live_gc_penalty(&self) -> f64 {
+        let mut penalty = 0.0;
+        let n = self.nt.len();
+        for band in &self.bands {
+            if band.window == 0 || n < band.window {
+                continue;
+            }
+            for start in 0..=n - band.window {
+                let end = start + band.window;
+                if !self.overlaps_editable(start, end) {
+                    continue;
+                }
+                penalty += band_penalty(self.prefix_at(end) - self.prefix_at(start), band);
+            }
+        }
+        penalty
     }
 
     fn pattern_count(&self) -> usize {
@@ -2011,6 +2517,18 @@ fn gc_bit(base: u8) -> u32 {
     u32::from(matches!(base, b'G' | b'C'))
 }
 
+fn prefix_value(prefix: &[u32], adds: &[(usize, i32)], index: usize) -> u32 {
+    let mut extra = 0i32;
+    for &(from, delta) in adds {
+        if from <= index {
+            extra += delta;
+        }
+    }
+    let value = prefix[index] as i32 + extra;
+    debug_assert!(value >= 0, "gc prefix went negative");
+    value as u32
+}
+
 fn gc_penalty_of(nt: &[u8], prefix: &[u32], bands: &[GcBand], editable: &[(usize, usize)]) -> f64 {
     let mut penalty = 0.0;
     for band in bands {
@@ -2221,6 +2739,162 @@ mod tests {
 
     fn weights_one() -> [f64; 64] {
         [1.0; 64]
+    }
+
+    fn weight_table(placed: &CodonSequence, overrides: &[(&str, f64)]) -> [f64; 64] {
+        let mut weights = [0.05; 64];
+        for codon in placed.codons() {
+            weights[codon.index_usize()] = 1.0;
+        }
+        for (label, weight) in overrides {
+            weights[Codon::parse(label).unwrap().index_usize()] = *weight;
+        }
+        weights
+    }
+
+    #[test]
+    fn unit_seed_climb_repairs_a_gc_window_outside_the_local_neighbourhood() {
+        // Codon 1 wants CTG (GC 2, weight 1) over TTA (GC 0, weight 0.3).
+        // That step pushes the 24 nt window of codons 1..=8 over 0.5. The only
+        // codon that can give two GC bases back is Arg at index 8, seven
+        // positions away. Alanines in between are GC-invariant. DEP-SRCH-018
+        // stops at four codons, so this stays on TTA unless the conflict climb
+        // runs.
+        let cds = format!(
+            "ATG{}{}{}{}TAA",
+            "TTA",
+            "GCT".repeat(4),
+            "TTT".repeat(2),
+            "CGG"
+        );
+        let sequence = CodonSequence::from_cds(&cds, 11).unwrap();
+        let weights = weight_table(
+            &sequence,
+            &[
+                ("CTG", 1.0),
+                ("TTA", 0.3),
+                ("TTG", 0.1),
+                ("CTT", 0.1),
+                ("CTC", 0.1),
+                ("CTA", 0.1),
+                ("AGA", 0.97),
+                ("AGG", 0.1),
+                ("CGT", 0.1),
+                ("CGC", 0.1),
+                ("CGA", 0.1),
+                ("TTC", 0.5),
+                ("GCC", 0.2),
+                ("GCA", 0.2),
+                ("GCG", 0.2),
+            ],
+        );
+        let compiled = checker(vec![(
+            "c_gc",
+            Rule::GcWindow {
+                window_nt: 24,
+                min: 0.0,
+                max: 0.5,
+            },
+        )]);
+        let report = resolve_feasible_seed(&sequence, &compiled, &weights).unwrap();
+        assert!(report.feasible, "{:?}", report.residual);
+        assert_eq!(report.sequence.protein(), sequence.protein());
+        let codons: Vec<String> = report
+            .sequence
+            .codons()
+            .iter()
+            .map(|codon| codon.to_string_upper())
+            .collect();
+        assert_eq!(
+            codons[1], "CTG",
+            "high-weight leucine was not restored: {codons:?}"
+        );
+        assert_eq!(
+            codons[8], "AGA",
+            "distant arginine did not pay the GC cost: {codons:?}"
+        );
+        let sacrificed = cai_of(&sequence, &weights);
+        assert!(
+            cai_of(&report.sequence, &weights) > sacrificed,
+            "climb did not raise CAI above the low-weight leucine"
+        );
+    }
+
+    #[test]
+    fn unit_seed_climb_breaks_the_distant_copy_of_a_12mer() {
+        // AAACCCGGGTTT twice. The second copy is shifted by one nucleotide, so
+        // the three overlapping 12-mers share an arginine (CGG) whose CGT
+        // synonym breaks all three for a small weight drop. Every synonym
+        // inside the first copy is expensive. Greedy repair edits the first
+        // lysine. A partner search limited to four codons cannot see the
+        // arginine.
+        let fillers = [
+            "GAT", "GAC", "GAA", "GAG", "CAT", "CAC", "TAT", "TAC", "TGG", "TGT", "TGC", "ATT",
+        ];
+        let mut codons = vec!["ATG".to_string(), "CTA".to_string()];
+        codons.extend(["AAA", "CCC", "GGG", "TTT"].map(str::to_string));
+        while codons.len() < 30 {
+            codons.push(fillers[(codons.len() - 6) % fillers.len()].to_string());
+        }
+        assert_eq!(codons.len(), 30);
+        // Codon 30 starts one base before the second copy, so the word is not
+        // on the same codon boundaries as the first copy.
+        let mut nt = codons.concat();
+        assert_eq!(nt.len(), 90);
+        nt.push('A');
+        nt.push_str("AAACCCGGGTTT");
+        nt.push_str("TT");
+        nt.push_str("TAA");
+        assert_eq!(nt.len() % 3, 0, "{}", nt.len());
+        let sequence = CodonSequence::from_cds(&nt, 11).unwrap();
+        let weights = weight_table(
+            &sequence,
+            &[
+                ("AAG", 0.05),
+                ("CCT", 0.05),
+                ("CCA", 0.05),
+                ("CCG", 0.05),
+                ("GGA", 0.05),
+                ("GGT", 0.05),
+                ("GGC", 0.05),
+                ("TTC", 0.05),
+                ("CGT", 0.99),
+                ("CGC", 0.05),
+                ("CGA", 0.05),
+                ("AGA", 0.05),
+                ("AGG", 0.05),
+            ],
+        );
+        let compiled = checker(vec![(
+            "c_kmer",
+            Rule::KmerRepeat {
+                k: 12,
+                max_occurrences: 1,
+                count_overlapping: true,
+                canonical_strand: false,
+            },
+        )]);
+        let report = resolve_feasible_seed(&sequence, &compiled, &weights).unwrap();
+        assert!(report.feasible, "{:?}", report.residual);
+        assert_eq!(report.sequence.protein(), sequence.protein());
+        let designed: Vec<String> = report
+            .sequence
+            .codons()
+            .iter()
+            .map(|codon| codon.to_string_upper())
+            .collect();
+        assert_eq!(
+            designed[2], "AAA",
+            "first lysine was sacrificed instead of the distant arginine: {designed:?}"
+        );
+        assert_eq!(
+            &designed[3..6],
+            &["CCC".to_string(), "GGG".to_string(), "TTT".to_string()]
+        );
+        assert_eq!(
+            designed[32], "CGT",
+            "distant arginine did not break the repeat: {designed:?}"
+        );
     }
 
     #[test]
@@ -2924,7 +3598,17 @@ mod tests {
 
     /// A GC-changing edit shifts every later prefix entry by the same integer,
     /// and a GC-neutral edit that moves GC inside the codon does not. Either
-    /// mistake leaves a prefix that disagrees with a rebuild.
+    /// mistake leaves the value [`Solver::prefix_at`] reads disagreeing with
+    /// a rebuild. The stored array lags until `flush_prefix`; that is the
+    /// trial path, and the flushed array has to agree too.
+    fn assert_logical_prefix(solver: &Solver<'_>, label: &str) {
+        let rebuilt = gc_prefix(&solver.nt);
+        assert_eq!(rebuilt.len(), solver.prefix.len(), "{label}");
+        for (index, count) in rebuilt.iter().enumerate() {
+            assert_eq!(solver.prefix_at(index), *count, "{label} at {index}");
+        }
+    }
+
     #[test]
     fn gc_prefix_tail_matches_a_full_rebuild() {
         let compiled = checker(vec![(
@@ -2939,7 +3623,7 @@ mod tests {
         let sequence = CodonSequence::from_cds(&cds, 11).unwrap();
         let weights = weights_one();
         let mut solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
-        assert_eq!(solver.prefix, gc_prefix(&solver.nt));
+        assert_logical_prefix(&solver, "initial");
         let index = 20;
         let find = |solver: &Solver<'_>, bases: &[u8; 3]| {
             solver
@@ -2953,10 +3637,12 @@ mod tests {
         // CTG (GC 2) -> TTA (GC 0). The tail has to move.
         let tta = find(&solver, b"TTA");
         solver.set_codon(index, tta).unwrap();
+        assert_logical_prefix(&solver, "tail after CTG -> TTA");
+        solver.flush_prefix();
         assert_eq!(
             solver.prefix,
             gc_prefix(&solver.nt),
-            "tail after CTG -> TTA"
+            "flushed tail after CTG -> TTA"
         );
         // TTA (0,0,0) -> CTT (1,0,0) is not neutral. CTT (1,0,0) -> TTG (0,0,1)
         // keeps the codon GC count at 1 and moves it to the last base.
@@ -2964,10 +3650,12 @@ mod tests {
         solver.set_codon(index, ctt).unwrap();
         let ttg = find(&solver, b"TTG");
         solver.set_codon(index, ttg).unwrap();
+        assert_logical_prefix(&solver, "prefix after GC moved inside the codon");
+        solver.flush_prefix();
         assert_eq!(
             solver.prefix,
             gc_prefix(&solver.nt),
-            "prefix after GC moved inside the codon"
+            "flushed prefix after GC moved inside the codon"
         );
         let positions = solver.seq.codon_count();
         let mut state = 0xC0FF_EE00_1234_ABCD_u64;
@@ -2985,12 +3673,14 @@ mod tests {
             let synonyms = solver.seq.synonyms_at(at).to_vec();
             let codon = synonyms[(next() as usize) % synonyms.len()];
             solver.set_codon(at, codon).unwrap();
-            assert_eq!(
-                solver.prefix,
-                gc_prefix(&solver.nt),
-                "step {step} codon {at}"
-            );
+            assert_logical_prefix(&solver, &format!("step {step} codon {at}"));
         }
+        solver.flush_prefix();
+        assert_eq!(
+            solver.prefix,
+            gc_prefix(&solver.nt),
+            "flushed prefix after the random edits"
+        );
     }
 
     /// The explanation `explain_deviations` used to build: one full check, then
