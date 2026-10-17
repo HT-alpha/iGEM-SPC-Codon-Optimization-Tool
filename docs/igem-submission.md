@@ -1,18 +1,18 @@
-# CodonForge — iGEM submission notes
+# DNA Design Suite — iGEM submission notes
 
-The stable release is `v2.4.2`. The canonical status is
-[`project-status.md`](project-status.md). `v2.4.0` records the dwell-head
-investigation, the P1-26 inventory, the 40-generation EXP-05 run, and the
-first CAI-only `GATE-BEN-001` comparison. `v2.4.1` puts every codon,
-including `AGG` at weight 0, into the ribosomal usage table. `v2.4.2` claims
-the CAI-only gate on 48 of the 50 proteins. In that record `aceB`
-(`NP_418438.1`) and `thrA` (`NP_414543.1`) are excluded: they contain `AGG`
-codons with weight 0 in the ribosomal-protein training corpus, so
-`usage.cai` is identically 0 for any candidate that still has an `AGG`. A
-fast budget of 20 generations (stagnation window 21, seed 7) still leaves
-in-frame `AGG` in both, and both stay at 0 while `cai_greedy` scores 1.
-The current claim is in [`project-status.md`](project-status.md). The MFE
-comparison is not this claim.
+The suite note for this tree is `v2.9.1`. Canonical status is
+[`project-status.md`](project-status.md). This file keeps the v2.4.x
+record. `v2.4.0` records the dwell-head investigation, the P1-26 inventory,
+the 40-generation EXP-05 run, and the first CAI-only `GATE-BEN-001`
+comparison. `v2.4.1` puts every codon, including `AGG` at weight 0, into
+the ribosomal usage table. `v2.4.2` claims the CAI-only gate on 48 of the
+50 proteins. In that record `aceB` (`NP_418438.1`) and `thrA`
+(`NP_414543.1`) are excluded: they contain `AGG` codons with weight 0 in
+the ribosomal-protein training corpus, so `usage.cai` is identically 0 for
+any candidate that still has an `AGG`. A fast budget of 20 generations
+(stagnation window 21, seed 7) still leaves in-frame `AGG` in both, and
+both stay at 0 while `cai_greedy` scores 1. `v2.9.1` claims the same
+CAI-only gate on 50 of 50. The MFE comparison is not this claim.
 `docs/legal-clearance.yaml`
 records the AMD-013 sign-off from NG Chi Hong's email of 2026-10-05. The
 review accepts this analysis for a non-commercial iGEM educational project.
@@ -102,7 +102,9 @@ deviation of zero.
 ## What is not claimed
 
 - The MFE/CAI frontier that the original `GATE-BEN-001` text describes.
-  The claimed scope is the 48-protein CAI-only record.
+  The current claimed scope is the 50-protein CAI-only record in
+  [`project-status.md`](project-status.md). The v2.4.2 record in this file
+  was 48 proteins.
 - LinearDesign's method, or a comparison against it.
 - GPU acceleration.
 - A Baldwinian default. The EXP-05 re-run kept Lamarckian.
@@ -113,7 +115,8 @@ ViennaRNA is installed by the user. CodonForge does not vendor it.
 
 ```sh
 pip install ViennaRNA
-pip install codonforge
+# A PyPI wheel is not published for this tag. Install from a checkout
+# (README Quick start), then:
 python -m codonforge.cli.main design \
     --host escherichia_coli:511145/MG1655 \
     --cds "$(tr -d '\n' < examples/rpsL.cds)" \

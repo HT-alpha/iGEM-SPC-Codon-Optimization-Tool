@@ -2,6 +2,14 @@
 
 ## v2.9.1
 
+DNA Design Suite note for this tree: CodonForge and PrimerForge share one
+page. The three measured changes are the CAI-only gate, the structure fold
+cache, and the operon ledger. The numbers are in
+`docs/benchmarks/v2.9.1-validation.md` and
+`docs/benchmarks/v2.9.1-challenging-perf.md`. A pasteable tag note is
+`docs/release-v2.9.1.md`. The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
 Search on `usage.cai` no longer treats a zero-weight codon as a flat
 landscape. When the incumbent has any counted weight of 0, tiers 1 and 2
 linearize that term as the change in the sum of log-weights, and a zero
@@ -31,9 +39,6 @@ The challenging-sequence timings are in
 `docs/benchmarks/v2.9.1-challenging-perf.md`. No design in that sweep
 returned an infeasible CDS. The slowest job is yeeJ under the assembly
 rules, about 21 s before the population loop.
-
-The package version stays 0.1.0.
-`python -m codonforge.cli.main --version` prints 0.1.0.
 
 ## v2.9.0
 

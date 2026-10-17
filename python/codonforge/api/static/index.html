@@ -225,7 +225,7 @@
       <p>These requests answer CF-CLI-003. Nothing is silently skipped. Use the form above instead of those routes.</p>
       <ul>
         <li>There is no host catalog. Type the host and load a codon table. GET /v1/hosts is not a list of organisms.</li>
-        <li>There is no model catalog and no place to upload a lab measurement. Observations and recalibration are not implemented.</li>
+        <li>There is no model catalog, and this page has no form for a lab measurement. POST /v1/observations stores a validated measurement. GET /v1/recalibrations answers CF-CLI-003 and does not refit a model.</li>
         <li>A protein sequence is not reverse-translated, and a multi-gene construct is not expanded. Paste one DNA coding sequence.</li>
         <li>The separate feasibility route is not wired. After a job, read constraint_report.feasible on the design. It is true or false.</li>
         <li>Importing another optimizer’s output is not wired.</li>
