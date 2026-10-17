@@ -11,8 +11,92 @@
 #![forbid(unsafe_code)]
 
 use std::cmp::Ordering;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering};
+use std::time::Instant;
 
 use cf_metrics::{fast_nondominated_sort, Ranked};
+
+struct PrimerCounter {
+    ns: AtomicU64,
+    calls: AtomicU64,
+}
+
+impl PrimerCounter {
+    const fn new() -> Self {
+        Self {
+            ns: AtomicU64::new(0),
+            calls: AtomicU64::new(0),
+        }
+    }
+
+    fn record(&self, started: Instant) {
+        self.ns
+            .fetch_add(started.elapsed().as_nanos() as u64, AtomicOrdering::Relaxed);
+        self.calls.fetch_add(1, AtomicOrdering::Relaxed);
+    }
+}
+
+struct PrimerProfile {
+    enabled: AtomicBool,
+    gc: PrimerCounter,
+    homopolymer: PrimerCounter,
+    tm: PrimerCounter,
+    product: PrimerCounter,
+    hairpin: PrimerCounter,
+    dimer: PrimerCounter,
+    pair_tm: PrimerCounter,
+    rank: PrimerCounter,
+}
+
+static PRIMER_PROFILE: PrimerProfile = PrimerProfile {
+    enabled: AtomicBool::new(false),
+    gc: PrimerCounter::new(),
+    homopolymer: PrimerCounter::new(),
+    tm: PrimerCounter::new(),
+    product: PrimerCounter::new(),
+    hairpin: PrimerCounter::new(),
+    dimer: PrimerCounter::new(),
+    pair_tm: PrimerCounter::new(),
+    rank: PrimerCounter::new(),
+};
+
+fn primer_profile_on() -> bool {
+    PRIMER_PROFILE.enabled.load(AtomicOrdering::Relaxed)
+}
+
+fn arm_primer_profile() {
+    if std::env::var_os("CF_PRIMER_PROFILE").is_some() {
+        PRIMER_PROFILE.enabled.store(true, AtomicOrdering::Relaxed);
+    }
+}
+
+fn dump_primer_profile() {
+    if !primer_profile_on() {
+        return;
+    }
+    let row = |name: &str, counter: &PrimerCounter| {
+        let calls = counter.calls.load(AtomicOrdering::Relaxed);
+        let ns = counter.ns.load(AtomicOrdering::Relaxed);
+        format!(
+            "{{\"name\":\"{name}\",\"calls\":{calls},\"seconds\":{:.6}}}",
+            ns as f64 / 1e9
+        )
+    };
+    eprintln!(
+        "CF_PRIMER_PROFILE {}",
+        [
+            row("gc", &PRIMER_PROFILE.gc),
+            row("homopolymer", &PRIMER_PROFILE.homopolymer),
+            row("tm_prefilter", &PRIMER_PROFILE.tm),
+            row("product", &PRIMER_PROFILE.product),
+            row("hairpin", &PRIMER_PROFILE.hairpin),
+            row("dimer", &PRIMER_PROFILE.dimer),
+            row("pair_tm", &PRIMER_PROFILE.pair_tm),
+            row("rank", &PRIMER_PROFILE.rank),
+        ]
+        .join(",")
+    );
+}
 use cf_primer_thermo::{
     dg_zone, dimer, gc_clamp, gc_percent, hairpin, longest_homopolymer, perfect_duplex, DgZone,
     Parameters,
@@ -85,6 +169,12 @@ struct Primer {
     end: usize,
     tm: f64,
     gc: f64,
+    /// Filled after the Tm sort truncates to 40. Absent until then: hairpin
+    /// and self-dimer depend only on this oligo, so they are computed once
+    /// per survivor rather than once per pair.
+    hairpin_dg: f64,
+    hairpin_diagram: String,
+    self_dimer_dg: f64,
 }
 
 pub fn gc_keeps(gc: f64) -> bool {
@@ -181,13 +271,27 @@ fn evaluate_primer(
     } else {
         slice.to_string()
     };
-    if !gc_keeps(gc_percent(&sequence)) {
+    let gc_started = primer_profile_on().then(Instant::now);
+    let gc_ok = gc_keeps(gc_percent(&sequence));
+    if let Some(gc_started) = gc_started {
+        PRIMER_PROFILE.gc.record(gc_started);
+    }
+    if !gc_ok {
         return Ok(Err("gc"));
     }
-    if !homopolymer_keeps(&sequence) {
+    let homo_started = primer_profile_on().then(Instant::now);
+    let homo_ok = homopolymer_keeps(&sequence);
+    if let Some(homo_started) = homo_started {
+        PRIMER_PROFILE.homopolymer.record(homo_started);
+    }
+    if !homo_ok {
         return Ok(Err("homopolymer"));
     }
+    let tm_started = primer_profile_on().then(Instant::now);
     let duplex = perfect_duplex(parameters, &sequence).map_err(|err| SearchError(err.0))?;
+    if let Some(tm_started) = tm_started {
+        PRIMER_PROFILE.tm.record(tm_started);
+    }
     if !tm_prefilter_keeps(duplex.tm_celsius, target) {
         return Ok(Err("tm"));
     }
@@ -197,7 +301,28 @@ fn evaluate_primer(
         end,
         tm: duplex.tm_celsius,
         gc: gc_percent(&template[start..end]),
+        hairpin_dg: 0.0,
+        hairpin_diagram: String::new(),
+        self_dimer_dg: 0.0,
     }))
+}
+
+fn annotate_primer(parameters: &Parameters, primer: &mut Primer) -> Result<(), SearchError> {
+    let hairpin_started = primer_profile_on().then(Instant::now);
+    let folded = hairpin(parameters, &primer.sequence).map_err(|err| SearchError(err.0))?;
+    if let Some(hairpin_started) = hairpin_started {
+        PRIMER_PROFILE.hairpin.record(hairpin_started);
+    }
+    let dimer_started = primer_profile_on().then(Instant::now);
+    let self_dimer =
+        dimer(parameters, &primer.sequence, &primer.sequence).map_err(|err| SearchError(err.0))?;
+    if let Some(dimer_started) = dimer_started {
+        PRIMER_PROFILE.dimer.record(dimer_started);
+    }
+    primer.hairpin_dg = folded.delta_g_kcal;
+    primer.hairpin_diagram = folded.diagram;
+    primer.self_dimer_dg = self_dimer.delta_g_kcal;
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
@@ -223,28 +348,40 @@ fn score_pair(
     reverse: &Primer,
     config: &Config,
 ) -> Result<Option<Scored>, SearchError> {
+    let product_started = primer_profile_on().then(Instant::now);
     let product = reverse.end.saturating_sub(forward.start);
-    if !product_keeps(product, config.product_min, config.product_max) {
+    let product_ok = product_keeps(product, config.product_min, config.product_max);
+    if let Some(product_started) = product_started {
+        PRIMER_PROFILE.product.record(product_started);
+    }
+    if !product_ok {
         return Ok(None);
     }
-    let hairpin_f = hairpin(parameters, &forward.sequence).map_err(|err| SearchError(err.0))?;
-    let hairpin_r = hairpin(parameters, &reverse.sequence).map_err(|err| SearchError(err.0))?;
-    let self_f = dimer(parameters, &forward.sequence, &forward.sequence)
-        .map_err(|err| SearchError(err.0))?;
-    let self_r = dimer(parameters, &reverse.sequence, &reverse.sequence)
-        .map_err(|err| SearchError(err.0))?;
+    // Hairpin, self-dimer and Tm were measured on the oligo. Recomputing them
+    // for every partner repeats the same floats. Hetero-dimer is the term
+    // that depends on the pair.
+    let hairpin_f_dg = forward.hairpin_dg;
+    let hairpin_r_dg = reverse.hairpin_dg;
+    let hairpin_f_diagram = forward.hairpin_diagram.clone();
+    let hairpin_r_diagram = reverse.hairpin_diagram.clone();
+    let self_f_dg = forward.self_dimer_dg;
+    let self_r_dg = reverse.self_dimer_dg;
+    let dimer_started = primer_profile_on().then(Instant::now);
     let hetero = dimer(parameters, &forward.sequence, &reverse.sequence)
         .map_err(|err| SearchError(err.0))?;
-    let tm_f = perfect_duplex(parameters, &forward.sequence).map_err(|err| SearchError(err.0))?;
-    let tm_r = perfect_duplex(parameters, &reverse.sequence).map_err(|err| SearchError(err.0))?;
-    let mismatch = (tm_f.tm_celsius - tm_r.tm_celsius).abs();
+    if let Some(dimer_started) = dimer_started {
+        PRIMER_PROFILE.dimer.record(dimer_started);
+    }
+    let tm_f = forward.tm;
+    let tm_r = reverse.tm;
+    let mismatch = (tm_f - tm_r).abs();
     let mut flags = Vec::new();
     let mut refused = false;
     for (name, value) in [
-        ("hairpin_dG_forward", hairpin_f.delta_g_kcal),
-        ("hairpin_dG_reverse", hairpin_r.delta_g_kcal),
-        ("self_dimer_dG_forward", self_f.delta_g_kcal),
-        ("self_dimer_dG_reverse", self_r.delta_g_kcal),
+        ("hairpin_dG_forward", hairpin_f_dg),
+        ("hairpin_dG_reverse", hairpin_r_dg),
+        ("self_dimer_dG_forward", self_f_dg),
+        ("self_dimer_dG_reverse", self_r_dg),
         ("hetero_dimer_dG", hetero.delta_g_kcal),
     ] {
         let zone = dg_zone(value);
@@ -283,10 +420,10 @@ fn score_pair(
     }
     refused |= mismatch_zone == DgZone::Refuse;
     let worst = [
-        hairpin_f.delta_g_kcal,
-        hairpin_r.delta_g_kcal,
-        self_f.delta_g_kcal,
-        self_r.delta_g_kcal,
+        hairpin_f_dg,
+        hairpin_r_dg,
+        self_f_dg,
+        self_r_dg,
         hetero.delta_g_kcal,
     ]
     .into_iter()
@@ -308,15 +445,15 @@ fn score_pair(
         "reverse_end": reverse.end,
         "product_size": product,
         "product_sequence": product_sequence,
-        "tm_forward": tm_f.tm_celsius,
-        "tm_reverse": tm_r.tm_celsius,
+        "tm_forward": tm_f,
+        "tm_reverse": tm_r,
         "tm_mismatch": mismatch,
-        "hairpin_dG_forward": hairpin_f.delta_g_kcal,
-        "hairpin_dG_reverse": hairpin_r.delta_g_kcal,
-        "hairpin_diagram_forward": hairpin_f.diagram,
-        "hairpin_diagram_reverse": hairpin_r.diagram,
-        "self_dimer_dG_forward": self_f.delta_g_kcal,
-        "self_dimer_dG_reverse": self_r.delta_g_kcal,
+        "hairpin_dG_forward": hairpin_f_dg,
+        "hairpin_dG_reverse": hairpin_r_dg,
+        "hairpin_diagram_forward": hairpin_f_diagram,
+        "hairpin_diagram_reverse": hairpin_r_diagram,
+        "self_dimer_dG_forward": self_f_dg,
+        "self_dimer_dG_reverse": self_r_dg,
         "hetero_dimer_dG": hetero.delta_g_kcal,
         "hetero_dimer_3prime_dG": hetero.three_prime_delta_g_kcal,
         "hetero_dimer_alignment": hetero.alignment,
@@ -425,6 +562,7 @@ pub fn search(
     config: &Config,
     progress: &mut dyn FnMut(f64),
 ) -> Result<Value, SearchError> {
+    arm_primer_profile();
     let parameters = cf_primer_thermo::bundled().map_err(|err| SearchError(err.0))?;
     progress(0.02);
     if end > template.len() || start >= end {
@@ -506,6 +644,9 @@ pub fn search(
         reverse.truncate(40);
         truncated = true;
     }
+    for primer in forward.iter_mut().chain(reverse.iter_mut()) {
+        annotate_primer(&parameters, primer)?;
+    }
     let total = (forward.len() * reverse.len()).max(1);
     let mut scored = Vec::new();
     for (index, fwd) in forward.iter().enumerate() {
@@ -518,8 +659,10 @@ pub fn search(
         progress(0.25 + 0.7 * ((index + 1) * reverse.len()) as f64 / total as f64);
     }
     if scored.is_empty() {
+        dump_primer_profile();
         return Err(SearchError(prim001(&dropped)));
     }
+    let rank_started = primer_profile_on().then(Instant::now);
     let ranked: Vec<Ranked> = scored
         .iter()
         .map(|pair| {
@@ -557,7 +700,11 @@ pub fn search(
             body
         })
         .collect();
+    if let Some(rank_started) = rank_started {
+        PRIMER_PROFILE.rank.record(rank_started);
+    }
     progress(1.0);
+    dump_primer_profile();
     Ok(json!({
         "parameter_set_id": parameters.parameter_set_id,
         "parameter_digest": parameters.digest,
