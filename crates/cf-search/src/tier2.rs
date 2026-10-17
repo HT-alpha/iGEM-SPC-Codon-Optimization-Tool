@@ -562,7 +562,9 @@ fn build_increments(
         let provider = registration.provider.as_ref();
         let pinned: Rebased = provider.rebase(&ctx)?;
         rebases += 1;
-        let table = provider.delta_table(&ctx, &pinned, &positions)?;
+        // Same linearization as tier 1. `DEP-SRCH-020`. Acceptance below is
+        // still the reported score, not this table.
+        let table = provider.surrogate_delta_table(&ctx, &pinned, &positions)?;
         tables += 1;
 
         let sense = match provider.direction() {

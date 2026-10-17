@@ -190,6 +190,90 @@ fn p1_21_cai_tolerates_an_individual_zero_weight() {
     assert_deltas_are_exact(&term, &with_zero);
 }
 
+/// Two zero-weight codons make every arithmetic delta zero.
+///
+/// The geometric mean stays 0 until both are gone, so replacing one of them
+/// with the best synonym has the same reported delta as leaving it, and the
+/// same reported delta as a worse synonym at a position that is already
+/// positive. The seeding DP sums those deltas. This is the linearization it
+/// has to use instead, or a sequence that starts with two `AGG`s never
+/// prefers to remove one. `DEP-SRCH-020`.
+#[test]
+fn cai_surrogate_ranks_a_partial_zero_removal() {
+    let mut document = usage_table_json("highly_expressed");
+    for codon in ["TTA", "TTG", "CTT", "CTC", "CTA", "CTG"] {
+        document["codon_usage"]["table"][codon]["relative_adaptiveness"] = serde_json::json!(0.1);
+    }
+    document["codon_usage"]["table"]["CTA"]["relative_adaptiveness"] = serde_json::json!(0.0);
+    document["codon_usage"]["table"]["TTA"]["relative_adaptiveness"] = serde_json::json!(0.2);
+    document["codon_usage"]["table"]["TTG"]["relative_adaptiveness"] = serde_json::json!(1.0);
+    document["codon_usage"]["table"]["AAA"]["relative_adaptiveness"] = serde_json::json!(0.4);
+    document["codon_usage"]["table"]["AAG"]["relative_adaptiveness"] = serde_json::json!(1.0);
+
+    let table = CodonUsageTable::from_host_profile(&document, 1).unwrap();
+    let term = CaiTerm::new(table).unwrap();
+    // M L L K * with both leucines on the zero-weight codon.
+    let base = CodonSequence::from_cds("ATGCTACTAAAATAA", 1).unwrap();
+    assert_eq!(base.codons()[1].to_string_upper(), "CTA");
+    assert_eq!(base.codons()[2].to_string_upper(), "CTA");
+    let host = host();
+    let base_ctx = ctx(&base, &host);
+    let pinned = term.rebase(&base_ctx).unwrap();
+    assert_eq!(term.score(&base_ctx).unwrap(), 0.0);
+
+    let arithmetic = term.delta_table(&base_ctx, &pinned, &[1, 3]).unwrap();
+    let surrogate = term
+        .surrogate_delta_table(&base_ctx, &pinned, &[1, 3])
+        .unwrap();
+
+    let arithmetic_ttg = delta_of(&arithmetic, 1, "TTG");
+    let arithmetic_tta = delta_of(&arithmetic, 1, "TTA");
+    let arithmetic_aag = delta_of(&arithmetic, 3, "AAG");
+    assert_eq!(
+        arithmetic_ttg, 0.0,
+        "removing one of two zeros must not move CAI"
+    );
+    assert_eq!(arithmetic_tta, 0.0);
+    assert_eq!(
+        arithmetic_aag, 0.0,
+        "a better synonym elsewhere is invisible while a zero remains"
+    );
+
+    let surrogate_ttg = delta_of(&surrogate, 1, "TTG");
+    let surrogate_tta = delta_of(&surrogate, 1, "TTA");
+    let surrogate_aag = delta_of(&surrogate, 3, "AAG");
+    assert!(surrogate_ttg > surrogate_tta);
+    assert!(surrogate_tta > 0.0);
+    assert!(surrogate_aag > 0.0);
+
+    // No zeros: the linearization is the arithmetic delta, bit for bit.
+    let clean = sequence();
+    let clean_term = CaiTerm::new(usage_table("highly_expressed")).unwrap();
+    let clean_ctx = ctx(&clean, &host);
+    let clean_pin = clean_term.rebase(&clean_ctx).unwrap();
+    let positions: Vec<usize> = clean.editable_positions().collect();
+    let exact = clean_term
+        .delta_table(&clean_ctx, &clean_pin, &positions)
+        .unwrap();
+    let same = clean_term
+        .surrogate_delta_table(&clean_ctx, &clean_pin, &positions)
+        .unwrap();
+    assert_eq!(exact, same);
+}
+
+fn delta_of(table: &[cf_landscape_api::PositionDeltas], index: usize, codon: &str) -> f64 {
+    let wanted = Codon::parse(codon).unwrap();
+    table
+        .iter()
+        .find(|entry| entry.codon_index == index)
+        .unwrap()
+        .alternatives
+        .iter()
+        .find(|(candidate, _)| *candidate == wanted)
+        .unwrap()
+        .1
+}
+
 /// The pinned state is load-bearing, not decorative.
 ///
 /// Correctness alone cannot show this: an implementation that ignores the pin

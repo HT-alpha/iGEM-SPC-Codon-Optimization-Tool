@@ -100,6 +100,25 @@ class AccessibilityCache:
             )
         return list(self._values)
 
+    def current_sequence(self) -> str | None:
+        return self._sequence
+
+    def hold(self, sequence: str, values: list[float]) -> None:
+        """Restore a sequence already folded, without calling the engine.
+
+        `substitute` edits whatever this cache currently holds. A batch that
+        branches from an earlier sequence has to put that sequence back first.
+        """
+        expected = len(sequence) - self.window_nt + 1
+        if len(values) != expected:
+            raise StructureEngineError(
+                "CF-STRU-004",
+                f"holding {len(values)} window values for a sequence of {len(sequence)} nt; "
+                f"window {self.window_nt} needs {expected}",
+            )
+        self._sequence = sequence
+        self._values = list(values)
+
     def affected_window_range(self, start: int, stop: int) -> tuple[int, int]:
         """Which window indices an edit over `[start, stop)` can change.
 

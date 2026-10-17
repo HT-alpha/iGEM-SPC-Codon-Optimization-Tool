@@ -651,8 +651,10 @@ def test_p1_29_a_short_l0_batch_fails_as_land_012_not_a_raw_exception(
     JSON string. Mapping only the tier-2 catch left this as a raw `ValueError`.
     """
 
-    def short(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
-        del temperature_c
+    def short(
+        sequences: list[str], temperature_c: float = 37.0, session: object = None
+    ) -> list[float]:
+        del temperature_c, session
         return [0.5] * (len(sequences) - 1)
 
     monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", short)
@@ -678,8 +680,10 @@ def test_p1_29_a_missing_structure_engine_fails_as_stru_003(
     check does not depend on uninstalling ViennaRNA.
     """
 
-    def missing(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
-        del sequences, temperature_c
+    def missing(
+        sequences: list[str], temperature_c: float = 37.0, session: object = None
+    ) -> list[float]:
+        del sequences, temperature_c, session
         raise StructureEngineError(
             "CF-STRU-003",
             "no structure engine is installed, and CodonForge ships none",
@@ -712,8 +716,10 @@ def test_p1_29_a_non_problem_scorer_error_still_crashes(
     on the short-batch `extract` arm) does not hit this path.
     """
 
-    def broken(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
-        del sequences, temperature_c
+    def broken(
+        sequences: list[str], temperature_c: float = 37.0, session: object = None
+    ) -> list[float]:
+        del sequences, temperature_c, session
         raise ValueError("not a problem document")
 
     monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", broken)
@@ -741,8 +747,10 @@ def test_p1_29_an_ill_typed_l0_return_is_land_012_even_with_a_code_attribute(
         code = "CF-STRU-003"
         detail = "no structure engine is installed, and CodonForge ships none"
 
-    def coded_shape(sequences: list[str], temperature_c: float = 37.0) -> list[float]:
-        del sequences, temperature_c
+    def coded_shape(
+        sequences: list[str], temperature_c: float = 37.0, session: object = None
+    ) -> list[float]:
+        del sequences, temperature_c, session
         return CodedReturn()  # type: ignore[return-value]
 
     monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", coded_shape)

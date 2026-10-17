@@ -48,29 +48,139 @@ def is_available() -> bool:
     return bool(available_engines())
 
 
-def evaluate(sequences: list[str], temperature_c: float = TEMPERATURE_C) -> list[float]:
+# A local fold costs about the same whatever the CDS length is, because the
+# refolded region is the edit plus one span on each side. A full fold costs
+# about 0.06 ms per nucleotide on the machine this was measured on (375 nt
+# ~21 ms, 936 nt ~58 ms, 2463 nt ~157 ms; one codon edit ~8 ms). Past this
+# many codon edits the full fold is the cheaper exact answer.
+_INCREMENTAL_DIVISOR = 160
+
+
+def _codon_edits(before: str, after: str) -> list[tuple[int, str]] | None:
+    """Codon-aligned substitutions that turn `before` into `after`.
+
+    `None` when the strings are not the same length, so the caller folds
+    from scratch instead of inventing an alignment.
+    """
+    if len(before) != len(after) or len(before) % 3 != 0:
+        return None
+    edits = []
+    for start in range(0, len(before), 3):
+        codon = after[start : start + 3]
+        if before[start : start + 3] != codon:
+            edits.append((start, codon))
+    return edits
+
+
+class FoldSession:
+    """Exact accessibility values for one job.
+
+    An identical CDS is returned as stored. A sequence a few codons away from
+    one already folded is edited through `AccessibilityCache.substitute`,
+    which recomputes only the windows inside the folding span and reuses the
+    rest. That reuse is exact: a window's value depends only on bases within
+    `span_nt`, and `TST-STRU-002` checks the edited values against a full
+    fold. Anything further away is folded from scratch. The reported penalty
+    is the same number a fresh fold would return.
+    """
+
+    def __init__(self, temperature_c: float = TEMPERATURE_C) -> None:
+        self.temperature_c = temperature_c
+        self.hits = 0
+        self.full_folds = 0
+        self.local_edits = 0
+        self._cache: AccessibilityCache | None = None
+        self._penalty: dict[str, float] = {}
+        self._windows: dict[str, list[float]] = {}
+        self._recent: list[str] = []
+
+    def evaluate(self, sequences: list[str]) -> list[float]:
+        if not sequences:
+            return []
+        return [self._one(sequence) for sequence in sequences]
+
+    def _cache_for(self) -> AccessibilityCache:
+        if self._cache is None:
+            self._cache = AccessibilityCache(
+                engine=select_engine(),
+                window_nt=WINDOW_NT,
+                span_nt=SPAN_NT,
+                temperature_c=self.temperature_c,
+            )
+        return self._cache
+
+    def _closest(self, sequence: str) -> tuple[str, list[tuple[int, str]]] | None:
+        limit = max(1, len(sequence) // _INCREMENTAL_DIVISOR)
+        best: tuple[int, str, list[tuple[int, str]]] | None = None
+        for parent in reversed(self._recent[-48:]):
+            if len(parent) != len(sequence):
+                continue
+            edits = _codon_edits(parent, sequence)
+            if edits is None:
+                continue
+            count = len(edits)
+            if count == 0 or count > limit:
+                continue
+            if best is None or count < best[0]:
+                best = (count, parent, edits)
+                if count == 1:
+                    break
+        if best is None:
+            return None
+        return best[1], best[2]
+
+    def _remember(self, sequence: str, values: list[float], penalty: float) -> float:
+        self._penalty[sequence] = penalty
+        self._windows[sequence] = list(values)
+        self._recent.append(sequence)
+        return penalty
+
+    def _one(self, sequence: str) -> float:
+        cached = self._penalty.get(sequence)
+        if cached is not None:
+            self.hits += 1
+            return cached
+        cache = self._cache_for()
+        parent = self._closest(sequence)
+        if parent is None:
+            values = cache.prime(sequence)
+            self.full_folds += 1
+            return self._remember(sequence, values, accessibility_penalty(values))
+
+        parent_sequence, edits = parent
+        if cache.current_sequence() != parent_sequence:
+            cache.hold(parent_sequence, self._windows[parent_sequence])
+        values: list[float] = []
+        for start, codon in edits:
+            values = list(cache.substitute(start, codon))
+            self.local_edits += 1
+        if cache.current_sequence() != sequence:
+            # The edit list did not reconstruct the sequence. Fold it rather
+            # than store a penalty for a different string.
+            values = cache.prime(sequence)
+            self.full_folds += 1
+        return self._remember(sequence, values, accessibility_penalty(values))
+
+
+def evaluate(
+    sequences: list[str],
+    temperature_c: float = TEMPERATURE_C,
+    session: FoldSession | None = None,
+) -> list[float]:
     """Accessibility penalty per sequence, from a real fold.
 
-    One engine and one cache across the batch: front members are usually near
-    neighbours, so priming once and substituting would be tempting — but they
-    differ at many positions rather than one, and a cache is only exact for the
-    edits it was told about. Folding each independently is the correct thing,
-    and pretending otherwise would be the stale-value bug `TST-STRU-006` exists
-    to catch, introduced deliberately.
+    Repeated sequences and sequences a few codons apart share one
+    `FoldSession`. The shared value is the full-fold value: identical
+    strings are stored, and a short edit goes through `AccessibilityCache`,
+    which is exact for the windows outside the edit (`TST-STRU-002`). A
+    caller that passes `session` keeps that memory across calls, which is
+    how one generation reuses the previous generation's folds.
     """
     if not sequences:
         return []
-    engine = select_engine()
-    values = []
-    for sequence in sequences:
-        cache = AccessibilityCache(
-            engine=engine,
-            window_nt=WINDOW_NT,
-            span_nt=SPAN_NT,
-            temperature_c=temperature_c,
-        )
-        values.append(accessibility_penalty(cache.prime(sequence)))
-    return values
+    if session is None or session.temperature_c != temperature_c:
+        session = FoldSession(temperature_c)
+    return session.evaluate(sequences)
 
 
 def detail(value: float) -> dict[str, dict[str, Any]]:

@@ -1,0 +1,1153 @@
+{
+  "seed": 7,
+  "host": "escherichia_coli:511145/BL21",
+  "suite": "sweep",
+  "timeout_s": 240,
+  "rows": [
+    {
+      "name": "rpoB CAI empty",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "rpoB CAI empty",
+        "gene": "rpoB",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": null,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.318,
+      "peak_rss_kb": 46164,
+      "nt": 4029,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        1.0
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "lacZ CAI empty",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "lacZ CAI empty",
+        "gene": "lacZ",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": null,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.252,
+      "peak_rss_kb": 45772,
+      "nt": 3075,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        1.0
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "yeeJ CAI empty",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "yeeJ CAI empty",
+        "gene": "yeeJ",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": null,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.549,
+      "peak_rss_kb": 48420,
+      "nt": 7077,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        1.0
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "aceB CAI ribosomal AGG",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "aceB CAI ribosomal AGG",
+        "gene": "aceB",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": null,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.137,
+      "peak_rss_kb": 45364,
+      "nt": 1602,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        1.0
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "thrA CAI ribosomal AGG",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "thrA CAI ribosomal AGG",
+        "gene": "thrA",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": null,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.21,
+      "peak_rss_kb": 45512,
+      "nt": 2463,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        1.0
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "yagF CAI assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "yagF CAI assembly",
+        "gene": "yagF",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.556,
+      "peak_rss_kb": 46344,
+      "nt": 1968,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9286425884184984
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "waaS CAI assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "waaS CAI assembly",
+        "gene": "waaS",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.203,
+      "peak_rss_kb": 45292,
+      "nt": 936,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9173459052341191
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "elp CAI assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "elp CAI assembly",
+        "gene": "elp",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.147,
+      "peak_rss_kb": 44788,
+      "nt": 306,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.43802555520567116
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "yeeJ CAI assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "yeeJ CAI assembly",
+        "gene": "yeeJ",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 21.202,
+      "peak_rss_kb": 52236,
+      "nt": 7077,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9580065306093907
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "rpoB CAI assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "rpoB CAI assembly",
+        "gene": "rpoB",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 5.275,
+      "peak_rss_kb": 50108,
+      "nt": 4029,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9798209521813181
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "rpoB CAI Golden Gate",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "rpoB CAI Golden Gate",
+        "gene": "rpoB",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "examples/golden_gate.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.319,
+      "peak_rss_kb": 46028,
+      "nt": 4029,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        0.999709780691428
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "rpoB CAI BioBrick",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "rpoB CAI BioBrick",
+        "gene": "rpoB",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "examples/biobrick_rfc10.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.323,
+      "peak_rss_kb": 45964,
+      "nt": 4029,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        0.9930619119141477
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "waaS CAI+burden assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "waaS CAI+burden assembly",
+        "gene": "waaS",
+        "objectives": [
+          "usage.cai",
+          "burden.growth_cost"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.291,
+      "peak_rss_kb": 45820,
+      "nt": 936,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9173459052341191,
+        0.5636056357592945
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 2
+    },
+    {
+      "name": "rpoB CAI+burden empty",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "rpoB CAI+burden empty",
+        "gene": "rpoB",
+        "objectives": [
+          "usage.cai",
+          "burden.growth_cost"
+        ],
+        "constraints": null,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.691,
+      "peak_rss_kb": 46264,
+      "nt": 4029,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        1.0,
+        0.6171608892818251
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 2
+    },
+    {
+      "name": "aceB CAI+burden empty",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "aceB CAI+burden empty",
+        "gene": "aceB",
+        "objectives": [
+          "usage.cai",
+          "burden.growth_cost"
+        ],
+        "constraints": null,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.274,
+      "peak_rss_kb": 45304,
+      "nt": 1602,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013"
+      ],
+      "vector": [
+        0.9530633221854043,
+        0.510773980693139
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 2
+    },
+    {
+      "name": "rpsL CAI+structure assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "rpsL CAI+structure assembly",
+        "gene": "rpsL",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 2,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.301,
+      "peak_rss_kb": 44908,
+      "nt": 375,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-ORCH-007",
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.985816320550702,
+        2.6050213909252715
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 11,
+      "folds": {
+        "hits": 12,
+        "full_folds": 3,
+        "local_edits": 10
+      }
+    },
+    {
+      "name": "waaS CAI+structure assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "waaS CAI+structure assembly",
+        "gene": "waaS",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 2,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 1.419,
+      "peak_rss_kb": 45308,
+      "nt": 936,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-ORCH-007",
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9096294894349499,
+        1.7845726655476362
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 11,
+      "folds": {
+        "hits": 14,
+        "full_folds": 2,
+        "local_edits": 16
+      }
+    },
+    {
+      "name": "elp CAI+structure assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "elp CAI+structure assembly",
+        "gene": "elp",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 2,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.694,
+      "peak_rss_kb": 44916,
+      "nt": 306,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.4236181040759199,
+        3.3760051578497814
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 7,
+      "folds": {
+        "hits": 16,
+        "full_folds": 6,
+        "local_edits": 2
+      }
+    },
+    {
+      "name": "lacZ CAI+structure assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "lacZ CAI+structure assembly",
+        "gene": "lacZ",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 2,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 2.837,
+      "peak_rss_kb": 47660,
+      "nt": 3075,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-ORCH-007",
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9497890800680886,
+        2.7181800037278987
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 11,
+      "folds": {
+        "hits": 15,
+        "full_folds": 1,
+        "local_edits": 18
+      }
+    },
+    {
+      "name": "yeeJ CAI+structure assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "yeeJ CAI+structure assembly",
+        "gene": "yeeJ",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 2,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 24.124,
+      "peak_rss_kb": 52876,
+      "nt": 7077,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-ORCH-007",
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9575892496987667,
+        2.408954059933615
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 11,
+      "folds": {
+        "hits": 12,
+        "full_folds": 1,
+        "local_edits": 21
+      }
+    },
+    {
+      "name": "waaS CAI+structure+burden assembly",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "waaS CAI+structure+burden assembly",
+        "gene": "waaS",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility",
+          "burden.growth_cost"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 2,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 1.514,
+      "peak_rss_kb": 45948,
+      "nt": 936,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        }
+      ],
+      "warnings": [
+        "CF-ORCH-007",
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.891956903669499,
+        1.8545678613925074,
+        0.5053706556429933
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 12,
+      "folds": {
+        "hits": 14,
+        "full_folds": 3,
+        "local_edits": 14
+      }
+    },
+    {
+      "name": "operon rpsL+waaS",
+      "kind": "operon",
+      "spec": {
+        "kind": "operon",
+        "name": "operon rpsL+waaS",
+        "genes": [
+          "rpsL",
+          "waaS"
+        ],
+        "fluxes": [
+          1.0,
+          2.0
+        ],
+        "passes": 2,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 0.339,
+      "peak_rss_kb": 45224,
+      "nt": [
+        375,
+        936
+      ],
+      "joint_growth_cost": 0.4475618327684962,
+      "independent_joint_growth_cost": 0.4584846194816299,
+      "solo_growth_costs": [
+        0.8187455033323593,
+        0.46421555515883717
+      ],
+      "swaps_per_pass": [
+        22,
+        0
+      ],
+      "protein_identical": [
+        true,
+        true
+      ],
+      "cistron_states": [
+        "succeeded",
+        "succeeded"
+      ]
+    },
+    {
+      "name": "operon lacZ+thrA",
+      "kind": "operon",
+      "spec": {
+        "kind": "operon",
+        "name": "operon lacZ+thrA",
+        "genes": [
+          "lacZ",
+          "thrA"
+        ],
+        "fluxes": [
+          1.0,
+          2.0
+        ],
+        "passes": 2,
+        "generations": 0,
+        "budget": "fast"
+      },
+      "state": "succeeded",
+      "wall_s": 1.632,
+      "peak_rss_kb": 46052,
+      "nt": [
+        3075,
+        2463
+      ],
+      "joint_growth_cost": 0.4452346719259927,
+      "independent_joint_growth_cost": 0.44624741037874815,
+      "solo_growth_costs": [
+        0.47162134721934534,
+        0.4470312524788016
+      ],
+      "swaps_per_pass": [
+        26,
+        0
+      ],
+      "protein_identical": [
+        true,
+        true
+      ],
+      "cistron_states": [
+        "succeeded",
+        "succeeded"
+      ]
+    },
+    {
+      "name": "primers yeeJ CDS flanks",
+      "kind": "primer",
+      "spec": {
+        "kind": "primer",
+        "name": "primers yeeJ CDS flanks",
+        "gene": "yeeJ",
+        "synthetic_flanks": false
+      },
+      "state": "succeeded",
+      "wall_s": 0.158,
+      "peak_rss_kb": 47348,
+      "nt": 7077,
+      "template_nt": 7077,
+      "region_nt": 6477,
+      "flanks": "flanks are the same CDS",
+      "n_pairs": 20,
+      "survivors": 1600,
+      "truncated": true,
+      "product_size": 6843,
+      "tm_forward": 60.26095882395697,
+      "tm_reverse": 60.26136472809145,
+      "hetero_dimer_dG": -1.283850000000001,
+      "refused": false
+    },
+    {
+      "name": "primers rpoB CDS flanks",
+      "kind": "primer",
+      "spec": {
+        "kind": "primer",
+        "name": "primers rpoB CDS flanks",
+        "gene": "rpoB",
+        "synthetic_flanks": false
+      },
+      "state": "succeeded",
+      "wall_s": 0.146,
+      "peak_rss_kb": 45580,
+      "nt": 4029,
+      "template_nt": 4029,
+      "region_nt": 3429,
+      "flanks": "flanks are the same CDS",
+      "n_pairs": 20,
+      "survivors": 1600,
+      "truncated": true,
+      "product_size": 3908,
+      "tm_forward": 61.63399783480247,
+      "tm_reverse": 61.63619009859656,
+      "hetero_dimer_dG": -3.387435,
+      "refused": false
+    },
+    {
+      "name": "primers yeeJ synthetic flanks",
+      "kind": "primer",
+      "spec": {
+        "kind": "primer",
+        "name": "primers yeeJ synthetic flanks",
+        "gene": "yeeJ",
+        "synthetic_flanks": true
+      },
+      "state": "succeeded",
+      "wall_s": 0.112,
+      "peak_rss_kb": 52812,
+      "nt": 7077,
+      "template_nt": 7677,
+      "region_nt": 7077,
+      "flanks": "synthetic ACGT repeat, not a biological flank",
+      "n_pairs": 20,
+      "survivors": 1600,
+      "truncated": true,
+      "product_size": 7395,
+      "tm_forward": 66.4851147662227,
+      "tm_reverse": 66.4851147662227,
+      "hetero_dimer_dG": -20.754845000000046,
+      "refused": true
+    }
+  ]
+}

@@ -1,10 +1,13 @@
 # Project status
 
-Canonical status for the DNA Design Suite at `v2.9.0`. Older notes in
+Canonical status for the DNA Design Suite at `v2.9.1`. Older notes in
 `docs/igem-submission.md` and `CHANGELOG.md` keep the history of how each
-release got here. The CAI gate claim is the one recorded for `v2.4.2`. The
-v2.6.0 fronts are in `docs/benchmarks/v2.6.0-phase2.md`. The package version
-stays 0.1.0. `python -m codonforge.cli.main --version` prints 0.1.0.
+release got here. The CAI gate claim is the one in `benchmarks/corpus/gates.json`.
+The v2.6.0 fronts are in `docs/benchmarks/v2.6.0-phase2.md`. The v2.9.1
+re-measurement is in `docs/benchmarks/v2.9.1-validation.md`. The
+challenging-sequence timings are in
+`docs/benchmarks/v2.9.1-challenging-perf.md`. The package
+version stays 0.1.0. `python -m codonforge.cli.main --version` prints 0.1.0.
 
 ## Shipped and working
 
@@ -80,21 +83,19 @@ seed 7) is in `benchmarks/corpus/cai_only.json`.
 
 `GATE-BEN-001` is claimed with this scope, and only this scope:
 
-> CAI-only front, 48 of 50 E. coli K-12 proteins (aceB and thrA excluded, see degenerate_cases), cai_greedy baseline, CodonForge meets or exceeds baseline on all 48.
+> CAI-only front, 50 of 50 E. coli K-12 proteins, cai_greedy baseline, CodonForge meets or exceeds baseline on all 50.
 
-The 48 scores are the 4-generation run. Equality counts as meeting
-`cai_greedy`. `check_cai_gate` checks the claim against those rows.
-`benchmarks/corpus/gates.json` has `claimed: true` and `n_claimed: 48`.
+The 50 scores are the 4-generation run (budget `fast`, seed 7). Equality
+counts as meeting `cai_greedy`. `check_cai_gate` checks the claim against
+those rows. `benchmarks/corpus/gates.json` has `claimed: true` and
+`n_claimed: 50`.
 
-`aceB` (`NP_418438.1`) and `thrA` (`NP_414543.1`) are excluded. They contain
-`AGG` codons with weight 0 in the ribosomal-protein training corpus.
-`usage.cai` is identically 0 for any candidate retaining an `AGG` codon. The
-greedy baseline wins by construction on a flat-zero objective regardless of
-search budget. A further run at budget `fast`, 20 generations, stagnation
-window 21, seed 7, still ran 20 generations, still scored 0 against
-`cai_greedy` 1, and still left in-frame `AGG` (aceB designed codons 80, 136,
-321, 454, 497, 502, 508; thrA designed codons 243, 406, 421, 538, 680, 731,
-755, 792).
+`aceB` (`NP_418438.1`) and `thrA` (`NP_414543.1`) contain `AGG`. That codon
+has weight 0 in the ribosomal-protein table, so `usage.cai` is 0 while any
+counted `AGG` remains. The v2.4.2 search left those codons in and scored 0.
+`DEP-SRCH-020` changes the search linearization. On this record both designs
+score 1.0, equal to `cai_greedy`, and neither designed CDS contains in-frame
+`AGG`. The reported CAI definition is unchanged.
 
 ## Not claimed
 

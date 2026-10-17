@@ -88,8 +88,8 @@ ASF(f; λ, z*, z^nad) = max_m [ λ_m · (f_m − z*_m) / (z^nad_m − z*_m) ]
 
 `ASF` is not additive over positions, so it cannot drive a chain DP directly. Tier 2 therefore uses a two-step accept:
 
-1. **Linearize.** At the incumbent, the active `max` term identifies a weight vector; take the weighted-sum linearization `Σ_m w_m f_m` with `w` from the active term plus the `ρ` augmentation. This *is* additive, so the DP works.
-2. **Accept on the truth.** Evaluate the true `ASF` of the block proposal; accept it only if it does not worsen. Because the incumbent is in the beam, "do nothing" is always available, so acceptance is always possible.
+1. **Linearize.** At the incumbent, the active `max` term identifies a weight vector; take the weighted-sum linearization `Σ_m w_m f_m` with `w` from the active term plus the `ρ` augmentation. This *is* additive, so the DP works. For `usage.cai`, that linearization is the arithmetic score delta only while every counted weight is positive. `DEP-SRCH-020`: if any counted weight is 0, the arithmetic delta of every single-codon move is 0 until the last zero is gone, so the DP instead adds the change in the sum of log-weights, with a zero weight mapped below every positive log. The reported geometric mean is unchanged.
+2. **Accept on the truth.** Evaluate the true `ASF` of the block proposal; accept it only if it does not worsen. Because the incumbent is in the beam, "do nothing" is always available, so acceptance is always possible. On a CAI-only job a block that removes some but not all zero-weight codons does not change the reported CAI, and the comparison accepts it. A second objective can still reject that block when the reported scalar gets worse.
 
 Monotonicity therefore holds in the *true* scalarized objective, not merely in the linearization.
 

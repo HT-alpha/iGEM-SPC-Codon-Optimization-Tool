@@ -1,7 +1,7 @@
 """The 50-protein panel. `DEP-BEN-002`.
 
-`GATE-BEN-001` is claimed only as the CAI-only comparison of 48 proteins.
-`aceB` and `thrA` stay out: a 20-generation search still leaves `AGG`.
+`GATE-BEN-001` is claimed as the CAI-only comparison of all 50 proteins.
+`aceB` and `thrA` meet `cai_greedy` at the gate budget (`DEP-SRCH-020`).
 The MFE comparison is not this claim. A CDS whose header is not
 NC_000913.3 is refused.
 """
@@ -14,9 +14,11 @@ from pathlib import Path
 
 import pytest
 
+from codonforge import _core
 from codonforge.bench.baselines import cai_greedy
 from codonforge.bench.corpus import (
     BenchError,
+    cai_gate_document,
     check_cai_gate,
     load_panel,
     ribosomal_usage,
@@ -84,29 +86,17 @@ def test_a_sequence_without_the_accession_is_refused(tmp_path: Path) -> None:
 
 
 def test_the_cai_only_gate_is_the_file_that_was_run() -> None:
-    """The committed claim covers only proteins whose recorded scores support it."""
+    """The committed claim is the document the rows support, and only that."""
     root = Path(__file__).resolve().parents[2] / "benchmarks" / "corpus"
     rows = json.loads((root / "cai_only.json").read_text(encoding="utf-8"))
     gates = json.loads((root / "gates.json").read_text(encoding="utf-8"))
-    assert len(rows) == 50
-    assert gates[0]["definition"] == "cai_only"
-    assert gates[0]["claimed"] is True
-    assert gates[0]["n_claimed"] == 48
-    assert gates[0]["degenerate_cases"]["excluded"] == ["aceB", "thrA"]
-    assert gates[0]["claim"] == (
-        "CAI-only front, 48 of 50 E. coli K-12 proteins (aceB and thrA excluded, "
-        "see degenerate_cases), cai_greedy baseline, CodonForge meets or exceeds "
-        "baseline on all 48."
-    )
-    assert gates[0]["degenerate_cases"]["explanation"] == (
-        "aceB (NP_418438.1) and thrA (NP_414543.1) contain AGG codons with weight 0 "
-        "in the ribosomal-protein training corpus. usage.cai is identically 0 for any "
-        "candidate retaining an AGG codon. The greedy baseline wins by construction on "
-        "a flat-zero objective regardless of search budget. These proteins are excluded "
-        "from the gate claim."
-    )
-    check_cai_gate(gates[0], rows)
     panel = load_panel()
+    assert len(rows) == 50
+    assert gates == [cai_gate_document(rows, selected_cds_sha256=panel["selected_cds_sha256"])]
+    assert gates[0]["claimed"] is True
+    assert gates[0]["n_claimed"] == 50
+    assert gates[0]["degenerate_cases"]["excluded"] == []
+    check_cai_gate(gates[0], rows)
     usage = ribosomal_usage()
     genes = {gene["gene"]: gene for gene in select_genes(panel)}
     profile = {
@@ -138,20 +128,18 @@ def test_the_cai_only_gate_is_the_file_that_was_run() -> None:
         scored = score_sequences(request, [cds, cai_greedy(cds, 11, usage)])
         assert scored[0]["usage.cai"] == pytest.approx(recorded["native_cai"])
         assert scored[1]["usage.cai"] == pytest.approx(recorded["cai_greedy_cai"])
-        assert recorded["codonforge_cai"] == 0.0
+        assert recorded["codonforge_cai"] == 1.0
         assert recorded["cai_greedy_cai"] == 1.0
 
 
-def test_twenty_generations_still_leave_agg_on_aceb_and_thra(tmp_path: Path) -> None:
-    """The exclusion is a measured 20-generation run, not a number typed into the file."""
-    root = Path(__file__).resolve().parents[2] / "benchmarks" / "corpus"
-    budget = json.loads((root / "gates.json").read_text(encoding="utf-8"))[0]["degenerate_cases"][
-        "longer_budget"
-    ]
-    assert budget["generations"] == 20
-    assert budget["stagnation_window"] == 21
-    assert budget["seed"] == 7
-    recorded = {row["gene"]: row for row in budget["results"]}
+def test_aceb_and_thra_meet_cai_greedy_at_the_gate_budget(tmp_path: Path) -> None:
+    """The flat arithmetic delta used to leave in-frame AGG and CAI 0.
+
+    The gate budget is fast, 4 generations, seed 7. A 20-generation run of the
+    old linearization still scored 0. This is the same two proteins, and the
+    assertion is the one the gate uses: CodonForge at least `cai_greedy`, and
+    the protein unchanged.
+    """
     panel = load_panel()
     genes = {gene["gene"]: gene for gene in select_genes(panel)}
     usage = ribosomal_usage()
@@ -164,6 +152,7 @@ def test_twenty_generations_still_leave_agg_on_aceb_and_thra(tmp_path: Path) -> 
     store = ArtifactStore(tmp_path / "store")
     for name in ("aceB", "thrA"):
         cds = genes[name]["cds"]
+        greedy = cai_greedy(cds, 11, usage)
         request = DesignRequest(
             host="escherichia_coli:511145/MG1655",
             cds=cds,
@@ -177,33 +166,50 @@ def test_twenty_generations_still_leave_agg_on_aceb_and_thra(tmp_path: Path) -> 
             translation_table=11,
             budget="fast",
             seed=7,
-            generations=20,
+            generations=4,
             stagnation_window=21,
             segment=2,
             host_digest="sha256:" + "ab" * 32,
         )
         result = design(request, store)
         designed = result.front["candidates"][0]["sequences"][0]["cds"]
+        scored = score_sequences(request, [designed, greedy])
         agg = [
             index // 3
             for index in range(0, len(designed), 3)
             if designed[index : index + 3] == "AGG"
         ]
         assert result.job.state == "succeeded"
-        assert result.job.generations_run == 20
-        assert result.front["candidates"][0]["objective_vector"][0] == 0.0
-        assert agg == recorded[name]["in_frame_agg_designed"]
-        assert agg
+        assert agg == []
+        assert _core.translate(designed, 11) == _core.translate(cds, 11)
+        assert scored[0]["usage.cai"] + 1e-12 >= scored[1]["usage.cai"]
+        assert result.front["candidates"][0]["objective_vector"][0] == scored[0]["usage.cai"]
 
 
-def test_claiming_all_fifty_while_aceb_and_thra_underperform_is_refused() -> None:
+def test_a_below_greedy_score_on_a_claimed_protein_is_refused() -> None:
+    """Injecting the old aceB score of 0 must make the 50-protein claim fail."""
     root = Path(__file__).resolve().parents[2] / "benchmarks" / "corpus"
     rows = json.loads((root / "cai_only.json").read_text(encoding="utf-8"))
     gate = json.loads((root / "gates.json").read_text(encoding="utf-8"))[0]
-    gate["claim"] = "CAI-only front, 50 of 50 E. coli K-12 proteins, cai_greedy baseline."
-    gate["n_claimed"] = 50
-    gate["degenerate_cases"] = {"excluded": []}
+    for row in rows:
+        if row["gene"] == "aceB":
+            row["codonforge_cai"] = 0.0
     with pytest.raises(BenchError, match="underperform"):
+        check_cai_gate(gate, rows)
+
+
+def test_excluding_a_protein_that_meets_cai_greedy_is_refused() -> None:
+    root = Path(__file__).resolve().parents[2] / "benchmarks" / "corpus"
+    rows = json.loads((root / "cai_only.json").read_text(encoding="utf-8"))
+    gate = json.loads((root / "gates.json").read_text(encoding="utf-8"))[0]
+    gate["n_claimed"] = 49
+    gate["claim"] = (
+        "CAI-only front, 49 of 50 E. coli K-12 proteins (aceB excluded, "
+        "see degenerate_cases), cai_greedy baseline, CodonForge meets or exceeds "
+        "baseline on all 49."
+    )
+    gate["degenerate_cases"] = {"excluded": ["aceB"]}
+    with pytest.raises(BenchError, match="excluded proteins that meet"):
         check_cai_gate(gate, rows)
 
 
