@@ -5,9 +5,10 @@
 //! and is not scored here.
 //!
 //! The delta recomputes only the positions inside the fitted window of an
-//! edit (`mean_log_probability_delta`). A full rescore is the check, not the
-//! implementation: the two have to agree, and the window sum is what tier 1
-//! can afford.
+//! edit (`mean_log_probability_delta`). The codon buffer is updated in place
+//! for that window and restored; it is not cloned per synonym. A full rescore
+//! is the check, not the implementation: the two have to agree, and the window
+//! sum is what tier 1 can afford.
 
 use cf_landscape_api::{
     Capability, Edit, EvalContext, InteractionRadius, PositionDeltas, Provenance, Rebased,
@@ -15,7 +16,7 @@ use cf_landscape_api::{
 };
 use cf_types::{code, ArtifactId, CfError, Codon, Digest, Direction, Result, TermId, Unit};
 
-use crate::potts::{mean_log_probability, mean_log_probability_delta, PottsModel};
+use crate::potts::{mean_log_probability, PottsField, PottsModel};
 
 /// Ranked context naturalness. Maximize. L1.
 #[derive(Clone, Debug)]
@@ -114,43 +115,26 @@ impl TermProvider for ContextNaturalnessTerm {
 
     fn delta(&self, ctx: &EvalContext<'_>, base: &Rebased, edits: &[Edit]) -> Result<f64> {
         let _ = base;
-        let table = ctx.sequence.table();
         let mut codons = self.codons_of(ctx.sequence);
-        let before = codons.clone();
-        for edit in edits {
-            if edit.codon_index >= codons.len() {
-                return Err(CfError::new(
-                    code::SEQ_INDEX_OUT_OF_RANGE,
-                    format!("codon {} is outside the sequence", edit.codon_index),
-                ));
-            }
-            let old = Codon::from_index(codons[edit.codon_index])?;
-            if table.amino_acid(old) != table.amino_acid(edit.codon) {
-                return Err(CfError::new(
-                    code::SEQ_NOT_SYNONYMOUS,
-                    format!("{old} and {} do not encode the same amino acid", edit.codon),
-                ));
-            }
-            codons[edit.codon_index] = edit.codon.index();
-        }
-        mean_log_probability_delta(&before, &codons, &self.model).map_err(|detail| {
-            CfError::new(
-                code::LAND_TERM_UNKNOWN,
-                format!("epistasis.context_naturalness delta failed: {detail}"),
-            )
-        })
+        let applied = applied_edits(ctx, &codons, edits)?;
+        let field = PottsField::bind(&self.model, &codons).map_err(naturalness_delta_error)?;
+        field
+            .delta(&mut codons, &applied)
+            .map_err(naturalness_delta_error)
     }
 
     fn delta_table(
         &self,
         ctx: &EvalContext<'_>,
-        base: &Rebased,
+        _base: &Rebased,
         positions: &[usize],
     ) -> Result<Vec<PositionDeltas>> {
+        let mut codons = self.codons_of(ctx.sequence);
+        let field = PottsField::bind(&self.model, &codons).map_err(naturalness_delta_error)?;
         positions
             .iter()
             .map(|&index| {
-                if index >= ctx.sequence.codon_count() {
+                if index >= codons.len() {
                     return Err(CfError::new(
                         code::SEQ_INDEX_OUT_OF_RANGE,
                         format!("codon {index} is outside the sequence"),
@@ -164,8 +148,10 @@ impl TermProvider for ContextNaturalnessTerm {
                     .copied()
                     .filter(|codon| *codon != current)
                     .map(|codon| {
-                        self.delta(ctx, base, &[Edit::new(index, codon)])
-                            .map(|change| (codon, change))
+                        let change = field
+                            .delta(&mut codons, &[(index, codon.index())])
+                            .map_err(naturalness_delta_error)?;
+                        Ok((codon, change))
                     })
                     .collect::<Result<Vec<_>>>()?;
                 Ok(PositionDeltas {
@@ -175,4 +161,33 @@ impl TermProvider for ContextNaturalnessTerm {
             })
             .collect()
     }
+}
+
+fn applied_edits(ctx: &EvalContext<'_>, codons: &[u8], edits: &[Edit]) -> Result<Vec<(usize, u8)>> {
+    let table = ctx.sequence.table();
+    let mut applied = Vec::with_capacity(edits.len());
+    for edit in edits {
+        if edit.codon_index >= codons.len() {
+            return Err(CfError::new(
+                code::SEQ_INDEX_OUT_OF_RANGE,
+                format!("codon {} is outside the sequence", edit.codon_index),
+            ));
+        }
+        let old = Codon::from_index(codons[edit.codon_index])?;
+        if table.amino_acid(old) != table.amino_acid(edit.codon) {
+            return Err(CfError::new(
+                code::SEQ_NOT_SYNONYMOUS,
+                format!("{old} and {} do not encode the same amino acid", edit.codon),
+            ));
+        }
+        applied.push((edit.codon_index, edit.codon.index()));
+    }
+    Ok(applied)
+}
+
+fn naturalness_delta_error(detail: String) -> CfError {
+    CfError::new(
+        code::LAND_TERM_UNKNOWN,
+        format!("epistasis.context_naturalness delta failed: {detail}"),
+    )
 }
