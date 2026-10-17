@@ -103,6 +103,7 @@ def candidate(
     generation_found: int | None = None,
     objective_detail: dict[str, dict[str, Any]] | None = None,
     unknown_terms: list[str] | None = None,
+    rationale: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """One front entry.
 
@@ -140,4 +141,6 @@ def candidate(
     # and "the writer forgot" indistinguishable, which is the ambiguity this
     # field exists to remove rather than relocate.
     entry["unknown_terms"] = list(unknown_terms or [])
+    if rationale:
+        entry["rationale"] = rationale
     return entry

@@ -40,6 +40,8 @@
           <button type="button" id="load-demo">Load the rpsL demo</button>
           <label class="file-label" for="cds-file">Upload FASTA or text<input id="cds-file" type="file" accept=".fa,.fasta,.fna,.ffn,.txt,.cds,text/plain"></label>
         </div>
+        <label class="check"><input id="trim-stop" type="checkbox"> Trim at the first in-frame stop</label>
+        <p class="field-help">Off unless you tick it. Standard-code stops are TAA, TAG and TGA. An iGEM part that ends TAATAA, such as untrimmed BBa_E0040 (720 bp), keeps the first stop and drops the second (717 bp). With the box off, that part is still refused as CF-SEQ-003.</p>
         <p id="cds-note" class="note" aria-live="polite">No sequence yet. The rpsL demo is the E. coli K-12 MG1655 gene rpsL, 125 codons.</p>
       </div>
     </div>
@@ -70,9 +72,10 @@
       <div class="v">
         <div class="seq-actions">
           <button type="button" id="load-profile">Use E. coli MG1655 ribosomal proteins</button>
+          <button type="button" id="load-kazusa" class="secondary">Use Kazusa E. coli genome-wide</button>
           <label class="file-label" for="profile-file">Upload a usage JSON<input id="profile-file" type="file" accept=".json,application/json"></label>
         </div>
-        <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. A codon that highly expressed genes use often scores higher. The button loads <span class="mono">examples/mg1655_ribosomal_usage.json</span>, counted from ribosomal-protein genes and labelled user-supplied. The page loads it for you when it opens.</p>
+        <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. 1.0 means every counted codon is a top synonym of the table that was loaded. Stops and single-codon families are excluded. A codon whose weight is 0 makes the whole CAI 0. The first button loads <span class="mono">examples/mg1655_ribosomal_usage.json</span>, counted from ribosomal-protein genes and labelled user-supplied. The page loads it when it opens. Kazusa (taxid 316407) is genome-wide frequencies converted to relative adaptiveness. Loading it replaces the table the search uses, so the result is a different number, not a second column on the ribosomal score. A finished design also reports the Kazusa number beside the table it optimized.</p>
         <p id="profile-note" class="note" aria-live="polite">No codon table loaded yet.</p>
       </div>
     </div>
@@ -89,7 +92,13 @@
           <option value="builder">Rules I tick below</option>
           <option value="json">JSON I paste</option>
         </select>
-        <p id="help-constraints" class="field-help">Constraints are hard limits, separate from scores. Leave this on “No extra rules” for a first run. The rpsL example file is shipped as <span class="mono">examples/rpsL_constraints.json</span> and adds no motif rules.</p>
+        <p id="help-constraints" class="field-help">Constraints are hard limits, separate from scores. Leave this on “No extra rules” for a first run. The rpsL example file, <span class="mono">examples/rpsL_constraints.json</span>, is named as an empty demonstration set: its list is empty, so it checks nothing.</p>
+        <div class="seq-actions" id="constraint-presets">
+          <button type="button" class="secondary" data-preset="biobrick_rfc10.json">BioBrick RFC[10]</button>
+          <button type="button" class="secondary" data-preset="golden_gate.json">Golden Gate</button>
+          <button type="button" class="secondary" data-preset="synthesis.json">Synthesis</button>
+        </div>
+        <p class="field-help">Each button loads that preset into the JSON box and sends it. BioBrick RFC[10] forbids EcoRI, XbaI, SpeI, PstI and NotI. Golden Gate forbids BsaI and BsmBI. Synthesis forbids a 50 nt GC window outside 40–60%, a homopolymer longer than 6, and a repeated 12-mer. A rule this version does not search is reported as CF-FEAS-008 rather than treated as satisfied.</p>
         <div id="constraint-builder" hidden>
           <fieldset>
             <legend>Common synthesis and cloning limits</legend>
@@ -236,7 +245,7 @@
   <h2>Sequence</h2>
   <label for="primer-sequence">Template DNA</label>
   <textarea id="primer-sequence" class="seq" rows="4" spellcheck="false" placeholder="ACGT..." aria-describedby="help-primer-seq"></textarea>
-  <p id="help-primer-seq" class="field-help">Paste the DNA you will amplify, upload is the same box: the letters are the template. Then drag across the letters, or type a start and end. On a phone, Select the whole sequence is the sure path.</p>
+  <p id="help-primer-seq" class="field-help">Paste the DNA you will amplify. A FASTA header (a line starting with &gt; or ;) is dropped before numbering, the same way the API drops it, so the header does not shift the region. Lowercase is read as uppercase. A letter that is not A, C, G or T is named with its position and the search does not run. Then drag across the letters, or type a start and end. On a phone, Select the whole sequence is the sure path.</p>
   <div class="viewer-layout">
     <div>
       <div id="primer-viewer" class="seq-block viewer" tabindex="0" role="application" aria-label="Sequence viewer. Drag across bases to choose the region to amplify, or type the start and end."></div>

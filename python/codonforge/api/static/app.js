@@ -87,7 +87,9 @@ const NEXT_STEP = {
   "CF-FEAS-005": "No synonymous coding sequence can land inside that GC window. Widen the minimum and maximum, or lengthen the window.",
   "CF-FEAS-006": "A constraint was not understood. Use the tick boxes, or paste a file that matches the example.",
   "CF-SRCH-001": "One edit operator is not available in this version, so the search used the others. The design is still real. This is a notice, not a failed job.",
-  "CF-SRCH-006": "No codon assignment satisfies the constraints. Remove a rule, or check that you pasted the coding sequence in frame.",
+  "CF-SRCH-006": "No synonymous sequence satisfied the hard constraints. The detail names the rules that remain. Widen a GC window, raise a repeat allowance, or drop a site, motif, or pattern the codons cannot avoid.",
+  "CF-SRCH-017": "The first pass cannot carry a GC window or a scattered repeat. A repair step built a sequence that satisfies the rules it can check, and the later stages started from that sequence.",
+  "CF-FEAS-008": "That rule is not searched in this version, so the design does not treat it as satisfied. local_structure needs the Phase 2 structure engine. min_codon_frequency is not enforced.",
   "CF-SRCH-010": "Local mRNA structure cannot be updated inside one of the search stages, so that stage did not use it. Where the score was not computed, the result says UNKNOWN. UNKNOWN is not zero.",
   "CF-STRU-003": "No RNA folding program is installed on the computer running this server. CodonForge does not include one. Install ViennaRNA if you need the structure score. CAI does not need it.",
   "CF-ORCH-002": "The generation budget ran out before every stage finished. The sequence is from the stages that did finish. Raise generations under Advanced if you want the population stage to run longer.",
@@ -96,7 +98,7 @@ const NEXT_STEP = {
   "CF-PRIM-001": "No primer pair passed the filters. Select a longer region, widen the product-size range, or move the melting-temperature target.",
   "CF-PRIM-002": "There is not enough sequence beside the region for a primer. Select a region further from the end, or paste a longer template.",
   "CF-PRIM-003": "The selected region does not sit inside the sequence. Select again, or use Select the whole sequence.",
-  "CF-PRIM-006": "The primer settings were not usable. Check that each minimum is smaller than its maximum.",
+  "CF-PRIM-006": "A letter in the template is not A, C, G or T, or a minimum is larger than its maximum. The detail names the base and its position in the header-stripped sequence. Lowercase bases are accepted.",
   "CF-PRIM-007": "Many primers were close to the melting-temperature target, so only the closest ones were checked for dimers. The pairs shown are those. This is a notice, not a failed search.",
 };
 
@@ -579,7 +581,7 @@ function resultSummary(front) {
     ${lengthNote}
     ${feasible}
     ${scores}
-    ${caiZeroNote(candidate, front)}
+    ${rationaleNotes(candidate)}
     <div class="seq-actions">
       <button type="button" data-export="fasta">Download FASTA</button>
       <button type="button" data-export="genbank">Download GenBank</button>
@@ -589,14 +591,13 @@ function resultSummary(front) {
   </section>`;
 }
 
-function caiZeroNote(candidate, front) {
-  const index = (front.objective_order || []).indexOf("usage.cai");
-  if (index < 0) return "";
-  const value = (candidate.objective_vector || [])[index];
-  if (value !== 0 && value !== 0.0) return "";
-  const weights = activeWeights();
-  if (!weights || weights.AGG !== 0) return "";
-  return `<p class="note">CAI is 0. In the codon table for this job, AGG has relative adaptiveness 0, and one AGG makes the whole index 0. The design still contains that codon, or another codon with weight 0.</p>`;
+function rationaleNotes(candidate) {
+  const annotations = (candidate.rationale && candidate.rationale.annotations) || [];
+  if (!annotations.length) return "";
+  const items = annotations
+    .map((annotation) => `<li><span class="mono">${escapeText(annotation.tag || "")}</span> ${escapeText(annotation.text || "")}</li>`)
+    .join("");
+  return `<div class="field-help"><p>Why this sequence.</p><ul>${items}</ul></div>`;
 }
 
 function recommendedIndex(front) {
@@ -902,7 +903,9 @@ function visibleWindow(sequence) {
 
 function drawViewer() {
   if (!viewer || !primerSequence) return;
-  const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+  const cleaned = cleanedTemplate(primerSequence.value);
+  const sequence = cleaned.sequence;
+  const templateProblem = primerTemplateProblem(cleaned);
   const windowed = visibleWindow(sequence);
   viewStart = windowed.start;
   const step = rulerStep(sequence.length);
@@ -914,6 +917,9 @@ function drawViewer() {
   }
   if (sequence.length > 10000) {
     html = `<p class="note">Showing ${windowed.start}–${windowed.start + windowed.text.length} of ${sequence.length}. <button type="button" id="viewer-back" data-jump="-2000">Back</button> <button type="button" id="viewer-forward" data-jump="2000">Forward</button></p>` + html;
+  }
+  if (templateProblem) {
+    html = `<p class="callout refusal">${escapeText(templateProblem)}</p>` + html;
   }
   viewer.innerHTML = html || `<span class="note">Paste a sequence.</span>`;
   applyHighlight();
@@ -1076,11 +1082,12 @@ function detailPanel(pair) {
       <button type="button" class="param-help" title="${escapeAttr(pair.parameter_citation || "")}">?</button></p>
     <p class="note">${escapeText(pair.parameter_set_id || "")} ${escapeText(pair.parameter_digest || "")}</p>
     <pre class="mono mono-reveal">${escapeText(pair.hairpin_diagram_forward || "")}</pre>
-    <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_forward)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_forward)} · 3′ clamp ${pair.gc_clamp_forward ? "G or C" : "not G or C"}</p>
+    <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_forward)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_forward)} · 3′ clamp, informational, not a filter: ${pair.gc_clamp_forward ? "G or C" : "not G or C"}</p>
     <p><strong>Reverse</strong> <span class="mono">${escapeText(pair.reverse_sequence)}</span></p>
     <pre class="mono mono-reveal">${escapeText(pair.hairpin_diagram_reverse || "")}</pre>
-    <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_reverse)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_reverse)} · 3′ clamp ${pair.gc_clamp_reverse ? "G or C" : "not G or C"}</p>
+    <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_reverse)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_reverse)} · 3′ clamp, informational, not a filter: ${pair.gc_clamp_reverse ? "G or C" : "not G or C"}</p>
     <p><strong>Pair</strong> hetero-dimer ΔG ${escapeText(pair.hetero_dimer_dG)} · 3′ ΔG ${escapeText(pair.hetero_dimer_3prime_dG)} · Tm mismatch ${escapeText(pair.tm_mismatch)} · product ${escapeText(pair.product_size)}</p>
+    <p class="note">Self-dimer and heterodimer ΔG use SantaLucia 1998 Table 2 Watson–Crick stacks only: no dangling ends and no mismatch stacks, so they are not primer3 calc_homodimer. Melting temperature is the same SantaLucia model and matches primer3-py at 1 M sodium.</p>
     <pre class="mono mono-reveal">${escapeText(pair.hetero_dimer_alignment || "")}</pre>
     <div class="flag-host">${flags || `<p class="zone-chip zone-green">No property is in the amber or red zone.</p>`}</div>
     <p class="note">Specificity against genome not checked.</p>
@@ -1193,7 +1200,13 @@ document.getElementById("primer-search").addEventListener("click", async () => {
     document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>No region selected.</strong> <span class="note">Drag across the sequence, type a start and end, or use Select the whole sequence.</span></div>`;
     return;
   }
-  const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+  const cleaned = cleanedTemplate(primerSequence.value);
+  const templateProblem = primerTemplateProblem(cleaned);
+  if (templateProblem) {
+    document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>${escapeText(templateProblem)}</strong></div>`;
+    return;
+  }
+  const sequence = cleaned.sequence;
   let posted;
   try {
     posted = await call("POST", "/v1/primers/candidates", {
@@ -1285,7 +1298,7 @@ function syncRegionFields() {
 
 function selectionFromFields() {
   if (!primerSequence) return;
-  const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+  const sequence = cleanedTemplate(primerSequence.value).sequence;
   const startBox = document.getElementById("region-start");
   const endBox = document.getElementById("region-end");
   const startBase = Number(startBox.value);
@@ -1296,6 +1309,43 @@ function selectionFromFields() {
   if (end <= start) return;
   selection = { start, end };
   applyHighlight();
+}
+
+function cleanedTemplate(raw) {
+  const lines = String(raw).replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n");
+  const kept = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith(">") || trimmed.startsWith(";")) continue;
+    kept.push(trimmed);
+  }
+  const sequence = kept.join("").toUpperCase().replaceAll(/\s+/g, "");
+  const illegal = [];
+  for (let index = 0; index < sequence.length; index += 1) {
+    const base = sequence[index];
+    if (!"ACGT".includes(base)) illegal.push({ base, position: index + 1 });
+  }
+  return { sequence, illegal };
+}
+
+function primerTemplateProblem(cleaned) {
+  if (!cleaned.illegal.length) return "";
+  const listed = cleaned.illegal
+    .slice(0, 4)
+    .map((item) => `base ${item.base} at position ${item.position}`)
+    .join(", ");
+  const more = cleaned.illegal.length > 4 ? `, and ${cleaned.illegal.length - 4} more` : "";
+  return `CF-PRIM-006 ${listed}${more} is not A, C, G or T.`;
+}
+
+function firstStopTrim(sequence) {
+  const stops = ["TAA", "TAG", "TGA"];
+  for (let index = 0; index + 3 <= sequence.length; index += 3) {
+    if (stops.includes(sequence.slice(index, index + 3))) {
+      return sequence.slice(0, index + 3);
+    }
+  }
+  return sequence;
 }
 
 function cleanedCds(raw) {
@@ -1323,6 +1373,15 @@ function cleanedCds(raw) {
   if (digits) {
     sequence = sequence.replaceAll(/[0-9]/g, "");
     notes.push("Removed position numbers.");
+  }
+  const trimBox = document.getElementById("trim-stop");
+  if (trimBox && trimBox.checked && sequence && sequence.length % 3 === 0 && !/[^ACGT]/.test(sequence)) {
+    const trimmed = firstStopTrim(sequence);
+    if (trimmed.length !== sequence.length) {
+      const codon = trimmed.length / 3 - 1;
+      notes.push(`Trimmed at the first in-frame stop (standard code): ${sequence.length} bases became ${trimmed.length}, through codon ${codon} inclusive.`);
+      sequence = trimmed;
+    }
   }
   const illegal = sequence.match(/[^ACGT]/g);
   return { sequence, notes, illegal: illegal ? [...new Set(illegal)] : [] };
@@ -1504,6 +1563,28 @@ function showConstraintMode() {
   syncRequest();
 }
 
+async function loadConstraintPreset(file) {
+  const response = await fetch(`/examples/${file}`);
+  if (!response.ok) throw new Error(`${file} could not be loaded.`);
+  const preset = await response.json();
+  document.getElementById("constraint-mode").value = "json";
+  const box = document.getElementById("constraint-json");
+  box.value = JSON.stringify(preset, null, 2);
+  box.readOnly = false;
+  showConstraintMode();
+}
+
+async function loadKazusaProfile() {
+  const response = await fetch("/examples/kazusa_e_coli_316407.json");
+  if (!response.ok) {
+    setProfileNote("The Kazusa table could not be loaded. Upload a codon-usage JSON instead.");
+    return;
+  }
+  loadedProfile = await response.json();
+  setProfileNote("Loaded examples/kazusa_e_coli_316407.json. Genome-wide E. coli frequencies (taxid 316407) converted to relative adaptiveness. This replaces the ribosomal table for this search. The result still names the table that was loaded.");
+  syncRequest();
+}
+
 async function loadExampleConstraints() {
   const response = await fetch("/examples/rpsL_constraints.json");
   if (!response.ok) throw new Error("The rpsL constraint file could not be loaded.");
@@ -1611,6 +1692,26 @@ function bindGuide() {
         submitError.innerHTML = `<div class="callout refusal"><strong>${escapeText(error.message)}</strong></div>`;
       });
   });
+  document.querySelectorAll("[data-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      loadConstraintPreset(button.dataset.preset).catch((error) => {
+        submitError.innerHTML = `<div class="callout refusal"><strong>${escapeText(error.message)}</strong></div>`;
+      });
+    });
+  });
+  const kazusa = document.getElementById("load-kazusa");
+  if (kazusa) {
+    kazusa.addEventListener("click", () => {
+      loadKazusaProfile().catch((error) => setProfileNote(error.message));
+    });
+  }
+  const trim = document.getElementById("trim-stop");
+  if (trim) {
+    trim.addEventListener("change", () => {
+      refreshSequenceNote();
+      syncRequest();
+    });
+  }
   ["constraint-bsai", "constraint-bsmbi", "constraint-homo", "constraint-gc", "constraint-homo-run", "constraint-gc-window", "constraint-gc-min", "constraint-gc-max", "constraint-json", "obj-cai", "obj-gc", "obj-violation", "obj-structure", "budget", "generations", "seed", "translation-table", "flank-5", "flank-3"].forEach((id) => {
     const node = document.getElementById(id);
     if (!node) return;
@@ -1638,7 +1739,7 @@ function bindGuide() {
       });
   });
   document.getElementById("select-all").addEventListener("click", () => {
-    const sequence = primerSequence.value.toUpperCase().replace(/[^ACGT]/g, "");
+    const sequence = cleanedTemplate(primerSequence.value).sequence;
     if (!sequence) {
       document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>Paste a template first.</strong> <span class="note">Or load the rpsL sequence.</span></div>`;
       return;

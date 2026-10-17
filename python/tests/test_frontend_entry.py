@@ -220,6 +220,51 @@ def base(tmp_path: Path):
     server.server_close()
 
 
+def test_the_page_names_the_same_illegal_base_as_the_api() -> None:
+    """cleanedTemplate is the page copy of clean_template.
+
+    The page keeps the illegal base on screen so the position is visible.
+    The API refuses it. Both number that base from the header-stripped sequence.
+    """
+    if NODE is None:
+        pytest.skip("node is not installed")
+    source = APP.read_text(encoding="utf-8")
+    start = source.index("function cleanedTemplate")
+    end = source.index("function cleanedCds")
+    script = source[start:end] + (
+        "const samples = ["
+        "  '>GFP demo\\natgc',"
+        "  '>GFP demo\\nATGNCCC',"
+        "  '  atg c  ',"
+        "];"
+        "const tail = 'ATG' + 'GCT'.repeat(237) + 'TAATAA';"
+        "console.log(JSON.stringify({"
+        "  cleaned: samples.map((item) => cleanedTemplate(item)),"
+        "  trimmed: firstStopTrim(tail).length,"
+        "  untrimmed: tail.length,"
+        "}));"
+    )
+    completed = subprocess.run(
+        [NODE, "-e", script], check=False, capture_output=True, text=True
+    )
+    assert completed.returncode == 0, completed.stderr
+    reported = json.loads(completed.stdout)
+    cleaned = reported["cleaned"]
+    assert cleaned[0] == {"sequence": "ATGC", "illegal": []}
+    assert cleaned[1]["sequence"] == "ATGNCCC"
+    assert cleaned[1]["illegal"] == [{"base": "N", "position": 4}]
+    assert cleaned[2] == {"sequence": "ATGC", "illegal": []}
+    assert reported["untrimmed"] == 720
+    assert reported["trimmed"] == 717
+    page = INDEX.read_text(encoding="utf-8")
+    assert 'id="trim-stop"' in page
+    assert "data-preset=\"biobrick_rfc10.json\"" in page
+    assert "data-preset=\"golden_gate.json\"" in page
+    assert "data-preset=\"synthesis.json\"" in page
+    assert "checks nothing" in page
+    assert "informational, not a filter" in APP.read_text(encoding="utf-8")
+
+
 def test_the_bundled_examples_are_the_files_on_disk(base: str) -> None:
     for path, (name, _kind) in _EXAMPLE_FILES.items():
         with urllib.request.urlopen(base + path) as response:
