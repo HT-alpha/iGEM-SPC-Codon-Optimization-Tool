@@ -22,6 +22,13 @@ SCHEMA = "1.0.0"
 # is not delayed for the sake of a poll.
 PROGRESS_GATE: Callable[[], None] | None = None
 
+# `product_sequence` is the amplicon, `template[forward_start:reverse_end]`.
+# A long CDS makes that string most of the response (yeeJ with 300 nt flanks
+# is 166429 bytes, of which the 20 amplicons are the bulk). The default
+# response omits it. `?product_sequence=1` on the job or pair GET puts it
+# back, unchanged. The page slices the template it already holds.
+_PRODUCT_ON = {"1", "true", "yes"}
+
 
 def _now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -72,6 +79,50 @@ def _problem(message: str) -> dict[str, Any]:
         "stage": "primer_evaluate",
         "subject": "primers",
     }
+
+
+def wants_product_sequence(query: str) -> bool:
+    """Whether a GET query asked for the amplicon string.
+
+    The default is off. Absent, empty, and `0` all omit `product_sequence`.
+    `1`, `true`, and `yes` include the string the search stored.
+    """
+    from urllib.parse import parse_qs
+
+    values = parse_qs(query, keep_blank_values=True).get("product_sequence", [])
+    if not values:
+        return False
+    return values[-1].strip().lower() in _PRODUCT_ON
+
+
+def project_primer_payload(
+    payload: dict[str, Any], include_product_sequence: bool
+) -> dict[str, Any]:
+    """Drop `product_sequence` unless the caller opted in.
+
+    Other fields are copied in their original order. The stored job is not
+    modified, so a later opted-in GET still returns the same string.
+    """
+    if include_product_sequence:
+        return payload
+    if "primer_result" in payload and isinstance(payload["primer_result"], dict):
+        result = payload["primer_result"]
+        pairs = result.get("pairs")
+        if isinstance(pairs, list):
+            return {
+                **payload,
+                "primer_result": {
+                    **result,
+                    "pairs": [_strip_product(pair) for pair in pairs],
+                },
+            }
+    return _strip_product(payload)
+
+
+def _strip_product(pair: Any) -> Any:
+    if not isinstance(pair, dict) or "product_sequence" not in pair:
+        return pair
+    return {key: value for key, value in pair.items() if key != "product_sequence"}
 
 
 def analyze(forward: str, reverse: str) -> dict[str, Any]:

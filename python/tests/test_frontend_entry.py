@@ -265,6 +265,37 @@ def test_the_page_names_the_same_illegal_base_as_the_api() -> None:
     assert "informational, not a filter" in APP.read_text(encoding="utf-8")
 
 
+def test_product_sequence_is_sliced_from_the_submitted_template() -> None:
+    """The page copies the amplicon without waiting for `product_sequence`."""
+    _need_node()
+    source = APP.read_text(encoding="utf-8")
+    start = source.index("function productSequenceOf")
+    end = source.index("function detailPanel")
+    script = source[start:end] + (
+        "const template = 'ACGTACGTAC';"
+        "const cases = ["
+        "  productSequenceOf({forward_start: 2, reverse_end: 6}, template),"
+        "  productSequenceOf({product_sequence: 'ZZ', forward_start: 0, reverse_end: 1}, template),"
+        "  productSequenceOf({forward_start: 0}, template),"
+        "  productSequenceOf({forward_start: 1.5, reverse_end: 4}, template),"
+        "  productSequenceOf({forward_start: 8, reverse_end: 12}, template),"
+        "];"
+        "console.log(JSON.stringify(cases));"
+    )
+    completed = subprocess.run(
+        [NODE, "-e", script], check=False, capture_output=True, text=True
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == ["GTAC", "ZZ", "", "", ""]
+    assert "submittedPrimerTemplate = sequence" in source
+
+
+def test_the_packaged_examples_match_the_repository_copies() -> None:
+    packaged = ROOT / "python" / "codonforge" / "api" / "examples"
+    for _path, (name, _kind) in _EXAMPLE_FILES.items():
+        assert (packaged / name).read_bytes() == (ROOT / "examples" / name).read_bytes()
+
+
 def test_the_bundled_examples_are_the_files_on_disk(base: str) -> None:
     for path, (name, _kind) in _EXAMPLE_FILES.items():
         with urllib.request.urlopen(base + path) as response:

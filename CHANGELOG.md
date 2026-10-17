@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+Package version stays 0.1.0. This note is the DNA Design Suite delta on top
+of v2.9.2.
+
+Wheels build on push. `.github/workflows/wheels.yml` uploads a wheel for
+Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, and Windows x64,
+plus an sdist. One `cp311-abi3` wheel covers CPython 3.11 through 3.13.
+The workflow does not publish to PyPI. The README says how to install a
+downloaded wheel, and how Hugo uploads it with twine from his own token.
+
+Tier 3 on yeeJ with structure was spending its time in repair, not in the
+fold. On a release build of this machine, before the k-mer change:
+`repair` 6 calls, 2.013 s; `l0_batch` 2 calls, 0.656 s; dominance sort and
+hypervolume under 0.001 s; wall 5.125 s. After recording positions only for
+k-mers already over the limit, and reusing one k-mer index across a
+codon-sized probe: `repair` 0.746 s; `l0_batch` 0.658 s; wall 3.060 s. The
+vector stays `[0.9575892496987667, 2.408954059933615]`. Fold counts stay
+1 full fold, 21 local edits, 12 hits. The v2.9.2 note's 3.202 s tier 3 was
+`opt-level = 1`, which is what `make build` produces. These two numbers are
+the release profile, measured the same way on both sides.
+
+Primer search still returns `product_sequence` on every pair. That document
+is still 166429 bytes and the same SHA-256. `GET /v1/primers/{id}` and
+`GET /v1/primers/{id}/pair/{pair_id}` omit the field unless
+`?product_sequence=1` (also `true` or `yes`). On the yeeJ 300 nt flank job
+the HTTP job document goes from 169009 bytes to 31980, and one pair goes
+from 8480 bytes to 1613. The page slices the template it already submitted.
+The recommended pair is still `TGACCGACAAATATTATG` / `GAACTACAGTGGTTTAAA`,
+product 6843, ΔG −1.283850000000001.
+
 ## v2.9.2
 
 DNA Design Suite note for this tree. The package version stays 0.1.0.
