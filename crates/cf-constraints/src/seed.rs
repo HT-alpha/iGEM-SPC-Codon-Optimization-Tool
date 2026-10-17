@@ -545,6 +545,265 @@ fn reverse_pack(mut packed: u64, k: usize) -> u64 {
     out
 }
 
+struct HomoSpec {
+    base: Option<u8>,
+    max_run: usize,
+    id: String,
+}
+
+struct MotifHitRec {
+    start: usize,
+    end: usize,
+    constraint: usize,
+}
+
+struct HomoRunRec {
+    start: usize,
+    end: usize,
+    rule: usize,
+}
+
+/// Blocking actionable motif and homopolymer violations.
+///
+/// A codon edit can create or destroy a motif only inside
+/// `MotifAutomaton::rescan_radius` of the three bases, and a homopolymer run
+/// only inside the run that touches the codon (`homo_window`). The ledger
+/// keeps every hit and replaces the ones that intersect that window, then
+/// applies the same allowance and actionable test as `check_patterns`.
+///
+/// A blocking `custom_regex` is not bounded by its source length, so the
+/// ledger is not used and `pattern_count` scans the construct.
+struct PatternView<'a> {
+    checker: &'a ConstraintChecker,
+    nt: &'a [u8],
+    cds_off: usize,
+    codon_count: usize,
+    editable: &'a [(usize, usize)],
+}
+
+struct PatternLedger {
+    incremental: bool,
+    radius: usize,
+    violations: Vec<(usize, usize, String)>,
+    motif_hits: Vec<MotifHitRec>,
+    homo_runs: Vec<HomoRunRec>,
+    homo_specs: Vec<HomoSpec>,
+}
+
+impl PatternLedger {
+    fn build(view: PatternView<'_>) -> Self {
+        let incremental = !view.checker.set().constraints.iter().any(|constraint| {
+            constraint.enabled
+                && constraint.class == ConstraintClass::Blocking
+                && matches!(constraint.rule, Rule::CustomRegex { .. })
+        });
+        let automata = view.checker.motif_automata();
+        let mut ledger = Self {
+            incremental,
+            radius: automata[0].rescan_radius().max(automata[1].rescan_radius()),
+            violations: Vec::new(),
+            motif_hits: Vec::new(),
+            homo_runs: Vec::new(),
+            homo_specs: homo_specs(view.checker),
+        };
+        if incremental {
+            ledger.motif_hits = motif_hits_in(
+                view.checker,
+                view.nt,
+                view.cds_off,
+                view.codon_count,
+                0,
+                view.nt.len(),
+            );
+            ledger.homo_runs = homo_runs_in(view.nt, &ledger.homo_specs);
+            ledger.materialize(view.checker, view.editable);
+        }
+        ledger
+    }
+
+    fn retile(&mut self, view: PatternView<'_>, at: usize, homo_span: Option<(usize, usize)>) {
+        if !self.incremental {
+            return;
+        }
+        let edit_lo = at;
+        let edit_hi = at + 3;
+        self.motif_hits
+            .retain(|hit| hit.end <= edit_lo || hit.start >= edit_hi);
+        let scan_lo = at.saturating_sub(self.radius);
+        let scan_hi = (at + 3 + self.radius).min(view.nt.len());
+        for hit in motif_hits_in(
+            view.checker,
+            view.nt,
+            view.cds_off,
+            view.codon_count,
+            scan_lo,
+            scan_hi,
+        ) {
+            if hit.start < edit_hi && hit.end > edit_lo {
+                self.motif_hits.push(hit);
+            }
+        }
+        match homo_span {
+            Some((lo, hi)) if !homo_slice_truncates(view.nt, lo, hi) => {
+                self.homo_runs
+                    .retain(|run| run.end <= lo || run.start >= hi);
+                self.homo_runs
+                    .extend(homo_runs_between(view.nt, &self.homo_specs, lo, hi));
+            }
+            _ => self.homo_runs = homo_runs_in(view.nt, &self.homo_specs),
+        }
+        self.materialize(view.checker, view.editable);
+    }
+
+    fn materialize(&mut self, checker: &ConstraintChecker, editable: &[(usize, usize)]) {
+        let mut grouped: BTreeMap<usize, Vec<(usize, usize)>> = BTreeMap::new();
+        for hit in &self.motif_hits {
+            grouped
+                .entry(hit.constraint)
+                .or_default()
+                .push((hit.start, hit.end));
+        }
+        let mut violations = Vec::new();
+        for (index, mut occurrences) in grouped {
+            let Some(constraint) = checker.set().constraints.get(index) else {
+                continue;
+            };
+            if constraint.class != ConstraintClass::Blocking {
+                continue;
+            }
+            let allowed = match &constraint.rule {
+                Rule::ForbiddenMotif {
+                    max_occurrences, ..
+                }
+                | Rule::RestrictionSite {
+                    max_occurrences, ..
+                } => *max_occurrences as usize,
+                Rule::CodonBan { .. } => 0,
+                _ => 0,
+            };
+            if occurrences.len() <= allowed {
+                continue;
+            }
+            occurrences.sort_unstable();
+            for (start, end) in occurrences.into_iter().skip(allowed) {
+                if spans_overlap(editable, start, end) {
+                    violations.push((start, end, constraint.id.clone()));
+                }
+            }
+        }
+        for run in &self.homo_runs {
+            let Some(spec) = self.homo_specs.get(run.rule) else {
+                continue;
+            };
+            if spans_overlap(editable, run.start, run.end) {
+                violations.push((run.start, run.end, spec.id.clone()));
+            }
+        }
+        violations.sort_unstable();
+        self.violations = violations;
+    }
+}
+
+fn motif_hits_in(
+    checker: &ConstraintChecker,
+    nt: &[u8],
+    cds_off: usize,
+    codon_count: usize,
+    lo: usize,
+    hi: usize,
+) -> Vec<MotifHitRec> {
+    let mut found = Vec::new();
+    if lo >= hi || lo >= nt.len() {
+        return found;
+    }
+    let hi = hi.min(nt.len());
+    let automata = checker.motif_automata();
+    let mut raw = Vec::new();
+    automata[0].find_all(&nt[lo..hi], lo, &mut raw);
+    for hit in raw.drain(..) {
+        let constraint = automata[0].patterns()[hit.pattern].constraint;
+        found.push(MotifHitRec {
+            start: hit.start,
+            end: hit.end,
+            constraint,
+        });
+    }
+    let cds_lo = cds_off;
+    let cds_hi = cds_off + codon_count * 3;
+    let start = lo.max(cds_lo);
+    let end = hi.min(cds_hi);
+    if start < end {
+        automata[1].find_all(&nt[start..end], start, &mut raw);
+        for hit in raw {
+            let constraint = automata[1].patterns()[hit.pattern].constraint;
+            found.push(MotifHitRec {
+                start: hit.start,
+                end: hit.end,
+                constraint,
+            });
+        }
+    }
+    found
+}
+
+fn homo_specs(checker: &ConstraintChecker) -> Vec<HomoSpec> {
+    use crate::spec::HomopolymerBase;
+    checker
+        .set()
+        .constraints
+        .iter()
+        .filter(|constraint| constraint.enabled && constraint.class == ConstraintClass::Blocking)
+        .filter_map(|constraint| match &constraint.rule {
+            Rule::Homopolymer { base, max_run } => Some(HomoSpec {
+                base: match base {
+                    HomopolymerBase::Any => None,
+                    HomopolymerBase::A => Some(b'A'),
+                    HomopolymerBase::C => Some(b'C'),
+                    HomopolymerBase::G => Some(b'G'),
+                    HomopolymerBase::T => Some(b'T'),
+                },
+                max_run: *max_run as usize,
+                id: constraint.id.clone(),
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
+fn homo_runs_in(nt: &[u8], specs: &[HomoSpec]) -> Vec<HomoRunRec> {
+    homo_runs_between(nt, specs, 0, nt.len())
+}
+
+fn homo_runs_between(nt: &[u8], specs: &[HomoSpec], lo: usize, hi: usize) -> Vec<HomoRunRec> {
+    if lo >= hi || lo >= nt.len() {
+        return Vec::new();
+    }
+    let hi = hi.min(nt.len());
+    let mut runs = Vec::new();
+    for (rule, spec) in specs.iter().enumerate() {
+        for run in crate::window::find_runs(&nt[lo..hi], spec.max_run + 1, spec.base) {
+            runs.push(HomoRunRec {
+                start: run.start + lo,
+                end: run.end + lo,
+                rule,
+            });
+        }
+    }
+    runs
+}
+
+/// `true` when a maximal run continues past `[lo, hi)`, so a slice scan would
+/// report that run truncated.
+fn homo_slice_truncates(nt: &[u8], lo: usize, hi: usize) -> bool {
+    if lo > 0 && nt[lo - 1] == nt[lo] && matches!(nt[lo], b'A' | b'C' | b'G' | b'T') {
+        return true;
+    }
+    hi < nt.len()
+        && hi > 0
+        && nt[hi - 1] == nt[hi]
+        && matches!(nt[hi - 1], b'A' | b'C' | b'G' | b'T')
+}
+
 struct Solver<'a> {
     seq: CodonSequence,
     checker: &'a ConstraintChecker,
@@ -558,6 +817,7 @@ struct Solver<'a> {
     editable: Vec<(usize, usize)>,
     homo_rules: Vec<(Option<u8>, usize)>,
     homo_penalty: u64,
+    patterns: PatternLedger,
     /// Every byte of `nt` is `A/C/G/T`. Codons are, and flanks are normalized
     /// to that alphabet before a solver exists. The GC proof below uses it.
     acgt: bool,
@@ -588,6 +848,13 @@ impl<'a> Solver<'a> {
         let acgt = nt
             .iter()
             .all(|base| matches!(base, b'A' | b'C' | b'G' | b'T'));
+        let patterns = PatternLedger::build(PatternView {
+            checker,
+            nt: &nt,
+            cds_off,
+            codon_count: seq.codon_count(),
+            editable: &editable,
+        });
         Ok(Self {
             seq,
             checker,
@@ -601,6 +868,7 @@ impl<'a> Solver<'a> {
             editable,
             homo_rules,
             homo_penalty,
+            patterns,
             acgt,
             edits: 0,
             tie,
@@ -1143,6 +1411,7 @@ impl<'a> Solver<'a> {
         }
         let at = self.cds_off + index * 3;
         let bases = codon.to_bytes();
+        let homo_span = homo_window(&self.nt, at, bases);
         self.homo_penalty = self.homo_after(at, bases);
         self.gc_penalty += self.gc_delta(at, bases);
         let kmer_started = seed_profile_on().then(Instant::now);
@@ -1157,6 +1426,17 @@ impl<'a> Solver<'a> {
         if let Some(prefix_started) = prefix_started {
             SEED_PROFILE.prefix.record(prefix_started);
         }
+        self.patterns.retile(
+            PatternView {
+                checker: self.checker,
+                nt: &self.nt,
+                cds_off: self.cds_off,
+                codon_count: self.seq.codon_count(),
+                editable: &self.editable,
+            },
+            at,
+            homo_span,
+        );
         Ok(old)
     }
 
@@ -1288,8 +1568,9 @@ impl<'a> Solver<'a> {
     ///   `excess > 0` and `actionable_excess == 0`, so it does not flip this
     ///   predicate. Raw `excess` stays the repair objective.
     /// * Patterns (motifs, restriction sites, codon bans, regex, homopolymers).
-    ///   `pattern_count` is the checker's own `check_patterns` list restricted
-    ///   to blocking actionable pattern rules.
+    ///   `pattern_count` is the blocking actionable subset of `check_patterns`.
+    ///   Motifs and homopolymers are kept current by a windowed rescan; a
+    ///   blocking regular expression still scans the construct.
     ///
     /// Scope is not a fourth bucket. The checker applies CDS scope to motifs
     /// and ignores it for k-mers, GC, and homopolymers; the three sources
@@ -1334,7 +1615,11 @@ impl<'a> Solver<'a> {
 
     fn pattern_count(&self) -> usize {
         let started = seed_profile_on().then(Instant::now);
-        let count = self.pattern_hits().len();
+        let count = if self.patterns.incremental {
+            self.patterns.violations.len()
+        } else {
+            self.pattern_spans().len()
+        };
         if let Some(started) = started {
             SEED_PROFILE.pattern_count.record(started);
         }
@@ -1343,11 +1628,11 @@ impl<'a> Solver<'a> {
 
     fn pattern_violations(&self) -> Vec<(usize, usize, usize)> {
         let started = seed_profile_on().then(Instant::now);
-        let hits = self.pattern_hits();
+        let hits = self.pattern_spans();
         let count = hits.len();
         let found = hits
             .into_iter()
-            .map(|violation| (violation.start_nt, violation.end_nt, count))
+            .map(|(start, end, _id)| (start, end, count))
             .collect();
         if let Some(started) = started {
             SEED_PROFILE.pattern_violations.record(started);
@@ -1355,11 +1640,16 @@ impl<'a> Solver<'a> {
         found
     }
 
-    /// Blocking actionable pattern hits.
+    /// Blocking actionable pattern hits, in checker order.
     ///
-    /// `check_patterns` omits k-mer and GC scans. Those rules are not patterns,
-    /// so the list matches `checker.check` filtered by `is_pattern`.
-    fn pattern_hits(&self) -> Vec<crate::detect::Violation> {
+    /// The incremental ledger is the motif and homopolymer subset. It matches
+    /// `check_patterns` filtered to blocking actionable pattern rules whenever
+    /// no blocking regular expression is compiled. With one, the checker is
+    /// scanned, because a regex match is not confined to `radius`.
+    fn pattern_spans(&self) -> Vec<(usize, usize, String)> {
+        if self.patterns.incremental {
+            return self.patterns.violations.clone();
+        }
         let view = self.view();
         let check_started = seed_profile_on().then(Instant::now);
         let violations = self.checker.check_patterns(&view);
@@ -1372,6 +1662,13 @@ impl<'a> Solver<'a> {
                 violation.class == ConstraintClass::Blocking
                     && violation.actionable
                     && is_pattern(&self.checker.set().constraints, &violation.constraint_id)
+            })
+            .map(|violation| {
+                (
+                    violation.start_nt,
+                    violation.end_nt,
+                    violation.constraint_id,
+                )
             })
             .collect()
     }
@@ -2208,5 +2505,150 @@ mod tests {
             saw_feasible && saw_infeasible && saw_flank_only,
             "walk missed a verdict: feasible={saw_feasible} infeasible={saw_infeasible} flank_only={saw_flank_only}"
         );
+    }
+
+    fn checker_pattern_spans(solver: &Solver<'_>) -> Vec<(usize, usize, String)> {
+        let view = solver.view();
+        solver
+            .checker
+            .check_patterns(&view)
+            .into_iter()
+            .filter(|violation| {
+                violation.class == ConstraintClass::Blocking
+                    && violation.actionable
+                    && is_pattern(&solver.checker.set().constraints, &violation.constraint_id)
+            })
+            .map(|violation| {
+                (
+                    violation.start_nt,
+                    violation.end_nt,
+                    violation.constraint_id,
+                )
+            })
+            .collect()
+    }
+
+    /// The EcoRI site begins exactly `rescan_radius` bases before the edited
+    /// codon, and the homopolymer merge crosses that codon. A window that is
+    /// short by one base reports a different span list.
+    #[test]
+    fn windowed_pattern_spans_match_a_full_scan_over_random_edits() {
+        use crate::spec::{HomopolymerBase, Strand};
+        use cf_types::LockReason;
+
+        let compiled = checker(vec![
+            (
+                "c_ecori",
+                Rule::RestrictionSite {
+                    enzyme: "EcoRI".into(),
+                    site: "GAATTC".into(),
+                    strand: Strand::Both,
+                    max_occurrences: 0,
+                },
+            ),
+            (
+                "c_motif",
+                Rule::ForbiddenMotif {
+                    motif: "GCG".into(),
+                    strand: Strand::Sense,
+                    max_occurrences: 2,
+                },
+            ),
+            (
+                "c_homo",
+                Rule::Homopolymer {
+                    base: HomopolymerBase::Any,
+                    max_run: 4,
+                },
+            ),
+        ]);
+        let weights = weights_one();
+        // ATG CGA ATT TTA TAA. Codon 3 TTA -> CTG completes GAATTC at nt 4,
+        // five bases before the codon, which is the EcoRI rescan radius.
+        let boundary = CodonSequence::from_cds("ATGCGAATTTTATAA", 11).unwrap();
+        let mut solver = Solver::new(boundary, &compiled, &weights, TieBreak::Weight).unwrap();
+        assert_eq!(solver.pattern_spans(), checker_pattern_spans(&solver));
+        let leucine = solver.seq.codons()[3];
+        let ctg = solver
+            .seq
+            .synonyms_at(3)
+            .iter()
+            .copied()
+            .find(|codon| codon.to_bytes() == *b"CTG")
+            .unwrap();
+        solver.set_codon(3, ctg).unwrap();
+        let spans = solver.pattern_spans();
+        assert_eq!(spans, checker_pattern_spans(&solver));
+        assert!(
+            spans
+                .iter()
+                .any(|(start, end, id)| { *start == 4 && *end == 10 && id == "c_ecori" }),
+            "the boundary EcoRI site was not recorded: {spans:?}"
+        );
+        solver.set_codon(3, leucine).unwrap();
+        assert_eq!(solver.pattern_spans(), checker_pattern_spans(&solver));
+
+        // AAA AAG AAA. AAG -> AAA joins the two lysine runs across the codon.
+        let merge = CodonSequence::from_cds("ATGAAAAAGAAATAA", 11).unwrap();
+        let mut solver = Solver::new(merge, &compiled, &weights, TieBreak::Weight).unwrap();
+        assert_eq!(solver.pattern_spans(), checker_pattern_spans(&solver));
+        let lysine = solver
+            .seq
+            .synonyms_at(2)
+            .iter()
+            .copied()
+            .find(|codon| codon.to_bytes() == *b"AAA")
+            .unwrap();
+        solver.set_codon(2, lysine).unwrap();
+        let spans = solver.pattern_spans();
+        assert_eq!(spans, checker_pattern_spans(&solver), "merged run");
+        assert!(
+            spans
+                .iter()
+                .any(|(start, end, id)| { *start == 3 && *end == 12 && id == "c_homo" }),
+            "merged homopolymer span drifted: {spans:?}"
+        );
+
+        let cds = format!(
+            "ATG{}{}{}TAA",
+            "GCT".repeat(5),
+            "CGT".repeat(4),
+            "GGA".repeat(3)
+        );
+        let mut sequence = CodonSequence::from_cds(&cds, 11)
+            .unwrap()
+            .with_five_prime_flank("GAATT")
+            .unwrap()
+            .with_three_prime_flank("AAAAAA")
+            .unwrap();
+        sequence.add_lock(4, 5, LockReason::UserLocked).unwrap();
+        let mut solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
+        assert_eq!(
+            solver.pattern_spans(),
+            checker_pattern_spans(&solver),
+            "initial"
+        );
+        let mut state = 0x0F1E_2D3C_4B5A_6978u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let positions = solver.seq.codon_count();
+        for step in 0..360 {
+            let index = (next() as usize) % positions;
+            if solver.seq.is_locked(index) {
+                continue;
+            }
+            let synonyms = solver.seq.synonyms_at(index);
+            let codon = synonyms[(next() as usize) % synonyms.len()];
+            solver.set_codon(index, codon).unwrap();
+            assert_eq!(
+                solver.pattern_spans(),
+                checker_pattern_spans(&solver),
+                "step {step} codon {index}"
+            );
+        }
     }
 }
