@@ -263,27 +263,41 @@ pub fn resolve_feasible_seed(
 
 /// Positions that differ from the most-frequent synonym, and which checked
 /// rules that synonym would break on its own.
+///
+/// One [`Solver`] carries the counts. Putting the preferred codon in and
+/// taking it back uses `set_codon`, which is the same edit the seed applies,
+/// and the tally below is the checker's blocking actionable counts:
+///
+/// * pattern ids, one per ledger hit (or per `check_patterns` hit when a
+///   blocking regular expression is present, because that match is not
+///   confined to the motif window);
+/// * one per k-mer key that exceeds its limit and touches an editable span,
+///   which is one checker violation, not `count - max`;
+/// * one per GC window outside its band that overlaps an editable span.
+///
+/// A missing id is a count of zero on both sides. The CDS is not what this
+/// function returns; only the sentence that names those ids.
 pub fn explain_deviations(
     sequence: &CodonSequence,
     checker: &ConstraintChecker,
     weights: &[f64; 64],
 ) -> Result<Vec<BaselineDeviation>> {
     let baseline = most_frequent(sequence, weights)?;
-    let mut probe = sequence.clone();
-    let before = actionable_counts(&probe, checker);
+    let mut solver = Solver::new(sequence.clone(), checker, weights, TieBreak::Weight)?;
+    let before = solver.actionable_tally();
     let mut out = Vec::new();
-    for index in 0..probe.codon_count() {
-        if probe.is_locked(index) {
+    for index in 0..solver.seq.codon_count() {
+        if solver.seq.is_locked(index) {
             continue;
         }
-        let codon = probe.codons()[index];
+        let codon = solver.seq.codons()[index];
         let preferred = baseline.codons()[index];
         if codon == preferred {
             continue;
         }
-        probe.substitute(index, preferred)?;
-        let after = actionable_counts(&probe, checker);
-        probe.substitute(index, codon)?;
+        solver.set_codon(index, preferred)?;
+        let after = solver.actionable_tally();
+        solver.set_codon(index, codon)?;
         let mut constraints_if_reverted: Vec<String> = after
             .iter()
             .filter(|(id, count)| **count > *before.get(*id).unwrap_or(&0))
@@ -381,12 +395,18 @@ fn cai_of(sequence: &CodonSequence, weights: &[f64; 64]) -> f64 {
 }
 
 struct GcBand {
+    id: String,
     window: usize,
     min: f64,
     max: f64,
+    /// Windows of this band that sit outside `[min, max]` and overlap an
+    /// editable span. That is the checker's actionable GC violation count
+    /// for this rule, one window per violation.
+    offenders: u32,
 }
 
 struct KmerCfg {
+    id: String,
     k: usize,
     max_occurrences: u32,
     canonical: bool,
@@ -407,6 +427,11 @@ struct KmerBook {
     /// one editable occurrence. Zero exactly when `ConstraintChecker::check`
     /// would report no actionable blocking k-mer violation for these rules.
     actionable_excess: Vec<u64>,
+    /// Number of keys that are an actionable violation. The checker emits one
+    /// violation per such key, so this is the count `explain_deviations`
+    /// compares. It is not [`Self::actionable_excess`]: a key that is over the
+    /// limit by five still contributes one.
+    offenders: Vec<u64>,
     editable: Vec<(usize, usize)>,
 }
 
@@ -417,6 +442,7 @@ impl KmerBook {
             touching: vec![HashMap::new(); rules.len()],
             excess: vec![0; rules.len()],
             actionable_excess: vec![0; rules.len()],
+            offenders: vec![0; rules.len()],
             editable: editable.to_vec(),
             rules,
         };
@@ -451,6 +477,7 @@ impl KmerBook {
         let before_touch = self.touching[rule].get(&key).copied().unwrap_or(0);
         let before_over = u64::from(before.saturating_sub(max));
         let before_act = actionable_over(before, before_touch, max);
+        let before_off = u64::from(before_act > 0);
         let next = before as i32 + delta;
         let touch_delta = if touches { delta } else { 0 };
         let next_touch = before_touch as i32 + touch_delta;
@@ -463,6 +490,7 @@ impl KmerBook {
             self.touching[rule].remove(&key);
             self.excess[rule] -= before_over;
             self.actionable_excess[rule] -= before_act;
+            self.offenders[rule] -= before_off;
             return;
         }
         let after = next as u32;
@@ -475,8 +503,10 @@ impl KmerBook {
         }
         let after_over = u64::from(after.saturating_sub(max));
         let after_act = actionable_over(after, after_touch, max);
+        let after_off = u64::from(after_act > 0);
         self.excess[rule] = self.excess[rule] - before_over + after_over;
         self.actionable_excess[rule] = self.actionable_excess[rule] - before_act + after_act;
+        self.offenders[rule] = self.offenders[rule] - before_off + after_off;
     }
 
     fn replace(&mut self, nt: &mut [u8], at: usize, bases: [u8; 3]) {
@@ -839,8 +869,11 @@ impl<'a> Solver<'a> {
         }
         nt.extend_from_slice(seq.three_prime_flank());
         let prefix = gc_prefix(&nt);
-        let bands = gc_bands(checker);
         let editable = editable_spans_of(&seq);
+        let mut bands = gc_bands(checker);
+        for band in &mut bands {
+            band.offenders = count_gc_offenders(&nt, &prefix, band, &editable);
+        }
         let gc_penalty = gc_penalty_of(&nt, &prefix, &bands, &editable);
         let kmers = KmerBook::build(&nt, kmer_rules(checker), &editable);
         let homo_rules = homo_rules(checker);
@@ -1414,6 +1447,7 @@ impl<'a> Solver<'a> {
         let homo_span = homo_window(&self.nt, at, bases);
         self.homo_penalty = self.homo_after(at, bases);
         self.gc_penalty += self.gc_delta(at, bases);
+        self.revise_gc_offenders(at, bases);
         let kmer_started = seed_profile_on().then(Instant::now);
         self.kmers.replace(&mut self.nt, at, bases);
         if let Some(kmer_started) = kmer_started {
@@ -1603,6 +1637,55 @@ impl<'a> Solver<'a> {
         feasible
     }
 
+    /// Blocking actionable counts, keyed by constraint id.
+    ///
+    /// The same multiset `ConstraintChecker::check` reports for this view:
+    /// pattern hits, one entry per over-limit k-mer key that touches an
+    /// editable span, and one entry per GC window outside its band that
+    /// overlaps an editable span. Ids with a zero count are absent.
+    fn actionable_tally(&self) -> BTreeMap<String, usize> {
+        let mut counts = BTreeMap::new();
+        for (_start, _end, id) in self.pattern_spans() {
+            *counts.entry(id).or_insert(0) += 1;
+        }
+        for (rule, offenders) in self.kmers.rules.iter().zip(self.kmers.offenders.iter()) {
+            if *offenders > 0 {
+                *counts.entry(rule.id.clone()).or_insert(0) += *offenders as usize;
+            }
+        }
+        for band in &self.bands {
+            if band.offenders > 0 {
+                *counts.entry(band.id.clone()).or_insert(0) += band.offenders as usize;
+            }
+        }
+        counts
+    }
+
+    fn revise_gc_offenders(&mut self, at: usize, bases: [u8; 3]) {
+        let n = self.nt.len();
+        for band in &mut self.bands {
+            if band.window == 0 || n < band.window {
+                continue;
+            }
+            let lo = at.saturating_sub(band.window - 1);
+            let hi = (at + 3).min(n - band.window + 1);
+            let mut delta: i32 = 0;
+            for start in lo..hi {
+                let end = start + band.window;
+                if !spans_overlap(&self.editable, start, end) {
+                    continue;
+                }
+                let before = self.prefix[end] - self.prefix[start];
+                let after = adjusted_gc(before, &self.nt, at, bases, start, end);
+                delta += i32::from(window_outside(after, band))
+                    - i32::from(window_outside(before, band));
+            }
+            let next = band.offenders as i32 + delta;
+            debug_assert!(next >= 0, "gc offender count went negative");
+            band.offenders = next.max(0) as u32;
+        }
+    }
+
     fn gc_has_actionable_violation(&self) -> bool {
         if self.gc_penalty > 1e-9 {
             return true;
@@ -1736,28 +1819,6 @@ impl<'a> Solver<'a> {
     }
 }
 
-fn actionable_counts(
-    sequence: &CodonSequence,
-    checker: &ConstraintChecker,
-) -> BTreeMap<String, usize> {
-    let mut nt = sequence.five_prime_flank().to_vec();
-    for codon in sequence.codons() {
-        nt.extend_from_slice(&codon.to_bytes());
-    }
-    nt.extend_from_slice(sequence.three_prime_flank());
-    let start = sequence.five_prime_flank().len();
-    let editable = editable_spans_of(sequence);
-    let view = ConstructView::new(&nt, vec![(start, start + sequence.codon_count() * 3)])
-        .with_editable_spans(editable);
-    let mut counts = BTreeMap::new();
-    for violation in checker.check(&view) {
-        if violation.class == ConstraintClass::Blocking && violation.actionable {
-            *counts.entry(violation.constraint_id).or_insert(0) += 1;
-        }
-    }
-    counts
-}
-
 pub fn unsearched_rules(checker: &ConstraintChecker) -> Vec<UnsearchedRule> {
     checker
         .undetectable()
@@ -1838,9 +1899,11 @@ fn gc_bands(checker: &ConstraintChecker) -> Vec<GcBand> {
                 min,
                 max,
             } => Some(GcBand {
+                id: constraint.id.clone(),
                 window: *window_nt as usize,
                 min: *min,
                 max: *max,
+                offenders: 0,
             }),
             _ => None,
         })
@@ -1860,6 +1923,7 @@ fn kmer_rules(checker: &ConstraintChecker) -> Vec<KmerCfg> {
                 canonical_strand,
                 ..
             } => Some(KmerCfg {
+                id: constraint.id.clone(),
                 k: *k as usize,
                 max_occurrences: *max_occurrences,
                 canonical: *canonical_strand,
@@ -1947,6 +2011,36 @@ fn band_penalty(count: u32, band: &GcBand) -> f64 {
     } else {
         0.0
     }
+}
+
+/// A window the checker would emit: strict `fraction < min` or `fraction > max`.
+///
+/// On an `ACGT` construct the prefix count over `window` bases is the same
+/// fraction `GcIndex::fraction` returns, so this predicate matches
+/// `windows_outside`.
+fn window_outside(count: u32, band: &GcBand) -> bool {
+    let fraction = count as f64 / band.window as f64;
+    fraction < band.min || fraction > band.max
+}
+
+fn count_gc_offenders(
+    nt: &[u8],
+    prefix: &[u32],
+    band: &GcBand,
+    editable: &[(usize, usize)],
+) -> u32 {
+    if band.window == 0 || nt.len() < band.window {
+        return 0;
+    }
+    let mut count = 0u32;
+    for start in 0..=nt.len() - band.window {
+        let end = start + band.window;
+        if spans_overlap(editable, start, end) && window_outside(prefix[end] - prefix[start], band)
+        {
+            count += 1;
+        }
+    }
+    count
 }
 
 fn adjusted_gc(before: u32, nt: &[u8], at: usize, bases: [u8; 3], start: usize, end: usize) -> u32 {
@@ -2650,5 +2744,196 @@ mod tests {
                 "step {step} codon {index}"
             );
         }
+    }
+
+    /// The per-codon explanation used to call `ConstraintChecker::check` once
+    /// per deviant codon. The shared tally has to name the same ids, including
+    /// a revert that changes a k-mer key from legal to over-limit. A counter
+    /// stuck at zero drops `c_kmer` and this comparison fails.
+    #[test]
+    fn explain_deviations_matches_a_full_check_per_codon() {
+        use crate::spec::{HomopolymerBase, Strand};
+        use cf_types::LockReason;
+
+        let compiled = checker(vec![
+            (
+                "c_gc",
+                Rule::GcWindow {
+                    window_nt: 6,
+                    min: 0.0,
+                    max: 0.3,
+                },
+            ),
+            (
+                "c_kmer",
+                Rule::KmerRepeat {
+                    k: 6,
+                    max_occurrences: 1,
+                    count_overlapping: true,
+                    canonical_strand: false,
+                },
+            ),
+            (
+                "c_ecori",
+                Rule::RestrictionSite {
+                    enzyme: "EcoRI".into(),
+                    site: "GAATTC".into(),
+                    strand: Strand::Both,
+                    max_occurrences: 0,
+                },
+            ),
+            (
+                "c_homo",
+                Rule::Homopolymer {
+                    base: HomopolymerBase::Any,
+                    max_run: 4,
+                },
+            ),
+            (
+                "c_regex",
+                Rule::CustomRegex {
+                    pattern: "CCA".into(),
+                    max_occurrences: 0,
+                    flags: vec![],
+                },
+            ),
+        ]);
+        // Codon 1 TTA -> CTG duplicates CTGAAA (codon 3 + codon 4) and pushes
+        // a 6-nt window over 0.3 GC. CTG is weighted above the other leucines
+        // so that revert is the one the k-mer counter has to see; equal
+        // weights would pick CTA and the repeat would never form. Codon 5
+        // GAG -> GAA joins a run of five A's. Codon 8 TTT -> TTC completes
+        // GAATTC. Codon 9 CCC -> CCA matches the regex. Codon 10 is a real
+        // deviation and is locked, so neither side may report it.
+        let cds = [
+            "ATG", "TTA", "AAA", "CTG", "AAA", "GAG", "AAA", "GAA", "TTT", "CCC", "GCT", "TAA",
+        ]
+        .join("");
+        let mut sequence = CodonSequence::from_cds(&cds, 11)
+            .unwrap()
+            .with_five_prime_flank("ACGTACGT")
+            .unwrap()
+            .with_three_prime_flank("TTAA")
+            .unwrap();
+        sequence.add_lock(10, 11, LockReason::UserLocked).unwrap();
+        let mut weights = weights_one();
+        weights[Codon::parse("CTG").unwrap().index_usize()] = 2.0;
+
+        let mut solver =
+            Solver::new(sequence.clone(), &compiled, &weights, TieBreak::Weight).unwrap();
+        assert_eq!(
+            solver.actionable_tally(),
+            actionable_counts(&solver.seq, &compiled),
+            "initial tally"
+        );
+        for index in 0..solver.seq.codon_count() {
+            if solver.seq.is_locked(index) {
+                continue;
+            }
+            let original = solver.seq.codons()[index];
+            let synonyms = solver.seq.synonyms_at(index).to_vec();
+            for synonym in synonyms {
+                solver.set_codon(index, synonym).unwrap();
+                assert_eq!(
+                    solver.actionable_tally(),
+                    actionable_counts(&solver.seq, &compiled),
+                    "tally after codon {index} -> {synonym}"
+                );
+            }
+            solver.set_codon(index, original).unwrap();
+            assert_eq!(
+                solver.actionable_tally(),
+                actionable_counts(&solver.seq, &compiled),
+                "tally restored at {index}"
+            );
+        }
+
+        let found = explain_deviations(&sequence, &compiled, &weights).unwrap();
+        let expected = deviations_from_full_checks(&sequence, &compiled, &weights);
+        assert_eq!(found, expected);
+        let indexes: Vec<usize> = found.iter().map(|item| item.codon_index).collect();
+        assert!(
+            !indexes
+                .iter()
+                .any(|index| *index == 0 || *index == 10 || *index == 11),
+            "a locked codon was explained: {indexes:?}"
+        );
+        let mut covered = std::collections::BTreeSet::new();
+        for item in &found {
+            covered.extend(item.constraints_if_reverted.iter().cloned());
+        }
+        for id in ["c_kmer", "c_gc", "c_homo", "c_ecori", "c_regex"] {
+            assert!(
+                covered.contains(id),
+                "{id} never rose on a single revert: {found:?}"
+            );
+        }
+    }
+
+    /// Blocking actionable counts from a full `ConstraintChecker::check`.
+    ///
+    /// The oracle for the shared tally. It stays in the test module so a
+    /// release build cannot call it from the explanation path.
+    fn actionable_counts(
+        sequence: &CodonSequence,
+        checker: &ConstraintChecker,
+    ) -> BTreeMap<String, usize> {
+        let mut nt = sequence.five_prime_flank().to_vec();
+        for codon in sequence.codons() {
+            nt.extend_from_slice(&codon.to_bytes());
+        }
+        nt.extend_from_slice(sequence.three_prime_flank());
+        let start = sequence.five_prime_flank().len();
+        let editable = editable_spans_of(sequence);
+        let view = ConstructView::new(&nt, vec![(start, start + sequence.codon_count() * 3)])
+            .with_editable_spans(editable);
+        let mut counts = BTreeMap::new();
+        for violation in checker.check(&view) {
+            if violation.class == ConstraintClass::Blocking && violation.actionable {
+                *counts.entry(violation.constraint_id).or_insert(0) += 1;
+            }
+        }
+        counts
+    }
+
+    /// The explanation `explain_deviations` used to build: one full check, then
+    /// another full check for each codon put back on its own.
+    fn deviations_from_full_checks(
+        sequence: &CodonSequence,
+        checker: &ConstraintChecker,
+        weights: &[f64; 64],
+    ) -> Vec<BaselineDeviation> {
+        let baseline = most_frequent(sequence, weights).unwrap();
+        let mut probe = sequence.clone();
+        let before = actionable_counts(&probe, checker);
+        let mut out = Vec::new();
+        for index in 0..probe.codon_count() {
+            if probe.is_locked(index) {
+                continue;
+            }
+            let codon = probe.codons()[index];
+            let preferred = baseline.codons()[index];
+            if codon == preferred {
+                continue;
+            }
+            probe.substitute(index, preferred).unwrap();
+            let after = actionable_counts(&probe, checker);
+            probe.substitute(index, codon).unwrap();
+            let mut constraints_if_reverted: Vec<String> = after
+                .iter()
+                .filter(|(id, count)| **count > *before.get(*id).unwrap_or(&0))
+                .map(|(id, _)| (*id).clone())
+                .collect();
+            constraints_if_reverted.sort();
+            out.push(BaselineDeviation {
+                codon_index: index,
+                codon: codon.to_string_upper(),
+                weight: weights[codon.index_usize()],
+                baseline: preferred.to_string_upper(),
+                baseline_weight: weights[preferred.index_usize()],
+                constraints_if_reverted,
+            });
+        }
+        out
     }
 }
