@@ -11,6 +11,7 @@ use std::time::Instant;
 use cf_constraints::{resolve_feasible_seed, ConstraintChecker, ConstraintSet};
 use cf_types::codon::Codon;
 use cf_types::seqrec::CodonSequence;
+use sha2::{Digest, Sha256};
 
 fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -73,7 +74,7 @@ fn checker() -> ConstraintChecker {
     ConstraintChecker::compile(&set).unwrap()
 }
 
-fn assert_repaired_with(name: &str, weights: &[f64; 64]) {
+fn assert_repaired_with(name: &str, weights: &[f64; 64]) -> String {
     let cds = fasta(name);
     let sequence = CodonSequence::from_cds(&cds, 11).unwrap();
     let compiled = checker();
@@ -94,10 +95,24 @@ fn assert_repaired_with(name: &str, weights: &[f64; 64]) {
     );
     assert_ne!(report.sequence.cds_string(), cds);
     assert_eq!(report.sequence.protein(), sequence.protein());
+    report.sequence.cds_string()
 }
 
 fn assert_repaired(name: &str) {
-    assert_repaired_with(name, &weights());
+    let repaired = assert_repaired_with(name, &weights());
+    // Ribosomal weights. Feasibility still holds if an accept/reject flips and
+    // a different synonymous seed is returned, so the sequence itself is pinned.
+    let expected = match name {
+        "elp_vpgvg.fa" => "067af67421dbeb2dc933198ea718fd2d9b7e1b11a2e6c9e725dbf0ac2f5c4da9",
+        "yagF.fa" => "720ee3bdcc76e18b75afadf7a801238941aa1b79052f0574ab12a5033e45cab9",
+        "waaS.fa" => "11cdd2fb04a48e29ff284107103ddab0c83e741341b7bf9926fff06d8b90627d",
+        "yeeJ.fa" => "686adf6a7ed03ac848270c94afbb9f7bbfd7873dbf926bc03390001d80eb9b4c",
+        other => panic!("no pinned seed for {other}"),
+    };
+    let mut hasher = Sha256::new();
+    hasher.update(repaired.as_bytes());
+    let digest = format!("{:x}", hasher.finalize());
+    assert_eq!(digest, expected, "{name} seed changed");
 }
 
 #[test]

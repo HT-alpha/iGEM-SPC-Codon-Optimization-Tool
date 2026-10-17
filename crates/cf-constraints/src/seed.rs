@@ -17,8 +17,115 @@
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering};
+use std::time::Instant;
 
 use cf_types::codon::Codon;
+
+/// Inclusive timings for `CF_SEED_PROFILE=1`. Off the hot path when unset:
+/// each site loads one relaxed flag and returns.
+struct SeedCounter {
+    ns: AtomicU64,
+    calls: AtomicU64,
+}
+
+impl SeedCounter {
+    const fn new() -> Self {
+        Self {
+            ns: AtomicU64::new(0),
+            calls: AtomicU64::new(0),
+        }
+    }
+
+    fn record(&self, started: Instant) {
+        self.ns
+            .fetch_add(started.elapsed().as_nanos() as u64, AtomicOrdering::Relaxed);
+        self.calls.fetch_add(1, AtomicOrdering::Relaxed);
+    }
+}
+
+struct SeedProfile {
+    enabled: AtomicBool,
+    gc_sweeps: SeedCounter,
+    fix_patterns: SeedCounter,
+    fix_kmers: SeedCounter,
+    fix_kmer_pairs: SeedCounter,
+    polish: SeedCounter,
+    ascend: SeedCounter,
+    homo: SeedCounter,
+    gc_delta: SeedCounter,
+    prefix: SeedCounter,
+    pattern_count: SeedCounter,
+    pattern_violations: SeedCounter,
+    is_feasible: SeedCounter,
+    hot_codons: SeedCounter,
+    kmer_replace: SeedCounter,
+    checker_check: SeedCounter,
+}
+
+static SEED_PROFILE: SeedProfile = SeedProfile {
+    enabled: AtomicBool::new(false),
+    gc_sweeps: SeedCounter::new(),
+    fix_patterns: SeedCounter::new(),
+    fix_kmers: SeedCounter::new(),
+    fix_kmer_pairs: SeedCounter::new(),
+    polish: SeedCounter::new(),
+    ascend: SeedCounter::new(),
+    homo: SeedCounter::new(),
+    gc_delta: SeedCounter::new(),
+    prefix: SeedCounter::new(),
+    pattern_count: SeedCounter::new(),
+    pattern_violations: SeedCounter::new(),
+    is_feasible: SeedCounter::new(),
+    hot_codons: SeedCounter::new(),
+    kmer_replace: SeedCounter::new(),
+    checker_check: SeedCounter::new(),
+};
+
+fn seed_profile_on() -> bool {
+    SEED_PROFILE.enabled.load(AtomicOrdering::Relaxed)
+}
+
+fn arm_seed_profile() {
+    if std::env::var_os("CF_SEED_PROFILE").is_some() {
+        SEED_PROFILE.enabled.store(true, AtomicOrdering::Relaxed);
+    }
+}
+
+fn dump_seed_profile() {
+    if !seed_profile_on() {
+        return;
+    }
+    let row = |name: &str, counter: &SeedCounter| {
+        let calls = counter.calls.load(AtomicOrdering::Relaxed);
+        let ns = counter.ns.load(AtomicOrdering::Relaxed);
+        format!(
+            "{{\"name\":\"{name}\",\"calls\":{calls},\"seconds\":{:.6}}}",
+            ns as f64 / 1e9
+        )
+    };
+    eprintln!(
+        "CF_SEED_PROFILE {}",
+        [
+            row("gc_sweeps", &SEED_PROFILE.gc_sweeps),
+            row("fix_patterns", &SEED_PROFILE.fix_patterns),
+            row("fix_kmers", &SEED_PROFILE.fix_kmers),
+            row("fix_kmer_pairs", &SEED_PROFILE.fix_kmer_pairs),
+            row("polish", &SEED_PROFILE.polish),
+            row("ascend", &SEED_PROFILE.ascend),
+            row("homo_touching", &SEED_PROFILE.homo),
+            row("gc_delta", &SEED_PROFILE.gc_delta),
+            row("prefix_update", &SEED_PROFILE.prefix),
+            row("pattern_count", &SEED_PROFILE.pattern_count),
+            row("pattern_violations", &SEED_PROFILE.pattern_violations),
+            row("is_feasible", &SEED_PROFILE.is_feasible),
+            row("hot_codons", &SEED_PROFILE.hot_codons),
+            row("kmer_replace", &SEED_PROFILE.kmer_replace),
+            row("checker_check", &SEED_PROFILE.checker_check),
+        ]
+        .join(",")
+    );
+}
 use cf_types::error::Result;
 use cf_types::seqrec::CodonSequence;
 
@@ -102,6 +209,7 @@ pub fn resolve_feasible_seed(
     checker: &ConstraintChecker,
     weights: &[f64; 64],
 ) -> Result<SeedReport> {
+    arm_seed_profile();
     let unsearched = unsearched_rules(checker);
     let mut best: Option<Attempt> = None;
     let mut solved = false;
@@ -141,14 +249,16 @@ pub fn resolve_feasible_seed(
     } else {
         solver.residuals()
     };
-    Ok(SeedReport {
+    let report = SeedReport {
         sequence: solver.seq,
         feasible: attempt.feasible,
         cycles: attempt.cycles,
         edits: attempt.edits,
         residual,
         unsearched,
-    })
+    };
+    dump_seed_profile();
+    Ok(report)
 }
 
 /// Positions that differ from the most-frequent synonym, and which checked
@@ -394,6 +504,8 @@ struct Solver<'a> {
     bands: Vec<GcBand>,
     kmers: KmerBook,
     editable: Vec<(usize, usize)>,
+    homo_rules: Vec<(Option<u8>, usize)>,
+    homo_penalty: u64,
     edits: u32,
     tie: TieBreak,
 }
@@ -416,6 +528,8 @@ impl<'a> Solver<'a> {
         let gc_penalty = gc_penalty_of(&nt, &prefix, &bands, &editable_spans_of(&seq));
         let kmers = KmerBook::build(&nt, kmer_rules(checker));
         let editable = editable_spans_of(&seq);
+        let homo_rules = homo_rules(checker);
+        let homo_penalty = homo_total(&nt, 0, None, &homo_rules, &editable);
         Ok(Self {
             seq,
             checker,
@@ -427,6 +541,8 @@ impl<'a> Solver<'a> {
             bands,
             kmers,
             editable,
+            homo_rules,
+            homo_penalty,
             edits: 0,
             tie,
         })
@@ -491,6 +607,15 @@ impl<'a> Solver<'a> {
     }
 
     fn gc_sweeps(&mut self) -> Result<()> {
+        let started = seed_profile_on().then(Instant::now);
+        let result = self.gc_sweeps_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.gc_sweeps.record(started);
+        }
+        result
+    }
+
+    fn gc_sweeps_inner(&mut self) -> Result<()> {
         for _ in 0..GC_SWEEPS {
             if self.gc_penalty <= 1e-12 {
                 break;
@@ -536,6 +661,15 @@ impl<'a> Solver<'a> {
     }
 
     fn fix_patterns(&mut self) -> Result<bool> {
+        let started = seed_profile_on().then(Instant::now);
+        let result = self.fix_patterns_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.fix_patterns.record(started);
+        }
+        result
+    }
+
+    fn fix_patterns_inner(&mut self) -> Result<bool> {
         let violations = self.pattern_violations();
         if violations.is_empty() {
             return Ok(false);
@@ -584,6 +718,15 @@ impl<'a> Solver<'a> {
     }
 
     fn fix_kmers(&mut self) -> Result<bool> {
+        let started = seed_profile_on().then(Instant::now);
+        let result = self.fix_kmers_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.fix_kmers.record(started);
+        }
+        result
+    }
+
+    fn fix_kmers_inner(&mut self) -> Result<bool> {
         let before = self.kmers.excess();
         if before == 0 {
             return Ok(false);
@@ -634,6 +777,15 @@ impl<'a> Solver<'a> {
 
     /// Try two nearby codon edits when no single edit reduces k-mer excess.
     fn fix_kmer_pairs(&mut self) -> Result<bool> {
+        let started = seed_profile_on().then(Instant::now);
+        let result = self.fix_kmer_pairs_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.fix_kmer_pairs.record(started);
+        }
+        result
+    }
+
+    fn fix_kmer_pairs_inner(&mut self) -> Result<bool> {
         let excess = self.kmers.excess();
         if excess == 0 || self.gc_penalty > 1e-9 {
             return Ok(false);
@@ -720,6 +872,15 @@ impl<'a> Solver<'a> {
     }
 
     fn polish(&mut self) -> Result<()> {
+        let started = seed_profile_on().then(Instant::now);
+        let result = self.polish_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.polish.record(started);
+        }
+        result
+    }
+
+    fn polish_inner(&mut self) -> Result<()> {
         if !self.is_feasible() {
             return Ok(());
         }
@@ -768,6 +929,15 @@ impl<'a> Solver<'a> {
     /// away, would clear that word. Two passes, each trying the positions with
     /// the largest remaining weight gap against a few nearby partners.
     fn ascend_cai(&mut self) -> Result<()> {
+        let started = seed_profile_on().then(Instant::now);
+        let result = self.ascend_cai_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.ascend.record(started);
+        }
+        result
+    }
+
+    fn ascend_cai_inner(&mut self) -> Result<()> {
         if !self.is_feasible() {
             return Ok(());
         }
@@ -914,10 +1084,19 @@ impl<'a> Solver<'a> {
         }
         let at = self.cds_off + index * 3;
         let bases = codon.to_bytes();
+        self.homo_penalty = self.homo_after(at, bases);
         self.gc_penalty += self.gc_delta(at, bases);
+        let kmer_started = seed_profile_on().then(Instant::now);
         self.kmers.replace(&mut self.nt, at, bases);
+        if let Some(kmer_started) = kmer_started {
+            SEED_PROFILE.kmer_replace.record(kmer_started);
+        }
+        let prefix_started = seed_profile_on().then(Instant::now);
         for pos in at..self.nt.len() {
             self.prefix[pos + 1] = self.prefix[pos] + gc_bit(self.nt[pos]);
+        }
+        if let Some(prefix_started) = prefix_started {
+            SEED_PROFILE.prefix.record(prefix_started);
         }
         Ok(old)
     }
@@ -931,6 +1110,15 @@ impl<'a> Solver<'a> {
     }
 
     fn gc_delta(&self, at: usize, bases: [u8; 3]) -> f64 {
+        let started = seed_profile_on().then(Instant::now);
+        let delta = self.gc_delta_inner(at, bases);
+        if let Some(started) = started {
+            SEED_PROFILE.gc_delta.record(started);
+        }
+        delta
+    }
+
+    fn gc_delta_inner(&self, at: usize, bases: [u8; 3]) -> f64 {
         let mut delta = 0.0;
         let n = self.nt.len();
         for band in &self.bands {
@@ -957,28 +1145,55 @@ impl<'a> Solver<'a> {
     }
 
     fn homo_touching(&self, at: usize, bases: Option<[u8; 3]>) -> u64 {
-        let mut total = 0u64;
-        for (base, max_run) in homo_rules(self.checker) {
-            let mut pos = 0;
-            while pos < self.nt.len() {
-                let here = base_at(&self.nt, at, bases, pos);
-                if base.is_some_and(|wanted| wanted != here)
-                    || !matches!(here, b'A' | b'C' | b'G' | b'T')
-                {
-                    pos += 1;
-                    continue;
-                }
-                let mut end = pos + 1;
-                while end < self.nt.len() && base_at(&self.nt, at, bases, end) == here {
-                    end += 1;
-                }
-                if end - pos > max_run && self.overlaps_editable(pos, end) {
-                    total += (end - pos - max_run) as u64;
-                }
-                pos = end;
-            }
+        let started = seed_profile_on().then(Instant::now);
+        let total = match bases {
+            None => self.homo_penalty,
+            Some(bases) => self.homo_after(at, bases),
+        };
+        if let Some(started) = started {
+            SEED_PROFILE.homo.record(started);
         }
         total
+    }
+
+    /// Homopolymer excess after a virtual codon substitution.
+    ///
+    /// The excess is the same integer a full scan of the edited sequence
+    /// returns. Only runs that intersect the codon can change, and those runs
+    /// are bounded by walking out from the codon while the base repeats.
+    fn homo_after(&self, at: usize, bases: [u8; 3]) -> u64 {
+        let Some((left, right)) = homo_window(&self.nt, at, bases) else {
+            return homo_total(&self.nt, at, Some(bases), &self.homo_rules, &self.editable);
+        };
+        let old = homo_between(
+            &self.nt,
+            at,
+            None,
+            left,
+            right,
+            &self.homo_rules,
+            &self.editable,
+        );
+        let new = homo_between(
+            &self.nt,
+            at,
+            Some(bases),
+            left,
+            right,
+            &self.homo_rules,
+            &self.editable,
+        );
+        match (old, new) {
+            (Some(old), Some(new)) => {
+                let next = self.homo_penalty as i64 + new as i64 - old as i64;
+                if next < 0 {
+                    homo_total(&self.nt, at, Some(bases), &self.homo_rules, &self.editable)
+                } else {
+                    next as u64
+                }
+            }
+            _ => homo_total(&self.nt, at, Some(bases), &self.homo_rules, &self.editable),
+        }
     }
 
     fn overlaps_editable(&self, start: usize, end: usize) -> bool {
@@ -992,36 +1207,73 @@ impl<'a> Solver<'a> {
     }
 
     fn is_feasible(&self) -> bool {
-        self.checker.is_feasible(&self.view())
+        let started = seed_profile_on().then(Instant::now);
+        let view = self.view();
+        let check_started = seed_profile_on().then(Instant::now);
+        let feasible = self.checker.is_feasible(&view);
+        if let Some(check_started) = check_started {
+            SEED_PROFILE.checker_check.record(check_started);
+        }
+        if let Some(started) = started {
+            SEED_PROFILE.is_feasible.record(started);
+        }
+        feasible
     }
 
     fn pattern_count(&self) -> usize {
-        self.checker
-            .check(&self.view())
-            .into_iter()
-            .filter(|violation| {
-                violation.class == ConstraintClass::Blocking
-                    && violation.actionable
-                    && is_pattern(&self.checker.set().constraints, &violation.constraint_id)
-            })
-            .count()
+        let started = seed_profile_on().then(Instant::now);
+        let count = self.pattern_hits().len();
+        if let Some(started) = started {
+            SEED_PROFILE.pattern_count.record(started);
+        }
+        count
     }
 
     fn pattern_violations(&self) -> Vec<(usize, usize, usize)> {
-        let count = self.pattern_count();
-        self.checker
-            .check(&self.view())
+        let started = seed_profile_on().then(Instant::now);
+        let hits = self.pattern_hits();
+        let count = hits.len();
+        let found = hits
+            .into_iter()
+            .map(|violation| (violation.start_nt, violation.end_nt, count))
+            .collect();
+        if let Some(started) = started {
+            SEED_PROFILE.pattern_violations.record(started);
+        }
+        found
+    }
+
+    /// Blocking actionable pattern hits.
+    ///
+    /// `check_patterns` omits k-mer and GC scans. Those rules are not patterns,
+    /// so the list matches `checker.check` filtered by `is_pattern`.
+    fn pattern_hits(&self) -> Vec<crate::detect::Violation> {
+        let view = self.view();
+        let check_started = seed_profile_on().then(Instant::now);
+        let violations = self.checker.check_patterns(&view);
+        if let Some(check_started) = check_started {
+            SEED_PROFILE.checker_check.record(check_started);
+        }
+        violations
             .into_iter()
             .filter(|violation| {
                 violation.class == ConstraintClass::Blocking
                     && violation.actionable
                     && is_pattern(&self.checker.set().constraints, &violation.constraint_id)
             })
-            .map(|violation| (violation.start_nt, violation.end_nt, count))
             .collect()
     }
 
     fn hot_codons(&self) -> Vec<usize> {
+        let started = seed_profile_on().then(Instant::now);
+        let indexes = self.hot_codons_inner();
+        if let Some(started) = started {
+            SEED_PROFILE.hot_codons.record(started);
+        }
+        indexes
+    }
+
+    fn hot_codons_inner(&self) -> Vec<usize> {
         let mut indexes = Vec::new();
         for rule in &self.kmers.rules {
             if self.nt.len() < rule.k {
@@ -1299,6 +1551,107 @@ fn adjusted_gc(before: u32, nt: &[u8], at: usize, bases: [u8; 3], start: usize, 
     count
 }
 
+fn spans_overlap(editable: &[(usize, usize)], start: usize, end: usize) -> bool {
+    editable.iter().any(|&(lo, hi)| start < hi && lo < end)
+}
+
+fn homo_total(
+    nt: &[u8],
+    at: usize,
+    bases: Option<[u8; 3]>,
+    rules: &[(Option<u8>, usize)],
+    editable: &[(usize, usize)],
+) -> u64 {
+    let mut total = 0u64;
+    for &(base, max_run) in rules {
+        let mut pos = 0;
+        while pos < nt.len() {
+            let here = base_at(nt, at, bases, pos);
+            if base.is_some_and(|wanted| wanted != here)
+                || !matches!(here, b'A' | b'C' | b'G' | b'T')
+            {
+                pos += 1;
+                continue;
+            }
+            let mut end = pos + 1;
+            while end < nt.len() && base_at(nt, at, bases, end) == here {
+                end += 1;
+            }
+            if end - pos > max_run && spans_overlap(editable, pos, end) {
+                total += (end - pos - max_run) as u64;
+            }
+            pos = end;
+        }
+    }
+    total
+}
+
+/// Inclusive-exclusive window that contains every homopolymer run intersecting
+/// the codon, in both the current sequence and the sequence with `bases`
+/// written at `at`. `None` when the codon does not fit.
+fn homo_window(nt: &[u8], at: usize, bases: [u8; 3]) -> Option<(usize, usize)> {
+    if at.checked_add(3)? > nt.len() {
+        return None;
+    }
+    let mut left = at;
+    for base in [nt[at], bases[0]] {
+        let mut pos = at;
+        while pos > 0 && nt[pos - 1] == base {
+            pos -= 1;
+        }
+        left = left.min(pos);
+    }
+    let mut right = at + 3;
+    for base in [nt[at + 2], bases[2]] {
+        let mut pos = at + 2;
+        while pos + 1 < nt.len() && nt[pos + 1] == base {
+            pos += 1;
+        }
+        right = right.max(pos + 1);
+    }
+    Some((left, right))
+}
+
+/// Penalty of runs that lie inside `[start, end)`.
+///
+/// `None` when a run crosses the window. That means the window is too small
+/// and the caller must scan the whole sequence instead of trusting a delta.
+fn homo_between(
+    nt: &[u8],
+    at: usize,
+    bases: Option<[u8; 3]>,
+    start: usize,
+    end: usize,
+    rules: &[(Option<u8>, usize)],
+    editable: &[(usize, usize)],
+) -> Option<u64> {
+    let mut total = 0u64;
+    for &(base, max_run) in rules {
+        let mut pos = start;
+        while pos < end {
+            let here = base_at(nt, at, bases, pos);
+            if base.is_some_and(|wanted| wanted != here)
+                || !matches!(here, b'A' | b'C' | b'G' | b'T')
+            {
+                pos += 1;
+                continue;
+            }
+            let mut run_end = pos + 1;
+            while run_end < nt.len() && base_at(nt, at, bases, run_end) == here {
+                run_end += 1;
+            }
+            if run_end > end {
+                return None;
+            }
+            if run_end - pos > max_run && spans_overlap(editable, pos, run_end) {
+                total += (run_end - pos - max_run) as u64;
+            }
+            pos = run_end;
+        }
+    }
+    Some(total)
+}
+
 fn base_at(nt: &[u8], at: usize, bases: Option<[u8; 3]>, pos: usize) -> u8 {
     if let Some(bases) = bases {
         if pos >= at && pos < at + 3 {
@@ -1387,5 +1740,172 @@ mod tests {
         );
         assert_eq!(report.sequence.protein(), sequence.protein());
         assert!(!report.sequence.cds_string().contains("AGGAGGAAAAATG"));
+    }
+
+    #[test]
+    fn pattern_check_matches_the_filtered_full_check_and_skips_kmer_and_gc() {
+        use crate::spec::{HomopolymerBase, Strand};
+
+        let compiled = checker(vec![
+            (
+                "c_gc",
+                Rule::GcWindow {
+                    window_nt: 6,
+                    min: 0.0,
+                    max: 0.2,
+                },
+            ),
+            (
+                "c_kmer",
+                Rule::KmerRepeat {
+                    k: 4,
+                    max_occurrences: 1,
+                    count_overlapping: true,
+                    canonical_strand: false,
+                },
+            ),
+            (
+                "c_ecori",
+                Rule::RestrictionSite {
+                    enzyme: "EcoRI".into(),
+                    site: "GAATTC".into(),
+                    strand: Strand::Both,
+                    max_occurrences: 0,
+                },
+            ),
+            (
+                "c_homo",
+                Rule::Homopolymer {
+                    base: HomopolymerBase::Any,
+                    max_run: 3,
+                },
+            ),
+        ]);
+        let sequence = CodonSequence::from_cds("ATGGAATTCGGGGGGAAAAAATAA", 11).unwrap();
+        let weights = weights_one();
+        let solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
+        let view = solver.view();
+        let project = |violation: &crate::detect::Violation| {
+            (
+                violation.constraint_id.clone(),
+                violation.start_nt,
+                violation.end_nt,
+                violation.actionable,
+                violation.class,
+            )
+        };
+        let filtered: Vec<_> = compiled
+            .check(&view)
+            .into_iter()
+            .filter(|violation| is_pattern(&compiled.set().constraints, &violation.constraint_id))
+            .map(|violation| project(&violation))
+            .collect();
+        let patterns: Vec<_> = compiled
+            .check_patterns(&view)
+            .into_iter()
+            .map(|violation| project(&violation))
+            .collect();
+        assert_eq!(patterns, filtered);
+        assert!(patterns.iter().any(|hit| hit.0 == "c_ecori"));
+        assert!(patterns.iter().any(|hit| hit.0 == "c_homo"));
+        assert!(patterns
+            .iter()
+            .all(|hit| hit.0 != "c_gc" && hit.0 != "c_kmer"));
+        let full = compiled.check(&view);
+        assert!(full
+            .iter()
+            .any(|hit| hit.constraint_id == "c_gc" || hit.constraint_id == "c_kmer"));
+        assert_eq!(solver.pattern_count(), filtered.len());
+    }
+
+    #[test]
+    fn homopolymer_delta_matches_a_full_scan_including_merges() {
+        use crate::spec::HomopolymerBase;
+
+        let compiled = checker(vec![
+            (
+                "c_any",
+                Rule::Homopolymer {
+                    base: HomopolymerBase::Any,
+                    max_run: 4,
+                },
+            ),
+            (
+                "c_a",
+                Rule::Homopolymer {
+                    base: HomopolymerBase::A,
+                    max_run: 3,
+                },
+            ),
+        ]);
+        let block = [
+            "AAA", "AAA", "CTG", "CCC", "CCC", "GCT", "TTT", "GGG", "AAC",
+        ];
+        let cds = format!("ATG{}TAA", block.repeat(6).join(""));
+        assert_eq!(cds.len() % 3, 0, "{}", cds.len());
+        let sequence = CodonSequence::from_cds(&cds, 11).unwrap();
+        let weights = weights_one();
+        let mut solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
+        for index in 0..solver.seq.codon_count() {
+            let current = solver.seq.codons()[index];
+            for &synonym in solver.seq.synonyms_at(index) {
+                let at = solver.cds_off + index * 3;
+                let bases = synonym.to_bytes();
+                let expected = homo_total(
+                    &solver.nt,
+                    at,
+                    Some(bases),
+                    &solver.homo_rules,
+                    &solver.editable,
+                );
+                assert_eq!(
+                    solver.homo_after(at, bases),
+                    expected,
+                    "virtual edit {index} {current} -> {synonym}"
+                );
+                let (left, right) = homo_window(&solver.nt, at, bases).unwrap();
+                assert!(
+                    homo_between(
+                        &solver.nt,
+                        at,
+                        None,
+                        left,
+                        right,
+                        &solver.homo_rules,
+                        &solver.editable,
+                    )
+                    .is_some(),
+                    "old window crossed at {index}"
+                );
+                assert!(
+                    homo_between(
+                        &solver.nt,
+                        at,
+                        Some(bases),
+                        left,
+                        right,
+                        &solver.homo_rules,
+                        &solver.editable,
+                    )
+                    .is_some(),
+                    "new window crossed at {index}"
+                );
+            }
+        }
+        let index = 4;
+        let original = solver.seq.codons()[index];
+        let replacement = solver
+            .seq
+            .synonyms_at(index)
+            .iter()
+            .copied()
+            .find(|codon| *codon != original)
+            .unwrap();
+        solver.set_codon(index, replacement).unwrap();
+        let rescanned = homo_total(&solver.nt, 0, None, &solver.homo_rules, &solver.editable);
+        assert_eq!(solver.homo_penalty, rescanned);
+        solver.set_codon(index, original).unwrap();
+        let restored = homo_total(&solver.nt, 0, None, &solver.homo_rules, &solver.editable);
+        assert_eq!(solver.homo_penalty, restored);
     }
 }
