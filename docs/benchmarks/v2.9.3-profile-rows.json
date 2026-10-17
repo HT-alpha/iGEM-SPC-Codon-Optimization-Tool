@@ -1,0 +1,1795 @@
+{
+  "seed": 7,
+  "host": "escherichia_coli:511145/BL21",
+  "suite": "v2.9.3",
+  "note": "Same harness as v2.9.2 (tools/profile_suite.py), maturin develop, profile.dev opt-level 1. Before-numbers live in v2.9.2-profiles.md.",
+  "rows": [
+    {
+      "wall_s": 0.22947323900007177,
+      "peak_rss_kb": 30820,
+      "nt": 7077,
+      "feasible": true,
+      "edits": 527,
+      "cycles": 2,
+      "cds_sha256": "686adf6a7ed03ac848270c94afbb9f7bbfd7873dbf926bc03390001d80eb9b4c",
+      "state": "succeeded",
+      "name": "seed yeeJ",
+      "suite": "seed",
+      "rust_profile": "{\"name\":\"gc_sweeps\",\"calls\":2,\"seconds\":0.018080},{\"name\":\"fix_patterns\",\"calls\":4,\"seconds\":0.002064},{\"name\":\"fix_kmers\",\"calls\":3,\"seconds\":0.063957},{\"name\":\"fix_kmer_pairs\",\"calls\":1,\"seconds\":0.000000},{\"name\":\"polish\",\"calls\":3,\"seconds\":0.010879},{\"name\":\"ascend\",\"calls\":1,\"seconds\":0.135672},{\"name\":\"homo_touching\",\"calls\":34064,\"seconds\":0.001912},{\"name\":\"gc_delta\",\"calls\":50181,\"seconds\":0.026696},{\"name\":\"prefix_update\",\"calls\":25545,\"seconds\":0.049804},{\"name\":\"pattern_count\",\"calls\":7684,\"seconds\":0.000195},{\"name\":\"pattern_violations\",\"calls\":4,\"seconds\":0.000004},{\"name\":\"is_feasible\",\"calls\":448,\"seconds\":0.000184},{\"name\":\"hot_codons\",\"calls\":3,\"seconds\":0.003157},{\"name\":\"kmer_replace\",\"calls\":25545,\"seconds\":0.065615},{\"name\":\"checker_check\",\"calls\":0,\"seconds\":0.000000}"
+    },
+    {
+      "wall_s": 0.12039276599989535,
+      "peak_rss_kb": 30700,
+      "nt": 4029,
+      "feasible": true,
+      "edits": 685,
+      "cycles": 2,
+      "cds_sha256": "160aae5887a352527910df72b394f831b42c1a9949a83109e6a5589b37ab958e",
+      "state": "succeeded",
+      "name": "seed rpoB",
+      "suite": "seed",
+      "rust_profile": "{\"name\":\"gc_sweeps\",\"calls\":5,\"seconds\":0.022881},{\"name\":\"fix_patterns\",\"calls\":9,\"seconds\":0.002687},{\"name\":\"fix_kmers\",\"calls\":5,\"seconds\":0.010648},{\"name\":\"fix_kmer_pairs\",\"calls\":4,\"seconds\":0.000000},{\"name\":\"polish\",\"calls\":3,\"seconds\":0.011573},{\"name\":\"ascend\",\"calls\":1,\"seconds\":0.070931},{\"name\":\"homo_touching\",\"calls\":42390,\"seconds\":0.002455},{\"name\":\"gc_delta\",\"calls\":43785,\"seconds\":0.023059},{\"name\":\"prefix_update\",\"calls\":13464,\"seconds\":0.017578},{\"name\":\"pattern_count\",\"calls\":2732,\"seconds\":0.000069},{\"name\":\"pattern_violations\",\"calls\":9,\"seconds\":0.000005},{\"name\":\"is_feasible\",\"calls\":956,\"seconds\":0.000095},{\"name\":\"hot_codons\",\"calls\":5,\"seconds\":0.003046},{\"name\":\"kmer_replace\",\"calls\":13464,\"seconds\":0.034756},{\"name\":\"checker_check\",\"calls\":0,\"seconds\":0.000000}"
+    },
+    {
+      "wall_s": 0.027716467000118428,
+      "peak_rss_kb": 30684,
+      "nt": 936,
+      "feasible": true,
+      "edits": 90,
+      "cycles": 1,
+      "cds_sha256": "11cdd2fb04a48e29ff284107103ddab0c83e741341b7bf9926fff06d8b90627d",
+      "state": "succeeded",
+      "name": "seed waaS",
+      "suite": "seed",
+      "rust_profile": "{\"name\":\"gc_sweeps\",\"calls\":1,\"seconds\":0.000765},{\"name\":\"fix_patterns\",\"calls\":2,\"seconds\":0.000273},{\"name\":\"fix_kmers\",\"calls\":1,\"seconds\":0.000384},{\"name\":\"fix_kmer_pairs\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"polish\",\"calls\":3,\"seconds\":0.001487},{\"name\":\"ascend\",\"calls\":1,\"seconds\":0.024588},{\"name\":\"homo_touching\",\"calls\":970,\"seconds\":0.000062},{\"name\":\"gc_delta\",\"calls\":6150,\"seconds\":0.003378},{\"name\":\"prefix_update\",\"calls\":5490,\"seconds\":0.002520},{\"name\":\"pattern_count\",\"calls\":168,\"seconds\":0.000005},{\"name\":\"pattern_violations\",\"calls\":2,\"seconds\":0.000001},{\"name\":\"is_feasible\",\"calls\":66,\"seconds\":0.000006},{\"name\":\"hot_codons\",\"calls\":1,\"seconds\":0.000152},{\"name\":\"kmer_replace\",\"calls\":5490,\"seconds\":0.013257},{\"name\":\"checker_check\",\"calls\":0,\"seconds\":0.000000}"
+    },
+    {
+      "wall_s": 0.059404210000138846,
+      "peak_rss_kb": 30680,
+      "nt": 306,
+      "feasible": true,
+      "edits": 111,
+      "cycles": 1,
+      "cds_sha256": "067af67421dbeb2dc933198ea718fd2d9b7e1b11a2e6c9e725dbf0ac2f5c4da9",
+      "state": "succeeded",
+      "name": "seed elp",
+      "suite": "seed",
+      "rust_profile": "{\"name\":\"gc_sweeps\",\"calls\":1,\"seconds\":0.000283},{\"name\":\"fix_patterns\",\"calls\":1,\"seconds\":0.000001},{\"name\":\"fix_kmers\",\"calls\":2,\"seconds\":0.003588},{\"name\":\"fix_kmer_pairs\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"polish\",\"calls\":3,\"seconds\":0.002246},{\"name\":\"ascend\",\"calls\":1,\"seconds\":0.053884},{\"name\":\"homo_touching\",\"calls\":400,\"seconds\":0.000045},{\"name\":\"gc_delta\",\"calls\":15599,\"seconds\":0.007876},{\"name\":\"prefix_update\",\"calls\":15299,\"seconds\":0.001927},{\"name\":\"pattern_count\",\"calls\":622,\"seconds\":0.000016},{\"name\":\"pattern_violations\",\"calls\":1,\"seconds\":0.000001},{\"name\":\"is_feasible\",\"calls\":66,\"seconds\":0.000006},{\"name\":\"hot_codons\",\"calls\":2,\"seconds\":0.000096},{\"name\":\"kmer_replace\",\"calls\":15299,\"seconds\":0.035265},{\"name\":\"checker_check\",\"calls\":0,\"seconds\":0.000000}"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.5571740460000001,
+      "peak_rss_kb": 48804,
+      "nt": 7077,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.7e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001032,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 8.3e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.060142,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.013165,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000237,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 9625,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "yeeJ CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.3208844000000681,
+      "peak_rss_kb": 46132,
+      "nt": 4029,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.9e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000673,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 5.9e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.030612,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.006747,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000156,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 6591,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "rpoB CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.25685301800012894,
+      "peak_rss_kb": 45308,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.4e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000588,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 4.9e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.022481,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.005379,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000134,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 5639,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "lacZ CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.0809808389999489,
+      "peak_rss_kb": 44316,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.1e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000361,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 3.3e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.005746,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.002319,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 8e-05,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 3498,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "waaS CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.04694128500022998,
+      "peak_rss_kb": 43996,
+      "nt": 306,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.3e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000268,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 3.1e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.002464,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.001685,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 5.5e-05,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 2865,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "elp CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.04597599100043226,
+      "peak_rss_kb": 44128,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.1e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000273,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 2.9e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.002607,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.001815,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 5.5e-05,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 2937,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "rpsL CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.17254221599978337,
+      "peak_rss_kb": 44696,
+      "nt": 1968,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.4e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000455,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 4.7e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.01468,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.003463,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000105,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 4530,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "yagF CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.13399218199992902,
+      "peak_rss_kb": 44504,
+      "nt": 1602,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.3e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000475,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 7.9e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.011089,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.003269,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000105,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 4148,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "aceB CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.2117778530000578,
+      "peak_rss_kb": 44796,
+      "nt": 2463,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.3e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000546,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 4.5e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.018492,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.006162,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000126,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0
+      ],
+      "front_bytes": 5010,
+      "status_bytes": 1334,
+      "protein_identical": true,
+      "name": "thrA CAI empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 1.1746887099998276,
+      "peak_rss_kb": 52868,
+      "nt": 7077,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.008782,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001424,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 0.00013,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.149587,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.220862,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.2897,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.003971,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9580065306093907
+      ],
+      "front_bytes": 54865,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "yeeJ CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.5892519149997497,
+      "peak_rss_kb": 49944,
+      "nt": 4029,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.005704,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001351,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 0.000115,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.082337,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.112446,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.053628,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.002646,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9798209521813181
+      ],
+      "front_bytes": 18070,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "rpoB CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.41815241899985267,
+      "peak_rss_kb": 47448,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.005036,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000982,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 9.4e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.060424,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.079894,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.03599,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.001434,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9516318473376221
+      ],
+      "front_bytes": 17055,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "lacZ CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.12743988300007913,
+      "peak_rss_kb": 44764,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.002766,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000648,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 8.2e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.019412,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.026475,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.006867,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000844,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9173459052341191
+      ],
+      "front_bytes": 13947,
+      "status_bytes": 1835,
+      "protein_identical": true,
+      "name": "waaS CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.11295391400017252,
+      "peak_rss_kb": 44388,
+      "nt": 306,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.001048,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000599,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 6.6e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.004705,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.059299,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.003069,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000867,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.43802555520567116
+      ],
+      "front_bytes": 17701,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "elp CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.05699022099997819,
+      "peak_rss_kb": 44252,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.000668,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.00058,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 7.8e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.006883,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.003607,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.002238,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000196,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9866866273575934
+      ],
+      "front_bytes": 3544,
+      "status_bytes": 1834,
+      "protein_identical": true,
+      "name": "rpsL CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.3169055639996259,
+      "peak_rss_kb": 45656,
+      "nt": 1968,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.005895,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000808,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 8.2e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.040666,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.079158,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.021955,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.001121,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9286425884184984
+      ],
+      "front_bytes": 15042,
+      "status_bytes": 1836,
+      "protein_identical": true,
+      "name": "yagF CAI assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.6879641819996323,
+      "peak_rss_kb": 46544,
+      "nt": 4029,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 3.7e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000866,
+          "calls": 7
+        },
+        "constraint_unsearched": {
+          "seconds": 5.7e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.040358,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.108187,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000151,
+          "calls": 1
+        }
+      },
+      "vector": [
+        1.0,
+        0.6171608892818251
+      ],
+      "front_bytes": 11657,
+      "status_bytes": 1417,
+      "protein_identical": true,
+      "name": "rpoB CAI+burden empty",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.2251334190000307,
+      "peak_rss_kb": 45504,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.002796,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000817,
+          "calls": 7
+        },
+        "constraint_unsearched": {
+          "seconds": 8.5e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.021199,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.02606,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.054003,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000755,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9173459052341191,
+        0.5636056357592945
+      ],
+      "front_bytes": 15918,
+      "status_bytes": 1918,
+      "protein_identical": true,
+      "name": "waaS CAI+burden assembly",
+      "suite": "stages"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.42214330999968297,
+      "peak_rss_kb": 48596,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 4.8e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000738,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 4.1e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.004907,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.02608,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000141,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9303092945130915,
+        -0.5887977805472148
+      ],
+      "front_bytes": 9390,
+      "status_bytes": 1428,
+      "protein_identical": true,
+      "name": "rpsL CAI+Potts",
+      "suite": "potts"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.43955660099982197,
+      "peak_rss_kb": 47732,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 4e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.000716,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 3.6e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.009563,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.047808,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000171,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9593146794501609,
+        -0.5143818504117195
+      ],
+      "front_bytes": 17453,
+      "status_bytes": 1428,
+      "protein_identical": true,
+      "name": "waaS CAI+Potts",
+      "suite": "potts"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.8053973979999682,
+      "peak_rss_kb": 48600,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 5.2e-05,
+          "calls": 3
+        },
+        "term_scores": {
+          "seconds": 0.001584,
+          "calls": 6
+        },
+        "constraint_unsearched": {
+          "seconds": 6e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.039635,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.217716,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000913,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.8859755189212043,
+        -0.5677755453484393
+      ],
+      "front_bytes": 83644,
+      "status_bytes": 1428,
+      "protein_identical": true,
+      "name": "lacZ CAI+Potts",
+      "suite": "potts"
+    },
+    {
+      "wall_s": 0.0031683510001130344,
+      "peak_rss_kb": 30720,
+      "region_nt": 1000,
+      "flank": 50,
+      "response_bytes": 54039,
+      "survivors": 72,
+      "truncated": false,
+      "n_pairs": 20,
+      "product_size": 1072,
+      "hetero_dimer_dG": -3.507365,
+      "refused": false,
+      "sha256": "e57132f535a1cb83da6df37df58f5d457c0abc5ce872ebb7fd395c6c73d4e265",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 50",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":472,\"seconds\":0.000020},{\"name\":\"homopolymer\",\"calls\":456,\"seconds\":0.000030},{\"name\":\"tm_prefilter\",\"calls\":456,\"seconds\":0.001007},{\"name\":\"product\",\"calls\":72,\"seconds\":0.000002},{\"name\":\"hairpin\",\"calls\":22,\"seconds\":0.000012},{\"name\":\"dimer\",\"calls\":94,\"seconds\":0.001047},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.000115}"
+    },
+    {
+      "wall_s": 0.0546993430002658,
+      "peak_rss_kb": 34888,
+      "region_nt": 1000,
+      "flank": 100,
+      "response_bytes": 52697,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1180,
+      "hetero_dimer_dG": -2.1353599999999986,
+      "refused": false,
+      "sha256": "8c8d3c988daf7eed7ee49681b4f48639500b27eb2b2a31c0ced41d752dcd36f6",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 100",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":1272,\"seconds\":0.000052},{\"name\":\"homopolymer\",\"calls\":1256,\"seconds\":0.000085},{\"name\":\"tm_prefilter\",\"calls\":1116,\"seconds\":0.002382},{\"name\":\"product\",\"calls\":1600,\"seconds\":0.000053},{\"name\":\"hairpin\",\"calls\":80,\"seconds\":0.000021},{\"name\":\"dimer\",\"calls\":1680,\"seconds\":0.021028},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.019524}"
+    },
+    {
+      "wall_s": 0.05658782599994083,
+      "peak_rss_kb": 31560,
+      "region_nt": 1000,
+      "flank": 200,
+      "response_bytes": 54030,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1249,
+      "hetero_dimer_dG": -2.753985,
+      "refused": false,
+      "sha256": "cc92049d4ea1cc387914362ae2296d978278c280182fe132bf93bca3357e9d80",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 200",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":2872,\"seconds\":0.000119},{\"name\":\"homopolymer\",\"calls\":2740,\"seconds\":0.000208},{\"name\":\"tm_prefilter\",\"calls\":2209,\"seconds\":0.004877},{\"name\":\"product\",\"calls\":1600,\"seconds\":0.000049},{\"name\":\"hairpin\",\"calls\":80,\"seconds\":0.000024},{\"name\":\"dimer\",\"calls\":1680,\"seconds\":0.021638},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.019563}"
+    },
+    {
+      "wall_s": 0.07673066500001369,
+      "peak_rss_kb": 32292,
+      "region_nt": 1000,
+      "flank": 300,
+      "response_bytes": 54213,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1249,
+      "hetero_dimer_dG": -2.753985,
+      "refused": false,
+      "sha256": "e40da98e67dca784b6e1d53d0d6148d561ea0dc7eabef986f58fc67b57d44d07",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 300",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":4472,\"seconds\":0.000215},{\"name\":\"homopolymer\",\"calls\":4279,\"seconds\":0.000351},{\"name\":\"tm_prefilter\",\"calls\":3611,\"seconds\":0.010259},{\"name\":\"product\",\"calls\":1600,\"seconds\":0.000067},{\"name\":\"hairpin\",\"calls\":80,\"seconds\":0.000023},{\"name\":\"dimer\",\"calls\":1680,\"seconds\":0.026024},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.024803}"
+    },
+    {
+      "wall_s": 0.07094938399995954,
+      "peak_rss_kb": 32696,
+      "region_nt": 300,
+      "flank": 300,
+      "response_bytes": 44692,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 822,
+      "hetero_dimer_dG": -1.8601799999999997,
+      "refused": false,
+      "sha256": "04f69cb6ad99fe876e957d922ed5b65fa071c8af6a488b4cd17db28aef89ca7e",
+      "state": "succeeded",
+      "name": "yeeJ region 300 flank 300",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":4472,\"seconds\":0.000182},{\"name\":\"homopolymer\",\"calls\":4197,\"seconds\":0.000301},{\"name\":\"tm_prefilter\",\"calls\":3926,\"seconds\":0.008643},{\"name\":\"product\",\"calls\":1600,\"seconds\":0.000071},{\"name\":\"hairpin\",\"calls\":80,\"seconds\":0.000031},{\"name\":\"dimer\",\"calls\":1680,\"seconds\":0.028724},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.019825}"
+    },
+    {
+      "wall_s": 0.07556025400026556,
+      "peak_rss_kb": 32712,
+      "region_nt": 1000,
+      "flank": 300,
+      "response_bytes": 55621,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 1394,
+      "hetero_dimer_dG": -1.7191900000000047,
+      "refused": false,
+      "sha256": "250193a8e2faffcd86ea4866be77b7079e7ffbbf1c1301f519a2fdc40858343a",
+      "state": "succeeded",
+      "name": "yeeJ region 1000 flank 300",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":4472,\"seconds\":0.000210},{\"name\":\"homopolymer\",\"calls\":4379,\"seconds\":0.000365},{\"name\":\"tm_prefilter\",\"calls\":4379,\"seconds\":0.012238},{\"name\":\"product\",\"calls\":1600,\"seconds\":0.000061},{\"name\":\"hairpin\",\"calls\":80,\"seconds\":0.000026},{\"name\":\"dimer\",\"calls\":1680,\"seconds\":0.025704},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.021748}"
+    },
+    {
+      "wall_s": 0.0637239950001458,
+      "peak_rss_kb": 31564,
+      "region_nt": 6477,
+      "flank": 300,
+      "response_bytes": 166429,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 6843,
+      "hetero_dimer_dG": -1.283850000000001,
+      "refused": false,
+      "sha256": "5f1fa115bcefde58d0c3d92a35e7adbc5fcbf04bf78b6efe43bf75f946aa149f",
+      "state": "succeeded",
+      "name": "yeeJ region 6477 flank 300",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":4472,\"seconds\":0.000180},{\"name\":\"homopolymer\",\"calls\":4246,\"seconds\":0.000305},{\"name\":\"tm_prefilter\",\"calls\":4063,\"seconds\":0.008865},{\"name\":\"product\",\"calls\":1600,\"seconds\":0.000054},{\"name\":\"hairpin\",\"calls\":80,\"seconds\":0.000020},{\"name\":\"dimer\",\"calls\":1680,\"seconds\":0.022837},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.020845}"
+    },
+    {
+      "wall_s": 0.0020109760002924304,
+      "peak_rss_kb": 30720,
+      "region_nt": 295,
+      "flank": 40,
+      "response_bytes": 6837,
+      "survivors": 24,
+      "truncated": false,
+      "n_pairs": 3,
+      "product_size": 371,
+      "hetero_dimer_dG": -3.9297299999999993,
+      "refused": false,
+      "sha256": "ccc17c9e987e654935d0058ab8fdd8c5e8b771f286fb8570bef5748bc751922a",
+      "state": "succeeded",
+      "name": "rpsL whole CDS flank 40",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":312,\"seconds\":0.000016},{\"name\":\"homopolymer\",\"calls\":312,\"seconds\":0.000024},{\"name\":\"tm_prefilter\",\"calls\":312,\"seconds\":0.000907},{\"name\":\"product\",\"calls\":24,\"seconds\":0.000001},{\"name\":\"hairpin\",\"calls\":11,\"seconds\":0.000010},{\"name\":\"dimer\",\"calls\":35,\"seconds\":0.000456},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.000034}"
+    },
+    {
+      "wall_s": 0.05364916700000322,
+      "peak_rss_kb": 36516,
+      "region_nt": 7077,
+      "flank": 300,
+      "response_bytes": 189505,
+      "survivors": 1600,
+      "truncated": true,
+      "n_pairs": 20,
+      "product_size": 7395,
+      "hetero_dimer_dG": -20.754845000000046,
+      "refused": true,
+      "sha256": "0754bf08ea428a9cbc2cfb26d04fcf509d8f1eb61cd64fd53e1b02a5d502cb25",
+      "state": "succeeded",
+      "name": "yeeJ synthetic flanks",
+      "suite": "primers",
+      "rust_profile": "{\"name\":\"gc\",\"calls\":4472,\"seconds\":0.000179},{\"name\":\"homopolymer\",\"calls\":4472,\"seconds\":0.000167},{\"name\":\"tm_prefilter\",\"calls\":4472,\"seconds\":0.008541},{\"name\":\"product\",\"calls\":1600,\"seconds\":0.000065},{\"name\":\"hairpin\",\"calls\":80,\"seconds\":0.000286},{\"name\":\"dimer\",\"calls\":1680,\"seconds\":0.021749},{\"name\":\"pair_tm\",\"calls\":0,\"seconds\":0.000000},{\"name\":\"rank\",\"calls\":1,\"seconds\":0.003176}"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.302356226000029,
+      "peak_rss_kb": 44380,
+      "nt": 375,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.002729,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.001789,
+          "calls": 24
+        },
+        "constraint_unsearched": {
+          "seconds": 7.1e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.006842,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.003337,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.001677,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 0.276045,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.00021,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.985816320550702,
+        2.6050213909252715
+      ],
+      "front_bytes": 14151,
+      "status_bytes": 4049,
+      "protein_identical": true,
+      "folds": {
+        "hits": 12,
+        "full_folds": 3,
+        "local_edits": 10
+      },
+      "name": "rpsL CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 1.3741505740003959,
+      "peak_rss_kb": 44892,
+      "nt": 936,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.007627,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.002017,
+          "calls": 23
+        },
+        "constraint_unsearched": {
+          "seconds": 7.4e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.019639,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.026337,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.008046,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 1.297978,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.000746,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9096294894349499,
+        1.7845726655476362
+      ],
+      "front_bytes": 30198,
+      "status_bytes": 4062,
+      "protein_identical": true,
+      "folds": {
+        "hits": 14,
+        "full_folds": 2,
+        "local_edits": 16
+      },
+      "name": "waaS CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 0.6823416390002421,
+      "peak_rss_kb": 44364,
+      "nt": 306,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.002775,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.001267,
+          "calls": 17
+        },
+        "constraint_unsearched": {
+          "seconds": 6.9e-05,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.004857,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.05627,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.002532,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 0.603961,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.0007,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.4236181040759199,
+        3.3760051578497814
+      ],
+      "front_bytes": 24067,
+      "status_bytes": 3574,
+      "protein_identical": true,
+      "folds": {
+        "hits": 16,
+        "full_folds": 6,
+        "local_edits": 2
+      },
+      "name": "elp CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 2.0167509970001447,
+      "peak_rss_kb": 47724,
+      "nt": 3075,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.019864,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.003252,
+          "calls": 24
+        },
+        "constraint_unsearched": {
+          "seconds": 0.000108,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.075842,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.087381,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.033115,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 1.780609,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.001329,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9497890800680886,
+        2.7181800037278987
+      ],
+      "front_bytes": 54914,
+      "status_bytes": 4059,
+      "protein_identical": true,
+      "folds": {
+        "hits": 15,
+        "full_folds": 1,
+        "local_edits": 18
+      },
+      "name": "lacZ CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "state": "succeeded",
+      "wall_s": 4.006860420000066,
+      "peak_rss_kb": 53344,
+      "nt": 7077,
+      "stages": {
+        "constraint_violations": {
+          "seconds": 0.038092,
+          "calls": 15
+        },
+        "term_scores": {
+          "seconds": 0.004723,
+          "calls": 23
+        },
+        "constraint_unsearched": {
+          "seconds": 0.000125,
+          "calls": 1
+        },
+        "search_tier1_seed": {
+          "seconds": 0.143624,
+          "calls": 1
+        },
+        "resolve_feasible_seed": {
+          "seconds": 0.218959,
+          "calls": 1
+        },
+        "search_tier2_polish": {
+          "seconds": 0.286242,
+          "calls": 1
+        },
+        "search_tier3_segment": {
+          "seconds": 3.291479,
+          "calls": 1
+        },
+        "explain_baseline": {
+          "seconds": 0.004099,
+          "calls": 1
+        }
+      },
+      "vector": [
+        0.9575892496987667,
+        2.408954059933615
+      ],
+      "front_bytes": 132593,
+      "status_bytes": 4067,
+      "protein_identical": true,
+      "folds": {
+        "hits": 12,
+        "full_folds": 1,
+        "local_edits": 21
+      },
+      "name": "yeeJ CAI+structure assembly",
+      "suite": "structure"
+    },
+    {
+      "wall_s": 0.3412990470001205,
+      "peak_rss_kb": 44540,
+      "nt": [
+        375,
+        936
+      ],
+      "joint_growth_cost": 0.4475618327684962,
+      "swaps_per_pass": [
+        22,
+        0
+      ],
+      "state": "succeeded",
+      "name": "operon rpsL+waaS",
+      "suite": "operon"
+    },
+    {
+      "wall_s": 1.6767340840001452,
+      "peak_rss_kb": 45628,
+      "nt": [
+        3075,
+        2463
+      ],
+      "joint_growth_cost": 0.4452346719259927,
+      "swaps_per_pass": [
+        26,
+        0
+      ],
+      "state": "succeeded",
+      "name": "operon lacZ+thrA",
+      "suite": "operon"
+    },
+    {
+      "kind": "yeeJ-assembly",
+      "measured": {
+        "state": "succeeded",
+        "wall_s": 1.2035375450000174,
+        "peak_rss_kb": 53356,
+        "nt": 7077,
+        "vector": [
+          0.9580065306093907
+        ],
+        "front_bytes": 54865,
+        "status_bytes": 1836,
+        "protein_identical": true
+      },
+      "top": [
+        {
+          "function": "_design",
+          "file": "/workspace/tools/profile_suite.py",
+          "line": 121,
+          "calls": 1,
+          "cumulative_s": 1.443214384
+        },
+        {
+          "function": "design",
+          "file": "/workspace/python/codonforge/orchestrator/design.py",
+          "line": 183,
+          "calls": 1,
+          "cumulative_s": 1.203263326
+        },
+        {
+          "function": "inner",
+          "file": "/workspace/tools/profile_suite.py",
+          "line": 94,
+          "calls": 14,
+          "cumulative_s": 0.703604605
+        },
+        {
+          "function": "run",
+          "file": "/workspace/python/codonforge/orchestrator/job.py",
+          "line": 267,
+          "calls": 1,
+          "cumulative_s": 0.7021681790000001
+        },
+        {
+          "function": "_run_seeding_tiers",
+          "file": "/workspace/python/codonforge/orchestrator/job.py",
+          "line": 702,
+          "calls": 1,
+          "cumulative_s": 0.702107911
+        },
+        {
+          "function": "_front",
+          "file": "/workspace/python/codonforge/orchestrator/design.py",
+          "line": 449,
+          "calls": 1,
+          "cumulative_s": 0.496376741
+        },
+        {
+          "function": "annotate",
+          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "line": 232,
+          "calls": 1,
+          "cumulative_s": 0.48672517200000004
+        },
+        {
+          "function": "evaluate",
+          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "line": 165,
+          "calls": 1,
+          "cumulative_s": 0.474603728
+        },
+        {
+          "function": "evaluate",
+          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "line": 97,
+          "calls": 1,
+          "cumulative_s": 0.47459348100000004
+        },
+        {
+          "function": "_one",
+          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "line": 138,
+          "calls": 1,
+          "cumulative_s": 0.47458121500000006
+        },
+        {
+          "function": "prime",
+          "file": "/workspace/python/codonforge/predictors/cache.py",
+          "line": 83,
+          "calls": 1,
+          "cumulative_s": 0.471040495
+        },
+        {
+          "function": "local_accessibility",
+          "file": "/workspace/python/codonforge/predictors/viennarna.py",
+          "line": 80,
+          "calls": 1,
+          "cumulative_s": 0.470756359
+        },
+        {
+          "function": "pfl_fold_up",
+          "file": "/workspace/.venv/lib/python3.12/site-packages/RNA/RNA.py",
+          "line": 9952,
+          "calls": 1,
+          "cumulative_s": 0.46896811800000004
+        },
+        {
+          "function": "<built-in method RNA._RNA.pfl_fold_up>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 0.46814446400000004
+        },
+        {
+          "function": "<built-in method codonforge._core.search_tier2_polish>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 0.312386873
+        },
+        {
+          "function": "_repair_seed",
+          "file": "/workspace/python/codonforge/orchestrator/job.py",
+          "line": 788,
+          "calls": 1,
+          "cumulative_s": 0.23162807600000002
+        },
+        {
+          "function": "<built-in method codonforge._core.resolve_feasible_seed>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 0.22763838900000002
+        },
+        {
+          "function": "_sequences",
+          "file": "/workspace/tools/profile_suite.py",
+          "line": 56,
+          "calls": 1,
+          "cumulative_s": 0.219198901
+        },
+        {
+          "function": "select_genes",
+          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "line": 168,
+          "calls": 1,
+          "cumulative_s": 0.178333807
+        },
+        {
+          "function": "iter_cds",
+          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "line": 84,
+          "calls": 8282,
+          "cumulative_s": 0.163420265
+        },
+        {
+          "function": "<built-in method codonforge._core.search_tier1_seed>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 0.14896973100000002
+        },
+        {
+          "function": "verify_shipped_cds",
+          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "line": 57,
+          "calls": 1,
+          "cumulative_s": 0.093041488
+        },
+        {
+          "function": "_selected_cds_sha256",
+          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "line": 146,
+          "calls": 1,
+          "cumulative_s": 0.091473941
+        },
+        {
+          "function": "_find_and_load",
+          "file": "<frozen importlib._bootstrap>",
+          "line": 1349,
+          "calls": 7,
+          "cumulative_s": 0.073060436
+        },
+        {
+          "function": "_find_and_load_unlocked",
+          "file": "<frozen importlib._bootstrap>",
+          "line": 1304,
+          "calls": 7,
+          "cumulative_s": 0.072808307
+        }
+      ],
+      "text": "         633478 function calls (630181 primitive calls) in 1.443 seconds\n\n   Ordered by: cumulative time\n   List reduced from 846 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    1.443    1.443 /workspace/tools/profile_suite.py:121(_design)\n        1    0.000    0.000    1.203    1.203 /workspace/python/codonforge/orchestrator/design.py:183(design)\n       14    0.000    0.000    0.704    0.050 /workspace/tools/profile_suite.py:94(inner)\n        1    0.000    0.000    0.702    0.702 /workspace/python/codonforge/orchestrator/job.py:267(run)\n        1    0.000    0.000    0.702    0.702 /workspace/python/codonforge/orchestrator/job.py:702(_run_seeding_tiers)\n        1    0.000    0.000    0.496    0.496 /workspace/python/codonforge/orchestrator/design.py:449(_front)\n        1    0.000    0.000    0.487    0.487 /workspace/python/codonforge/orchestrator/structure_diag.py:232(annotate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/codonforge/orchestrator/structure_diag.py:165(evaluate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/codonforge/orchestrator/structure_diag.py:97(evaluate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/codonforge/orchestrator/structure_diag.py:138(_one)\n        1    0.000    0.000    0.471    0.471 /workspace/python/codonforge/predictors/cache.py:83(prime)\n        1    0.001    0.001    0.471    0.471 /workspace/python/codonforge/predictors/viennarna.py:80(local_accessibility)\n        1    0.001    0.001    0.469    0.469 /workspace/.venv/lib/python3.12/site-packages/RNA/RNA.py:9952(pfl_fold_up)\n        1    0.468    0.468    0.468    0.468 {built-in method RNA._RNA.pfl_fold_up}\n        1    0.312    0.312    0.312    0.312 {built-in method codonforge._core.search_tier2_polish}\n        1    0.000    0.000    0.232    0.232 /workspace/python/codonforge/orchestrator/job.py:788(_repair_seed)\n        1    0.228    0.228    0.228    0.228 {built-in method codonforge._core.resolve_feasible_seed}\n        1    0.000    0.000    0.219    0.219 /workspace/tools/profile_suite.py:56(_sequences)\n        1    0.003    0.003    0.178    0.178 /workspace/python/codonforge/bench/corpus.py:168(select_genes)\n     8282    0.069    0.000    0.163    0.000 /workspace/python/codonforge/bench/corpus.py:84(iter_cds)\n        1    0.149    0.149    0.149    0.149 {built-in method codonforge._core.search_tier1_seed}\n        1    0.000    0.000    0.093    0.093 /workspace/python/codonforge/bench/corpus.py:57(verify_shipped_cds)\n        1    0.003    0.003    0.091    0.091 /workspace/python/codonforge/bench/corpus.py:146(_selected_cds_sha256)\n     69/7    0.000    0.000    0.073    0.010 <frozen importlib._bootstrap>:1349(_find_and_load)\n     69/7    0.000    0.000    0.073    0.010 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)\n\n\n",
+      "state": "succeeded",
+      "name": "yeeJ-assembly",
+      "suite": "cprofile"
+    },
+    {
+      "kind": "primer-yeeJ",
+      "measured": {
+        "wall_s": 0.06268683000007513,
+        "peak_rss_kb": 36988,
+        "region_nt": 6477,
+        "flank": 300,
+        "response_bytes": 166429,
+        "survivors": 1600,
+        "truncated": true,
+        "n_pairs": 20,
+        "product_size": 6843,
+        "hetero_dimer_dG": -1.283850000000001,
+        "refused": false,
+        "sha256": "5f1fa115bcefde58d0c3d92a35e7adbc5fcbf04bf78b6efe43bf75f946aa149f"
+      },
+      "top": [
+        {
+          "function": "_primer",
+          "file": "/workspace/tools/profile_suite.py",
+          "line": 207,
+          "calls": 1,
+          "cumulative_s": 0.063450859
+        },
+        {
+          "function": "<built-in method codonforge._core.primer_search>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 0.06263631700000001
+        },
+        {
+          "function": "loads",
+          "file": "/usr/lib/python3.12/json/__init__.py",
+          "line": 299,
+          "calls": 1,
+          "cumulative_s": 0.00041684000000000003
+        },
+        {
+          "function": "decode",
+          "file": "/usr/lib/python3.12/json/decoder.py",
+          "line": 332,
+          "calls": 1,
+          "cumulative_s": 0.00040245000000000005
+        },
+        {
+          "function": "raw_decode",
+          "file": "/usr/lib/python3.12/json/decoder.py",
+          "line": 343,
+          "calls": 1,
+          "cumulative_s": 0.000381694
+        },
+        {
+          "function": "<method 'encode' of 'str' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 2,
+          "cumulative_s": 0.00018704800000000002
+        },
+        {
+          "function": "<built-in method _hashlib.openssl_sha256>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 9.4565e-05
+        },
+        {
+          "function": "dumps",
+          "file": "/usr/lib/python3.12/json/__init__.py",
+          "line": 183,
+          "calls": 1,
+          "cumulative_s": 3.7454000000000004e-05
+        },
+        {
+          "function": "encode",
+          "file": "/usr/lib/python3.12/json/encoder.py",
+          "line": 183,
+          "calls": 1,
+          "cumulative_s": 3.4523e-05
+        },
+        {
+          "function": "iterencode",
+          "file": "/usr/lib/python3.12/json/encoder.py",
+          "line": 205,
+          "calls": 1,
+          "cumulative_s": 2.7698e-05
+        },
+        {
+          "function": "<method 'disable' of '_lsprof.Profiler' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 1.9166000000000003e-05
+        },
+        {
+          "function": "_rss_kb",
+          "file": "/workspace/tools/profile_suite.py",
+          "line": 84,
+          "calls": 1,
+          "cumulative_s": 1.6122000000000003e-05
+        },
+        {
+          "function": "<built-in method resource.getrusage>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 7.558e-06
+        },
+        {
+          "function": "<method 'match' of 're.Pattern' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 2,
+          "cumulative_s": 6.737e-06
+        },
+        {
+          "function": "<lambda>",
+          "file": "/workspace/tools/profile_suite.py",
+          "line": 227,
+          "calls": 43,
+          "cumulative_s": 6.167e-06
+        },
+        {
+          "function": "_handle_fromlist",
+          "file": "<frozen importlib._bootstrap>",
+          "line": 1390,
+          "calls": 1,
+          "cumulative_s": 3.7410000000000003e-06
+        },
+        {
+          "function": "<method 'hexdigest' of '_hashlib.HASH' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 3.413e-06
+        },
+        {
+          "function": "<built-in method builtins.__import__>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 2.627e-06
+        },
+        {
+          "function": "<method 'startswith' of 'str' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 2.335e-06
+        },
+        {
+          "function": "<built-in method time.perf_counter>",
+          "file": "~",
+          "line": 0,
+          "calls": 2,
+          "cumulative_s": 2.3e-06
+        },
+        {
+          "function": "<built-in method builtins.isinstance>",
+          "file": "~",
+          "line": 0,
+          "calls": 4,
+          "cumulative_s": 1.942e-06
+        },
+        {
+          "function": "<method 'get' of 'dict' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 7,
+          "cumulative_s": 1.7670000000000002e-06
+        },
+        {
+          "function": "<built-in method builtins.len>",
+          "file": "~",
+          "line": 0,
+          "calls": 4,
+          "cumulative_s": 1.7610000000000002e-06
+        },
+        {
+          "function": "<method 'end' of 're.Match' objects>",
+          "file": "~",
+          "line": 0,
+          "calls": 2,
+          "cumulative_s": 7.32e-07
+        },
+        {
+          "function": "<built-in method builtins.hasattr>",
+          "file": "~",
+          "line": 0,
+          "calls": 1,
+          "cumulative_s": 3.65e-07
+        }
+      ],
+      "text": "         84 function calls in 0.063 seconds\n\n   Ordered by: cumulative time\n   List reduced from 26 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.063    0.063 /workspace/tools/profile_suite.py:207(_primer)\n        1    0.063    0.063    0.063    0.063 {built-in method codonforge._core.primer_search}\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/__init__.py:299(loads)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/decoder.py:332(decode)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/decoder.py:343(raw_decode)\n        2    0.000    0.000    0.000    0.000 {method 'encode' of 'str' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method _hashlib.openssl_sha256}\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/__init__.py:183(dumps)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/encoder.py:183(encode)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/encoder.py:205(iterencode)\n        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}\n        1    0.000    0.000    0.000    0.000 /workspace/tools/profile_suite.py:84(_rss_kb)\n        1    0.000    0.000    0.000    0.000 {built-in method resource.getrusage}\n        2    0.000    0.000    0.000    0.000 {method 'match' of 're.Pattern' objects}\n       43    0.000    0.000    0.000    0.000 /workspace/tools/profile_suite.py:227(<lambda>)\n        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1390(_handle_fromlist)\n        1    0.000    0.000    0.000    0.000 {method 'hexdigest' of '_hashlib.HASH' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method builtins.__import__}\n        1    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}\n        2    0.000    0.000    0.000    0.000 {built-in method time.perf_counter}\n        4    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}\n        7    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}\n        4    0.000    0.000    0.000    0.000 {built-in method builtins.len}\n        2    0.000    0.000    0.000    0.000 {method 'end' of 're.Match' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}\n\n\n",
+      "state": "succeeded",
+      "name": "primer-yeeJ",
+      "suite": "cprofile"
+    }
+  ]
+}
