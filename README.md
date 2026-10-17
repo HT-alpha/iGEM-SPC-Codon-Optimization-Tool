@@ -16,7 +16,7 @@ The text is [`LICENSE`](LICENSE). `pyproject.toml` and `Cargo.toml` declare
 the same identifier. ViennaRNA is optional, installed by you, and is not
 part of this licence.
 
-Validation for v2.5.0 through v2.9.1 is in [`docs/benchmarks/`](docs/benchmarks/).
+Validation for v2.5.0 through v2.9.2 is in [`docs/benchmarks/`](docs/benchmarks/).
 The Software-wiki draft, including one validation table, is
 [`docs/wiki-software-draft.md`](docs/wiki-software-draft.md). Current status
 is [`docs/project-status.md`](docs/project-status.md). History is
@@ -149,7 +149,7 @@ for hairpins. Commercial distribution is outside the AMD-013 note in
 iGEM educational project, and the reviewer states that the email is not a
 formal legal opinion.
 
-The suite note is v2.9.1. The package version stays 0.1.0.
+The suite note is v2.9.2. The package version stays 0.1.0.
 `python -m codonforge.cli.main --version` prints 0.1.0.
 
 ---
@@ -188,6 +188,7 @@ Benchmark write-ups, in order:
 | v2.6.0 structure and burden | [`docs/benchmarks/v2.6.0-phase2.md`](docs/benchmarks/v2.6.0-phase2.md) |
 | v2.9.1 gate, folds, vectors | [`docs/benchmarks/v2.9.1-validation.md`](docs/benchmarks/v2.9.1-validation.md) |
 | v2.9.1 stress timings | [`docs/benchmarks/v2.9.1-challenging-perf.md`](docs/benchmarks/v2.9.1-challenging-perf.md) |
+| v2.9.2 profiles | [`docs/benchmarks/v2.9.2-profiles.md`](docs/benchmarks/v2.9.2-profiles.md) |
 | PrimerForge thermodynamics | [`docs/primerforge-validation.md`](docs/primerforge-validation.md) |
 
 ---
