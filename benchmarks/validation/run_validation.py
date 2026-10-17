@@ -163,7 +163,18 @@ def design(name: str, seq: str, constraints: Path, budget: str, timeout: int) ->
     if stdout.strip().startswith("{"):
         document = json.loads(stdout)
         status = document["status"]
-        front = document["front"]
+        front = document.get("front")
+        parsed.update(
+            {
+                "state": status["state"],
+                "problem": status.get("problem"),
+                "job_id": status["job_id"],
+                "warnings": status.get("warnings") or [],
+                "tiers": status["progress"]["tiers"],
+            }
+        )
+        if not front or not front.get("candidates"):
+            return parsed
         candidate = front["candidates"][0]
         order = front["objective_order"]
         parsed.update(
@@ -319,8 +330,19 @@ def summarize_design(
         "runtime_warning": raw.get("runtime_warning"),
         "stderr": raw.get("stderr") if raw.get("returncode") not in (0, None) or raw["timeout"] else "",
     }
-    if "output_cds" not in raw:
-        row["stderr"] = raw.get("stderr")
+    if not raw.get("output_cds"):
+        row.update(
+            {
+                "state": raw.get("state"),
+                "problem": raw.get("problem"),
+                "tiers": raw.get("tiers"),
+                "warnings": [
+                    {"code": item.get("code"), "title": item.get("title")}
+                    for item in raw.get("warnings") or []
+                ],
+                "stderr": raw.get("stderr"),
+            }
+        )
         return row
     output = str(raw["output_cds"])
     census = constraint_census(output)
@@ -461,6 +483,7 @@ def cmd_hard() -> None:
                 "product_feasibility": native_product,
                 "census_matches_product": expected_counts(native_census) == native_product.get("by_id"),
             },
+            "cryptic_full": feasibility(seq, CRYPTIC),
             "most_frequent_ribosomal": {
                 "same_protein": translate(seq) == translate(baseline),
                 "independent": score_pair(baseline, rib, kaz),
