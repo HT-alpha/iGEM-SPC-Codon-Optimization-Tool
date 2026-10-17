@@ -152,6 +152,10 @@ class Job:
     #: repeated sequence is the same number. Not checkpointed: the archive
     #: stores the objective values the fold produced.
     _structure_cache: dict[tuple[Any, ...], float] = field(default_factory=dict)
+    #: Accessibility session for the structure objective, shared across
+    #: generations of this process. Not checkpointed. A resumed job starts
+    #: empty and refolds; the values match because the fold is exact.
+    _fold_session: Any = None
 
     # ----------------------------------------------------------------- #
     # submission
@@ -613,11 +617,17 @@ class Job:
             return None, 0
         axis = len([t for t in self.plan.scored if t != structure_diag.TERM_ID])
 
+        if self._fold_session is None:
+            self._fold_session = structure_diag.FoldSession()
+        session = self._fold_session
+
         def score(sequences: list[str]) -> list[float | None]:
-            # One call per generation. The engine is stateless, so this holds no
-            # cache across calls - front members differ at many positions and a
-            # cache is exact only for edits it was told about.
-            return structure_diag.evaluate(sequences)
+            # One call per generation, through `evaluate` so a caller that
+            # replaces that function still owns the batch. Identical sequences
+            # reuse the stored penalty. A few codon edits reuse
+            # `AccessibilityCache`, which matches a full fold. Anything
+            # further away is folded from scratch.
+            return structure_diag.evaluate(sequences, session=session)
 
         return score, axis
 

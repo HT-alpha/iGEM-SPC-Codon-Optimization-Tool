@@ -1,5 +1,29 @@
 # Changelog
 
+## v2.9.1
+
+Search on `usage.cai` no longer treats a zero-weight codon as a flat
+landscape. When the incumbent has any counted weight of 0, tiers 1 and 2
+linearize that term as the change in the sum of log-weights, and a zero
+weight sits below every positive log (`DEP-SRCH-020`). The reported value
+stays the geometric mean, which is still 0 while any counted weight is 0.
+With no zero weight the linearization is the arithmetic delta, bit for bit.
+
+On the CAI-only gate (budget `fast`, 4 generations, seed 7) `aceB` and
+`thrA` now score 1.0, equal to `cai_greedy`, with no in-frame `AGG`. The
+other 48 scores are unchanged. `GATE-BEN-001` is claimed on 50 of 50
+proteins. The MFE comparison is still not this claim. A recorded score
+below `cai_greedy` is still refused by `check_cai_gate`.
+
+A structure job reuses an exact accessibility value for a repeated CDS and
+for a sequence a few codons away (`AccessibilityCache.substitute`). The
+phase 2 knee vectors are unchanged. On this machine, wall time for the
+documented standard 4-generation CAI+structure runs fell from 1.357 s to
+0.561 s on rpsL and from 4.211 s to 2.255 s on waaS.
+
+The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
 ## v2.9.0
 
 `POST /v1/observations` validates a wet-lab submission and appends it.

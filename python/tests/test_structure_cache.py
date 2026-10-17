@@ -26,12 +26,14 @@ import random
 
 import pytest
 
+from codonforge.orchestrator.structure_diag import FoldSession
 from codonforge.predictors import (
     StructureEngineError,
     available_engines,
     select_engine,
 )
 from codonforge.predictors.cache import AccessibilityCache
+from codonforge.predictors.viennarna import accessibility_penalty
 
 _ENGINE_PRESENT = "viennarna" in available_engines()
 
@@ -254,3 +256,51 @@ def test_tst_stru_006_an_edit_outside_the_sequence_is_refused():
     with pytest.raises(StructureEngineError) as caught:
         cache.substitute(99, "GGG")
     assert caught.value.code == "CF-STRU-004"
+
+
+@vienna
+def test_fold_session_reuses_a_duplicate_and_edits_one_codon() -> None:
+    """A batch of copies must not fold three times.
+
+    Removing the stored-penalty hit makes `prime` run once per copy, and this
+    assertion is what notices. The one-codon neighbour must match a full fold
+    of that neighbour, not a stale copy of the parent.
+    """
+    sequence = random_sequence(240, seed=5)
+    start = 60
+    replacement = "GGG" if sequence[start : start + 3] != "GGG" else "AAA"
+    edited = sequence[:start] + replacement + sequence[start + 3 :]
+    calls = {"prime": 0}
+    original = AccessibilityCache.prime
+
+    def counted(self: AccessibilityCache, seq: str) -> list[float]:
+        calls["prime"] += 1
+        return original(self, seq)
+
+    AccessibilityCache.prime = counted  # type: ignore[method-assign]
+    try:
+        session = FoldSession()
+        values = session.evaluate([sequence, sequence, edited])
+    finally:
+        AccessibilityCache.prime = original  # type: ignore[method-assign]
+
+    assert calls["prime"] == 1
+    assert session.hits == 1
+    assert session.local_edits == 1
+    assert values[0] == values[1]
+    assert values[0] == accessibility_penalty(full_recompute(sequence))
+    assert values[2] == accessibility_penalty(full_recompute(edited))
+
+
+@vienna
+def test_fold_session_folds_a_distant_sequence_from_scratch() -> None:
+    sequence = random_sequence(240, seed=5)
+    # Two codon edits is past the length//160 budget of 1, so this is a full fold.
+    far = sequence[:3] + "GGG" + sequence[6:30] + "CCC" + sequence[33:]
+    if far[3:6] == sequence[3:6]:
+        far = sequence[:3] + "AAA" + far[6:]
+    session = FoldSession()
+    values = session.evaluate([sequence, far])
+    assert session.full_folds == 2
+    assert session.local_edits == 0
+    assert values[1] == accessibility_penalty(full_recompute(far))

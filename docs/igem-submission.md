@@ -5,14 +5,14 @@ The stable release is `v2.4.2`. The canonical status is
 investigation, the P1-26 inventory, the 40-generation EXP-05 run, and the
 first CAI-only `GATE-BEN-001` comparison. `v2.4.1` puts every codon,
 including `AGG` at weight 0, into the ribosomal usage table. `v2.4.2` claims
-the CAI-only gate on 48 of the 50 proteins. `aceB` (`NP_418438.1`) and
-`thrA` (`NP_414543.1`) are excluded: they contain `AGG` codons with weight 0
-in the ribosomal-protein training corpus, so `usage.cai` is identically 0
-for any candidate that still has an `AGG`. A fast budget of 20 generations
-(stagnation window 21, seed 7) still leaves in-frame `AGG` in both, and both
-stay at 0 while `cai_greedy` scores 1. The greedy baseline wins by
-construction on that flat-zero objective. The MFE comparison is not this
-claim.
+the CAI-only gate on 48 of the 50 proteins. In that record `aceB`
+(`NP_418438.1`) and `thrA` (`NP_414543.1`) are excluded: they contain `AGG`
+codons with weight 0 in the ribosomal-protein training corpus, so
+`usage.cai` is identically 0 for any candidate that still has an `AGG`. A
+fast budget of 20 generations (stagnation window 21, seed 7) still leaves
+in-frame `AGG` in both, and both stay at 0 while `cai_greedy` scores 1.
+The current claim is in [`project-status.md`](project-status.md). The MFE
+comparison is not this claim.
 `docs/legal-clearance.yaml`
 records the AMD-013 sign-off from NG Chi Hong's email of 2026-10-05. The
 review accepts this analysis for a non-commercial iGEM educational project.
@@ -59,11 +59,13 @@ deviation of zero.
 
 ## What it does not do
 
-- It claims `GATE-BEN-001` only as the CAI-only comparison on 48 of 50
-  proteins. `aceB` (`AGG` at codon 14) and `thrA` (`AGG` at codons 28 and
-  243) are the exclusions in `benchmarks/corpus/gates.json`: CodonForge and
-  the native CDS score 0, and `cai_greedy` scores 1, including after 20
-  generations. The MFE fronts are not the same objective and are not claimed.
+- This v2.4.2 note claims `GATE-BEN-001` only as the CAI-only comparison
+  on 48 of 50 proteins. `aceB` (`AGG` at codon 14) and `thrA` (`AGG` at
+  codons 28 and 243) were the exclusions then: CodonForge and the native
+  CDS scored 0, and `cai_greedy` scored 1, including after 20 generations.
+  The current `gates.json` claim is in
+  [`project-status.md`](project-status.md). The MFE fronts are not the same
+  objective and are not claimed.
 - It does not implement LinearDesign's grammar-intersection method.
 - It does not ship a GPU path. `P3-14` (LM scoring) is cut.
 - `POST /v1/feasibility` returns `CF-CLI-003`. The five-check analyser is not
