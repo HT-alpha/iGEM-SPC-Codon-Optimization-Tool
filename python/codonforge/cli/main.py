@@ -152,8 +152,55 @@ def _design(args: argparse.Namespace) -> int:
     finally:
         signal.signal(signal.SIGINT, previous)
 
+    if result.job.state == "failed":
+        return _failed(result, args.output)
     _emit(result, args.output)
     return EXIT_OK
+
+
+def _failed(result: Any, output: str) -> int:
+    """A failed design exits non-zero and does not print the input as a CDS.
+
+    The status document still says which tiers ran. The problem detail is the
+    thing a script branches on, so it goes to stderr as `code: detail`.
+    """
+    status = result.status
+    problem = status.get("problem") or {}
+    code = str(problem.get("code") or "CF-CLI-002")
+    detail = str(problem.get("detail") or "design failed")
+    if output == "json":
+        print(writers.to_json({"status": status, "front": None}))
+    else:
+        _render_status(result)
+        print(f"problem  {code}")
+        print(f"    {detail}")
+    return _report(code, detail, _exit_for_code(code))
+
+
+def _render_status(result: Any) -> None:
+    """Tiers and warnings, without a candidate sequence."""
+    status = result.status
+    print(f"job      {status['job_id']}  {status['state']}")
+    print(f"lockfile {status['landscape_lockfile_digest']}")
+    print("tiers")
+    for tier in status["progress"]["tiers"]:
+        detail = ""
+        if tier.get("generation") is not None:
+            detail = f"  {tier['generation']}/{tier.get('max_generations')}"
+        print(f"  {tier['tier']:<20} {tier['state']}{detail}")
+    if status["warnings"]:
+        print("warnings")
+        for warning in status["warnings"]:
+            print(f"  {warning['code']}  {warning['stage']}/{warning['subject']}")
+            print(f"      {warning['title']}")
+
+
+def _exit_for_code(code: str) -> int:
+    if code in _INFEASIBLE_CODES:
+        return EXIT_INFEASIBLE
+    if code in _BUDGET_CODES:
+        return EXIT_BUDGET
+    return EXIT_DESIGN_FAILED
 
 
 def _emit(result: Any, output: str) -> None:

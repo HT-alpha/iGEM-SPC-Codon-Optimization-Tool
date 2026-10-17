@@ -75,6 +75,22 @@ _EXAMPLE_FILES = {
         "rpsL_constraints.json",
         "application/json",
     ),
+    "/examples/kazusa_e_coli_316407.json": (
+        "kazusa_e_coli_316407.json",
+        "application/json",
+    ),
+    "/examples/biobrick_rfc10.json": (
+        "biobrick_rfc10.json",
+        "application/json",
+    ),
+    "/examples/golden_gate.json": (
+        "golden_gate.json",
+        "application/json",
+    ),
+    "/examples/synthesis.json": (
+        "synthesis.json",
+        "application/json",
+    ),
 }
 
 
@@ -231,7 +247,9 @@ class Api:
             return
         with self.lock:
             record.status = result.status
-            record.front = result.front
+            # A failed job's archive still holds the unchanged input. Publishing
+            # that document would present the input as the design.
+            record.front = result.front if result.job.state == "succeeded" else None
             record.lockfile = result.lockfile.to_json()
 
     def get(self, tenant: str, job_id: str) -> tuple[int, dict[str, Any]]:
@@ -247,6 +265,8 @@ class Api:
         if isinstance(record, dict):
             return 403, record
         if record.front is None:
+            if record.status.get("state") == "failed" and record.status.get("problem"):
+                return 409, record.status["problem"]
             return 409, problem(
                 "CF-CLI-003",
                 "A requested surface needs a capability this build does not have",
