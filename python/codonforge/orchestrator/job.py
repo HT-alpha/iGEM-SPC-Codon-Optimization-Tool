@@ -98,6 +98,8 @@ class JobInputs:
     tier1_seeds: int = 4
     tier2_block: int = 8
     tier2_sweeps: int = 4
+    #: Digest of the Potts artifact, when the context term is in the job.
+    context_digest: str | None = None
 
 
 @dataclass
@@ -648,6 +650,7 @@ class Job:
                 "host_profile": self.inputs.host_profile,
                 "host_id": self.inputs.host_id,
                 "host_digest": self.inputs.host_digest,
+                "context_digest": self.inputs.context_digest,
                 # Defaults to every scored term. Tiers 1 and 2 pass their own
                 # narrower list: an out-of-core term has no delta table, so
                 # handing it to tier 1 is a CF-LAND-002 rather than a slow

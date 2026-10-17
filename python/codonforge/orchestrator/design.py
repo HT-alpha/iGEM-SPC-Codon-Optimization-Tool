@@ -34,7 +34,7 @@ from codonforge.modelreg import ArtifactStore, Lockfile, ResolutionRequest, reso
 #: `structure.local_accessibility` updated one, which is how a term ended up
 #: advertised by the CLI and rejected by the resolver. Two remain, because the
 #: Rust one cannot be imported from Python; `TST-CLI-010` holds those together.
-from codonforge.modelreg.resolve import BUILTIN_TERMS
+from codonforge.modelreg.resolve import BUILTIN_TERMS, Pin
 from codonforge.orchestrator import structure_diag
 
 from .budget import ComputeBudget
@@ -79,6 +79,9 @@ class DesignRequest:
     stagnation_window: int = 8
     weights: list[float] = field(default_factory=list)
     host_digest: str = "sha256:" + "0" * 64
+    #: Set by `design()` when the Potts artifact is installed. Excluded from
+    #: the request identity: the lockfile resolution entry is the record.
+    context_digest: str | None = None
     job_id: str | None = None
     checkpoint_dir: str | None = None
     resume: bool = False
@@ -94,7 +97,7 @@ class DesignRequest:
     #: cannot find the checkpoint. Deriving the id from the whole request made
     #: both false: two identical designs got different lockfiles because one
     #: had `--checkpoint-dir`.
-    PLUMBING = ("job_id", "checkpoint_dir", "resume")
+    PLUMBING = ("job_id", "checkpoint_dir", "resume", "context_digest")
 
     def identity(self) -> str:
         """The canonical form of everything that determines the result."""
@@ -221,7 +224,9 @@ def design(
         request.constraints, structure_diag.TERM_ID in request.objectives
     )
 
-    unknown = [t for t in request.objectives if t not in BUILTIN_TERMS]
+    from codonforge.epistasis.context import TERM_ID as CONTEXT_TERM
+
+    unknown = [t for t in request.objectives if t not in BUILTIN_TERMS and t != CONTEXT_TERM]
     if unknown:
         raise DesignError(
             "CF-LAND-001",
@@ -236,11 +241,34 @@ def design(
     # resolution. Re-sealing would re-resolve, and a resumed job that
     # re-resolved would observe any artifact promoted while it was stopped -
     # reintroducing at this layer the hazard P1-29 closed at the one below.
+    from codonforge.epistasis.context import TERM_ID as CONTEXT_TERM
+    from codonforge.epistasis.context import ContextError, install_pinned, prepare
+
     resumed_document = _resume_document(request, job_id) if request.resume else None
+    context_window = None
     if resumed_document is not None and "lockfile" in resumed_document:
         lockfile = Lockfile.from_json(resumed_document["lockfile"])
+        for entry in lockfile.resolution:
+            if entry.term_id != CONTEXT_TERM:
+                continue
+            try:
+                installed = install_pinned(store, entry.digest, entry.artifact_id)
+            except ContextError as exc:
+                raise DesignError(exc.code, exc.detail, exit_code=2) from exc
+            request.context_digest = installed["digest"]
+            context_window = int(installed["window"])
+            break
     else:
-        lockfile = _seal(request, store)
+        context_pin = None
+        if CONTEXT_TERM in request.objectives:
+            try:
+                installed = prepare(store, request.host)
+            except ContextError as exc:
+                raise DesignError(exc.code, exc.detail, exit_code=2) from exc
+            request.context_digest = installed["digest"]
+            context_window = int(installed["window"])
+            context_pin = Pin(installed["artifact_id"], installed["digest"])
+        lockfile = _seal(request, store, context_pin)
 
     # Directions come from the providers, through the same registry the tiers
     # build. Never defaulted: a term declared `minimize` and reported as
@@ -259,6 +287,8 @@ def design(
         host_digest=request.host_digest,
         term_weights=list(request.weights) or [1.0] * len(request.objectives),
         stagnation_window=request.stagnation_window,
+        tier2_block=max(8, context_window or 0),
+        context_digest=request.context_digest,
     )
 
     job = Job.submit(
@@ -324,6 +354,7 @@ def _directions_request(request: DesignRequest) -> str:
             "host_profile": request.host_profile,
             "host_id": request.host,
             "host_digest": request.host_digest,
+            "context_digest": request.context_digest,
             "terms": list(request.objectives),
             "weights": [1.0] * len(request.objectives),
             "root_seed": request.seed,
@@ -371,14 +402,18 @@ def _derived_id(prefix: str, material: str) -> str:
     return f"{prefix}_{body}"
 
 
-def _seal(request: DesignRequest, store: ArtifactStore) -> Lockfile:
+def _seal(request: DesignRequest, store: ArtifactStore, context_pin: Pin | None = None) -> Lockfile:
     """Pin the landscape before any search work. `TST-ORCH-001`."""
+    from codonforge.epistasis.context import TERM_ID as CONTEXT_TERM
+
+    pins = {CONTEXT_TERM: context_pin} if context_pin is not None else None
     entries = resolve(
         store,
         ResolutionRequest(
             terms=list(request.objectives),
             host_id=request.host,
             contract_major=1,
+            pins=pins,
         ),
     )
     return seal(
@@ -578,9 +613,7 @@ def _recommendation(
     if len(scored) >= 2 and complete:
         chosen = _knee(complete)
         informed = [
-            term
-            for index, term in enumerate(scored)
-            if chosen.objectives[index] is not None
+            term for index, term in enumerate(scored) if chosen.objectives[index] is not None
         ]
         excluded = [term for term in scored if term not in informed]
         return chosen, "knee_of_complete_front", informed, excluded
@@ -610,11 +643,7 @@ def _knee(candidates: list[Any]) -> Any:
             normalized = 0.0 if span == 0.0 else (candidate.objectives[axis] - low) / span
             gap *= max(0.0, 1.0 - normalized)
         cid = _candidate_id(candidate.digest)
-        if (
-            winner is None
-            or gap > winner_gap
-            or (gap == winner_gap and cid < winner_id)
-        ):
+        if winner is None or gap > winner_gap or (gap == winner_gap and cid < winner_id):
             winner = candidate
             winner_gap = gap
             winner_id = cid

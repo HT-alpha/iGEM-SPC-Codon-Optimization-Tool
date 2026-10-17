@@ -412,6 +412,148 @@ pub fn score_naturalness(sequences: &[String], model: &PottsModel) -> Result<(f6
     Ok((-negative / counted as f64, counted))
 }
 
+/// Mean log probability of one codon assignment under `model`.
+///
+/// The same quantity `score_naturalness` reports for a DNA string: higher
+/// (less negative) is closer to the training conditional. Positions whose
+/// synonymous family has one codon do not enter the mean.
+pub fn mean_log_probability(codons: &[u8], model: &PottsModel) -> Result<f64, String> {
+    let (theta, families) = prepared(model)?;
+    let (total, counted) =
+        sum_log_probability(codons, &theta, model.window, &families, 0..codons.len());
+    if counted == 0 {
+        return Err("no position had a synonymous choice".to_string());
+    }
+    Ok(total / counted as f64)
+}
+
+/// Exact change in `mean_log_probability` between two equal-length assignments.
+///
+/// Only positions within `window` of a changed codon are recomputed. A
+/// synonymous edit does not change how many positions are counted, so the
+/// change in the mean is the change in that local sum divided by the count.
+pub fn mean_log_probability_delta(
+    before: &[u8],
+    after: &[u8],
+    model: &PottsModel,
+) -> Result<f64, String> {
+    if before.len() != after.len() {
+        return Err("the two assignments have different lengths".to_string());
+    }
+    let (theta, families) = prepared(model)?;
+    let mut changed = Vec::new();
+    for (index, (left, right)) in before.iter().zip(after).enumerate() {
+        if left != right {
+            changed.push(index);
+        }
+    }
+    if changed.is_empty() {
+        return Ok(0.0);
+    }
+    let mut affected = Vec::new();
+    for index in 0..before.len() {
+        if changed
+            .iter()
+            .any(|&site| index.abs_diff(site) <= model.window)
+        {
+            affected.push(index);
+        }
+    }
+    let (before_sum, before_count) = sum_log_probability(
+        before,
+        &theta,
+        model.window,
+        &families,
+        affected.iter().copied(),
+    );
+    let (after_sum, after_count) = sum_log_probability(
+        after,
+        &theta,
+        model.window,
+        &families,
+        affected.iter().copied(),
+    );
+    let (_, total_count) =
+        sum_log_probability(before, &theta, model.window, &families, 0..before.len());
+    if total_count == 0 || before_count != after_count {
+        return Err("no position had a synonymous choice".to_string());
+    }
+    Ok((after_sum - before_sum) / total_count as f64)
+}
+
+fn prepared(model: &PottsModel) -> Result<(Vec<f64>, Families), String> {
+    let mut theta = model.h.clone();
+    theta.extend_from_slice(&model.couplings);
+    if theta.len() != 64 + model.window * 4096 {
+        return Err("couplings do not match the window".to_string());
+    }
+    Ok((theta, Families::bacterial()))
+}
+
+fn sum_log_probability(
+    gene: &[u8],
+    theta: &[f64],
+    window: usize,
+    families: &Families,
+    positions: impl IntoIterator<Item = usize>,
+) -> (f64, u64) {
+    let mut total = 0.0;
+    let mut counted = 0u64;
+    for index in positions {
+        if let Some(value) = log_probability_at(gene, index, theta, window, families) {
+            total += value;
+            counted += 1;
+        }
+    }
+    (total, counted)
+}
+
+fn log_probability_at(
+    gene: &[u8],
+    index: usize,
+    theta: &[f64],
+    window: usize,
+    families: &Families,
+) -> Option<f64> {
+    let observed = *gene.get(index)? as usize;
+    let family = families.members.get(observed)?;
+    let size = family.len();
+    if size <= 1 {
+        return None;
+    }
+    let h = &theta[..64];
+    let mut field = [0.0; 8];
+    let mut observed_slot = 0usize;
+    for (slot, &codon) in family.iter().enumerate() {
+        let codon = codon as usize;
+        if codon == observed {
+            observed_slot = slot;
+        }
+        let mut value = h[codon];
+        for distance in 1..=window {
+            let matrix = 64 + (distance - 1) * 4096;
+            if index + distance < gene.len() {
+                let neighbor = gene[index + distance] as usize;
+                value += theta[matrix + codon * 64 + neighbor];
+            }
+            if index >= distance {
+                let neighbor = gene[index - distance] as usize;
+                value += theta[matrix + neighbor * 64 + codon];
+            }
+        }
+        field[slot] = value;
+    }
+    let mut peak = f64::NEG_INFINITY;
+    for value in field.iter().take(size) {
+        peak = peak.max(*value);
+    }
+    let mut partition = 0.0;
+    for value in field.iter().take(size) {
+        partition += (value - peak).exp();
+    }
+    Some(field[observed_slot] - peak - partition.ln())
+}
+
 pub fn score_codon_usage(train: &[String], held_out: &[String]) -> Result<UsageBaseline, String> {
     let train_genes = parse_genes(train)?;
     let held_genes = parse_genes(held_out)?;
@@ -498,5 +640,29 @@ mod tests {
             let sum: f64 = family.iter().map(|&c| report.model.h[c as usize]).sum();
             assert!(sum.abs() < 1e-8, "family {index} sums to {sum}");
         }
+    }
+
+    #[test]
+    fn the_local_delta_matches_a_rescore() {
+        let gct = Codon::from_bytes(b"GCT").unwrap().index() as usize;
+        let mut model = PottsModel {
+            window: 1,
+            h: vec![0.0; 64],
+            couplings: vec![0.0; 4096],
+        };
+        model.h[gct] = 2.0;
+        // A neighbor coupling so the edit is not a single-site field.
+        let atg = Codon::from_bytes(b"ATG").unwrap().index() as usize;
+        model.couplings[atg * 64 + gct] = 0.5;
+        let before = parse_genes(&["ATGGCTGCTTAA".to_string()]).unwrap();
+        let after = parse_genes(&["ATGGCCGCTTAA".to_string()]).unwrap();
+        let delta = mean_log_probability_delta(&before[0], &after[0], &model).unwrap();
+        let expected = mean_log_probability(&after[0], &model).unwrap()
+            - mean_log_probability(&before[0], &model).unwrap();
+        assert!(
+            (delta - expected).abs() < 1e-12,
+            "delta {delta} rescore {expected}"
+        );
+        assert!(delta.abs() > 1e-6, "the edit did not move the score");
     }
 }

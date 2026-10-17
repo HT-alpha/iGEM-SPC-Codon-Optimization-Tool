@@ -75,6 +75,11 @@ def load_calibration(path: Path | None = None) -> dict[str, Any]:
     }
 
 
+def artifact_path() -> Path:
+    """The shipped Potts manifest, whether or not the file is present."""
+    return _default_path()
+
+
 def _default_path() -> Path:
     return Path(__file__).resolve().parents[3] / "benchmarks" / "epistasis" / ARTIFACT_NAME
 

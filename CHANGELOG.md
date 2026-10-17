@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.7.0
+
+`epistasis.context_naturalness` is an L1 objective: the mean log probability
+of the selected synonymous Potts model. Higher is better. The unit is
+dimensionless. The couplings stay in a process cache keyed by digest. A tier
+request carries `context_digest`. The lockfile resolution entry is the
+record, pinned, and the digest is the artifact digest.
+
+The artifact is `cf:epistasis_potts:escherichia_coli:511145/MG1655:0.1.0`,
+digest `sha256:ac64cae265510c2cad9c3a85a59b9abf389cae456eba25fc4595e21d20e645b6`,
+lifecycle `draft`. The selected window is 10: held-out naturalness
+−0.8708682912309792 nats/codon, codon-usage baseline −0.991738843659599,
+2333 iterations, gradient norm 0.09770886731134135, converged. The window-5
+fit is not selected (held-out −0.900526979129995, not converged). A job whose
+host id starts with `escherichia_coli:` may pin the MG1655 artifact. No
+distance penalty is applied, because none was measured. Any other host is
+`CF-LAND-001`. A missing artifact is `CF-LAND-001` and is not scored as zero.
+`epistasis.dwell_deviation` stays `CF-LAND-001`.
+
+The interaction radius is `Codons(10)`. The job sets `tier2_block` to
+`max(8, window)`. `P1-26` stays held. `DEP-LAND-005`.
+
+The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
 ## v2.6.0
 
 Structure and host burden are ranked objectives, and a job that asks for more

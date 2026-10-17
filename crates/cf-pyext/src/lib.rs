@@ -587,6 +587,7 @@ fn with_tier_inputs(
         host_id: text("host_id")?,
         host_digest: text("host_digest")?,
         root_seed: field("root_seed")?.as_u64().unwrap_or(0),
+        context_digest: request.get("context_digest").and_then(|item| item.as_str()),
     })
     .map_err(to_py_err)?;
     Ok(value.to_string())
@@ -756,6 +757,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_tier3_segment, m)?)?;
     m.add_function(wrap_pyfunction!(fit_potts_context, m)?)?;
     m.add_function(wrap_pyfunction!(score_potts_context, m)?)?;
+    m.add_function(wrap_pyfunction!(install_context_model, m)?)?;
     m.add_function(wrap_pyfunction!(score_codon_usage_baseline, m)?)?;
     m.add_function(wrap_pyfunction!(primer_search, m)?)?;
     m.add_function(wrap_pyfunction!(primer_analyze, m)?)?;
@@ -893,6 +895,46 @@ fn score_potts_context(request_json: &str) -> PyResult<String> {
         "n_positions": positions,
     })
     .to_string())
+}
+
+#[pyfunction]
+fn install_context_model(request_json: &str) -> PyResult<String> {
+    let request: serde_json::Value =
+        serde_json::from_str(request_json).map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let digest = request
+        .get("digest")
+        .and_then(|item| item.as_str())
+        .ok_or_else(|| PyValueError::new_err("digest must be a string"))?;
+    let artifact_id = request
+        .get("artifact_id")
+        .and_then(|item| item.as_str())
+        .ok_or_else(|| PyValueError::new_err("artifact_id must be a string"))?;
+    let window = request
+        .get("window")
+        .and_then(|item| item.as_u64())
+        .ok_or_else(|| PyValueError::new_err("window must be an integer"))?
+        as usize;
+    let numbers = |key: &str| -> PyResult<Vec<f64>> {
+        request
+            .get(key)
+            .and_then(|item| item.as_array())
+            .ok_or_else(|| PyValueError::new_err(format!("{key} must be an array")))?
+            .iter()
+            .map(|item| {
+                item.as_f64()
+                    .ok_or_else(|| PyValueError::new_err(format!("{key} contains a non-number")))
+            })
+            .collect()
+    };
+    pipeline::install_context_model(
+        digest,
+        artifact_id,
+        window,
+        numbers("h")?,
+        numbers("couplings")?,
+    )
+    .map_err(to_py_err)?;
+    Ok(serde_json::json!({ "digest": digest }).to_string())
 }
 
 #[pyfunction]

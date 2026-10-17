@@ -12,7 +12,10 @@
 
 mod potts;
 
+mod naturalness;
+
+pub use naturalness::ContextNaturalnessTerm;
 pub use potts::{
-    fit_potts, fit_potts_from, score_codon_usage, score_naturalness, FitReport, PottsModel,
-    UsageBaseline,
+    fit_potts, fit_potts_from, mean_log_probability, mean_log_probability_delta, score_codon_usage,
+    score_naturalness, FitReport, PottsModel, UsageBaseline,
 };
