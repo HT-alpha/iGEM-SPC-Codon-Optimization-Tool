@@ -1,10 +1,15 @@
-"""Pinned outputs for the v2.9.2 hot-path edits.
+"""Pinned outputs for the hot-path edits.
 
 Seed repair stopped rebuilding a k-mer index on every pattern trial, and the
 homopolymer excess became a local delta. Primer search stopped repeating
 hairpin, self-dimer and Tm for every partner. Non-dominated sorting stopped
-allocating a copy of each objective vector per comparison. None of those
-edits may change a documented sequence, score, or primer document.
+allocating a copy of each objective vector per comparison. The primer
+document from those edits stays byte-identical.
+
+Assembly CAI is no longer that older pin. Seed resolution keeps the best
+feasible CAI among four deterministic starts (`DEP-SRCH-022`) and then
+climbs a heavier codon together with the violation it creates
+(`DEP-SRCH-021`). The vectors below are that result at seed 7.
 """
 
 from __future__ import annotations
@@ -47,7 +52,13 @@ def _profile() -> dict:
     )
 
 
-def test_waas_assembly_cai_vector_is_unchanged(tmp_path: Path) -> None:
+def test_waas_assembly_cai_vector(tmp_path: Path) -> None:
+    """Default assembly CAI for waaS, budget fast, generations 0, seed 7.
+
+    The v2.9.3 seed-7 vector was ``[0.9173459052341191]``. Stopping after the
+    first feasible start returns 0.9212217911296222, short of the seed-11
+    design 0.9220206722508919. Scoring all four starts clears that bar.
+    """
     cds = _fasta("waaS.fa")
     result = design(
         DesignRequest(
@@ -69,7 +80,7 @@ def test_waas_assembly_cai_vector_is_unchanged(tmp_path: Path) -> None:
     assert result.job.state == "succeeded", result.status.get("problem")
     assert result.front is not None
     vector = result.front["candidates"][0]["objective_vector"]
-    assert vector == [0.9173459052341191]
+    assert vector == [0.9259163095438141]
     designed = result.front["candidates"][0]["sequences"][0]["cds"]
     assert _core.translate(designed, 11) == _core.translate(cds, 11)
 
@@ -103,12 +114,13 @@ def test_yeej_primer_document_is_byte_identical() -> None:
     assert recommended["reverse_sequence"] == "GAACTACAGTGGTTTAAA"
 
 
-def test_yeej_structure_vector_and_fold_counts_are_unchanged(tmp_path: Path) -> None:
-    """Tier 3 k-mer reuse must not move the documented structure front.
+def test_yeej_structure_vector_and_fold_counts(tmp_path: Path) -> None:
+    """yeeJ CAI + structure, assembly, budget fast, generations 2, seed 7.
 
-    `docs/benchmarks/v2.9.2-profiles.md`: yeeJ CAI + structure, assembly
-    constraints, budget fast, generations 2, seed 7. The fold cache stays at
-    1 full fold, 21 local edits, 12 hits.
+    The v2.9.3 front was ``[0.9575892496987667, 2.408954059933615]`` with
+    1 full fold, 21 local edits, 12 hits. The seed change moves the CDS, so
+    the front moves with it. ``structure.local_accessibility`` is the
+    windowed penalty, not a global MFE, and ``GATE-BEN-001`` does not cover it.
     """
     if "viennarna" not in available_engines():
         if os.environ.get("CF_REQUIRE_STRUCTURE_ENGINE") == "1":
@@ -135,11 +147,11 @@ def test_yeej_structure_vector_and_fold_counts_are_unchanged(tmp_path: Path) -> 
     assert result.job.state == "succeeded", result.status.get("problem")
     assert result.front is not None
     vector = result.front["candidates"][0]["objective_vector"]
-    assert vector == [0.9575892496987667, 2.408954059933615]
+    assert vector == [0.9723247970586831, 2.4166863375261896]
     designed = result.front["candidates"][0]["sequences"][0]["cds"]
     assert _core.translate(designed, 11) == _core.translate(cds, 11)
     session = result.job._fold_session
     assert session is not None
     assert session.hits == 12
     assert session.full_folds == 1
-    assert session.local_edits == 21
+    assert session.local_edits == 18

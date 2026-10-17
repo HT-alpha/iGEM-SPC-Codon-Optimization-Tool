@@ -5,6 +5,26 @@
 Package version stays 0.1.0. This note is the DNA Design Suite delta on top
 of v2.9.2.
 
+Assembly CAI was stuck on the first feasible seed. Tier 1 still refuses GC
+windows and scattered 12-mers (`CF-SRCH-017`). Seed repair used to stop at
+that first feasible CDS, then NSGA's uniform synonymous moves did not raise
+it. The resolver now scores four deterministic attempts — two tie orders,
+and for each the most-frequent assignment and the input — and keeps the
+higher CAI (`DEP-SRCH-022`). After a start is feasible, a heavier codon is
+tried together with a repair at the violation it creates, including the
+other copy of a 12-mer and a GC window wider than four codons
+(`DEP-SRCH-021`). An edit that does not raise CAI, or that leaves the
+checker unsatisfied, is discarded. The job seed is not read. `potts_guided`
+and `block_gibbs` stay off without an epistasis model (`CF-SRCH-001`,
+`DEP-SRCH-005`). The numbers are `docs/benchmarks/v2.9.4-search-escape.md`.
+On the assembly set, seed 7, waaS moves from 0.9173459052341192 to
+0.9259163095438141, which is above the old seed-11 design
+0.9220206722508919. rpsL stays 0.9866866273575934. The 0.0038104428470379093
+gap to a sequence that fails one 12-mer is one codon (position 88, GAT to
+GAC). That codon alone fails `c_kmer12`, and no one-codon or two-codon
+partner of it is feasible at a higher CAI. Empty constraints, Golden Gate,
+BioBrick, and the 54 nt enumerated assembly case stay at gap 0.
+
 Wheels build on push. `.github/workflows/wheels.yml` uploads a wheel for
 Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, and Windows x64,
 plus an sdist. One `cp311-abi3` wheel covers CPython 3.11 through 3.13.
@@ -16,9 +36,12 @@ fold. On a release build of this machine, before the k-mer change:
 `repair` 6 calls, 2.013 s; `l0_batch` 2 calls, 0.656 s; dominance sort and
 hypervolume under 0.001 s; wall 5.125 s. After recording positions only for
 k-mers already over the limit, and reusing one k-mer index across a
-codon-sized probe: `repair` 0.746 s; `l0_batch` 0.658 s; wall 3.060 s. The
-vector stays `[0.9575892496987667, 2.408954059933615]`. Fold counts stay
-1 full fold, 21 local edits, 12 hits. The v2.9.2 note's 3.202 s tier 3 was
+codon-sized probe: `repair` 0.746 s; `l0_batch` 0.658 s; wall 3.060 s. Before
+the seed-resolution change above, that vector was
+`[0.9575892496987667, 2.408954059933615]`, with 1 full fold, 21 local edits,
+12 hits. The same job on this tree is
+`[0.9723247970586831, 2.4166863375261896]`, 1 full fold, 18 local edits,
+12 hits. The v2.9.2 note's 3.202 s tier 3 was
 `opt-level = 1`, which is what `make build` produces. These two numbers are
 the release profile, measured the same way on both sides. Merged with
 v2.9.3, the same release job is wall 1.977 s. Tier 3 is still 1.480 s
