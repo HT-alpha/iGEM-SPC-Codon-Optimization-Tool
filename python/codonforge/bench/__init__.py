@@ -7,7 +7,7 @@ A fixed reference point, comparison refusal, in-process native and CAI-greedy
 baselines, and an external-tool adapter that runs a binary the user installed.
 No tool is vendored. The real-protein panel is 50 CDS from NC_000913.3
 (`DEP-BEN-002`). `GATE-BEN-001` is claimed only as the CAI-only record in
-`benchmarks/corpus/gates.json`: 48 of 50 proteins. LinearFold's global MFE
+`benchmarks/corpus/gates.json`: 50 of 50 proteins. LinearFold's global MFE
 is not `structure.local_accessibility`, and that comparison is not the claim.
 
 Declared dependencies: cf-types, cf-metrics, cf-orchestrator, cf-testkit, cf-ingest.

@@ -378,7 +378,11 @@ fn build_increments(
 
         let pinned: Rebased = provider.rebase(&ctx)?;
         rebases += 1;
-        let table = provider.delta_table(&ctx, &pinned, &positions)?;
+        // `surrogate_delta_table`, not `delta_table`. For `usage.cai` the
+        // arithmetic delta is identically zero while any counted weight is
+        // zero, and a sum of those zeros cannot rank a partial removal.
+        // `DEP-SRCH-020`. The reported score is unchanged.
+        let table = provider.surrogate_delta_table(&ctx, &pinned, &positions)?;
         delta_tables += 1;
 
         // All internal optimization is maximization of the surrogate, so a

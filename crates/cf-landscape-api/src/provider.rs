@@ -216,6 +216,29 @@ pub trait TermProvider: Send + Sync {
         ))
     }
 
+    /// What the seeding DP and the block ascent add up.
+    ///
+    /// The default is [`TermProvider::delta_table`], the exact change in the
+    /// reported score. A provider overrides this when that change is
+    /// identically zero for a move the reported score would reward only after
+    /// several such moves land together. `usage.cai` does: one counted weight
+    /// of zero makes every arithmetic delta zero until the last zero is gone,
+    /// so a sum of those deltas cannot tell a partial removal from doing
+    /// nothing, and it cannot tell a better synonym from a worse one at any
+    /// other position.
+    ///
+    /// This is a search linearization. [`TermProvider::score`] and
+    /// [`TermProvider::delta`] stay the reported term, and tier 2 still
+    /// accepts a block on that reported value.
+    fn surrogate_delta_table(
+        &self,
+        ctx: &EvalContext<'_>,
+        base: &Rebased,
+        positions: &[usize],
+    ) -> Result<Vec<PositionDeltas>> {
+        self.delta_table(ctx, base, positions)
+    }
+
     /// Predictive uncertainty for a computed value.
     fn uncertainty(&self, ctx: &EvalContext<'_>, value: f64) -> Uncertainty {
         let _ = (ctx, value);

@@ -131,7 +131,7 @@
     "codons": 534,
     "native_cai": 0.0,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 0.0,
+    "codonforge_cai": 1.0,
     "zero_weight_codons": [
       {
         "index": 14,
@@ -343,7 +343,7 @@
     "codons": 821,
     "native_cai": 0.0,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 0.0,
+    "codonforge_cai": 1.0,
     "zero_weight_codons": [
       {
         "index": 28,

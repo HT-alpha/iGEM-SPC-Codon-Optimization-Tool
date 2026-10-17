@@ -5,7 +5,8 @@ and a `protein_id`. A record without them is refused: a panel that accepts a
 bare string would be how an invented sequence gets into a benchmark.
 
 `GATE-BEN-001` is claimed only as the CAI-only comparison in
-`benchmarks/corpus/gates.json`. The competitor the original gate asks for
+`benchmarks/corpus/gates.json`: 50 of 50 proteins on this record.
+The competitor the original gate asks for
 is a fold on `structure.mfe_global`.
 LinearFold returns that global minimum free energy and a dot-bracket.
 `structure.local_accessibility` is windowed ViennaRNA accessibility.
@@ -279,6 +280,77 @@ def run_baselines(directory: Path, cds_path: Path | None = None) -> dict[str, An
     return manifest
 
 
+def cai_gate_document(rows: list[dict[str, Any]], *, selected_cds_sha256: str) -> dict[str, Any]:
+    """The `gates.json` object `run_cai_only` writes for these rows.
+
+    `check_cai_gate` accepts it only when every recorded score meets
+    `cai_greedy`. A protein below that baseline is listed in
+    `degenerate_cases.excluded` and the claim is not made.
+    """
+    beats_native = all(row["codonforge_cai"] + 1e-12 >= row["native_cai"] for row in rows)
+    behind = [row["gene"] for row in rows if row["codonforge_cai"] + 1e-12 < row["cai_greedy_cai"]]
+    claimed_n = len(rows) - len(behind)
+    definition = (
+        "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein "
+        "relative adaptiveness for every arm, including codons whose count in "
+        "the 54 ribosomal CDS is 0. Arms: the native CDS, cai_greedy, and one "
+        "CodonForge design (budget fast, 4 generations, seed 7, no structure "
+        "objective, no forbidden motif). Claimed only when the CodonForge "
+        "value is at least cai_greedy on every protein. The MFE comparison "
+        "against LinearDesign or CDSfold is not this record."
+    )
+    if behind:
+        exclusion = f" ({', '.join(behind)} excluded, see degenerate_cases)"
+        explanation = (
+            "Excluded because the recorded CodonForge score is below cai_greedy. "
+            "usage.cai is 0 while any counted codon has weight 0."
+        )
+        details = []
+        for row in rows:
+            if row["gene"] not in behind:
+                continue
+            sites = ", ".join(
+                f"{site['codon']} at codon {site['index']}" for site in row["zero_weight_codons"]
+            )
+            details.append(
+                f"{row['gene']} ({row['protein_id']}) CodonForge {row['codonforge_cai']} "
+                f"vs cai_greedy {row['cai_greedy_cai']}; {sites or 'no zero-weight sense codon'}"
+            )
+        reason = (
+            definition + " Not claimed. " + " ".join(details) + " AGG has count 0 in the 54 "
+            "ribosomal CDS, so its weight is 0. usage.cai is 0 while any counted codon has "
+            "weight 0, and this 4-generation search did not remove those codons. cai_greedy "
+            "replaces each codon with the highest-weight synonym."
+        )
+    else:
+        exclusion = ""
+        explanation = (
+            "No protein is excluded. aceB and thrA contain AGG, which has weight 0 in the "
+            "54 ribosomal CDS, so usage.cai is 0 while any counted AGG remains. DEP-SRCH-020 "
+            "linearizes search on the sum of log-weights in that case. On this record both "
+            "meet cai_greedy. The MFE comparison is not this claim."
+        )
+        reason = definition
+    return {
+        "gate": "GATE-BEN-001",
+        "definition": "cai_only",
+        "claimed": len(rows) == 50 and not behind,
+        "claim": (
+            f"CAI-only front, {claimed_n} of {len(rows)} E. coli K-12 proteins{exclusion}, "
+            f"cai_greedy baseline, CodonForge meets or exceeds baseline on all {claimed_n}."
+        ),
+        "n_proteins": len(rows),
+        "n_claimed": claimed_n,
+        "comparable": True,
+        "selected_cds_sha256": selected_cds_sha256,
+        "beats_native": beats_native,
+        "codonforge_ge_greedy": claimed_n,
+        "behind_greedy": behind,
+        "degenerate_cases": {"excluded": behind, "explanation": explanation},
+        "reason": reason,
+    }
+
+
 def check_cai_gate(gate: dict[str, Any], rows: list[dict[str, Any]]) -> None:
     """Refuse a claim that covers a protein the recorded scores do not support.
 
@@ -375,52 +447,7 @@ def run_cai_only(directory: Path, cds_path: Path | None = None) -> dict[str, Any
                 "zero_weight_codons": zero_weight,
             }
         )
-    beats_native = all(row["codonforge_cai"] + 1e-12 >= row["native_cai"] for row in rows)
-    ties_or_beats_greedy = sum(
-        1 for row in rows if row["codonforge_cai"] + 1e-12 >= row["cai_greedy_cai"]
-    )
-    definition = (
-        "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein "
-        "relative adaptiveness for every arm, including codons whose count in "
-        "the 54 ribosomal CDS is 0. Arms: the native CDS, cai_greedy, and one "
-        "CodonForge design (budget fast, 4 generations, seed 7, no structure "
-        "objective, no forbidden motif). Claimed only when the CodonForge "
-        "value is at least cai_greedy on every protein. The MFE comparison "
-        "against LinearDesign or CDSfold is not this record."
-    )
-    claimed = len(rows) == 50 and ties_or_beats_greedy == len(rows)
-    gate = {
-        "gate": "GATE-BEN-001",
-        "definition": "cai_only",
-        "claimed": claimed,
-        "n_proteins": len(rows),
-        "comparable": True,
-        "selected_cds_sha256": panel["selected_cds_sha256"],
-        "beats_native": beats_native,
-        "codonforge_ge_greedy": ties_or_beats_greedy,
-        "behind_greedy": [
-            row["gene"] for row in rows if row["codonforge_cai"] + 1e-12 < row["cai_greedy_cai"]
-        ],
-        "reason": definition,
-    }
-    if gate["behind_greedy"]:
-        details = []
-        for row in rows:
-            if row["gene"] not in gate["behind_greedy"]:
-                continue
-            sites = ", ".join(
-                f"{site['codon']} at codon {site['index']}" for site in row["zero_weight_codons"]
-            )
-            details.append(
-                f"{row['gene']} ({row['protein_id']}) CodonForge {row['codonforge_cai']} "
-                f"vs cai_greedy {row['cai_greedy_cai']}; {sites or 'no zero-weight sense codon'}"
-            )
-        gate["reason"] = (
-            definition + " Not claimed. " + " ".join(details) + " AGG has count 0 in the 54 "
-            "ribosomal CDS, so its weight is 0. usage.cai is 0 while any counted codon has "
-            "weight 0, and this 4-generation search did not remove those codons. cai_greedy "
-            "replaces each codon with the highest-weight synonym."
-        )
+    gate = cai_gate_document(rows, selected_cds_sha256=panel["selected_cds_sha256"])
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "cai_only.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     (directory / "gates.json").write_text(json.dumps([gate], indent=2), encoding="utf-8")

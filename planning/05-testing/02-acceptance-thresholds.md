@@ -80,13 +80,14 @@ An **absolute** gate, correctly: a 90 % interval covering 70 % is wrong by defin
 `DEP-BEN-003`. The record in `benchmarks/corpus/gates.json` is not this
 table. No checked tool emits windowed local accessibility that this project
 can add as a competitor, so the run that exists is CAI-only: native,
-`cai_greedy`, and one CodonForge design on `usage.cai`. The claim is 48 of
+`cai_greedy`, and one CodonForge design on `usage.cai`. The claim is 50 of
 50 proteins. `aceB` codon 14 and `thrA` codons 28 and 243 are `AGG`. That
-codon has count 0 in the 54 ribosomal CDS, so the table lists weight 0.
-Both the native CDS and CodonForge score 0 there, and `cai_greedy` scores 1.
-A further run at 20 generations, stagnation window 21, seed 7, still leaves
-in-frame `AGG`. Those two proteins are excluded. The threshold below is the
-original MFE rule and was not applied.
+codon has count 0 in the 54 ribosomal CDS, so the table lists weight 0 and
+`usage.cai` is 0 while any such codon remains. The v2.4.2 search left them
+and scored 0. `DEP-SRCH-020` changes the search linearization, not the
+reported mean. On the current 4-generation record both score 1, equal to
+`cai_greedy`. The threshold below is the original MFE rule and was not
+applied.
 
 | | |
 | --- | --- |

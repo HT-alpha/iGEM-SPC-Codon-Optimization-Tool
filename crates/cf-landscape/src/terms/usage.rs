@@ -173,6 +173,22 @@ pub struct CaiTerm {
     table: CodonUsageTable,
 }
 
+/// Below every `ln(w)` for a weight in `(0, 1]`.
+///
+/// A counted codon's log-weight on a real table is a few nats. A CDS would
+/// need on the order of `1e5` codons of improvement to outweigh one zero, and
+/// nothing this tool designs is that long. The sentinel is only the search
+/// linearization. The reported CAI stays 0 while any counted weight is 0.
+const CAI_ZERO_LOG: f64 = -1.0e6;
+
+fn cai_log_weight(weight: f64) -> f64 {
+    if weight == 0.0 {
+        CAI_ZERO_LOG
+    } else {
+        weight.ln()
+    }
+}
+
 /// The `(Σ log w, #zeros, n)` state CAI is computed from.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct CaiState {
@@ -353,6 +369,56 @@ impl TermProvider for CaiTerm {
                             .map(|d| (c, d))
                     })
                     .collect::<Result<Vec<_>>>()?;
+                Ok(PositionDeltas {
+                    codon_index: index,
+                    alternatives,
+                })
+            })
+            .collect()
+    }
+
+    /// Log-weight linearization while any counted weight is zero.
+    ///
+    /// `DEP-SRCH-020`. The arithmetic delta is the change in the geometric
+    /// mean. One zero makes that mean zero, so every single-codon delta is
+    /// zero until the last zero disappears, and the seeding DP — which sums
+    /// those deltas — has no preference among synonyms. It will keep an `AGG`
+    /// of weight 0, and it will introduce another, because both score the
+    /// same as the best synonym. The sum of log-weights has the same argmax
+    /// as CAI once every weight is positive, and a zero sits below every
+    /// positive log, so removing one is ranked even while another remains.
+    /// The reported score stays the geometric mean.
+    fn surrogate_delta_table(
+        &self,
+        ctx: &EvalContext<'_>,
+        base: &Rebased,
+        positions: &[usize],
+    ) -> Result<Vec<PositionDeltas>> {
+        let state = self.base_state(ctx.sequence, base);
+        if state.zeros == 0 {
+            return self.delta_table(ctx, base, positions);
+        }
+        positions
+            .iter()
+            .map(|&index| {
+                let current = ctx.sequence.codons()[index];
+                let current_log = cai_log_weight(self.table.weight(current));
+                let counted = self.counted(ctx.sequence, index);
+                let alternatives = ctx
+                    .sequence
+                    .synonyms_at(index)
+                    .iter()
+                    .copied()
+                    .filter(|codon| *codon != current)
+                    .map(|codon| {
+                        let delta = if counted {
+                            cai_log_weight(self.table.weight(codon)) - current_log
+                        } else {
+                            0.0
+                        };
+                        (codon, delta)
+                    })
+                    .collect();
                 Ok(PositionDeltas {
                     codon_index: index,
                     alternatives,

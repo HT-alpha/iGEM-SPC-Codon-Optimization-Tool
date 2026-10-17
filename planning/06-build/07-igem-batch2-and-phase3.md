@@ -56,16 +56,17 @@ outside AMD-013.
 
 `DEP-BEN-003` records the comparison that was run instead: one `usage.cai`
 axis, the same ribosomal-protein weights, native and `cai_greedy` and one
-CodonForge design (budget `fast`, 4 generations, seed 7). CodonForge is at
-least `cai_greedy` on 48 of 50 proteins. It is not on `aceB` or `thrA`.
+CodonForge design (budget `fast`, 4 generations, seed 7). The v2.4.2 record
+met `cai_greedy` on 48 of 50 proteins and excluded `aceB` and `thrA`.
 `AGG` occurs 0 times in the 54 ribosomal CDS, so its weight is 0, and the
 table lists that 0. `aceB` has `AGG` at codon 14. `thrA` has it at codons
-28 and 243. `usage.cai` is 0 while any of those remain. The 4-generation
-search leaves them, and a 20-generation run (stagnation window 21, seed 7)
-still leaves in-frame `AGG` and still scores 0. `cai_greedy` replaces each
-with the highest-weight synonym and scores 1. The gate is claimed on the
-other 48. The two proteins are `degenerate_cases` and are excluded. The
-original 13 genes remain the Potts held-out set.
+28 and 243. `usage.cai` is 0 while any of those remain. That search
+linearized CAI as an arithmetic delta, which is flat until the last zero
+is gone, so a 20-generation run still scored 0. `DEP-SRCH-020` linearizes
+the zero-weight case on the sum of log-weights. The reported mean is
+unchanged. On the current 4-generation record both proteins score 1, equal
+to `cai_greedy`, and the claim covers 50 of 50. The original 13 genes
+remain the Potts held-out set.
 
 The sequences are the CDS of `NC_000913.3` (assembly `GCF_000005845.2`,
 4140 records in the cited FASTA). The gzip's sha256 is
