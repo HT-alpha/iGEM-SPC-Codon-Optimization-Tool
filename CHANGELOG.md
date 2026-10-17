@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.5.1
+
+A design with hard constraints no longer stops at tier 1. When the dynamic
+program cannot carry a GC window or a scattered repeat, a deterministic seed
+repair runs and later stages start from a sequence that satisfies the rules
+it can check. The four validation genes (yagF, waaS, the elastin-like repeat,
+and yeeJ) return feasible CDS under the assembly rule set. A job that still
+cannot is exit 3, `CF-SRCH-006`, and the unchanged input is not printed as
+the design. Tiers that ran are `done`; tiers that did not run are `skipped`.
+
+`custom_regex` is enforced when the pattern compiles. `local_structure` and
+`min_codon_frequency` are reported as `CF-FEAS-008` and are not treated as
+satisfied.
+
+The recommended candidate says what CAI 1.0 means on the loaded table, scores
+the same CDS on the Kazusa E. coli genome-wide weights, and names a counted
+codon whose weight is 0. Presets for BioBrick RFC[10], Golden Gate, and a
+general synthesis rule set are on the page. `examples/rpsL_constraints.json`
+is named as a set that checks nothing.
+
+PrimerForge strips a FASTA header the same way on the page and the API,
+accepts lowercase by uppercasing it, and names an illegal base with its
+position. The 3′ GC clamp is labelled informational. Self-dimer and
+heterodimer ΔG stay on SantaLucia 1998 Table 2 without dangling ends, which
+is not primer3's number.
+
+The page can trim a registry CDS at the first standard-code stop. Untrimmed
+BBa_E0040 still exits 2 with `CF-SEQ-003` when that box is off.
+
+`python -m codonforge.cli.main` no longer prints a `RuntimeWarning`.
+
 ## v2.5.0
 
 The DNA Design Suite page is a guided form for people who are not

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const DEBUG = "http://127.0.0.1:9222";
 const OUT = "/workspace/benchmarks/validation/results/primer_page.json";
@@ -45,6 +45,13 @@ const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: t
 await send("Page.enable", {}, sessionId);
 await send("Runtime.enable", {}, sessionId);
 
+mkdirSync("/opt/cursor/artifacts", { recursive: true });
+
+async function shot(name) {
+  const { data } = await send("Page.captureScreenshot", { format: "png" }, sessionId);
+  writeFileSync(`/opt/cursor/artifacts/${name}.png`, Buffer.from(data, "base64"));
+}
+
 async function evaluate(expression) {
   const result = await send(
     "Runtime.evaluate",
@@ -63,9 +70,9 @@ await send(
   sessionId,
 );
 await send("Page.navigate", { url: "http://127.0.0.1:8000/" }, sessionId);
-for (let i = 0; i < 20; i += 1) {
-  const ready = await evaluate("Boolean(document.getElementById('tab-btn-primer'))");
-  if (ready) break;
+for (let i = 0; i < 30; i += 1) {
+  const ready = await evaluate("document.getElementById('profile-note') ? document.getElementById('profile-note').innerText : ''");
+  if (ready && !ready.includes("No codon table")) break;
   await sleep(200);
 }
 
@@ -81,15 +88,19 @@ report.page_search = await evaluate(`
   const sequence = ${JSON.stringify(pasted)};
   const box = document.getElementById("primer-sequence");
   box.value = sequence;
+  box.dispatchEvent(new Event("input"));
   document.getElementById("primer-flank").value = "80";
   document.getElementById("primer-pmin").value = "150";
   document.getElementById("primer-pmax").value = "400";
   document.getElementById("region-start").value = "201";
   document.getElementById("region-end").value = "400";
   document.getElementById("region-start").dispatchEvent(new Event("change"));
-  const cleaned = sequence.toUpperCase().replace(/[^ACGT]/g, "");
   document.getElementById("primer-search").click();
-  cleaned
+  ({
+    bases: document.querySelectorAll("#primer-viewer .nt").length,
+    first: document.querySelector("#primer-viewer .nt") ? document.querySelector("#primer-viewer .nt").textContent : "",
+    selection: document.getElementById("primer-selection").innerText,
+  })
 `);
 
 let text = "";
@@ -107,6 +118,78 @@ for (let i = 0; i < 40; i += 1) {
   await sleep(250);
 }
 if (!report.result) report.result = JSON.parse(text);
+
+report.illegal_base = await evaluate(`(() => {
+  const oligo = document.getElementById("primer-sequence");
+  oligo.value = ">GFP demo\\nATGNCCC";
+  oligo.dispatchEvent(new Event("input"));
+  return document.getElementById("primer-viewer").innerText.trim();
+})()`);
+await shot("primer-illegal-base");
+
+report.codon = await evaluate(`(() => {
+  document.getElementById("tab-btn-codon").click();
+  const help = document.getElementById("help-constraints").innerText;
+  const presets = [...document.querySelectorAll("[data-preset]")].map((button) => button.dataset.preset);
+  const kazusa = Boolean(document.getElementById("load-kazusa"));
+  const trim = document.getElementById("trim-stop");
+  const box = document.getElementById("cds-text");
+  const tail = "ATG" + "GCT".repeat(237) + "TAATAA";
+  box.value = tail;
+  trim.checked = true;
+  trim.dispatchEvent(new Event("change"));
+  const note = document.getElementById("cds-note").innerText;
+  const request = document.getElementById("request").value;
+  let sent = "";
+  try { sent = JSON.parse(request).cds || ""; } catch (error) { sent = ""; }
+  return {
+    help,
+    presets,
+    kazusa,
+    note,
+    untrimmed: tail.length,
+    sent: sent.length,
+  };
+})()`);
+await evaluate("document.getElementById('step-seq').scrollIntoView()");
+await shot("trim-at-first-stop");
+
+report.failed_design = await evaluate(`(async () => {
+  document.getElementById("tab-btn-codon").click();
+  document.getElementById("cds-text").value = "ATG" + "GGG".repeat(12) + "TAA";
+  document.getElementById("trim-stop").checked = false;
+  document.getElementById("trim-stop").dispatchEvent(new Event("change"));
+  document.getElementById("constraint-mode").value = "json";
+  document.getElementById("constraint-mode").dispatchEvent(new Event("change"));
+  document.getElementById("constraint-json").value = JSON.stringify({
+    schema_version: "1.0.0",
+    constraint_set_id: "cst_impossible_gc",
+    constraints: [{
+      id: "c_gc",
+      class: "blocking",
+      scope: "cds",
+      rule: {kind: "gc_window", window_nt: 12, min: 0, max: 0.1}
+    }]
+  });
+  document.getElementById("constraint-json").dispatchEvent(new Event("input"));
+  document.getElementById("budget").value = "fast";
+  document.getElementById("edit-json").checked = false;
+  document.getElementById("submit").click();
+  for (let i = 0; i < 20; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const status = document.getElementById("status-root").innerText;
+    const front = document.getElementById("front-root").innerText;
+    if (status.includes("CF-SRCH-006") || front.includes("CF-SRCH-006")) {
+      return {status: status.slice(0, 900), front: front.slice(0, 900)};
+    }
+  }
+  return {
+    status: document.getElementById("status-root").innerText.slice(0, 900),
+    front: document.getElementById("front-root").innerText.slice(0, 900),
+  };
+})()`);
+await evaluate("document.getElementById('status').scrollIntoView()");
+await shot("failed-design-cf-srch-006");
 
 ws.close();
 writeFileSync(OUT, JSON.stringify(report, null, 2));
