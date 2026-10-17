@@ -1,6 +1,6 @@
 # Project status
 
-Canonical status for the DNA Design Suite at `v2.6.0`. Older notes in
+Canonical status for the DNA Design Suite at `v2.9.0`. Older notes in
 `docs/igem-submission.md` and `CHANGELOG.md` keep the history of how each
 release got here. The CAI gate claim is the one recorded for `v2.4.2`. The
 v2.6.0 fronts are in `docs/benchmarks/v2.6.0-phase2.md`. The package version
@@ -12,10 +12,10 @@ CodonForge designs an *E. coli* coding sequence under explicit objectives and
 hard constraints. The search is Rust (tier 1 exact dynamic programming, tier
 2 block coordinate ascent, tier 3 a multi-objective population). The job
 lifecycle, ingest, and CLI are Python. `POST /v1/jobs`, `POST /v1/score`,
-`GET /v1/calibration`, `GET /v1/healthz`, and `GET /v1/version` are served by
-the standard-library HTTP server. Hosts, models, observations,
-recalibrations, seed import, and the five-check feasibility analyser answer
-`CF-CLI-003`.
+`POST /v1/observations`, `GET /v1/observations`, `GET /v1/calibration`,
+`GET /v1/healthz`, and `GET /v1/version` are served by the standard-library
+HTTP server. Hosts, models, recalibrations, seed import, and the five-check
+feasibility analyser answer `CF-CLI-003`.
 
 The page in `python/codonforge/api/static/` is the shared CodonForge and
 PrimerForge UI. It is a guided form: a coding sequence, a host, the bundled
@@ -52,9 +52,24 @@ two-state calculation from SantaLucia 1998 Table 2
 
 The synonymous Potts surface (`epistasis.context_naturalness`) is fit on
 `NC_000913.3` with the 13-protein panel held out. The selected model is
-`W = 10`: 2333 L-BFGS iterations, gradient norm 0.0977, `converged: true`.
-Held-out naturalness is −0.870868 nats/codon against a codon-usage baseline
-of −0.991739. `GET /v1/calibration` returns those figures.
+`W = 10`: 2333 L-BFGS iterations, gradient norm 0.09770886731134135,
+`converged: true`. Held-out naturalness is −0.8708682912309792 nats/codon
+against a codon-usage baseline of −0.991738843659599. `GET /v1/calibration`
+returns those figures. A design job ranks the term when the verified artifact
+is installed. The artifact host is MG1655. A job whose host id starts with
+`escherichia_coli:` pins it, and no distance penalty is applied because none
+was measured. Any other host is `CF-LAND-001`. The dwell head is not loaded
+by that pin. The job raises `tier2_block` to the Potts window. `P1-26` stays
+held.
+
+`design_operon` designs two or more cistrons on one flux-weighted codon
+ledger and keeps a synonymous swap only when the shared `burden.growth_cost`
+falls. The caller supplies every flux.
+
+`POST /v1/observations` appends a validated observation for the calling
+tenant. The outcome model is a least-squares line of one uncensored numeric
+readout on the GC fraction of an explicit CDS, or `not_fitted` when that line
+is not identified. Recalibration is not scheduled.
 
 The benchmark panel is 50 CDS from `NC_000913.3`. The ribosomal usage table
 lists all 64 codons. `AGG` and `TAG` have count 0 in the 54 ribosomal CDS, so
@@ -86,6 +101,10 @@ window 21, seed 7, still ran 20 generations, still scored 0 against
 - The dwell head is `not_fitted`. No paper states one 5′-end offset for GEO
   GSE53767, and the GEO files were not reachable. `epistasis.dwell_deviation`
   returns `CF-LAND-001`.
+- Recalibration is not scheduled. Stored observations do not train a Potts
+  model, a dwell head, or a capacity curve.
+- Joint search does not run shadow prices or a multi-cistron NSGA-III. The
+  shared ledger is the flux-weighted codon demand the caller supplied.
 - EXP-05 does not separate the repair policies. On `gapA`, `pfkA`, `mdh`,
   `eno`, and `pykF`, 20 seeds per arm and 40 generations, the hypervolume
   margin is 0 and the Lamarckian standard deviation is 0. Lamarckian stays

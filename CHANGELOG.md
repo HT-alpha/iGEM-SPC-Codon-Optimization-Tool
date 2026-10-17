@@ -1,5 +1,28 @@
 # Changelog
 
+## v2.9.0
+
+`POST /v1/observations` validates a wet-lab submission and appends it.
+`GET /v1/observations` returns that tenant's log. The eight checks are
+`CF-OBS-001` through `CF-OBS-008`. A failed check stores nothing.
+
+The stored document's `ingest_status.state` is `validated`. Its digest is
+recomputed after that field is written. A caller-supplied digest that
+disagrees with the submitted document is `CF-OBS-001`.
+
+The secondary model is ordinary least squares of one uncensored numeric
+readout on the GC fraction of an explicit CDS. Two rows of
+`protein_abundance`, CDS `ATGAAATAA` (value 1) and `ATGGGGGGG` (value 4),
+fit with residual sum of squares 0. One row, a constant GC fraction, a
+censored readout, or two different latent quantities stay `state: not_fitted`
+and carry no coefficient. No codon weight is invented.
+
+Recalibration is not scheduled. `GET /v1/recalibrations` stays `CF-CLI-003`.
+`DEP-ACT-003`.
+
+The package version stays 0.1.0.
+`python -m codonforge.cli.main --version` prints 0.1.0.
+
 ## v2.8.0
 
 `design_operon` designs each cistron, then accepts a synonymous swap only
