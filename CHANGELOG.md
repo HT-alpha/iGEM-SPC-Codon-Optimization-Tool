@@ -21,6 +21,17 @@ phase 2 knee vectors are unchanged. On this machine, wall time for the
 documented standard 4-generation CAI+structure runs fell from 1.357 s to
 0.561 s on rpsL and from 4.211 s to 2.255 s on waaS.
 
+`design_operon` updates the flux-weighted codon ledger one codon at a time.
+The edited vector matches a full recount. On lacZ plus thrA (fluxes 1 and 2,
+burden objective, budget `fast`, generations 0, two passes, seed 7) the joint
+cost stays 0.4452346719259927 and the swaps stay `[26, 0]`. Wall time on this
+machine fell from 9.185 s to 1.632 s.
+
+The challenging-sequence timings are in
+`docs/benchmarks/v2.9.1-challenging-perf.md`. No design in that sweep
+returned an infeasible CDS. The slowest job is yeeJ under the assembly
+rules, about 21 s before the population loop.
+
 The package version stays 0.1.0.
 `python -m codonforge.cli.main --version` prints 0.1.0.
 

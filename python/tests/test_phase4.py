@@ -88,15 +88,31 @@ def test_joint_cost_is_the_shared_ledger(tmp_path) -> None:
     assert result.joint_growth_cost < piled
 
 
+def test_a_synonym_swap_matches_a_full_recount_of_the_ledger() -> None:
+    """The joint pass edits two count slots. Those slots are the full recount."""
+    from codonforge.orchestrator.operon import _ledger_counts
+
+    profile = leucine_profile()
+    sequences = [CDS, "ATGTTATAA"]
+    fluxes = [1.0, 2.5]
+    base = _ledger_counts(sequences, fluxes, TABLE)
+    assert base == _weighted_counts(sequences, fluxes, TABLE)
+    swapped = ["ATGTTGTAA", sequences[1]]
+    edited = _ledger_counts(swapped, fluxes, TABLE, base, (0, "CTG", "TTG"))
+    assert edited == _weighted_counts(swapped, fluxes, TABLE)
+    assert _growth(profile, TABLE, edited) == _joint_cost(swapped, fluxes, TABLE, profile)
+
+
 def test_ignoring_the_other_cistron_leaves_the_worse_joint(tmp_path, monkeypatch) -> None:
     """A scorer that drops background counts cannot find the joint improvement."""
     profile = leucine_profile()
     real = _weighted_counts
 
-    def only_the_first(sequences, fluxes, translation_table):
+    def only_the_first(sequences, fluxes, translation_table, previous=None, swap=None):
+        del previous, swap
         return real(sequences[:1], fluxes[:1], translation_table)
 
-    monkeypatch.setattr("codonforge.orchestrator.operon._weighted_counts", only_the_first)
+    monkeypatch.setattr("codonforge.orchestrator.operon._ledger_counts", only_the_first)
     broken = design_operon(
         [Cistron(CDS, 1.0, "a"), Cistron(CDS, 1.0, "b")],
         ArtifactStore(tmp_path / "broken"),

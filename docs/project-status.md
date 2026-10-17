@@ -4,7 +4,9 @@ Canonical status for the DNA Design Suite at `v2.9.1`. Older notes in
 `docs/igem-submission.md` and `CHANGELOG.md` keep the history of how each
 release got here. The CAI gate claim is the one in `benchmarks/corpus/gates.json`.
 The v2.6.0 fronts are in `docs/benchmarks/v2.6.0-phase2.md`. The v2.9.1
-re-measurement is in `docs/benchmarks/v2.9.1-validation.md`. The package
+re-measurement is in `docs/benchmarks/v2.9.1-validation.md`. The
+challenging-sequence timings are in
+`docs/benchmarks/v2.9.1-challenging-perf.md`. The package
 version stays 0.1.0. `python -m codonforge.cli.main --version` prints 0.1.0.
 
 ## Shipped and working

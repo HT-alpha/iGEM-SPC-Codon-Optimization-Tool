@@ -114,6 +114,33 @@ def _growth(host_profile: dict, translation_table: int, counts: list[float]) -> 
     return float(json.loads(_core.burden_of_demand(payload))["growth_cost"])
 
 
+def _ledger_counts(
+    sequences: list[str],
+    fluxes: list[float],
+    translation_table: int,
+    previous: list[float] | None = None,
+    swap: tuple[int, str, str] | None = None,
+) -> list[float]:
+    """Flux-weighted codon demand.
+
+    A one-codon synonym edits two slots of the previous vector. That edit
+    matches `_weighted_counts` on the rewritten sequences, which is the
+    recount a joint pass would otherwise repeat at every synonym.
+    """
+    if previous is None or swap is None:
+        return _weighted_counts(sequences, fluxes, translation_table)
+    index, old, new = swap
+    counts = list(previous)
+    # Stops are omitted, the same rule `codon_counts` uses. A sense codon
+    # and its synonym are both counted; the caller has already kept the protein.
+    if _core.translate(old, translation_table) == "*":
+        return counts
+    flux = fluxes[index]
+    counts[codon_index(old)] -= flux
+    counts[codon_index(new)] += flux
+    return counts
+
+
 def _joint_cost(
     sequences: list[str],
     fluxes: list[float],
@@ -244,6 +271,7 @@ def design_operon(
 
     independent = list(sequences)
     independent_cost = _joint_cost(independent, fluxes, translation_table, host_profile)
+    ledger = _ledger_counts(sequences, fluxes, translation_table)
     swaps_per_pass: list[int] = []
     for _pass in range(passes):
         accepted = 0
@@ -252,7 +280,8 @@ def design_operon(
                 codon = cds[position * 3 : (position + 1) * 3]
                 options = sorted(_core.synonyms(codon, translation_table))
                 best = cds
-                best_cost = _joint_cost(sequences, fluxes, translation_table, host_profile)
+                best_ledger = ledger
+                best_cost = _growth(host_profile, translation_table, ledger)
                 for synonym in options:
                     if synonym == codon:
                         continue
@@ -263,17 +292,24 @@ def design_operon(
                         continue
                     trial_sequences = list(sequences)
                     trial_sequences[index] = trial
-                    trial_cost = _joint_cost(
-                        trial_sequences, fluxes, translation_table, host_profile
+                    trial_ledger = _ledger_counts(
+                        trial_sequences,
+                        fluxes,
+                        translation_table,
+                        ledger,
+                        (index, codon, synonym),
                     )
+                    trial_cost = _growth(host_profile, translation_table, trial_ledger)
                     if trial_cost < best_cost or (
                         trial_cost == best_cost and best != cds and trial < best
                     ):
                         best = trial
+                        best_ledger = trial_ledger
                         best_cost = trial_cost
                 if best != cds:
                     sequences[index] = best
                     cds = best
+                    ledger = best_ledger
                     accepted += 1
         swaps_per_pass.append(accepted)
 

@@ -1,0 +1,226 @@
+{
+  "seed": 7,
+  "host": "escherichia_coli:511145/BL21",
+  "suite": "standard",
+  "timeout_s": 300,
+  "rows": [
+    {
+      "name": "yeeJ CAI+structure assembly standard",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "yeeJ CAI+structure assembly standard",
+        "gene": "yeeJ",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 4,
+        "budget": "standard"
+      },
+      "state": "succeeded",
+      "wall_s": 26.737,
+      "peak_rss_kb": 52784,
+      "nt": 7077,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier3_moea",
+          "state": "done",
+          "generation": 4
+        }
+      ],
+      "warnings": [
+        "CF-ORCH-007",
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9575892496987667,
+        2.4078350274529794
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 17,
+      "folds": {
+        "hits": 24,
+        "full_folds": 1,
+        "local_edits": 38
+      }
+    },
+    {
+      "name": "yeeJ CAI assembly standard",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "yeeJ CAI assembly standard",
+        "gene": "yeeJ",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 4,
+        "budget": "standard"
+      },
+      "state": "succeeded",
+      "wall_s": 25.446,
+      "peak_rss_kb": 52620,
+      "nt": 7077,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier3_moea",
+          "state": "done",
+          "generation": 4
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-001",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9580065306093907
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "rpoB CAI assembly standard",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "rpoB CAI assembly standard",
+        "gene": "rpoB",
+        "objectives": [
+          "usage.cai"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 4,
+        "budget": "standard"
+      },
+      "state": "succeeded",
+      "wall_s": 7.156,
+      "peak_rss_kb": 49832,
+      "nt": 4029,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier3_moea",
+          "state": "done",
+          "generation": 4
+        }
+      ],
+      "warnings": [
+        "CF-LAND-013",
+        "CF-SRCH-001",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9798209521813181
+      ],
+      "rule": "feasible_then_score_then_digest",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 1
+    },
+    {
+      "name": "lacZ CAI+structure assembly standard",
+      "kind": "design",
+      "spec": {
+        "kind": "design",
+        "name": "lacZ CAI+structure assembly standard",
+        "gene": "lacZ",
+        "objectives": [
+          "usage.cai",
+          "structure.local_accessibility"
+        ],
+        "constraints": "benchmarks/validation/constraints_assembly.json",
+        "generations": 4,
+        "budget": "standard"
+      },
+      "state": "succeeded",
+      "wall_s": 3.509,
+      "peak_rss_kb": 47780,
+      "nt": 3075,
+      "tiers": [
+        {
+          "tier": "tier1_seed",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier2_block_ca",
+          "state": "done",
+          "generation": null
+        },
+        {
+          "tier": "tier3_moea",
+          "state": "done",
+          "generation": 4
+        }
+      ],
+      "warnings": [
+        "CF-ORCH-007",
+        "CF-SRCH-001",
+        "CF-SRCH-010",
+        "CF-SRCH-016",
+        "CF-SRCH-017"
+      ],
+      "vector": [
+        0.9496666821372511,
+        2.7124236538013604
+      ],
+      "rule": "knee_of_complete_front",
+      "feasible": true,
+      "actionable_violations": 0,
+      "protein_identical": true,
+      "in_frame_agg": 0,
+      "n_candidates": 17,
+      "folds": {
+        "hits": 25,
+        "full_folds": 1,
+        "local_edits": 44
+      }
+    }
+  ]
+}
