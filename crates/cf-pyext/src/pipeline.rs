@@ -112,6 +112,13 @@ pub fn install_context_model(
     Ok(())
 }
 
+/// Joint or background-weighted burden. `counts` is flux-weighted codon demand.
+pub fn burden_of_demand(host_profile: &Value, table: u8, counts: &[f64; 64]) -> Result<f64> {
+    let term = GrowthCostTerm::from_host_profile(host_profile)?;
+    let code = GeneticCode::get(table)?;
+    term.score_demand(counts, code)
+}
+
 fn installed_context(digest: &str) -> Option<ContextNaturalnessTerm> {
     let models = context_models().lock().ok()?;
     let installed = models.get(digest)?;

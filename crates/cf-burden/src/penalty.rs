@@ -114,6 +114,19 @@ impl GrowthCostTerm {
     }
 
     fn score_counts(&self, counts: &[u64; CODON_COUNT], code: &GeneticCode) -> Result<f64> {
+        let mut demand = [0.0; CODON_COUNT];
+        for (slot, count) in demand.iter_mut().zip(counts) {
+            *slot = *count as f64;
+        }
+        self.score_demand(&demand, code)
+    }
+
+    /// `g` for an already-weighted codon demand.
+    ///
+    /// Fluxes are real numbers, so the joint ledger cannot stay in integer
+    /// counts. A single cistron at flux 1 passes its integer counts through
+    /// `score_counts` and lands here unchanged.
+    pub fn score_demand(&self, counts: &[f64; CODON_COUNT], code: &GeneticCode) -> Result<f64> {
         let utilizations = match &self.supply {
             Supply::UsagePrior { weights } => usage_utilizations(counts, weights.as_ref(), code)?,
             Supply::GeneCopy { share } => gene_copy_utilizations(counts, share, code)?,
@@ -233,14 +246,14 @@ fn usage_weights(profile: &Value) -> Result<[f64; CODON_COUNT]> {
 /// construct does is charged at `q / min p` over the family's positive
 /// shares. That floor is read from the host table.
 fn usage_utilizations(
-    counts: &[u64; CODON_COUNT],
+    counts: &[f64; CODON_COUNT],
     weights: &[f64; CODON_COUNT],
     code: &GeneticCode,
 ) -> Result<Vec<f64>> {
     let mut utilizations = Vec::new();
     let mut seen = [false; 256];
     for codon in Codon::all() {
-        if counts[codon.index_usize()] == 0 || code.is_stop(codon) {
+        if counts[codon.index_usize()] == 0.0 || code.is_stop(codon) {
             continue;
         }
         let amino = code.amino_acid(codon) as usize;
@@ -253,8 +266,8 @@ fn usage_utilizations(
             continue;
         }
         let weight_sum: f64 = family.iter().map(|item| weights[item.index_usize()]).sum();
-        let count_sum: u64 = family.iter().map(|item| counts[item.index_usize()]).sum();
-        if count_sum == 0 {
+        let count_sum: f64 = family.iter().map(|item| counts[item.index_usize()]).sum();
+        if count_sum == 0.0 {
             continue;
         }
         if weight_sum <= 0.0 {
@@ -278,7 +291,7 @@ fn usage_utilizations(
         let floor = positive.iter().copied().fold(f64::INFINITY, f64::min);
         for item in family {
             let share = weights[item.index_usize()] / weight_sum;
-            let observed = counts[item.index_usize()] as f64 / count_sum as f64;
+            let observed = counts[item.index_usize()] / count_sum;
             if share > 0.0 {
                 utilizations.push(observed / share);
             } else if observed > 0.0 {
@@ -290,7 +303,7 @@ fn usage_utilizations(
 }
 
 fn gene_copy_utilizations(
-    counts: &[u64; CODON_COUNT],
+    counts: &[f64; CODON_COUNT],
     share: &BTreeMap<String, f64>,
     code: &GeneticCode,
 ) -> Result<Vec<f64>> {
@@ -298,14 +311,14 @@ fn gene_copy_utilizations(
     let mut total = 0.0;
     for codon in Codon::all() {
         let count = counts[codon.index_usize()];
-        if count == 0 || code.is_stop(codon) {
+        if count == 0.0 || code.is_stop(codon) {
             continue;
         }
         let Some(decoder) = primary_decoder(codon) else {
             continue;
         };
-        *demand.entry(decoder.as_str()).or_insert(0.0) += count as f64;
-        total += count as f64;
+        *demand.entry(decoder.as_str()).or_insert(0.0) += count;
+        total += count;
     }
     if total <= 0.0 {
         return Ok(Vec::new());

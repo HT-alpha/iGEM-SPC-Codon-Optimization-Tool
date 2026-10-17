@@ -182,3 +182,9 @@ Fully specified in [ADR-0004](../07-decisions/ADR-0004-resource-ledger-granulari
 | `TST-BURD-002` | Incremental vs. full ledger agree to `1e-12` over 10⁵ random edits. |
 | `TST-SRCH-008` | Oscillation detection and fallback (§4.3). |
 | `TST-SRCH-009` | Joint beats independent: on the synthetic two-cistron contention instance of `TST-SYN-003`, joint search must beat independent per-cistron optimization by at least the analytically known margin. This is the test that justifies the whole layer's existence. |
+
+---
+
+## 8. What this build runs
+
+`DEP-SRCH-019` — `design_operon` designs each cistron with the existing single-CDS job, then keeps a synonymous swap only when `burden.growth_cost` of the caller-supplied flux-weighted codon counts falls and the sequence stays feasible. Shadow prices, native-proteome demand, and the joint NSGA-III refinement in §4 are not run. The caller supplies every flux. A default expression rate would be an invented number.

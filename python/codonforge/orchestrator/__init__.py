@@ -27,6 +27,7 @@ from .design import (
     score_sequences,
 )
 from .job import Cancelled, Job, JobInputs
+from .operon import Cistron, OperonResult, design_operon
 
 __all__ = [
     "BUILTIN_TERMS",
@@ -36,7 +37,10 @@ __all__ = [
     "DesignResult",
     "assigned_job_id",
     "design",
+    "design_operon",
     "score_sequences",
+    "Cistron",
+    "OperonResult",
     "ComputeBudget",
     "Job",
     "JobInputs",

@@ -758,6 +758,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(fit_potts_context, m)?)?;
     m.add_function(wrap_pyfunction!(score_potts_context, m)?)?;
     m.add_function(wrap_pyfunction!(install_context_model, m)?)?;
+    m.add_function(wrap_pyfunction!(burden_of_demand, m)?)?;
     m.add_function(wrap_pyfunction!(score_codon_usage_baseline, m)?)?;
     m.add_function(wrap_pyfunction!(primer_search, m)?)?;
     m.add_function(wrap_pyfunction!(primer_analyze, m)?)?;
@@ -935,6 +936,34 @@ fn install_context_model(request_json: &str) -> PyResult<String> {
     )
     .map_err(to_py_err)?;
     Ok(serde_json::json!({ "digest": digest }).to_string())
+}
+
+#[pyfunction]
+fn burden_of_demand(request_json: &str) -> PyResult<String> {
+    let request: serde_json::Value =
+        serde_json::from_str(request_json).map_err(|err| PyValueError::new_err(err.to_string()))?;
+    let table = request
+        .get("translation_table")
+        .and_then(|item| item.as_u64())
+        .unwrap_or(11) as u8;
+    let counts_json = request
+        .get("counts")
+        .and_then(|item| item.as_array())
+        .ok_or_else(|| PyValueError::new_err("counts must be an array of 64 numbers"))?;
+    if counts_json.len() != 64 {
+        return Err(PyValueError::new_err("counts must hold 64 codon slots"));
+    }
+    let mut counts = [0.0; 64];
+    for (slot, item) in counts.iter_mut().zip(counts_json) {
+        *slot = item
+            .as_f64()
+            .ok_or_else(|| PyValueError::new_err("counts contains a non-number"))?;
+    }
+    let host = request
+        .get("host_profile")
+        .ok_or_else(|| PyValueError::new_err("host_profile is required"))?;
+    let value = pipeline::burden_of_demand(host, table, &counts).map_err(to_py_err)?;
+    Ok(serde_json::json!({ "growth_cost": value }).to_string())
 }
 
 #[pyfunction]

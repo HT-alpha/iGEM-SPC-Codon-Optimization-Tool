@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.8.0
+
+`design_operon` designs each cistron, then accepts a synonymous swap only
+when `burden.growth_cost` of the caller-supplied flux-weighted codon counts
+falls and the sequence stays feasible. The protein is unchanged. Fluxes are
+the caller's. No expression rate, gene-copy number, or s-value is invented.
+
+On two copies of `ATGCTGTAA` (translation table 11, fluxes 1 and 1, leucine
+relative adaptiveness CTG 1, TTA 0.8, TTG 0.6, CTT 0.4, CTC 0.2, CTA 0.1),
+budget `fast`, generations 0, seed 7, the independent designs stay
+`ATGCTGTAA` / `ATGCTGTAA` with joint growth cost 0.7968828039139021. One
+joint pass moves the first cistron to `ATGTTATAA`. The joint cost is
+0.6453291265499066. The solo costs of those two sequences are
+0.8597495762920573 and 0.7968828039139021, and their sum is
+1.6566323802059593. A second pass accepts no swap. This host table is the
+fixture, not a measured expression rate. `DEP-SRCH-019`.
+
+The package version stays 0.1.0.
+
 ## v2.7.0
 
 `epistasis.context_naturalness` is an L1 objective: the mean log probability
