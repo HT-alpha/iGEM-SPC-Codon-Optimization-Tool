@@ -2,15 +2,15 @@ name: wheels
 
 # Phase 1 exit criterion: "Wheels build on all three platforms with no Rust
 # toolchain required at install time." abi3-py311 means one wheel per platform
-# serves every supported CPython, so the matrix stays small.
+# serves every supported CPython (3.11 through 3.13). CPython 3.9 and 3.10
+# are outside requires-python.
+#
+# This workflow uploads artifacts. It does not publish to PyPI and it must
+# not gain a PyPI token. Hugo publishes by downloading the artifacts and
+# running twine himself. The steps are in the README.
 
 on:
   push:
-    # Stable tags only. A pre-release such as v0.1.0-igem documents an iGEM
-    # snapshot and must not start legal-clearance: that job blocks every
-    # build it is a `needs` of, and the sign-off file is still absent.
-    # The hyphen is the pre-release mark. v1.2.3 still enters the gate.
-    tags: ["v*"]
   workflow_dispatch:
   schedule:
     # Weekly, so a platform breakage is found before a release rather than
@@ -21,17 +21,18 @@ jobs:
   # AMD-013. A release that ships structure-kernel functionality needs a human
   # with actual authority to have reviewed the licence and patent position
   # first. This job runs before anything is built, and blocks the release when
-  # no sign-off is on file - which is the state today, deliberately.
+  # no sign-off is on file.
   #
   # It is first in the file and a `needs:` of every other job because a gate
   # that runs alongside the build is a gate that gets ignored when the build
   # succeeds.
   legal-clearance:
     name: legal clearance (AMD-013)
-    # Pre-release tags contain a hyphen (v0.1.0-igem). They push, and they
-    # skip this job, so the wheel build that `needs` it is skipped too.
-    # schedule and workflow_dispatch are not tag pushes and still run the gate.
-    if: github.event_name != 'push' || !contains(github.ref_name, '-')
+    # Pre-release *tags* contain a hyphen (v0.1.0-igem). They skip this job,
+    # so the wheel build that `needs` it is skipped too. A hyphen in a branch
+    # name is not that mark: branch pushes still enter the gate and, when it
+    # passes, upload wheels.
+    if: github.ref_type != 'tag' || !contains(github.ref_name, '-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -60,6 +61,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      # The page serves demo files from codonforge/api/examples. A checkout
+      # does not have that copy until this script writes it.
+      - run: python tools/stage_wheel_examples.py
       - uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
@@ -68,6 +72,23 @@ jobs:
       - uses: actions/upload-artifact@v6
         with:
           name: wheel-${{ matrix.platform.os }}-${{ matrix.platform.target }}
+          path: dist
+
+  sdist:
+    name: source distribution
+    needs: legal-clearance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install "maturin>=1.5,<2"
+      - run: python tools/stage_wheel_examples.py
+      - run: maturin sdist --out dist
+      - uses: actions/upload-artifact@v6
+        with:
+          name: sdist
           path: dist
 
   verify-no-toolchain-needed:
