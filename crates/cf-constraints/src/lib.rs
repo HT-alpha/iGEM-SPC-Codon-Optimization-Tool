@@ -32,6 +32,7 @@ pub mod kmer;
 pub mod legacy;
 pub mod motif;
 pub mod repair;
+pub mod seed;
 pub mod spec;
 pub mod tabu;
 pub mod window;
@@ -43,6 +44,10 @@ pub use motif::MotifAutomaton;
 pub use repair::{
     partition, repair, ActionableViolation, Edit, GiveUp, GiveUpReason, NoObjective,
     ObjectiveDelta, RepairOutcome, RepairRng, RepairTarget, WorkAccounting,
+};
+pub use seed::{
+    explain_deviations, resolve_feasible_seed, BaselineDeviation, SeedReport, SeedResidual,
+    UnsearchedRule,
 };
 pub use spec::{
     AssemblySpec, Constraint, ConstraintClass, ConstraintSet, ExpansionReport, RepairPolicy, Rule,

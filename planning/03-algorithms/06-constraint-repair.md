@@ -35,7 +35,8 @@ Repair is only affordable if detection is incremental. Each constraint class get
 
 | Constraint class | Structure | Cost after one codon substitution |
 | --- | --- | --- |
-| `forbidden_motif`, `restriction_site`, `custom_regex` | Aho–Corasick automaton over all patterns (both strands, IUPAC-expanded) | `O(m_max)` — rescan a window of `m_max + 3` nt |
+| `forbidden_motif`, `restriction_site`, `codon_ban` | Aho–Corasick automaton over the literal patterns (both strands where the rule asks) | `O(m_max)` — rescan a window of `m_max + 3` nt |
+| `custom_regex` | the `regex` crate, compiled once, with a 1 MiB size cap (`DEP-CONS-005`). A quantified class is not expanded into that automaton. A pattern that does not compile is `CF-FEAS-006`; one that exceeds the cap is `CF-FEAS-007` | a match is not bounded by the source length once a quantifier is present, so `influence_radius_nt` is `None`, the same consequence as a k-mer rule |
 | `homopolymer` | run-length index | `O(max_run)` |
 | `kmer_repeat` | hash map `k-mer → count`, maintained incrementally | `O(k)` — a 3 nt change removes `k+2` and adds `k+2` k-mers |
 | `gc_window` | prefix sums over GC | `O(window/3)` windows touched, `O(1)` each |
@@ -43,6 +44,8 @@ Repair is only affordable if detection is incremental. Each constraint class get
 | `codon_ban`, `min_codon_frequency` | direct lookup | `O(1)` |
 
 Full detection over a fresh sequence is `O(n)` for everything except `local_structure`.
+
+`local_structure` and `min_codon_frequency` are the two classes Phase 1 does not search. A job that includes one emits `CF-FEAS-008` and does not treat the rule as satisfied. That warning is not a job failure: an empty demonstration set, and a set whose other rules are searchable, still runs. `DEP-CONS-005`.
 
 **Overlapping counting is the default** for `kmer_repeat`, matching `count_overlapping()` in the existing `codon_6.0.py` prototype. Python's `str.count` is non-overlapping and undercounts tandem repeats, which are exactly the structures a synthesis vendor rejects. The schema exposes `count_overlapping` so the semantics are explicit rather than inherited by accident.
 
@@ -262,3 +265,19 @@ Worst case (every individual carrying two hard violations needing depth-3 repair
 | `TST-CONS-004` | Protein and lock invariance: repair never changes the translated protein and never touches a locked codon, over 10⁶ randomized cases. |
 | `TST-CONS-005` | Anti-thrashing: in a scripted mutation/repair cycle designed to thrash, the tabu ledger breaks the cycle within `tabu_tenure` generations. |
 | `TST-CONS-006` | Feasibility analyser: each of the five checks fires on a purpose-built infeasible input and stays silent on a feasible one. |
+
+---
+
+## 8. One-shot seed resolution after a tier-1 refusal
+
+Tier 1's DP is a regular-language search. A GC window and a scattered k-mer repeat are not regular in that automaton, so tier 1 returns `CF-SRCH-006` and discards its beam. That refusal is unchanged. It is not the end of the job.
+
+`resolve_feasible_seed` runs once, after that refusal and before tier 2. It is not the in-loop operator of §3. The in-loop operator stays bounded and may give up inside NSGA, leaving the individual infeasible for constraint-domination. The seed resolver's job is different: produce one feasible coding sequence the later tiers can start from, or report that none of its deterministic attempts found one.
+
+It tries two tie orders (higher relative adaptiveness, then lower codon index) and, within each, two starts (the most-frequent-codon assignment, then the input). It stops at the first feasible sequence. A feasible result beats an infeasible one; two feasible results keep the higher CAI, then the fewer committed codon edits. Edits count committed changes only. A polish that breaks feasibility is discarded and the pre-polish edit count is kept. The final word is `ConstraintChecker::is_feasible`, not the incremental book the search consulted along the way.
+
+When a feasible seed exists, the job continues through tier 2 and, on a standard or exact budget, tier 3. The status carries `CF-SRCH-017`: tier 1 could not carry the non-local rule, and the sequence later tiers started from was built by this resolver. `CF-SRCH-006` is not also emitted on that path. The stage report for `tier1_seed` is recorded before the refusal is absorbed, so that tier is `done`.
+
+When no attempt is feasible, the job fails. The problem is `CF-SRCH-006`, stage `tier1`, subject `seed_repair`, and the detail lists the residual rule ids and what to change. The CLI exits 3. The unchanged input is not presented as a design. Tiers that have no stage report are `skipped`.
+
+`DEP-SRCH-015` — Hard constraints that tier 1 cannot carry are repaired once, as a seed, rather than ending the job. The proposal's repair operator inside search is this seed plus the existing bounded in-loop operator. The seed is deterministic and does not use the tabu ledger; those properties belong to §3 and stay there. A rule class this version does not search is `CF-FEAS-008` (§2), a warning, not a silent pass and not a job failure.

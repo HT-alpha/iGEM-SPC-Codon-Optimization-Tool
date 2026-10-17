@@ -67,6 +67,7 @@ codes! {
     FEAS_GC_UNATTAINABLE   => ("CF-FEAS-005", 422, "Required GC band is outside the attainable range", "planning/03-algorithms/06-constraint-repair.md"),
     FEAS_CONSTRAINT_INVALID=> ("CF-FEAS-006", 422, "Constraint definition is malformed", "planning/02-schemas/constraint_set.schema.json"),
     FEAS_REGEX_TOO_LARGE   => ("CF-FEAS-007", 422, "Custom pattern exceeds the compiled-size cap", "planning/06-build/06-risk-register.md"),
+    FEAS_UNSEARCHED        => ("CF-FEAS-008", 200, "A constraint rule is not searched in this version", "planning/03-algorithms/06-constraint-repair.md"),
 
     // ---- CF-RESOLVE: model resolution --------------------------------------
     RESOLVE_NO_ARTIFACT    => ("CF-RESOLVE-001", 422, "No artifact resolves for a requested term and host", "planning/04-api/04-model-resolution.md"),
@@ -99,6 +100,7 @@ codes! {
     SRCH_SEED_POLICY       => ("CF-SRCH-004", 422, "Seed injection policy is malformed", "planning/07-decisions/ADR-0007-external-tool-seed-import.md"),
     SRCH_TIER1_CONFIG      => ("CF-SRCH-005", 422, "Tier 1 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
     SRCH_TIER1_INFEASIBLE  => ("CF-SRCH-006", 422, "Tier 1 found no feasible assignment", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
+    SRCH_SEED_REPAIR       => ("CF-SRCH-017", 200, "Tier 1 could not carry a non-local constraint; seed repair produced the sequence later tiers started from", "planning/03-algorithms/06-constraint-repair.md"),
     SRCH_TABU_CLOCK        => ("CF-SRCH-007", 500, "Generation clock and tabu ledger disagree", "planning/03-algorithms/06-constraint-repair.md"),
     SRCH_TIER2_UNBOUNDED_TERM => ("CF-SRCH-008", 422, "A term couples positions more widely than the tier 2 block size", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
     SRCH_TIER2_CONFIG      => ("CF-SRCH-009", 422, "Tier 2 configuration is malformed", "planning/03-algorithms/02-block-local-coordinate-ascent.md"),
