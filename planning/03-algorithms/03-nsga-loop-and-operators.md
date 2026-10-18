@@ -195,6 +195,8 @@ TIER3_NSGA3(P₀, ref_dirs, constraints, budget) -> front
 
 Termination is on hypervolume stagnation by default because it is the only signal that tracks the thing the user cares about. Generation and wall-clock caps are backstops. `hv_history` is streamed into `job_status.current_front_summary.hypervolume_history` so a UI can show it live.
 
+`DEP-SRCH-025`: the same window also stops the run when the non-dominated front's fingerprint is unchanged. Hypervolume is checked first. A run that has stopped on both signals still reports hypervolume stagnation, which is what `TST-SRCH-019` names. Front stability is the stop for a reference point that still moves after the set of sequences has settled. The fingerprint is FNV-1a of the front in its stable order, and the history travels in the checkpoint so a resumed run stops where an uninterrupted one did.
+
 ---
 
 ## 8. Complexity per generation

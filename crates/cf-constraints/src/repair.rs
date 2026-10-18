@@ -491,11 +491,11 @@ fn search_minimal_fix(
             *work += 1;
             let mut probe = target.clone();
             probe.substitute(region, codon_index, alternative)?;
-            if still_present(checker, &probe, masking, violation) {
-                continue;
-            }
-            if actionable_blocking(checker, &probe, masking).len() >= before {
-                // Fixed one and created another: not a fix.
+            // One checker pass answers both questions. Two passes returned the
+            // same multiset and doubled the cost of every probe.
+            let (present, remaining) = probe_status(checker, &probe, masking, violation);
+            if present || remaining >= before {
+                // Still the original hit, or a fix that created another.
                 continue;
             }
             let cost = objective
@@ -542,7 +542,7 @@ fn search_minimal_fix(
                     *work += 1;
                     let mut probe = state.clone();
                     probe.substitute(region, codon_index, alternative)?;
-                    let remaining = actionable_blocking(checker, &probe, masking).len();
+                    let (present, remaining) = probe_status(checker, &probe, masking, violation);
                     let mut extended = edits.clone();
                     extended.push(Edit {
                         region,
@@ -554,7 +554,7 @@ fn search_minimal_fix(
                         + objective
                             .delta(region, codon_index, alternative)
                             .unwrap_or(0.0);
-                    if !still_present(checker, &probe, masking, violation) && remaining < before {
+                    if !present && remaining < before {
                         return Ok(Some(Fix {
                             edits: extended,
                             cost: extended_cost,
@@ -601,6 +601,23 @@ fn actionable_blocking(
         .into_iter()
         .filter(|v| v.class == ConstraintClass::Blocking && v.actionable)
         .collect()
+}
+
+/// Whether `violation` is still reported, and how many blocking actionable
+/// hits the probe has. Both come from one `check`.
+fn probe_status(
+    checker: &ConstraintChecker,
+    target: &RepairTarget,
+    masking: KmerMasking,
+    violation: &Violation,
+) -> (bool, usize) {
+    let hits = actionable_blocking(checker, target, masking);
+    let present = hits.iter().any(|hit| {
+        hit.constraint_id == violation.constraint_id
+            && hit.start_nt == violation.start_nt
+            && hit.end_nt == violation.end_nt
+    });
+    (present, hits.len())
 }
 
 fn still_present(

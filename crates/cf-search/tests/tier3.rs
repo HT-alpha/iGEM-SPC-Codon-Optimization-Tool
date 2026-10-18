@@ -11,8 +11,8 @@ use cf_constraints::spec::{Constraint, ConstraintClass, ConstraintSet, Rule, Sco
 use cf_constraints::{ConstraintChecker, KmerMasking};
 use cf_metrics::{constraint_dominance, Dominance, Ranked};
 use cf_search::tier3::{
-    nondominated, run_generations, seed_population, stagnated, Individual, ObjectiveEvaluator,
-    Selection, Termination, Tier3Config, Tier3Request,
+    classify_stop, front_unchanged, nondominated, run_generations, seed_population, stagnated,
+    Individual, ObjectiveEvaluator, Selection, Termination, Tier3Config, Tier3Request,
 };
 use cf_search::{CodonWeights, Genotype, OperatorMix};
 use cf_types::{CodonSequence, Result};
@@ -120,6 +120,7 @@ fn request<'a>(
         config,
         l0: None,
         root_seed: ROOT_SEED,
+        limits: cf_constraints::SpendLimit::default(),
     }
 }
 
@@ -774,6 +775,32 @@ fn tst_srch_019_a_run_that_cannot_improve_terminates_on_stagnation() {
         "termination fired only at the cap, which is not termination"
     );
     assert_eq!(report.termination.as_summary(), "hypervolume_stagnation");
+}
+
+#[test]
+fn a_stable_front_stops_only_after_a_full_window_and_yields_to_hypervolume() {
+    let window = 3usize;
+    let stable = vec![7u64, 7, 7, 7];
+    assert!(!front_unchanged(&stable[..window], window));
+    assert!(front_unchanged(&stable, window));
+    let moving = vec![7u64, 7, 7, 8];
+    assert!(
+        !front_unchanged(&moving, window),
+        "a changing tail must not stop the run"
+    );
+
+    let flat = vec![1.0, 1.0, 1.0, 1.0];
+    assert_eq!(
+        classify_stop(&flat, &stable, window, 1e-3),
+        Some(Termination::HypervolumeStagnation),
+        "when both signals fire, the reported reason stays hypervolume"
+    );
+    let improving = vec![1.0, 2.0, 3.0, 4.0];
+    assert_eq!(
+        classify_stop(&improving, &stable, window, 1e-3),
+        Some(Termination::FrontUnchanged)
+    );
+    assert_eq!(classify_stop(&improving, &moving, window, 1e-3), None);
 }
 
 #[test]

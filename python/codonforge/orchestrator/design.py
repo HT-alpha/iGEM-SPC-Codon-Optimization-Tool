@@ -85,6 +85,10 @@ class DesignRequest:
     job_id: str | None = None
     checkpoint_dir: str | None = None
     resume: bool = False
+    #: Wall cap in milliseconds. `None` uses the ADR-0008 length-scaled target.
+    wall_budget_ms: int | None = None
+    #: Resident-set cap in bytes. `None` uses the laptop profile's 8 GiB.
+    max_rss_bytes: int | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
@@ -289,6 +293,8 @@ def design(
         stagnation_window=request.stagnation_window,
         tier2_block=max(8, context_window or 0),
         context_digest=request.context_digest,
+        wall_budget_ms=request.wall_budget_ms,
+        max_rss_bytes=request.max_rss_bytes,
     )
 
     job = Job.submit(

@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -50,10 +51,12 @@ from .archive import CandidateArchive
 from .budget import (
     EXECUTED_TIERS,
     GENERATIONAL_TIER,
+    LAPTOP_RSS_BYTES,
     ComputeBudget,
     TierPlan,
     TierPlanError,
     Warning_,
+    wall_budget_ms,
 )
 
 SCHEMA_VERSION = "1.0.0"
@@ -100,6 +103,10 @@ class JobInputs:
     tier2_sweeps: int = 4
     #: Digest of the Potts artifact, when the context term is in the job.
     context_digest: str | None = None
+    #: Wall cap in milliseconds. `None` uses the ADR-0008 length-scaled target.
+    wall_budget_ms: int | None = None
+    #: Resident-set cap in bytes. `None` uses the laptop profile's 8 GiB.
+    max_rss_bytes: int | None = None
 
 
 @dataclass
@@ -148,6 +155,10 @@ class Job:
     #: reads it so a problem document is attributed without a per-tier copy
     #: of the lifting logic. `DEP-ORCH-004`.
     _engine_stage: str = "job"
+    #: Armed at the start of `run`. Absent from the tier request until then,
+    #: so a caller that never runs stays unlimited.
+    _deadline_unix_ms: int | None = None
+    _rss_cap_bytes: int | None = None
     #: Folds already measured for this job. The engine is deterministic, so a
     #: repeated sequence is the same number. Not checkpointed: the archive
     #: stores the objective values the fold produced.
@@ -280,6 +291,7 @@ class Job:
 
         self.state = "running"
         self.started_at = _now()
+        self._arm_caps()
 
         try:
             # Tiers run in plan order, each crossing the boundary once. They
@@ -669,8 +681,36 @@ class Job:
                 "terms": terms if terms is not None else self.plan.scored,
                 "weights": self._weights(terms),
                 "root_seed": self.root_seed(),
+                **self._cap_fields(),
             }
         )
+
+    def _arm_caps(self) -> None:
+        """One wall and one resident cap for the whole job.
+
+        `DEP-BUDG-002`. The wall is the ADR-0008 target for this tier and CDS
+        length unless the caller set `wall_budget_ms`. The memory cap is the
+        laptop profile's 8 GiB unless the caller set `max_rss_bytes`. A resume
+        keeps the cap already armed on this object; a fresh process arms again.
+        """
+        if self._deadline_unix_ms is not None:
+            return
+        wall = self.inputs.wall_budget_ms
+        if wall is None:
+            wall = wall_budget_ms(self.budget.tier, len(self.inputs.cds))
+        rss = self.inputs.max_rss_bytes
+        if rss is None:
+            rss = LAPTOP_RSS_BYTES
+        self._deadline_unix_ms = int(time.time() * 1000) + int(wall)
+        self._rss_cap_bytes = int(rss)
+
+    def _cap_fields(self) -> dict[str, int]:
+        fields: dict[str, int] = {}
+        if self._deadline_unix_ms is not None:
+            fields["deadline_unix_ms"] = self._deadline_unix_ms
+        if self._rss_cap_bytes is not None:
+            fields["max_rss_bytes"] = self._rss_cap_bytes
+        return fields
 
     def _weights(self, terms: list[str] | None = None) -> list[float]:
         """Scalarization coefficients. Magnitudes, deliberately unsigned.

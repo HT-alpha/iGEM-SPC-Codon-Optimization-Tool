@@ -121,6 +121,11 @@ def test_yeej_structure_vector_and_fold_counts(tmp_path: Path) -> None:
     1 full fold, 21 local edits, 12 hits. The seed change moves the CDS, so
     the front moves with it. ``structure.local_accessibility`` is the
     windowed penalty, not a global MFE, and ``GATE-BEN-001`` does not cover it.
+    Overlapping codon edits share one region fold and distant edits stay
+    separate folds, so ``local_edits`` counts incremental evaluations (11)
+    rather than one ``substitute`` per codon (18). The objective vector is
+    unchanged: each region fold is the same penalty as folding those codons
+    one at a time.
     """
     if "viennarna" not in available_engines():
         if os.environ.get("CF_REQUIRE_STRUCTURE_ENGINE") == "1":
@@ -154,4 +159,4 @@ def test_yeej_structure_vector_and_fold_counts(tmp_path: Path) -> None:
     assert session is not None
     assert session.hits == 12
     assert session.full_folds == 1
-    assert session.local_edits == 18
+    assert session.local_edits == 11

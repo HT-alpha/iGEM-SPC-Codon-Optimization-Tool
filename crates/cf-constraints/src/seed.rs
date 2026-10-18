@@ -134,8 +134,20 @@ use cf_types::seqrec::CodonSequence;
 
 use crate::detect::{ConstraintChecker, ConstructView};
 use crate::spec::{ConstraintClass, Rule};
+use crate::spend::SpendLimit;
 
 const MAX_CYCLES: u32 = 8;
+/// Joint GC and k-mer pair attempts after the single-window escape still
+/// leaves the seed infeasible. The same bound as that escape: four tries,
+/// not a count fitted to one gene. `DEP-SRCH-024`.
+const JOINT_ATTEMPTS: u32 = 4;
+/// Codons taken from the stuck GC window, spread from the first codon to the
+/// last so the edges are included.
+const JOINT_GC_CODONS: usize = 8;
+/// Codons taken from over-limit k-mers, spread across those sites.
+const JOINT_KMER_CODONS: usize = 8;
+/// The pair search runs on at most this many sites.
+const JOINT_SITES: usize = 12;
 const GC_SWEEPS: u32 = 8;
 const PATTERN_ROUNDS: u32 = 4;
 /// Pair lifts after a feasible seed. One codon at a time cannot trade a
@@ -223,12 +235,25 @@ pub fn resolve_feasible_seed(
     checker: &ConstraintChecker,
     weights: &[f64; 64],
 ) -> Result<SeedReport> {
+    resolve_feasible_seed_limited(sequence, checker, weights, SpendLimit::default())
+}
+
+/// [`resolve_feasible_seed`] with a wall-clock and resident-memory cap.
+///
+/// `DEP-BUDG-002`. A default limit is unlimited. A deadline that has already
+/// passed returns `CF-BUDGET-003` before a cycle edits the sequence.
+pub fn resolve_feasible_seed_limited(
+    sequence: &CodonSequence,
+    checker: &ConstraintChecker,
+    weights: &[f64; 64],
+    limits: SpendLimit,
+) -> Result<SeedReport> {
     arm_seed_profile();
     let unsearched = unsearched_rules(checker);
     let mut best: Option<Attempt> = None;
     for tie in [TieBreak::Weight, TieBreak::LowIndex] {
         for start in [most_frequent(sequence, weights)?, sequence.clone()] {
-            let mut solver = Solver::new(start, checker, weights, tie)?;
+            let mut solver = Solver::new(start, checker, weights, tie)?.with_limits(limits);
             let cycles = solver.run()?;
             let feasible = solver.is_feasible();
             let cai = cai_of(&solver.seq, weights);
@@ -249,7 +274,7 @@ pub fn resolve_feasible_seed(
         }
     }
     let attempt = best.expect("four starts were attempted");
-    let solver = Solver::new(attempt.seq, checker, weights, TieBreak::Weight)?;
+    let solver = Solver::new(attempt.seq, checker, weights, TieBreak::Weight)?.with_limits(limits);
     let residual = if attempt.feasible {
         Vec::new()
     } else {
@@ -578,6 +603,27 @@ impl KmerBook {
 /// One violation in the checker is one over-limit key, and it is actionable
 /// when `touching > 0`. The sum of these contributions is zero under the same
 /// condition as "no actionable blocking k-mer violation".
+/// Evenly spaced indexes, always including the first and the last.
+fn spread_indexes(indexes: &[usize], cap: usize) -> Vec<usize> {
+    if cap == 0 || indexes.is_empty() {
+        return Vec::new();
+    }
+    if indexes.len() <= cap {
+        return indexes.to_vec();
+    }
+    if cap == 1 {
+        return vec![indexes[0]];
+    }
+    let mut picked = Vec::with_capacity(cap);
+    let last = indexes.len() - 1;
+    for slot in 0..cap {
+        picked.push(indexes[slot * last / (cap - 1)]);
+    }
+    picked.sort_unstable();
+    picked.dedup();
+    picked
+}
+
 fn actionable_over(count: u32, touching: u32, max: u32) -> u64 {
     if count > max && touching > 0 {
         u64::from(count - max)
@@ -895,6 +941,7 @@ struct Solver<'a> {
     acgt: bool,
     edits: u32,
     tie: TieBreak,
+    limits: SpendLimit,
 }
 
 impl<'a> Solver<'a> {
@@ -948,7 +995,17 @@ impl<'a> Solver<'a> {
             acgt,
             edits: 0,
             tie,
+            limits: SpendLimit::default(),
         })
+    }
+
+    fn with_limits(mut self, limits: SpendLimit) -> Self {
+        self.limits = limits;
+        self
+    }
+
+    fn enforce(&self) -> Result<()> {
+        self.limits.enforce()
     }
 
     fn prefer(&self, candidate: Codon, incumbent: Codon) -> bool {
@@ -961,6 +1018,7 @@ impl<'a> Solver<'a> {
     fn run(&mut self) -> Result<u32> {
         let mut cycles = 0u32;
         let mut escapes = 0u32;
+        self.enforce()?;
         if self.is_feasible() {
             self.polish()?;
             self.ascend_cai()?;
@@ -969,6 +1027,7 @@ impl<'a> Solver<'a> {
             return Ok(0);
         }
         for _ in 0..MAX_CYCLES {
+            self.enforce()?;
             cycles += 1;
             let before = self.score();
             self.gc_sweeps()?;
@@ -1009,8 +1068,140 @@ impl<'a> Solver<'a> {
                 break;
             }
         }
+        if !self.is_feasible() {
+            cycles += self.joint_escape()?;
+        }
         self.finish_prefix();
         Ok(cycles)
+    }
+
+    /// Pair edits that can move a GC window and a repeated word together.
+    ///
+    /// `DEP-SRCH-024`. Reached only when the cycles above, including the
+    /// middle-of-window GC pairs, left the seed infeasible. Sites are spread
+    /// across the whole stuck window and across the hot k-mer codons, so the
+    /// edges are eligible. A pair is kept only when the packed progress score
+    /// falls and pattern hits do not rise. A feasible seed never enters.
+    fn joint_escape(&mut self) -> Result<u32> {
+        let mut extra = 0u32;
+        for _ in 0..JOINT_ATTEMPTS {
+            self.enforce()?;
+            if self.is_feasible() || !self.ease_joint()? {
+                break;
+            }
+            extra += 1;
+            let before = self.score();
+            self.gc_sweeps()?;
+            for _ in 0..PATTERN_ROUNDS {
+                if !self.fix_patterns()? {
+                    break;
+                }
+            }
+            for _ in 0..KMER_ROUNDS {
+                if self.kmers.excess() == 0 {
+                    break;
+                }
+                if self.fix_kmers()? {
+                    continue;
+                }
+                if !self.fix_kmer_pairs()? {
+                    break;
+                }
+            }
+            if self.is_feasible() {
+                self.polish()?;
+                self.ascend_cai()?;
+                self.climb_conflicts()?;
+                break;
+            }
+            if self.score() >= before {
+                break;
+            }
+        }
+        Ok(extra)
+    }
+
+    fn ease_joint(&mut self) -> Result<bool> {
+        if self.is_feasible() {
+            return Ok(false);
+        }
+        let before = self.score();
+        let patterns_before = self.pattern_count();
+        let codons = self.joint_sites();
+        if codons.len() < 2 {
+            return Ok(false);
+        }
+        let mut best: Option<(u128, usize, usize, Codon, Codon)> = None;
+        for left in 0..codons.len() {
+            for right in (left + 1)..codons.len() {
+                let i = codons[left];
+                let j = codons[right];
+                let current_i = self.seq.codons()[i];
+                let current_j = self.seq.codons()[j];
+                let syn_i = self.seq.synonyms_at(i).to_vec();
+                let syn_j = self.seq.synonyms_at(j).to_vec();
+                for &synonym_i in &syn_i {
+                    for &synonym_j in &syn_j {
+                        if synonym_i == current_i && synonym_j == current_j {
+                            continue;
+                        }
+                        self.set_codon(i, synonym_i)?;
+                        self.set_codon(j, synonym_j)?;
+                        let trial = self.score();
+                        let patterns = self.pattern_count();
+                        self.set_codon(j, current_j)?;
+                        self.set_codon(i, current_i)?;
+                        if trial >= before || patterns > patterns_before {
+                            continue;
+                        }
+                        let replace = best
+                            .map(|(so_far, bi, bj, incumbent_i, incumbent_j)| {
+                                trial < so_far
+                                    || (trial == so_far
+                                        && (i < bi
+                                            || (i == bi
+                                                && (j < bj
+                                                    || (j == bj
+                                                        && (self
+                                                            .prefer(synonym_i, incumbent_i)
+                                                            || (synonym_i == incumbent_i
+                                                                && self.prefer(
+                                                                    synonym_j,
+                                                                    incumbent_j,
+                                                                ))))))))
+                            })
+                            .unwrap_or(true);
+                        if replace {
+                            best = Some((trial, i, j, synonym_i, synonym_j));
+                        }
+                    }
+                }
+            }
+        }
+        let Some((_, i, j, synonym_i, synonym_j)) = best else {
+            return Ok(false);
+        };
+        self.commit(i, synonym_i)?;
+        self.commit(j, synonym_j)?;
+        self.recompute_gc();
+        Ok(self.score() < before)
+    }
+
+    fn joint_sites(&self) -> Vec<usize> {
+        let mut sites = Vec::new();
+        if let Some((start, end)) = self.first_outside_gc_window() {
+            let codons = self.codons_covering(start, end);
+            sites.extend(spread_indexes(&codons, JOINT_GC_CODONS));
+        }
+        let hot: Vec<usize> = self
+            .hot_codons()
+            .into_iter()
+            .filter(|index| !self.seq.is_locked(*index))
+            .collect();
+        sites.extend(spread_indexes(&hot, JOINT_KMER_CODONS));
+        sites.sort_unstable();
+        sites.dedup();
+        spread_indexes(&sites, JOINT_SITES)
     }
 
     fn score(&self) -> u128 {
@@ -1265,7 +1456,10 @@ impl<'a> Solver<'a> {
         let hot = self.hot_codons();
         let mut progress = false;
         let mut excess = before;
-        for index in hot {
+        for (step, index) in hot.into_iter().enumerate() {
+            if step % 32 == 0 {
+                self.enforce()?;
+            }
             if self.seq.is_locked(index) {
                 continue;
             }
@@ -1447,7 +1641,8 @@ impl<'a> Solver<'a> {
             }
         }
         if !self.is_feasible() {
-            *self = Self::new(saved, self.checker, self.weights, self.tie)?;
+            let limits = self.limits;
+            *self = Self::new(saved, self.checker, self.weights, self.tie)?.with_limits(limits);
             self.edits = edits_before;
         }
         Ok(())
@@ -1631,6 +1826,7 @@ impl<'a> Solver<'a> {
             return Ok(());
         }
         for _ in 0..CLIMB_PASSES {
+            self.enforce()?;
             let order = self.climb_positions();
             if order.is_empty() {
                 break;
@@ -2835,6 +3031,41 @@ mod tests {
 
     fn weights_one() -> [f64; 64] {
         [1.0; 64]
+    }
+
+    fn tiny_sequence() -> CodonSequence {
+        CodonSequence::from_cds("ATGAAATAA", 11).unwrap()
+    }
+
+    #[test]
+    fn a_past_deadline_is_budget_exceeded_and_a_future_one_still_resolves() {
+        let sequence = tiny_sequence();
+        let compiled = checker(vec![]);
+        let weights = weights_one();
+        let past = SpendLimit {
+            deadline: Some(std::time::Instant::now() - std::time::Duration::from_secs(1)),
+            max_rss_bytes: None,
+        };
+        let err = resolve_feasible_seed_limited(&sequence, &compiled, &weights, past)
+            .expect_err("a deadline that has already passed must refuse");
+        assert_eq!(err.code, "CF-BUDGET-003");
+        assert!(err.detail.contains("wall-clock"));
+
+        let future = SpendLimit {
+            deadline: Some(std::time::Instant::now() + std::time::Duration::from_secs(60)),
+            max_rss_bytes: None,
+        };
+        let report = resolve_feasible_seed_limited(&sequence, &compiled, &weights, future).unwrap();
+        assert!(report.feasible);
+
+        let tight = SpendLimit {
+            deadline: None,
+            max_rss_bytes: Some(1),
+        };
+        let err = resolve_feasible_seed_limited(&sequence, &compiled, &weights, tight)
+            .expect_err("a one-byte resident cap must refuse on this process");
+        assert_eq!(err.code, "CF-BUDGET-003");
+        assert!(err.detail.contains("memory cap"));
     }
 
     fn weight_table(placed: &CodonSequence, overrides: &[(&str, f64)]) -> [f64; 64] {
