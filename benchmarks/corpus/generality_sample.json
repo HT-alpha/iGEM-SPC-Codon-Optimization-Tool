@@ -1,0 +1,2067 @@
+{
+  "seed": 20261018,
+  "accession": "NC_000913.3",
+  "n": 255,
+  "sample_sha256": "f1cf5a7a172bdf4974d942fe7a2e00aaf069eb5f60f627d92b1028b211b214dd",
+  "rare_cutoff_rule": "10th percentile of positive relative-adaptiveness values in examples/mg1655_ribosomal_usage.json; a counted codon at or below that weight counts as rare for stratification",
+  "length_bins_nt": {
+    "short": [
+      0,
+      300
+    ],
+    "medium": [
+      300,
+      900
+    ],
+    "long": [
+      900,
+      1800
+    ],
+    "very_long": [
+      1800,
+      1000000000
+    ]
+  },
+  "genes": [
+    {
+      "gene": "pheM",
+      "protein_id": "NP_416230.1",
+      "nt": 45,
+      "gc": 0.35555555555555557,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "trpL",
+      "protein_id": "NP_415781.1",
+      "nt": 45,
+      "gc": 0.4444444444444444,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "pheL",
+      "protein_id": "NP_417089.1",
+      "nt": 48,
+      "gc": 0.375,
+      "rare_fraction": 0.14285714285714285,
+      "length_bin": "short"
+    },
+    {
+      "gene": "hisL",
+      "protein_id": "NP_416522.1",
+      "nt": 51,
+      "gc": 0.43137254901960786,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ilvX",
+      "protein_id": "YP_002791259.1",
+      "nt": 51,
+      "gc": 0.37254901960784315,
+      "rare_fraction": 0.13333333333333333,
+      "length_bin": "short"
+    },
+    {
+      "gene": "mgtL",
+      "protein_id": "YP_003933616.1",
+      "nt": 54,
+      "gc": 0.5,
+      "rare_fraction": 0.3125,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yjeV",
+      "protein_id": "YP_002791261.1",
+      "nt": 54,
+      "gc": 0.4074074074074074,
+      "rare_fraction": 0.0625,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ibsB",
+      "protein_id": "YP_002791248.1",
+      "nt": 57,
+      "gc": 0.43859649122807015,
+      "rare_fraction": 0.1875,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ibsA",
+      "protein_id": "YP_002791247.1",
+      "nt": 60,
+      "gc": 0.4,
+      "rare_fraction": 0.11764705882352941,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ibsC",
+      "protein_id": "YP_002791255.1",
+      "nt": 60,
+      "gc": 0.35,
+      "rare_fraction": 0.17647058823529413,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yohP",
+      "protein_id": "YP_002791249.1",
+      "nt": 84,
+      "gc": 0.34523809523809523,
+      "rare_fraction": 0.125,
+      "length_bin": "short"
+    },
+    {
+      "gene": "leuL",
+      "protein_id": "NP_414617.1",
+      "nt": 87,
+      "gc": 0.47126436781609193,
+      "rare_fraction": 0.2222222222222222,
+      "length_bin": "short"
+    },
+    {
+      "gene": "tpr",
+      "protein_id": "NP_415747.2",
+      "nt": 90,
+      "gc": 0.6444444444444445,
+      "rare_fraction": 0.25,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ilvL",
+      "protein_id": "NP_418215.1",
+      "nt": 99,
+      "gc": 0.5353535353535354,
+      "rare_fraction": 0.16129032258064516,
+      "length_bin": "short"
+    },
+    {
+      "gene": "blr",
+      "protein_id": "YP_025303.1",
+      "nt": 126,
+      "gc": 0.42857142857142855,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "mntS",
+      "protein_id": "YP_009029995.1",
+      "nt": 129,
+      "gc": 0.4108527131782946,
+      "rare_fraction": 0.08108108108108109,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ydfB",
+      "protein_id": "NP_416090.2",
+      "nt": 129,
+      "gc": 0.46511627906976744,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "pyrL",
+      "protein_id": "NP_418667.1",
+      "nt": 135,
+      "gc": 0.5037037037037037,
+      "rare_fraction": 0.11627906976744186,
+      "length_bin": "short"
+    },
+    {
+      "gene": "mgrB",
+      "protein_id": "NP_416340.1",
+      "nt": 144,
+      "gc": 0.4652777777777778,
+      "rare_fraction": 0.047619047619047616,
+      "length_bin": "short"
+    },
+    {
+      "gene": "hokC",
+      "protein_id": "YP_025292.1",
+      "nt": 153,
+      "gc": 0.5294117647058824,
+      "rare_fraction": 0.041666666666666664,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yjiS",
+      "protein_id": "NP_418761.1",
+      "nt": 165,
+      "gc": 0.5575757575757576,
+      "rare_fraction": 0.14285714285714285,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ymiA",
+      "protein_id": "YP_588449.2",
+      "nt": 165,
+      "gc": 0.4727272727272727,
+      "rare_fraction": 0.10416666666666667,
+      "length_bin": "short"
+    },
+    {
+      "gene": "rmf",
+      "protein_id": "NP_415473.1",
+      "nt": 168,
+      "gc": 0.5416666666666666,
+      "rare_fraction": 0.1836734693877551,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ninE",
+      "protein_id": "NP_415080.1",
+      "nt": 171,
+      "gc": 0.4853801169590643,
+      "rare_fraction": 0.1320754716981132,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yciY",
+      "protein_id": "YP_001165316.1",
+      "nt": 174,
+      "gc": 0.5057471264367817,
+      "rare_fraction": 0.11538461538461539,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yciZ",
+      "protein_id": "YP_001165317.1",
+      "nt": 174,
+      "gc": 0.47701149425287354,
+      "rare_fraction": 0.01818181818181818,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ymgI",
+      "protein_id": "YP_001165314.1",
+      "nt": 174,
+      "gc": 0.3218390804597701,
+      "rare_fraction": 0.03571428571428571,
+      "length_bin": "short"
+    },
+    {
+      "gene": "rzoD",
+      "protein_id": "YP_588440.1",
+      "nt": 183,
+      "gc": 0.5683060109289617,
+      "rare_fraction": 0.1346153846153846,
+      "length_bin": "short"
+    },
+    {
+      "gene": "rzoR",
+      "protein_id": "YP_588452.1",
+      "nt": 186,
+      "gc": 0.5698924731182796,
+      "rare_fraction": 0.09615384615384616,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ymgJ",
+      "protein_id": "YP_001165315.1",
+      "nt": 186,
+      "gc": 0.3817204301075269,
+      "rare_fraction": 0.15,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ydiE",
+      "protein_id": "NP_416220.1",
+      "nt": 192,
+      "gc": 0.5052083333333334,
+      "rare_fraction": 0.04838709677419355,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ralR",
+      "protein_id": "NP_415864.1",
+      "nt": 195,
+      "gc": 0.40512820512820513,
+      "rare_fraction": 0.16129032258064516,
+      "length_bin": "short"
+    },
+    {
+      "gene": "iscX",
+      "protein_id": "NP_417019.1",
+      "nt": 201,
+      "gc": 0.5024875621890548,
+      "rare_fraction": 0.04918032786885246,
+      "length_bin": "short"
+    },
+    {
+      "gene": "thiS",
+      "protein_id": "YP_026279.1",
+      "nt": 201,
+      "gc": 0.5572139303482587,
+      "rare_fraction": 0.031746031746031744,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yaeP",
+      "protein_id": "YP_026160.1",
+      "nt": 201,
+      "gc": 0.5074626865671642,
+      "rare_fraction": 0.07692307692307693,
+      "length_bin": "short"
+    },
+    {
+      "gene": "cspC",
+      "protein_id": "NP_416337.1",
+      "nt": 210,
+      "gc": 0.4666666666666667,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "alpA",
+      "protein_id": "NP_417113.1",
+      "nt": 213,
+      "gc": 0.4694835680751174,
+      "rare_fraction": 0.171875,
+      "length_bin": "short"
+    },
+    {
+      "gene": "cspI",
+      "protein_id": "NP_416070.1",
+      "nt": 213,
+      "gc": 0.40375586854460094,
+      "rare_fraction": 0.014925373134328358,
+      "length_bin": "short"
+    },
+    {
+      "gene": "arfA",
+      "protein_id": "YP_588467.1",
+      "nt": 219,
+      "gc": 0.4337899543378995,
+      "rare_fraction": 0.13043478260869565,
+      "length_bin": "short"
+    },
+    {
+      "gene": "hha",
+      "protein_id": "NP_414993.1",
+      "nt": 219,
+      "gc": 0.4063926940639269,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "marB",
+      "protein_id": "NP_416049.1",
+      "nt": 219,
+      "gc": 0.502283105022831,
+      "rare_fraction": 0.043478260869565216,
+      "length_bin": "short"
+    },
+    {
+      "gene": "osmB",
+      "protein_id": "NP_415799.1",
+      "nt": 219,
+      "gc": 0.5205479452054794,
+      "rare_fraction": 0.029411764705882353,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ygeI",
+      "protein_id": "NP_417330.1",
+      "nt": 219,
+      "gc": 0.3378995433789954,
+      "rare_fraction": 0.04477611940298507,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ykgL",
+      "protein_id": "NP_414829.1",
+      "nt": 228,
+      "gc": 0.43859649122807015,
+      "rare_fraction": 0.14084507042253522,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ymcE",
+      "protein_id": "NP_415511.1",
+      "nt": 231,
+      "gc": 0.4155844155844156,
+      "rare_fraction": 0.0958904109589041,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ynaE",
+      "protein_id": "NP_415893.2",
+      "nt": 234,
+      "gc": 0.358974358974359,
+      "rare_fraction": 0.1232876712328767,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yjbE",
+      "protein_id": "NP_418450.1",
+      "nt": 243,
+      "gc": 0.6049382716049383,
+      "rare_fraction": 0.01282051282051282,
+      "length_bin": "short"
+    },
+    {
+      "gene": "bssS",
+      "protein_id": "NP_415578.3",
+      "nt": 255,
+      "gc": 0.45098039215686275,
+      "rare_fraction": 0.05,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yfaE",
+      "protein_id": "NP_416739.1",
+      "nt": 255,
+      "gc": 0.5607843137254902,
+      "rare_fraction": 0.024691358024691357,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yidD",
+      "protein_id": "YP_588472.1",
+      "nt": 258,
+      "gc": 0.5465116279069767,
+      "rare_fraction": 0.14457831325301204,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ynaJ",
+      "protein_id": "NP_415848.1",
+      "nt": 258,
+      "gc": 0.45348837209302323,
+      "rare_fraction": 0.025,
+      "length_bin": "short"
+    },
+    {
+      "gene": "dinJ",
+      "protein_id": "NP_414761.1",
+      "nt": 261,
+      "gc": 0.4674329501915709,
+      "rare_fraction": 0.03571428571428571,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yihD",
+      "protein_id": "NP_418295.1",
+      "nt": 270,
+      "gc": 0.46296296296296297,
+      "rare_fraction": 0.0,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yjbD",
+      "protein_id": "NP_418447.1",
+      "nt": 273,
+      "gc": 0.4945054945054945,
+      "rare_fraction": 0.046511627906976744,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yafQ",
+      "protein_id": "NP_414760.1",
+      "nt": 279,
+      "gc": 0.3942652329749104,
+      "rare_fraction": 0.05747126436781609,
+      "length_bin": "short"
+    },
+    {
+      "gene": "relE",
+      "protein_id": "NP_416081.1",
+      "nt": 288,
+      "gc": 0.46875,
+      "rare_fraction": 0.08695652173913043,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yghW",
+      "protein_id": "NP_417472.1",
+      "nt": 288,
+      "gc": 0.4548611111111111,
+      "rare_fraction": 0.045454545454545456,
+      "length_bin": "short"
+    },
+    {
+      "gene": "lsrG",
+      "protein_id": "NP_416035.1",
+      "nt": 291,
+      "gc": 0.4639175257731959,
+      "rare_fraction": 0.010752688172043012,
+      "length_bin": "short"
+    },
+    {
+      "gene": "ybcO",
+      "protein_id": "NP_415081.1",
+      "nt": 291,
+      "gc": 0.5326460481099656,
+      "rare_fraction": 0.07526881720430108,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yggU",
+      "protein_id": "NP_417428.2",
+      "nt": 291,
+      "gc": 0.47766323024054985,
+      "rare_fraction": 0.021052631578947368,
+      "length_bin": "short"
+    },
+    {
+      "gene": "yqiC",
+      "protein_id": "NP_417514.4",
+      "nt": 291,
+      "gc": 0.4948453608247423,
+      "rare_fraction": 0.06382978723404255,
+      "length_bin": "short"
+    },
+    {
+      "gene": "gfcA",
+      "protein_id": "NP_415507.2",
+      "nt": 306,
+      "gc": 0.5751633986928104,
+      "rare_fraction": 0.0,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yfdT",
+      "protein_id": "NP_416864.1",
+      "nt": 306,
+      "gc": 0.42810457516339867,
+      "rare_fraction": 0.06451612903225806,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yjeO",
+      "protein_id": "NP_418582.1",
+      "nt": 315,
+      "gc": 0.4793650793650794,
+      "rare_fraction": 0.044444444444444446,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yehK",
+      "protein_id": "YP_588459.1",
+      "nt": 318,
+      "gc": 0.3867924528301887,
+      "rare_fraction": 0.15384615384615385,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "clpS",
+      "protein_id": "NP_415402.1",
+      "nt": 321,
+      "gc": 0.4517133956386293,
+      "rare_fraction": 0.05,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "nirD",
+      "protein_id": "NP_417825.1",
+      "nt": 327,
+      "gc": 0.5596330275229358,
+      "rare_fraction": 0.019230769230769232,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ybfB",
+      "protein_id": "NP_415230.1",
+      "nt": 327,
+      "gc": 0.3119266055045872,
+      "rare_fraction": 0.18181818181818182,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yjgZ",
+      "protein_id": "NP_418697.1",
+      "nt": 330,
+      "gc": 0.5818181818181818,
+      "rare_fraction": 0.09433962264150944,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ygiZ",
+      "protein_id": "NP_417499.1",
+      "nt": 333,
+      "gc": 0.34234234234234234,
+      "rare_fraction": 0.1326530612244898,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yoaB",
+      "protein_id": "NP_416323.4",
+      "nt": 345,
+      "gc": 0.5159420289855072,
+      "rare_fraction": 0.0,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yfgD",
+      "protein_id": "NP_416990.1",
+      "nt": 360,
+      "gc": 0.525,
+      "rare_fraction": 0.03508771929824561,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ybdF",
+      "protein_id": "NP_415111.1",
+      "nt": 369,
+      "gc": 0.4715447154471545,
+      "rare_fraction": 0.05172413793103448,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ycgX",
+      "protein_id": "NP_415679.1",
+      "nt": 405,
+      "gc": 0.36790123456790125,
+      "rare_fraction": 0.06923076923076923,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "atpC",
+      "protein_id": "NP_418187.1",
+      "nt": 420,
+      "gc": 0.5523809523809524,
+      "rare_fraction": 0.007518796992481203,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "phnO",
+      "protein_id": "NP_418517.1",
+      "nt": 435,
+      "gc": 0.5793103448275863,
+      "rare_fraction": 0.0072992700729927005,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ydcZ",
+      "protein_id": "NP_415964.1",
+      "nt": 450,
+      "gc": 0.5177777777777778,
+      "rare_fraction": 0.05714285714285714,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "moaE",
+      "protein_id": "NP_415306.1",
+      "nt": 453,
+      "gc": 0.5673289183222958,
+      "rare_fraction": 0.014184397163120567,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rimP",
+      "protein_id": "NP_417639.6",
+      "nt": 453,
+      "gc": 0.4856512141280353,
+      "rare_fraction": 0.02054794520547945,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yicN",
+      "protein_id": "NP_418119.2",
+      "nt": 453,
+      "gc": 0.5275938189845475,
+      "rare_fraction": 0.06428571428571428,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ykfB",
+      "protein_id": "NP_414784.1",
+      "nt": 468,
+      "gc": 0.5256410256410257,
+      "rare_fraction": 0.04054054054054054,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ppdA",
+      "protein_id": "NP_417303.1",
+      "nt": 471,
+      "gc": 0.5414012738853503,
+      "rare_fraction": 0.08450704225352113,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ykfM",
+      "protein_id": "YP_001165307.1",
+      "nt": 480,
+      "gc": 0.30625,
+      "rare_fraction": 0.14473684210526316,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "msrC",
+      "protein_id": "NP_416346.4",
+      "nt": 498,
+      "gc": 0.4919678714859438,
+      "rare_fraction": 0.043209876543209874,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rppH",
+      "protein_id": "NP_417307.1",
+      "nt": 531,
+      "gc": 0.4934086629001883,
+      "rare_fraction": 0.0736196319018405,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "atpH",
+      "protein_id": "NP_418191.1",
+      "nt": 534,
+      "gc": 0.5187265917602997,
+      "rare_fraction": 0.01775147928994083,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yecD",
+      "protein_id": "NP_416381.2",
+      "nt": 567,
+      "gc": 0.5308641975308642,
+      "rare_fraction": 0.027472527472527472,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yohD",
+      "protein_id": "NP_416640.2",
+      "nt": 579,
+      "gc": 0.5440414507772021,
+      "rare_fraction": 0.03825136612021858,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "acpH",
+      "protein_id": "NP_414938.1",
+      "nt": 582,
+      "gc": 0.5309278350515464,
+      "rare_fraction": 0.033707865168539325,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yraH",
+      "protein_id": "NP_417611.1",
+      "nt": 585,
+      "gc": 0.4512820512820513,
+      "rare_fraction": 0.026595744680851064,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "btuR",
+      "protein_id": "NP_415786.1",
+      "nt": 591,
+      "gc": 0.5025380710659898,
+      "rare_fraction": 0.03723404255319149,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "uidR",
+      "protein_id": "NP_416135.1",
+      "nt": 591,
+      "gc": 0.5093062605752962,
+      "rare_fraction": 0.06521739130434782,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rdgB",
+      "protein_id": "NP_417429.1",
+      "nt": 594,
+      "gc": 0.5555555555555556,
+      "rare_fraction": 0.005154639175257732,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "nemR",
+      "protein_id": "NP_416166.3",
+      "nt": 600,
+      "gc": 0.5233333333333333,
+      "rare_fraction": 0.031088082901554404,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rhtC",
+      "protein_id": "YP_026264.1",
+      "nt": 621,
+      "gc": 0.5249597423510467,
+      "rare_fraction": 0.026595744680851064,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rpsD",
+      "protein_id": "NP_417755.1",
+      "nt": 621,
+      "gc": 0.5072463768115942,
+      "rare_fraction": 0.004975124378109453,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "clpP",
+      "protein_id": "NP_414971.1",
+      "nt": 624,
+      "gc": 0.5112179487179487,
+      "rare_fraction": 0.015384615384615385,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yrbL",
+      "protein_id": "NP_417674.1",
+      "nt": 633,
+      "gc": 0.5118483412322274,
+      "rare_fraction": 0.05392156862745098,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rutR",
+      "protein_id": "NP_415533.1",
+      "nt": 639,
+      "gc": 0.513302034428795,
+      "rare_fraction": 0.0196078431372549,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rseA",
+      "protein_id": "NP_417067.1",
+      "nt": 651,
+      "gc": 0.522273425499232,
+      "rare_fraction": 0.039603960396039604,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "zinT",
+      "protein_id": "NP_416482.1",
+      "nt": 651,
+      "gc": 0.3824884792626728,
+      "rare_fraction": 0.04807692307692308,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "flgA",
+      "protein_id": "NP_415590.1",
+      "nt": 660,
+      "gc": 0.5227272727272727,
+      "rare_fraction": 0.09859154929577464,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yjjG",
+      "protein_id": "NP_418791.1",
+      "nt": 678,
+      "gc": 0.5353982300884956,
+      "rare_fraction": 0.018604651162790697,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rutB",
+      "protein_id": "NP_415531.2",
+      "nt": 693,
+      "gc": 0.5541125541125541,
+      "rare_fraction": 0.036036036036036036,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ygeA",
+      "protein_id": "NP_417317.1",
+      "nt": 693,
+      "gc": 0.5093795093795094,
+      "rare_fraction": 0.05405405405405406,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "chaC",
+      "protein_id": "NP_415736.2",
+      "nt": 696,
+      "gc": 0.5474137931034483,
+      "rare_fraction": 0.0776255707762557,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "waaY",
+      "protein_id": "NP_418082.1",
+      "nt": 699,
+      "gc": 0.35336194563662376,
+      "rare_fraction": 0.057777777777777775,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yhaK",
+      "protein_id": "NP_417577.1",
+      "nt": 702,
+      "gc": 0.5341880341880342,
+      "rare_fraction": 0.061946902654867256,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "artQ",
+      "protein_id": "NP_415383.1",
+      "nt": 717,
+      "gc": 0.5495118549511855,
+      "rare_fraction": 0.017857142857142856,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rstA",
+      "protein_id": "NP_416125.2",
+      "nt": 720,
+      "gc": 0.4930555555555556,
+      "rare_fraction": 0.048034934497816595,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "glnH",
+      "protein_id": "NP_415332.1",
+      "nt": 747,
+      "gc": 0.48728246318607765,
+      "rare_fraction": 0.004132231404958678,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "appY",
+      "protein_id": "NP_415096.1",
+      "nt": 750,
+      "gc": 0.31733333333333336,
+      "rare_fraction": 0.13114754098360656,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "quuQ",
+      "protein_id": "NP_416077.4",
+      "nt": 753,
+      "gc": 0.47941567065073043,
+      "rare_fraction": 0.05761316872427984,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "agaI",
+      "protein_id": "NP_417610.1",
+      "nt": 756,
+      "gc": 0.5026455026455027,
+      "rare_fraction": 0.04065040650406504,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "flgF",
+      "protein_id": "NP_415595.1",
+      "nt": 756,
+      "gc": 0.5912698412698413,
+      "rare_fraction": 0.029166666666666667,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "kduD",
+      "protein_id": "NP_417319.1",
+      "nt": 762,
+      "gc": 0.5196850393700787,
+      "rare_fraction": 0.0375,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "udp",
+      "protein_id": "NP_418275.1",
+      "nt": 762,
+      "gc": 0.5406824146981627,
+      "rare_fraction": 0.0,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yfeN",
+      "protein_id": "NP_416903.1",
+      "nt": 765,
+      "gc": 0.4522875816993464,
+      "rare_fraction": 0.029045643153526972,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yaaA",
+      "protein_id": "NP_414547.1",
+      "nt": 777,
+      "gc": 0.4967824967824968,
+      "rare_fraction": 0.02,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "frlD",
+      "protein_id": "NP_417833.1",
+      "nt": 786,
+      "gc": 0.573791348600509,
+      "rare_fraction": 0.032520325203252036,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "scpB",
+      "protein_id": "NP_417394.4",
+      "nt": 786,
+      "gc": 0.49363867684478374,
+      "rare_fraction": 0.012048192771084338,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ucpA",
+      "protein_id": "NP_416921.4",
+      "nt": 792,
+      "gc": 0.553030303030303,
+      "rare_fraction": 0.019762845849802372,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "waaP",
+      "protein_id": "NP_418087.1",
+      "nt": 798,
+      "gc": 0.43358395989974935,
+      "rare_fraction": 0.0642570281124498,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "minD",
+      "protein_id": "NP_415693.1",
+      "nt": 813,
+      "gc": 0.4993849938499385,
+      "rare_fraction": 0.030303030303030304,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "bax",
+      "protein_id": "YP_026230.1",
+      "nt": 825,
+      "gc": 0.4824242424242424,
+      "rare_fraction": 0.050387596899224806,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "dinD",
+      "protein_id": "NP_418102.2",
+      "nt": 825,
+      "gc": 0.4581818181818182,
+      "rare_fraction": 0.05947955390334572,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "bglG",
+      "protein_id": "NP_418179.1",
+      "nt": 837,
+      "gc": 0.42891278375149344,
+      "rare_fraction": 0.07169811320754717,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "chbR",
+      "protein_id": "NP_416249.1",
+      "nt": 843,
+      "gc": 0.4151838671411625,
+      "rare_fraction": 0.025735294117647058,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "panC",
+      "protein_id": "NP_414675.1",
+      "nt": 852,
+      "gc": 0.5269953051643192,
+      "rare_fraction": 0.02197802197802198,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "rpoH",
+      "protein_id": "NP_417918.1",
+      "nt": 855,
+      "gc": 0.5415204678362573,
+      "rare_fraction": 0.011235955056179775,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yjeJ",
+      "protein_id": "NP_418569.1",
+      "nt": 870,
+      "gc": 0.4517241379310345,
+      "rare_fraction": 0.028469750889679714,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "yihY",
+      "protein_id": "NP_418322.1",
+      "nt": 873,
+      "gc": 0.5085910652920962,
+      "rare_fraction": 0.04411764705882353,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "eutC",
+      "protein_id": "NP_416935.1",
+      "nt": 888,
+      "gc": 0.5664414414414415,
+      "rare_fraction": 0.010526315789473684,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "nanA",
+      "protein_id": "NP_417692.1",
+      "nt": 894,
+      "gc": 0.5201342281879194,
+      "rare_fraction": 0.006920415224913495,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "ybcF",
+      "protein_id": "NP_415054.1",
+      "nt": 894,
+      "gc": 0.569351230425056,
+      "rare_fraction": 0.03484320557491289,
+      "length_bin": "medium"
+    },
+    {
+      "gene": "dppC",
+      "protein_id": "NP_417999.1",
+      "nt": 903,
+      "gc": 0.5902547065337763,
+      "rare_fraction": 0.0071174377224199285,
+      "length_bin": "long"
+    },
+    {
+      "gene": "abgR",
+      "protein_id": "NP_415855.1",
+      "nt": 909,
+      "gc": 0.4961496149614962,
+      "rare_fraction": 0.054982817869415807,
+      "length_bin": "long"
+    },
+    {
+      "gene": "melR",
+      "protein_id": "NP_418542.1",
+      "nt": 909,
+      "gc": 0.5027502750275028,
+      "rare_fraction": 0.028268551236749116,
+      "length_bin": "long"
+    },
+    {
+      "gene": "gsiD",
+      "protein_id": "NP_415353.1",
+      "nt": 912,
+      "gc": 0.5307017543859649,
+      "rare_fraction": 0.04895104895104895,
+      "length_bin": "long"
+    },
+    {
+      "gene": "hldD",
+      "protein_id": "NP_418076.1",
+      "nt": 933,
+      "gc": 0.5091103965702036,
+      "rare_fraction": 0.006666666666666667,
+      "length_bin": "long"
+    },
+    {
+      "gene": "flgJ",
+      "protein_id": "NP_415599.1",
+      "nt": 942,
+      "gc": 0.5467091295116773,
+      "rare_fraction": 0.02027027027027027,
+      "length_bin": "long"
+    },
+    {
+      "gene": "hyfC",
+      "protein_id": "NP_416978.4",
+      "nt": 948,
+      "gc": 0.5369198312236287,
+      "rare_fraction": 0.04391891891891892,
+      "length_bin": "long"
+    },
+    {
+      "gene": "gshB",
+      "protein_id": "NP_417422.1",
+      "nt": 951,
+      "gc": 0.5341745531019979,
+      "rare_fraction": 0.009933774834437087,
+      "length_bin": "long"
+    },
+    {
+      "gene": "fepB",
+      "protein_id": "NP_415124.1",
+      "nt": 957,
+      "gc": 0.5506792058516197,
+      "rare_fraction": 0.03536977491961415,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ssuA",
+      "protein_id": "NP_415456.4",
+      "nt": 960,
+      "gc": 0.5239583333333333,
+      "rare_fraction": 0.04180064308681672,
+      "length_bin": "long"
+    },
+    {
+      "gene": "iaaA",
+      "protein_id": "NP_415349.1",
+      "nt": 966,
+      "gc": 0.5652173913043478,
+      "rare_fraction": 0.04234527687296417,
+      "length_bin": "long"
+    },
+    {
+      "gene": "arnC",
+      "protein_id": "NP_416757.1",
+      "nt": 969,
+      "gc": 0.4984520123839009,
+      "rare_fraction": 0.03896103896103896,
+      "length_bin": "long"
+    },
+    {
+      "gene": "serB",
+      "protein_id": "NP_418805.1",
+      "nt": 969,
+      "gc": 0.56656346749226,
+      "rare_fraction": 0.013071895424836602,
+      "length_bin": "long"
+    },
+    {
+      "gene": "secF",
+      "protein_id": "NP_414943.1",
+      "nt": 972,
+      "gc": 0.5164609053497943,
+      "rare_fraction": 0.006557377049180328,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ghrB",
+      "protein_id": "NP_418009.2",
+      "nt": 975,
+      "gc": 0.52,
+      "rare_fraction": 0.03205128205128205,
+      "length_bin": "long"
+    },
+    {
+      "gene": "nanS",
+      "protein_id": "NP_418729.1",
+      "nt": 981,
+      "gc": 0.4872579001019368,
+      "rare_fraction": 0.08945686900958466,
+      "length_bin": "long"
+    },
+    {
+      "gene": "kdgT",
+      "protein_id": "NP_418345.2",
+      "nt": 984,
+      "gc": 0.5274390243902439,
+      "rare_fraction": 0.03858520900321544,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yeiR",
+      "protein_id": "NP_416678.1",
+      "nt": 987,
+      "gc": 0.5450861195542046,
+      "rare_fraction": 0.05345911949685535,
+      "length_bin": "long"
+    },
+    {
+      "gene": "argI",
+      "protein_id": "NP_418675.1",
+      "nt": 1005,
+      "gc": 0.5213930348258706,
+      "rare_fraction": 0.022082018927444796,
+      "length_bin": "long"
+    },
+    {
+      "gene": "adhP",
+      "protein_id": "NP_415995.4",
+      "nt": 1011,
+      "gc": 0.5242334322453017,
+      "rare_fraction": 0.012232415902140673,
+      "length_bin": "long"
+    },
+    {
+      "gene": "lgoD",
+      "protein_id": "NP_418778.4",
+      "nt": 1023,
+      "gc": 0.5083088954056696,
+      "rare_fraction": 0.030303030303030304,
+      "length_bin": "long"
+    },
+    {
+      "gene": "idnD",
+      "protein_id": "NP_418688.1",
+      "nt": 1032,
+      "gc": 0.4738372093023256,
+      "rare_fraction": 0.046012269938650305,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ynaI",
+      "protein_id": "NP_415846.1",
+      "nt": 1032,
+      "gc": 0.4321705426356589,
+      "rare_fraction": 0.039634146341463415,
+      "length_bin": "long"
+    },
+    {
+      "gene": "tqsA",
+      "protein_id": "NP_416118.1",
+      "nt": 1035,
+      "gc": 0.5024154589371981,
+      "rare_fraction": 0.040372670807453416,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ydgJ",
+      "protein_id": "NP_416141.4",
+      "nt": 1041,
+      "gc": 0.5331412103746398,
+      "rare_fraction": 0.050595238095238096,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ypfG",
+      "protein_id": "NP_416961.1",
+      "nt": 1044,
+      "gc": 0.5459770114942529,
+      "rare_fraction": 0.0425531914893617,
+      "length_bin": "long"
+    },
+    {
+      "gene": "potD",
+      "protein_id": "NP_415641.1",
+      "nt": 1047,
+      "gc": 0.5081184336198663,
+      "rare_fraction": 0.006097560975609756,
+      "length_bin": "long"
+    },
+    {
+      "gene": "pyrC",
+      "protein_id": "NP_415580.1",
+      "nt": 1047,
+      "gc": 0.5310410697230181,
+      "rare_fraction": 0.03880597014925373,
+      "length_bin": "long"
+    },
+    {
+      "gene": "glcE",
+      "protein_id": "YP_026191.1",
+      "nt": 1053,
+      "gc": 0.5754985754985755,
+      "rare_fraction": 0.05120481927710843,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yghQ",
+      "protein_id": "YP_026192.1",
+      "nt": 1068,
+      "gc": 0.5280898876404494,
+      "rare_fraction": 0.026706231454005934,
+      "length_bin": "long"
+    },
+    {
+      "gene": "mltC",
+      "protein_id": "NP_417438.2",
+      "nt": 1080,
+      "gc": 0.5111111111111111,
+      "rare_fraction": 0.023054755043227664,
+      "length_bin": "long"
+    },
+    {
+      "gene": "lptF",
+      "protein_id": "NP_418682.1",
+      "nt": 1101,
+      "gc": 0.547683923705722,
+      "rare_fraction": 0.03768115942028986,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ribD",
+      "protein_id": "NP_414948.1",
+      "nt": 1104,
+      "gc": 0.5534420289855072,
+      "rare_fraction": 0.04815864022662889,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yaiC",
+      "protein_id": "NP_414919.1",
+      "nt": 1116,
+      "gc": 0.5367383512544803,
+      "rare_fraction": 0.06140350877192982,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yjhC",
+      "protein_id": "NP_418700.2",
+      "nt": 1119,
+      "gc": 0.386952636282395,
+      "rare_fraction": 0.06837606837606838,
+      "length_bin": "long"
+    },
+    {
+      "gene": "rlmC",
+      "protein_id": "NP_415380.1",
+      "nt": 1128,
+      "gc": 0.5460992907801419,
+      "rare_fraction": 0.025280898876404494,
+      "length_bin": "long"
+    },
+    {
+      "gene": "rnd",
+      "protein_id": "NP_416318.1",
+      "nt": 1128,
+      "gc": 0.5407801418439716,
+      "rare_fraction": 0.03125,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yehP",
+      "protein_id": "NP_416625.1",
+      "nt": 1137,
+      "gc": 0.5435356200527705,
+      "rare_fraction": 0.05234159779614325,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yibH",
+      "protein_id": "NP_418054.1",
+      "nt": 1137,
+      "gc": 0.5268249780123131,
+      "rare_fraction": 0.051771117166212535,
+      "length_bin": "long"
+    },
+    {
+      "gene": "insI1",
+      "protein_id": "NP_414790.1",
+      "nt": 1152,
+      "gc": 0.4583333333333333,
+      "rare_fraction": 0.14824797843665768,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yeiB",
+      "protein_id": "NP_416657.1",
+      "nt": 1158,
+      "gc": 0.5440414507772021,
+      "rare_fraction": 0.0446927374301676,
+      "length_bin": "long"
+    },
+    {
+      "gene": "emrK",
+      "protein_id": "NP_416869.1",
+      "nt": 1164,
+      "gc": 0.41924398625429554,
+      "rare_fraction": 0.04289544235924933,
+      "length_bin": "long"
+    },
+    {
+      "gene": "glpC",
+      "protein_id": "NP_416746.1",
+      "nt": 1191,
+      "gc": 0.5398824517212426,
+      "rare_fraction": 0.025974025974025976,
+      "length_bin": "long"
+    },
+    {
+      "gene": "nepI",
+      "protein_id": "NP_418118.2",
+      "nt": 1191,
+      "gc": 0.5298068849706129,
+      "rare_fraction": 0.021333333333333333,
+      "length_bin": "long"
+    },
+    {
+      "gene": "hofC",
+      "protein_id": "NP_414648.1",
+      "nt": 1203,
+      "gc": 0.5195344970906068,
+      "rare_fraction": 0.07816711590296496,
+      "length_bin": "long"
+    },
+    {
+      "gene": "nupC",
+      "protein_id": "NP_416894.1",
+      "nt": 1203,
+      "gc": 0.49875311720698257,
+      "rare_fraction": 0.002638522427440633,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yedE",
+      "protein_id": "NP_416439.1",
+      "nt": 1206,
+      "gc": 0.548922056384743,
+      "rare_fraction": 0.027472527472527472,
+      "length_bin": "long"
+    },
+    {
+      "gene": "fabB",
+      "protein_id": "NP_416826.1",
+      "nt": 1221,
+      "gc": 0.5659295659295659,
+      "rare_fraction": 0.002583979328165375,
+      "length_bin": "long"
+    },
+    {
+      "gene": "intA",
+      "protein_id": "NP_417111.1",
+      "nt": 1242,
+      "gc": 0.4758454106280193,
+      "rare_fraction": 0.05384615384615385,
+      "length_bin": "long"
+    },
+    {
+      "gene": "waaL",
+      "protein_id": "NP_418079.1",
+      "nt": 1260,
+      "gc": 0.319047619047619,
+      "rare_fraction": 0.13447432762836187,
+      "length_bin": "long"
+    },
+    {
+      "gene": "bioA",
+      "protein_id": "NP_415295.1",
+      "nt": 1290,
+      "gc": 0.5627906976744186,
+      "rare_fraction": 0.020100502512562814,
+      "length_bin": "long"
+    },
+    {
+      "gene": "rclA",
+      "protein_id": "NP_414838.2",
+      "nt": 1326,
+      "gc": 0.4555052790346908,
+      "rare_fraction": 0.06338028169014084,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ssnA",
+      "protein_id": "NP_417355.4",
+      "nt": 1329,
+      "gc": 0.526711813393529,
+      "rare_fraction": 0.02843601895734597,
+      "length_bin": "long"
+    },
+    {
+      "gene": "dsdX",
+      "protein_id": "NP_416866.1",
+      "nt": 1338,
+      "gc": 0.4872944693572496,
+      "rare_fraction": 0.047619047619047616,
+      "length_bin": "long"
+    },
+    {
+      "gene": "mltD",
+      "protein_id": "NP_414747.1",
+      "nt": 1359,
+      "gc": 0.5194996320824136,
+      "rare_fraction": 0.03271028037383177,
+      "length_bin": "long"
+    },
+    {
+      "gene": "proY",
+      "protein_id": "NP_414936.1",
+      "nt": 1374,
+      "gc": 0.5291120815138283,
+      "rare_fraction": 0.009478672985781991,
+      "length_bin": "long"
+    },
+    {
+      "gene": "mcrB",
+      "protein_id": "NP_418766.4",
+      "nt": 1380,
+      "gc": 0.4036231884057971,
+      "rare_fraction": 0.0744920993227991,
+      "length_bin": "long"
+    },
+    {
+      "gene": "yagG",
+      "protein_id": "NP_414804.1",
+      "nt": 1383,
+      "gc": 0.6247288503253796,
+      "rare_fraction": 0.0091324200913242,
+      "length_bin": "long"
+    },
+    {
+      "gene": "wcaM",
+      "protein_id": "NP_416547.1",
+      "nt": 1395,
+      "gc": 0.47096774193548385,
+      "rare_fraction": 0.05790645879732739,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ftsP",
+      "protein_id": "NP_417489.1",
+      "nt": 1413,
+      "gc": 0.5640481245576787,
+      "rare_fraction": 0.05191873589164785,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ygcU",
+      "protein_id": "YP_026183.1",
+      "nt": 1455,
+      "gc": 0.5051546391752577,
+      "rare_fraction": 0.008602150537634409,
+      "length_bin": "long"
+    },
+    {
+      "gene": "pitB",
+      "protein_id": "NP_417461.1",
+      "nt": 1500,
+      "gc": 0.5193333333333333,
+      "rare_fraction": 0.023554603854389723,
+      "length_bin": "long"
+    },
+    {
+      "gene": "araA",
+      "protein_id": "NP_414604.1",
+      "nt": 1503,
+      "gc": 0.5548902195608783,
+      "rare_fraction": 0.00847457627118644,
+      "length_bin": "long"
+    },
+    {
+      "gene": "caiT",
+      "protein_id": "NP_414582.1",
+      "nt": 1515,
+      "gc": 0.5181518151815182,
+      "rare_fraction": 0.03023758099352052,
+      "length_bin": "long"
+    },
+    {
+      "gene": "aer",
+      "protein_id": "NP_417543.1",
+      "nt": 1521,
+      "gc": 0.5476660092044707,
+      "rare_fraction": 0.029106029106029108,
+      "length_bin": "long"
+    },
+    {
+      "gene": "alsA",
+      "protein_id": "NP_418511.1",
+      "nt": 1533,
+      "gc": 0.4794520547945205,
+      "rare_fraction": 0.059670781893004114,
+      "length_bin": "long"
+    },
+    {
+      "gene": "gadC",
+      "protein_id": "NP_416009.1",
+      "nt": 1536,
+      "gc": 0.4811197916666667,
+      "rare_fraction": 0.022774327122153208,
+      "length_bin": "long"
+    },
+    {
+      "gene": "ygiS",
+      "protein_id": "NP_417492.1",
+      "nt": 1608,
+      "gc": 0.5230099502487562,
+      "rare_fraction": 0.046875,
+      "length_bin": "long"
+    },
+    {
+      "gene": "mppA",
+      "protein_id": "NP_415845.2",
+      "nt": 1614,
+      "gc": 0.4795539033457249,
+      "rare_fraction": 0.025193798449612403,
+      "length_bin": "long"
+    },
+    {
+      "gene": "flgK",
+      "protein_id": "NP_415600.1",
+      "nt": 1644,
+      "gc": 0.5182481751824818,
+      "rare_fraction": 0.022388059701492536,
+      "length_bin": "long"
+    },
+    {
+      "gene": "fliF",
+      "protein_id": "NP_416448.1",
+      "nt": 1659,
+      "gc": 0.546112115732369,
+      "rare_fraction": 0.024299065420560748,
+      "length_bin": "long"
+    },
+    {
+      "gene": "hscC",
+      "protein_id": "NP_415183.1",
+      "nt": 1671,
+      "gc": 0.5002992220227409,
+      "rare_fraction": 0.03874538745387454,
+      "length_bin": "long"
+    },
+    {
+      "gene": "rpoD",
+      "protein_id": "NP_417539.1",
+      "nt": 1842,
+      "gc": 0.5298588490770901,
+      "rare_fraction": 0.0017123287671232876,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "secD",
+      "protein_id": "NP_414942.1",
+      "nt": 1848,
+      "gc": 0.5319264069264069,
+      "rare_fraction": 0.01001669449081803,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "dxs",
+      "protein_id": "NP_414954.1",
+      "nt": 1863,
+      "gc": 0.5426731078904992,
+      "rare_fraction": 0.01680672268907563,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "glgX",
+      "protein_id": "NP_417889.1",
+      "nt": 1974,
+      "gc": 0.5435663627152989,
+      "rare_fraction": 0.03639240506329114,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "aegA",
+      "protein_id": "NP_416963.1",
+      "nt": 1980,
+      "gc": 0.557070707070707,
+      "rare_fraction": 0.028346456692913385,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "hyfB",
+      "protein_id": "NP_416977.1",
+      "nt": 2019,
+      "gc": 0.5473006438831105,
+      "rare_fraction": 0.06260032102728733,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "malS",
+      "protein_id": "NP_418028.1",
+      "nt": 2031,
+      "gc": 0.5283111767602167,
+      "rare_fraction": 0.047244094488188976,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "paaZ",
+      "protein_id": "NP_415905.1",
+      "nt": 2046,
+      "gc": 0.5420332355816226,
+      "rare_fraction": 0.0441400304414003,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "fhlA",
+      "protein_id": "NP_417211.1",
+      "nt": 2079,
+      "gc": 0.5257335257335257,
+      "rare_fraction": 0.029850746268656716,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "fusA",
+      "protein_id": "NP_417799.1",
+      "nt": 2115,
+      "gc": 0.508274231678487,
+      "rare_fraction": 0.002962962962962963,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "nrdE",
+      "protein_id": "NP_417161.1",
+      "nt": 2145,
+      "gc": 0.5184149184149184,
+      "rare_fraction": 0.02608695652173913,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "scpA",
+      "protein_id": "NP_417392.1",
+      "nt": 2145,
+      "gc": 0.5496503496503496,
+      "rare_fraction": 0.017391304347826087,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "dinG",
+      "protein_id": "NP_415320.1",
+      "nt": 2151,
+      "gc": 0.5406787540678754,
+      "rare_fraction": 0.05224963715529753,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "yccS",
+      "protein_id": "NP_415480.2",
+      "nt": 2154,
+      "gc": 0.5222841225626741,
+      "rare_fraction": 0.04215116279069767,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "fadB",
+      "protein_id": "NP_418288.1",
+      "nt": 2190,
+      "gc": 0.552054794520548,
+      "rare_fraction": 0.01,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "paoC",
+      "protein_id": "NP_414818.1",
+      "nt": 2199,
+      "gc": 0.5943610732150978,
+      "rare_fraction": 0.06382978723404255,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "ybiO",
+      "protein_id": "NP_415329.4",
+      "nt": 2226,
+      "gc": 0.5332434860736748,
+      "rare_fraction": 0.02535211267605634,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "relA",
+      "protein_id": "NP_417264.1",
+      "nt": 2235,
+      "gc": 0.537807606263982,
+      "rare_fraction": 0.026462395543175487,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "ydeP",
+      "protein_id": "NP_416018.1",
+      "nt": 2280,
+      "gc": 0.5030701754385964,
+      "rare_fraction": 0.049723756906077346,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "yhgF",
+      "protein_id": "NP_417866.4",
+      "nt": 2322,
+      "gc": 0.5684754521963824,
+      "rare_fraction": 0.009358288770053475,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "pgaA",
+      "protein_id": "NP_415543.1",
+      "nt": 2424,
+      "gc": 0.4731848184818482,
+      "rare_fraction": 0.04792746113989637,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "mrcB",
+      "protein_id": "NP_414691.1",
+      "nt": 2535,
+      "gc": 0.5514792899408284,
+      "rare_fraction": 0.017412935323383085,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "mrcA",
+      "protein_id": "NP_417855.4",
+      "nt": 2553,
+      "gc": 0.555424990207599,
+      "rare_fraction": 0.013496932515337423,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "clpB",
+      "protein_id": "NP_417083.1",
+      "nt": 2574,
+      "gc": 0.5143745143745144,
+      "rare_fraction": 0.015587529976019185,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "aceE",
+      "protein_id": "NP_414656.1",
+      "nt": 2664,
+      "gc": 0.5304054054054054,
+      "rare_fraction": 0.00117096018735363,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "rcsD",
+      "protein_id": "NP_416720.1",
+      "nt": 2673,
+      "gc": 0.49382716049382713,
+      "rare_fraction": 0.03617269544924154,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "chiA",
+      "protein_id": "NP_417797.1",
+      "nt": 2694,
+      "gc": 0.5037119524870082,
+      "rare_fraction": 0.005875440658049354,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "pqqL",
+      "protein_id": "NP_416011.1",
+      "nt": 2796,
+      "gc": 0.4663805436337625,
+      "rare_fraction": 0.026845637583892617,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "xdhD",
+      "protein_id": "NP_417357.1",
+      "nt": 2871,
+      "gc": 0.5294322535701846,
+      "rare_fraction": 0.017259978425026967,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "ptrA",
+      "protein_id": "NP_417298.1",
+      "nt": 2889,
+      "gc": 0.5115957078573901,
+      "rare_fraction": 0.021810250817884406,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "rapA",
+      "protein_id": "NP_414601.1",
+      "nt": 2907,
+      "gc": 0.5490196078431373,
+      "rare_fraction": 0.011802575107296138,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "acrD",
+      "protein_id": "NP_416965.1",
+      "nt": 3114,
+      "gc": 0.5446371226718048,
+      "rare_fraction": 0.02129817444219067,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "flu",
+      "protein_id": "YP_026164.1",
+      "nt": 3120,
+      "gc": 0.5823717948717949,
+      "rare_fraction": 0.060396039603960394,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "acrB",
+      "protein_id": "NP_414995.1",
+      "nt": 3150,
+      "gc": 0.5396825396825397,
+      "rare_fraction": 0.0070140280561122245,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "evgS",
+      "protein_id": "NP_416871.1",
+      "nt": 3594,
+      "gc": 0.4081803005008347,
+      "rare_fraction": 0.057808455565142365,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "yehI",
+      "protein_id": "NP_416621.1",
+      "nt": 3633,
+      "gc": 0.5078447563996696,
+      "rare_fraction": 0.05699481865284974,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "rhsA",
+      "protein_id": "NP_418050.1",
+      "nt": 4134,
+      "gc": 0.5953072085147557,
+      "rare_fraction": 0.07132132132132132,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "rhsC",
+      "protein_id": "NP_415229.1",
+      "nt": 4194,
+      "gc": 0.5915593705293276,
+      "rare_fraction": 0.0643491124260355,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "rpoC",
+      "protein_id": "NP_418415.1",
+      "nt": 4224,
+      "gc": 0.5383522727272727,
+      "rare_fraction": 0.0,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "rhsB",
+      "protein_id": "YP_026224.1",
+      "nt": 4236,
+      "gc": 0.5880547686496695,
+      "rare_fraction": 0.07095830285296269,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "rhsD",
+      "protein_id": "NP_415030.1",
+      "nt": 4281,
+      "gc": 0.6012613875262789,
+      "rare_fraction": 0.08026030368763558,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "gltB",
+      "protein_id": "NP_417679.2",
+      "nt": 4461,
+      "gc": 0.5689307330195024,
+      "rare_fraction": 0.011111111111111112,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "mukB",
+      "protein_id": "NP_415444.1",
+      "nt": 4461,
+      "gc": 0.5566016588208922,
+      "rare_fraction": 0.013831258644536652,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "sslE",
+      "protein_id": "YP_026189.1",
+      "nt": 4563,
+      "gc": 0.5202717510409818,
+      "rare_fraction": 0.015017064846416382,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "ypjA",
+      "protein_id": "NP_417134.2",
+      "nt": 4581,
+      "gc": 0.4920323073564724,
+      "rare_fraction": 0.05740987983978638,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "lhr",
+      "protein_id": "NP_416170.1",
+      "nt": 4617,
+      "gc": 0.5689841888672298,
+      "rare_fraction": 0.0693135935397039,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "yfhM",
+      "protein_id": "NP_417015.1",
+      "nt": 4962,
+      "gc": 0.5296251511487303,
+      "rare_fraction": 0.024420788979336257,
+      "length_bin": "very_long"
+    },
+    {
+      "gene": "yeeJ",
+      "protein_id": "NP_416485.4",
+      "nt": 7077,
+      "gc": 0.49992934859403704,
+      "rare_fraction": 0.04563233376792699,
+      "length_bin": "very_long"
+    }
+  ]
+}
