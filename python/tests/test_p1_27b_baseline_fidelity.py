@@ -129,7 +129,7 @@ def test_p1_27b_the_prefix_predicate_matches_the_prototype(legacy, scenario):
     disagreement at the exact position it first appears, which comparing final
     answers would not.
     """
-    from codonforge import _core
+    from dna_design_suite import _core
 
     rng = random.Random(20260826)
     cds = scenario["cds"]
@@ -168,7 +168,7 @@ def test_p1_27b_the_port_solves_what_the_prototype_solves(legacy, scenario):
     RNGs, so the answers differ and should. What must agree is whether an answer
     exists, and whether the one produced is valid under the other side's rules.
     """
-    from codonforge import _core
+    from dna_design_suite import _core
 
     random.seed(20260826)
     theirs = legacy.optimize_cds_sequence(
@@ -217,7 +217,7 @@ def test_p1_27b_neither_claims_to_solve_the_unsolvable(legacy, scenario):
     the same distinction `P1-17`'s `GiveUpReason` draws — so neither may be read
     as evidence that no solution exists.
     """
-    from codonforge import _core
+    from dna_design_suite import _core
 
     # Every codon of the first amino acid forbidden outright.
     cds = scenario["cds"]

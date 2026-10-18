@@ -35,7 +35,7 @@ Reordering would mean validating each layer against a moving target.
 
 ## Two departures from a naive reading of the roadmap
 
-`DEP-SEQ-001` — **Seed import lands in Phase 1**, not later as a migration convenience. The benchmark harness needs it to place competitor output on CodonForge's axes ([ADR-0007](../07-decisions/ADR-0007-external-tool-seed-import.md) §"Why this earns its place"), so deferring it would force a parallel, unvalidated ingestion path for benchmarking.
+`DEP-SEQ-001` — **Seed import lands in Phase 1**, not later as a migration convenience. The benchmark harness needs it to place competitor output on DNA Design Suite's axes ([ADR-0007](../07-decisions/ADR-0007-external-tool-seed-import.md) §"Why this earns its place"), so deferring it would force a parallel, unvalidated ingestion path for benchmarking.
 
 `DEP-SEQ-002` — **The batch-yield evaluation protocol and the worker process land in Phase 2**, before any model needs them, exercised by a stub L0 term. The protocol is the load-bearing structural decision of [ADR-0001](../07-decisions/ADR-0001-language-and-runtime-split.md); retrofitting it in Phase 3 alongside the LM would mean changing the search engine's control flow at the same time as introducing a new model, which is the combination most likely to produce an undiagnosable performance regression.
 

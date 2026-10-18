@@ -114,7 +114,7 @@
   },
   "warnings": [
     {
-      "type": "https://codonforge.org/problems/host-fallback",
+      "type": "https://dna_design_suite.org/problems/host-fallback",
       "title": "Model resolved from a related host",
       "status": 200,
       "code": "CF-RESOLVE-004",

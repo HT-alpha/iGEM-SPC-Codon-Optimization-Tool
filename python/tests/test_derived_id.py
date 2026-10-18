@@ -12,7 +12,7 @@ import json
 import re
 from pathlib import Path
 
-from codonforge.orchestrator.design import _CROCKFORD, _derived_id
+from dna_design_suite.codon.orchestrator.design import _CROCKFORD, _derived_id
 
 SCHEMAS = Path(__file__).resolve().parents[2] / "schemas" / "v1"
 BATCH = 256

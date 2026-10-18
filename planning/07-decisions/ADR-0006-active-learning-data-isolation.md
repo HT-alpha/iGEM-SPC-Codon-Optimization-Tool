@@ -69,7 +69,7 @@ A tenant adapter is trained on few examples and could, in principle, memorize th
 
 | Option | Why not |
 | --- | --- |
-| Federated learning across tenants | Solves a problem CodonForge does not have. Federation is for when a shared model is *required*; here, per-tenant adapters over a public base are simpler, verifiable, and give better per-tenant fit. |
+| Federated learning across tenants | Solves a problem DNA Design Suite does not have. Federation is for when a shared model is *required*; here, per-tenant adapters over a public base are simpler, verifiable, and give better per-tenant fit. |
 | DP-SGD on a shared model trained on all tenant data | Adds a privacy budget to reason about, degrades utility, and — decisively — still requires all tenant data to reach one training process. The isolation guarantee becomes statistical rather than structural. |
 | Full per-tenant fine-tunes of the base model | Better fit in principle, but a full copy of the weights per tenant makes the manifest-level isolation check much weaker (the artifact contains base weights, so provenance is harder to attest) and multiplies storage. |
 | One shared model, contractual isolation only | Not a technical control. The question asks how leakage is *prevented*, not how it is prohibited. |

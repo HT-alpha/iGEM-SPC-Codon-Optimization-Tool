@@ -1,6 +1,6 @@
 """Run the v2.5.0 validation round.
 
-CAI arithmetic is `cai_independent.py`, which does not import CodonForge.
+CAI arithmetic is `cai_independent.py`, which does not import DNA Design Suite.
 Designs and primer searches shell out to the installed package or its HTTP API.
 Numbers in the JSON under results/ are whatever those processes returned.
 """
@@ -101,7 +101,7 @@ def run_cli(args: list[str], timeout: int) -> dict[str, object]:
     started = time.perf_counter()
     try:
         proc = subprocess.run(
-            [str(PY), "-m", "codonforge.cli.main", *args],
+            [str(PY), "-m", "dna_design_suite.cli.main", *args],
             cwd=ROOT,
             capture_output=True,
             text=True,

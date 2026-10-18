@@ -1,4 +1,4 @@
-"""Sharp & Li CAI without importing CodonForge.
+"""Sharp & Li CAI without importing DNA Design Suite.
 
 Counted codons exclude stops and the single-codon families Met (ATG) and Trp
 (TGG). A counted codon whose weight is 0 makes the geometric mean 0. Relative

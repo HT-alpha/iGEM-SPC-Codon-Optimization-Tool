@@ -29,7 +29,7 @@ fn fixture() -> Value {
         "schema_version": "1.0.0",
         "parameter_set_id": "param_synthetic_test_v1",
         "provenance": {
-            "citation": "Synthetic values for CodonForge tests; not measured, not usable for design.",
+            "citation": "Synthetic values for DNA Design Suite tests; not measured, not usable for design.",
             "doi": null,
             "source_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
             "licence": "CC0-1.0",

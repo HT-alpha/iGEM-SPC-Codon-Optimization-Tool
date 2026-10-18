@@ -15,7 +15,7 @@ wiki does not publish the git repository.
 DNA Design Suite is a local tool for designing the DNA of a coding sequence
 and the PCR primers that amplify it.
 
-CodonForge keeps the protein the same and chooses synonymous codons for a
+DNA Design Suite keeps the protein the same and chooses synonymous codons for a
 host you name. You can ask it to raise codon adaptation, to respect hard
 sequence rules (restriction sites, GC windows, repeats, homopolymers), and,
 when you ask, to rank local mRNA accessibility and a host-burden mismatch.
@@ -23,7 +23,7 @@ A job with two or more scored axes returns the knee of that front, and the
 page shows the range of each axis. Every job seals a lockfile so the same
 request and seed can be run again.
 
-PrimerForge is the other tab on the same page. It designs primer pairs for
+Primer design is the other tab on the same page. It designs primer pairs for
 a region you select, and it checks a pair you paste. Melting temperature
 and dimer ΔG use SantaLucia 1998 Table 2 in a two-state calculation written
 for this project. It does not search a genome for off-targets.
@@ -43,7 +43,7 @@ conda create -n dna-design python=3.11 -y
 conda activate dna-design
 pip install "maturin>=1.5,<2"
 maturin develop
-python -m codonforge.api
+python -m dna_design_suite.api
 ```
 
 macOS and Linux:
@@ -51,15 +51,15 @@ macOS and Linux:
 ```sh
 make setup
 make build
-.venv/bin/python -m codonforge.api
+.venv/bin/python -m dna_design_suite.api
 ```
 
 The page opens at <http://127.0.0.1:8000/> and runs until Ctrl+C.
-CodonForge is the first tab. PrimerForge is the second. **Load the rpsL
+DNA Design Suite is the first tab. Primer design is the second. **Load the rpsL
 demo** fills the *E. coli* K-12 MG1655 gene `rpsL` (`NP_417801.1`, 125
 codons), the ribosomal codon table, and the example constraint file.
 
-ViennaRNA is optional. CodonForge does not vendor it. Structure scoring
+ViennaRNA is optional. DNA Design Suite does not vendor it. Structure scoring
 needs `pip install ViennaRNA` (the v2.9.1 timings used 2.7.2). A CAI-only
 job runs without it. A structure request with no engine installed is
 `CF-STRU-003`.
@@ -94,7 +94,7 @@ the README section **Honest limits**.
 - `GATE-BEN-001` is the CAI-only comparison against `cai_greedy` on 50 of
   50 proteins. It is not an MFE comparison and not LinearDesign or CDSfold.
   Changelog v2.4.2 (48 of 50) and v2.9.1 (50 of 50).
-- PrimerForge does not check genome specificity, does not wrap Primer3, and
+- Primer design does not check genome specificity, does not wrap Primer3, and
   does not score hairpins with mFold.
 - Commercial distribution is outside `docs/legal-clearance.yaml`. The
   recorded review is a non-commercial iGEM educational project, and the
@@ -107,16 +107,16 @@ differ by row; they are in **Setting**.
 
 | Check | Setting | Result | Source |
 | --- | --- | --- | --- |
-| CAI gate `GATE-BEN-001` | 50 *E. coli* K-12 CDS; budget `fast`, 4 generations, seed 7; baseline `cai_greedy`; empty constraints | Claimed. CodonForge meets or equals `cai_greedy` on 50 of 50. `codonforge_ge_greedy: 50`, `behind_greedy: []`. CAI-only. The MFE comparison is not this claim. | `benchmarks/corpus/gates.json`; `CHANGELOG.md` v2.9.1 |
+| CAI gate `GATE-BEN-001` | 50 *E. coli* K-12 CDS; budget `fast`, 4 generations, seed 7; baseline `cai_greedy`; empty constraints | Claimed. DNA Design Suite meets or equals `cai_greedy` on 50 of 50. `codonforge_ge_greedy: 50`, `behind_greedy: []`. CAI-only. The MFE comparison is not this claim. | `benchmarks/corpus/gates.json`; `CHANGELOG.md` v2.9.1 |
 | `aceB` / `thrA` on that gate | Same gate budget. Native `AGG` (weight 0 in the ribosomal table) | Both score CAI 1.0 with no in-frame `AGG`. The previous record scored 0. The other 48 `codonforge_cai` values are unchanged. | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained yagF | Assembly rules; CAI only; budget `fast`, generations 0, seed 7 | 1968 nt, CAI 0.9286425884184984, 0 violations, same protein, 0.602 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained waaS | Same | 936 nt, CAI 0.9173459052341191, 0 violations, same protein, 0.194 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained elastin-like VPGVG×20 | Same | 306 nt, CAI 0.43802555520567116, 0 violations, same protein, 0.144 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained yeeJ | Same | 7077 nt, CAI 0.9580065306093907, 0 violations, same protein, 21.386 s | `docs/benchmarks/v2.9.1-validation.md` |
-| PrimerForge, Table 2 duplex | `5'-CGTTGA-3'` and its complement; SantaLucia 1998 Table 2 | ΔH° −41.2 kcal/mol, ΔS° −115.4 cal/K·mol, ΔG°37 −5.409 kcal/mol, Tm 9.805 °C. Engine matches the hand sum. | `docs/primerforge-validation.md` |
-| PrimerForge, published self-dimer | `CAGCCACTGATGCCAAGAGA` | ΔG°37 −3.556 kcal/mol. Published OligoAnalyzer cell −3.55 kcal/mol. Difference 0.006 kcal/mol. | `docs/primerforge-validation.md` |
-| PrimerForge, yeeJ CDS flanks | 300 nt of the CDS on each side | 20 pairs, product 6843, ΔG −1.28385, not refused, 0.158 s | `docs/benchmarks/v2.9.1-challenging-perf.md` |
-| PrimerForge, synthetic flanks | yeeJ; `ACGT` repeated, 300 nt each side | 20 pairs, product 7395, ΔG −20.754845, refused (dimer below −9 kcal/mol) | `docs/benchmarks/v2.9.1-challenging-perf.md` |
+| Primer design, Table 2 duplex | `5'-CGTTGA-3'` and its complement; SantaLucia 1998 Table 2 | ΔH° −41.2 kcal/mol, ΔS° −115.4 cal/K·mol, ΔG°37 −5.409 kcal/mol, Tm 9.805 °C. Engine matches the hand sum. | `docs/primerforge-validation.md` |
+| Primer design, published self-dimer | `CAGCCACTGATGCCAAGAGA` | ΔG°37 −3.556 kcal/mol. Published OligoAnalyzer cell −3.55 kcal/mol. Difference 0.006 kcal/mol. | `docs/primerforge-validation.md` |
+| Primer design, yeeJ CDS flanks | 300 nt of the CDS on each side | 20 pairs, product 6843, ΔG −1.28385, not refused, 0.158 s | `docs/benchmarks/v2.9.1-challenging-perf.md` |
+| Primer design, synthetic flanks | yeeJ; `ACGT` repeated, 300 nt each side | 20 pairs, product 7395, ΔG −20.754845, refused (dimer below −9 kcal/mol) | `docs/benchmarks/v2.9.1-challenging-perf.md` |
 | Fold cache, rpsL | CAI + structure, assembly, budget `standard`, 4 generations, seed 7 | Vector unchanged `[0.9731171656422364, 2.581242176257437]`. Wall 1.357 s then 0.561 s. | `docs/benchmarks/v2.9.1-validation.md` |
 | Fold cache, waaS | Same | Vector unchanged `[0.9086209272414913, 1.775449070836324]`. Wall 4.211 s then 2.255 s. | `docs/benchmarks/v2.9.1-validation.md` |
 | Operon lacZ + thrA | Fluxes 1 and 2; burden; budget `fast`, generations 0, seed 7 | Joint cost 0.4452346719259927, swaps `[26, 0]`. Wall 9.185 s then 1.632 s. | `CHANGELOG.md` v2.9.1; `docs/benchmarks/v2.9.1-challenging-perf.md` |
@@ -140,24 +140,24 @@ the validation table. On the wiki, upload each file and keep the caption.
 
 | File | Caption |
 | --- | --- |
-| `docs/screenshots/codonforge-rpsl.png` | CodonForge tab after **Load the rpsL demo** and **Run design**. The status is the finished job and the front shows the reported candidate. |
-| `docs/screenshots/primerforge-rpsl.png` | PrimerForge tab after **Load the rpsL sequence** (bases 41–300, flank 40 nt) and **Find primer pairs**. |
-| `docs/screenshots/codonforge-pareto.png` | CodonForge front for a job with more than one scored axis (CAI and local structure, or the explain ranges on the page). |
+| `docs/screenshots/codonforge-rpsl.png` | DNA Design Suite tab after **Load the rpsL demo** and **Run design**. The status is the finished job and the front shows the reported candidate. |
+| `docs/screenshots/primerforge-rpsl.png` | Primer design tab after **Load the rpsL sequence** (bases 41–300, flank 40 nt) and **Find primer pairs**. |
+| `docs/screenshots/codonforge-pareto.png` | DNA Design Suite front for a job with more than one scored axis (CAI and local structure, or the explain ranges on the page). |
 
 If a file is missing, capture it on a machine with a display after
-`python -m codonforge.api`:
+`python -m dna_design_suite.api`:
 
-1. CodonForge. Open the page. Confirm the ribosomal table note. Click
+1. DNA Design Suite. Open the page. Confirm the ribosomal table note. Click
    **Load the rpsL demo**, then **Run design**. Wait until the status is
    succeeded and the Pareto front has a candidate. Save
    `codonforge-rpsl.png`.
-2. PrimerForge. Open the PrimerForge tab. Click **Load the rpsL sequence**.
+2. Primer design. Open the Primer design tab. Click **Load the rpsL sequence**.
    That button selects bases 41–300 and sets the flank to 40 nt. Click
    **Find primer pairs**. Save `primerforge-rpsl.png` with the pair table
    in view. **Select the whole sequence** on this CDS leaves no flank for
    the primers to sit in; use it only when the template is longer than the
    amplicon.
-3. Pareto. On CodonForge, load rpsL, tick **Local mRNA structure** as well
+3. Pareto. On DNA Design Suite, load rpsL, tick **Local mRNA structure** as well
    as CAI (ViennaRNA must be installed), set budget to Standard under
    Advanced, and run. Save `codonforge-pareto.png` showing the front table
    or the axis ranges. If ViennaRNA is absent, skip this shot and say so;

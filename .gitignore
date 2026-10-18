@@ -17,9 +17,9 @@ __pycache__/
 
 # `maturin develop` writes the compiled extension into the source tree for an
 # editable install. It is a build artifact, not source.
-python/codonforge/_core*.so
-python/codonforge/_core*.pyd
-python/codonforge/_core*.dylib
+python/dna_design_suite/_core*.so
+python/dna_design_suite/_core*.pyd
+python/dna_design_suite/_core*.dylib
 
 # Benchmark results are large and reproducible from their lockfiles; only the
 # manifests and lockfiles are worth versioning.

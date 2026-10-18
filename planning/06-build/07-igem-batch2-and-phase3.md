@@ -22,7 +22,7 @@ The page does not call a host catalog, a model catalog, an observation
 store, a preset expander, or the five-check feasibility analyser. Promoting
 those would be building surfaces the demo does not exercise.
 
-They stay `CF-CLI-003`, with a reason in the problem document (`DEP-API-001`):
+Batch 2 left them as `CF-CLI-003` (`DEP-API-001`). `DEP-API-002` now serves the rows that have real shipped data. Seed import stays `CF-CLI-003`:
 
 | Surface | Why it is not promoted |
 | --- | --- |
@@ -38,7 +38,7 @@ They stay `CF-CLI-003`, with a reason in the problem document (`DEP-API-001`):
 ### 1.2 What the benchmark claims
 
 `GATE-BEN-001` needs at least 50 proteins and a competitor arm scored on
-`structure.mfe_global` and `usage.cai`, with CodonForge hypervolume at least
+`structure.mfe_global` and `usage.cai`, with DNA Design Suite hypervolume at least
 0.98× the best competitor on at least 90 % of them. The full-objective suite
 additionally wants at least 20 seeds. This build has neither the competitor
 nor the 20 seeds.
@@ -56,7 +56,7 @@ outside AMD-013.
 
 `DEP-BEN-003` records the comparison that was run instead: one `usage.cai`
 axis, the same ribosomal-protein weights, native and `cai_greedy` and one
-CodonForge design (budget `fast`, 4 generations, seed 7). The v2.4.2 record
+DNA Design Suite design (budget `fast`, 4 generations, seed 7). The v2.4.2 record
 met `cai_greedy` on 48 of 50 proteins and excluded `aceB` and `thrA`.
 `AGG` occurs 0 times in the 54 ribosomal CDS, so its weight is 0, and the
 table lists that 0. `aceB` has `AGG` at codon 14. `thrA` has it at codons

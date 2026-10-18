@@ -1,7 +1,7 @@
 {
   "codon_usage": {
     "subset": "user_supplied",
-    "source": "Kazusa codon usage database, Escherichia coli O157:H7 EDL933, taxid 316407. Nakamura, Gojobori and Ikemura, Nucleic Acids Research 2000;28:292. Genome-wide synonymous frequencies, converted here to relative adaptiveness by dividing each codon by the maximum in its amino-acid family. Not a Sharp and Li highly-expressed weight, and not the table a CodonForge search optimizes unless you load this file yourself.",
+    "source": "Kazusa codon usage database, Escherichia coli O157:H7 EDL933, taxid 316407. Nakamura, Gojobori and Ikemura, Nucleic Acids Research 2000;28:292. Genome-wide synonymous frequencies, converted here to relative adaptiveness by dividing each codon by the maximum in its amino-acid family. Not a Sharp and Li highly-expressed weight, and not the table a DNA Design Suite search optimizes unless you load this file yourself.",
     "table": {
       "AAA": {
         "relative_adaptiveness": 1.0

@@ -17,7 +17,7 @@ Owning modules: `cf-cli`, `cf-orchestrator`.
 
 The library entry point takes a `DesignJobRequest` — the *same* object the REST body validates against and the same object the CLI builds from its flags. There is no second validation path, no second defaulting rule and no second set of objective presets. When the three surfaces drift, it is always because someone added a code path; this structure makes that structurally hard rather than merely discouraged.
 
-`TST-CLI-001` asserts the equivalence directly: for a corpus of requests, `codonforge design --json <req>`, `POST /v1/jobs`, and `codonforge.design(**req)` produce identical lockfiles and identical fronts under a fixed seed.
+`TST-CLI-001` asserts the equivalence directly: for a corpus of requests, `codonforge design --json <req>`, `POST /v1/jobs`, and `dna_design_suite.design(**req)` produce identical lockfiles and identical fronts under a fixed seed.
 
 **Equivalence is necessary and not sufficient, and `TST-CLI-001` alone is not enough.** All three surfaces share one orchestrator, so three surfaces that all skip a tier agree perfectly and the test passes. `TST-CLI-003` therefore asserts separately that the pipeline *ran* what the budget planned: a job configured for tier 1 and tier 2 must report them `done` rather than `skipped`, and the `CF-ORCH-006` warnings naming them must be absent. Their disappearance is the evidence the wiring is real; their presence in `P1-29` was the evidence it was not.
 
@@ -28,7 +28,7 @@ The library entry point takes a `DesignJobRequest` — the *same* object the RES
 ## 2. Library
 
 ```python
-import codonforge as cf
+import dna_design_suite as cf
 
 result = cf.design(
     host="escherichia_coli:562/K-12_MG1655",
@@ -51,8 +51,8 @@ result.explain("cand_a1b2c3d4")   # rendered per-position rationale
 
 Three properties the library must have and the REST surface cannot provide:
 
-- **Synchronous by default.** A researcher in a notebook wants a blocking call. `cf.design(..., background=True)` returns a handle for the async case — `DEP-CLI-004`: not in Phase 1. Background execution needs the worker pool `cf-orchestrator` is declared to own and `P1-29` did not build; `background=True` raises `CF-CLI-003` naming that gap rather than running synchronously while claiming otherwise, which would make every timing assumption in the calling code wrong.
-- **In-process execution.** No server, no network, no daemon. `cf.design` drives the same Rust core directly through `codonforge._core`.
+- **Synchronous by default.** A researcher in a notebook wants a blocking call. `design(..., background=True)` returns a handle (`job_id`, `done()`, `result(timeout)`) and the job runs on a worker pool (`DEP-CLI-006`). The call does not run the job on the caller's thread. `DEP-CLI-004` records the Phase 1 refusal. Seed import stays `CF-CLI-003`.
+- **In-process execution.** No server, no network, no daemon. `cf.design` drives the same Rust core directly through `dna_design_suite._core`.
 - **Every intermediate is reachable.** `cf.landscape.score(...)`, `cf.constraints.analyse(...)`, `cf.search.tier2(...)` are public. A methods paper needs to run one layer in isolation, and forcing that through a REST API would be absurd.
 
 ---
@@ -127,5 +127,5 @@ Whatever resolution occurs is echoed into the lockfile's `environment` block, so
 
 - `pip install codonforge` — pure wheels with the compiled core, manylinux/macOS/Windows, no Rust toolchain required for users.
 - `pip install codonforge[gpu]` — adds the torch stack for the LM term.
-- `pip install codonforge[nonfree]` — **does not exist by design.** ViennaRNA and LinearFold are not redistributable under Apache-2.0 terms (`RISK-DEP-001`), so the alternative structure engines are enabled by the user installing the upstream package themselves and CodonForge detecting it at runtime. Shipping an extra that pulls them in would make CodonForge's own wheel non-redistributable.
+- `pip install codonforge[nonfree]` — **does not exist by design.** ViennaRNA and LinearFold are not redistributable under Apache-2.0 terms (`RISK-DEP-001`), so the alternative structure engines are enabled by the user installing the upstream package themselves and DNA Design Suite detecting it at runtime. Shipping an extra that pulls them in would make DNA Design Suite's own wheel non-redistributable.
 - A container image with the default (permissive) engines only.

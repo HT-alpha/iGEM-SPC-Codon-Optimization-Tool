@@ -24,8 +24,8 @@ import json
 
 import pytest
 
-from codonforge import _core
-from codonforge.modelreg import ArtifactStore
+from dna_design_suite import _core
+from dna_design_suite.modelreg import ArtifactStore
 
 
 @pytest.fixture()

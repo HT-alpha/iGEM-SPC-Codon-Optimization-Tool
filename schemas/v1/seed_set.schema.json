@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/seed_set.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/seed_set.schema.json",
   "title": "SeedSet",
-  "description": "Externally-produced candidate sequences injected into the initial population (ADR-0007, answering open question 6).\n\nThis interface does double duty, which is why it is worth building in Phase 1 rather than deferring: it is both the migration path for existing LinearDesign/CDSfold/CodonTransformer users AND the mechanism by which the benchmark harness places a competitor's output on CodonForge's own objective axes for the head-to-head comparisons required by BRIEF-2.5.\n\nACCEPTANCE IS STRICT AND EXPLAINED. A seed is admitted only if it translates to exactly the target protein under the target translation table. A seed that fails is reported with a positional diff, never silently dropped - a user who pastes the wrong file must be told which residue disagrees.",
+  "description": "Externally-produced candidate sequences injected into the initial population (ADR-0007, answering open question 6).\n\nThis interface does double duty, which is why it is worth building in Phase 1 rather than deferring: it is both the migration path for existing LinearDesign/CDSfold/CodonTransformer users AND the mechanism by which the benchmark harness places a competitor's output on DNA Design Suite's own objective axes for the head-to-head comparisons required by BRIEF-2.5.\n\nACCEPTANCE IS STRICT AND EXPLAINED. A seed is admitted only if it translates to exactly the target protein under the target translation table. A seed that fails is reported with a positional diff, never silently dropped - a user who pastes the wrong file must be told which residue disagrees.",
   "type": "object",
   "properties": {
     "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },
@@ -40,7 +40,7 @@
           "reported_metrics": {
             "type": "object",
             "additionalProperties": { "type": "number" },
-            "description": "Metrics as reported by the originating tool (e.g. its own CAI and MFE). Kept separately from CodonForge's own recomputation so that a discrepancy is visible rather than hidden - different tools use different CAI reference sets."
+            "description": "Metrics as reported by the originating tool (e.g. its own CAI and MFE). Kept separately from DNA Design Suite's own recomputation so that a discrepancy is visible rather than hidden - different tools use different CAI reference sets."
           },
           "acceptance": {
             "type": "object",

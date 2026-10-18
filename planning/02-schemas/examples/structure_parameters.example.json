@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "parameter_set_id": "param_example_placeholder_v1",
   "provenance": {
-    "citation": "PLACEHOLDER - not a real parameter set. These values are invented for schema illustration and must never be used for design. A real document cites the published measurements the energies were transcribed from; see DEP-STRU-001 for why CodonForge ships no table of its own.",
+    "citation": "PLACEHOLDER - not a real parameter set. These values are invented for schema illustration and must never be used for design. A real document cites the published measurements the energies were transcribed from; see DEP-STRU-001 for why DNA Design Suite ships no table of its own.",
     "doi": null,
     "source_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     "licence": "NOT-A-LICENCE-PLACEHOLDER",
@@ -29,5 +29,5 @@
     "4": 1.5
   },
   "terminal_au_penalty": 0.5,
-  "digest": "sha256:ae4e936bea72728eb9aaf5831fbedecdd653182c26aa7ea4695862a015d312ff"
+  "digest": "sha256:9d0fec55242002391425016b444c47f87dfb8c6f3989df65d482bf81dfdce120"
 }

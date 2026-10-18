@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/structure_parameters.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/structure_parameters.schema.json",
   "title": "StructureParameters",
-  "description": "A nearest-neighbour thermodynamic parameter set for the structure kernel.\n\nDEP-STRU-001, re-scoped by AMD-013. The original motivation was licensing: AMD-009 verified the licence position of the folding *code* and said nothing about the parameter set that code needs to compute anything. AMD-013 corrected the underlying finding - ViennaRNA's licence permits use and modification and restricts only charging a fee for redistribution, which a freely-distributed iGEM entry satisfies trivially - so the intended default engine binds to a user-installed ViennaRNA that loads its own tables, and CodonForge redistributes neither code nor parameters.\n\nThis document survives that correction because its other job does not depend on licensing: which parameter set was in force decides every energy a run produced, so it must be recorded in the landscape lockfile for the run to be reproducible. It also remains the way a user supplies their own measured set.\n\nThe schema deliberately cannot tell a real parameter set from a well-formed invented one - no schema can. What it *can* do is refuse a set that does not say where it came from, which is why `provenance` is required and its fields are not nullable.",
+  "description": "A nearest-neighbour thermodynamic parameter set for the structure kernel.\n\nDEP-STRU-001, re-scoped by AMD-013. The original motivation was licensing: AMD-009 verified the licence position of the folding *code* and said nothing about the parameter set that code needs to compute anything. AMD-013 corrected the underlying finding - ViennaRNA's licence permits use and modification and restricts only charging a fee for redistribution, which a freely-distributed iGEM entry satisfies trivially - so the intended default engine binds to a user-installed ViennaRNA that loads its own tables, and DNA Design Suite redistributes neither code nor parameters.\n\nThis document survives that correction because its other job does not depend on licensing: which parameter set was in force decides every energy a run produced, so it must be recorded in the landscape lockfile for the run to be reproducible. It also remains the way a user supplies their own measured set.\n\nThe schema deliberately cannot tell a real parameter set from a well-formed invented one - no schema can. What it *can* do is refuse a set that does not say where it came from, which is why `provenance` is required and its fields are not nullable.",
   "type": "object",
   "properties": {
     "schema_version": {
@@ -43,7 +43,7 @@
         },
         "redistributable": {
           "type": "boolean",
-          "description": "Whether the supplier believes this set may be redistributed. CodonForge records the claim and never acts on it by vendoring - the set stays user-supplied either way."
+          "description": "Whether the supplier believes this set may be redistributed. DNA Design Suite records the claim and never acts on it by vendoring - the set stays user-supplied either way."
         },
         "transcribed_by": {
           "type": [

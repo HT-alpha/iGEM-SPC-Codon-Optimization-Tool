@@ -1,4 +1,4 @@
-"""The DNA Design Suite page and `python -m codonforge.api`.
+"""The DNA Design Suite page and `python -m dna_design_suite.api`.
 
 The entry point binds port 8000, opens a browser, and blocks. The page is a
 guided form over the same routes. Download text matches the CLI writers.
@@ -18,13 +18,13 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.api import run_page, serve
-from codonforge.api.server import _EXAMPLE_FILES
-from codonforge.cli import writers
-from codonforge.modelreg import ArtifactStore
+from dna_design_suite.api import run_page, serve
+from dna_design_suite.api.server import _EXAMPLE_FILES
+from dna_design_suite.cli import writers
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
-STATIC = ROOT / "python" / "codonforge" / "api" / "static"
+STATIC = ROOT / "python" / "dna_design_suite" / "api" / "static"
 FORMATS = STATIC / "formats.js"
 INDEX = STATIC / "index.html"
 APP = STATIC / "app.js"
@@ -172,8 +172,8 @@ def test_the_module_entry_point_asks_for_port_8000_and_a_browser(monkeypatch) ->
                 f"http://{host}:{port}/"
             )
 
-    monkeypatch.setattr("codonforge.api.__main__.run_page", fake_run_page)
-    from codonforge.api.__main__ import main
+    monkeypatch.setattr("dna_design_suite.api.__main__.run_page", fake_run_page)
+    from dna_design_suite.api.__main__ import main
 
     assert main([]) == 0
     assert captured["host"] == "127.0.0.1"
@@ -291,7 +291,7 @@ def test_product_sequence_is_sliced_from_the_submitted_template() -> None:
 
 
 def test_the_packaged_examples_match_the_repository_copies() -> None:
-    packaged = ROOT / "python" / "codonforge" / "api" / "examples"
+    packaged = ROOT / "python" / "dna_design_suite" / "api" / "examples"
     for _path, (name, _kind) in _EXAMPLE_FILES.items():
         assert (packaged / name).read_bytes() == (ROOT / "examples" / name).read_bytes()
 

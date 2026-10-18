@@ -1,6 +1,6 @@
-# CodonForge — Backend Planning Package
+# DNA Design Suite — Backend Planning Package
 
-This is the deliverable for the assignment in *Detailed Backend Planning Assignment: CodonForge* (August 2026): an implementation-ready engineering plan produced **before any backend code is written**. It converts the CodonForge architecture — the epistasis-aware, systems-level, multi-objective codon optimization framework — into schemas, interfaces, pseudocode, complexity budgets, tests and a ticket-level build sequence that an implementation team could pick up without making further architectural judgment calls.
+This is the deliverable for the assignment in *Detailed Backend Planning Assignment: DNA Design Suite* (August 2026): an implementation-ready engineering plan produced **before any backend code is written**. It converts the DNA Design Suite architecture — the epistasis-aware, systems-level, multi-objective codon optimization framework — into schemas, interfaces, pseudocode, complexity budgets, tests and a ticket-level build sequence that an implementation team could pick up without making further architectural judgment calls.
 
 It contains no backend implementation code, per the brief's phase boundary.
 
@@ -69,7 +69,7 @@ python3 planning/tools/validate_planning_package.py -v
 
 The checker verifies that the schemas are valid and their examples conform, that the module dependency graph is acyclic with no rank inversion, that every cross-referenced identifier resolves, that every Markdown link resolves, that the OpenAPI document parses and its external `$ref`s exist, that every requirement in the brief maps to an artifact, and that every rationale tag used is in the closed vocabulary.
 
-It is a review aid, not backend code — it contains no CodonForge domain logic beyond the genetic code needed to check the worked examples translate correctly.
+It is a review aid, not backend code — it contains no DNA Design Suite domain logic beyond the genetic code needed to check the worked examples translate correctly.
 
 ---
 

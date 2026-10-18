@@ -5,7 +5,7 @@ date:            2026-10-05
 amendment:       AMD-013
 scope: |
   I confirm that I have reviewed AMD-013, the licence and patent analysis
-  for the CodonForge iGEM codon optimization project. Specifically, I
+  for the DNA Design Suite iGEM codon optimization project. Specifically, I
   reviewed the following:
 
   ViennaRNA and LinearFold are used as user-installed dependencies only,
@@ -13,7 +13,7 @@ scope: |
   use for a non-commercial, freely distributed project.
 
   LinearDesign (Baidu Research) is covered by an active patent. The
-  CodonForge code does not implement the patented method (CFG × DFA
+  DNA Design Suite code does not implement the patented method (CFG × DFA
   intersection for joint MFE and codon optimization). A software test
   enforces this.
 
@@ -24,8 +24,8 @@ scope: |
 conditions:      none
 evidence:        email from NG Chi Hong to Kwok Cho TSANG, 2026-10-05
 primerforge_scope_note: >
-  This sign-off predates the addition of PrimerForge to the DNA
-  Design Suite (added after 2026-10-05). PrimerForge was reviewed
+  This sign-off predates the addition of Primer design to the DNA
+  Design Suite (added after 2026-10-05). Primer design was reviewed
   by the engineering team as not changing the scope of AMD-013: it
   does not use ViennaRNA, LinearFold, or LinearDesign's claimed
   method, and it does not vendor any licensed tool. The signed

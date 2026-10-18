@@ -37,7 +37,7 @@ Every schema has a worked example in [`examples/`](examples/sequence.example.jso
 | Convention | Rule | Why |
 | --- | --- | --- |
 | Dialect | JSON Schema draft 2020-12 | Widest tooling support and the dialect OpenAPI 3.1 uses, so the API document can `$ref` these files directly |
-| `$id` | Absolute `https://codonforge.org/schemas/v1/<name>.schema.json`; `$ref`s are relative | Relative refs resolve against the `$id` base, so the files work both on disk and when served |
+| `$id` | Absolute `https://dna_design_suite.org/schemas/v1/<name>.schema.json`; `$ref`s are relative | Relative refs resolve against the `$id` base, so the files work both on disk and when served |
 | `additionalProperties` | `false` on every closed object | Catches typos at the boundary. Extensibility is provided by explicit `metadata` / `parameters` objects where it is genuinely needed |
 | Descriptions | Every non-obvious field carries a description that says **why the field exists**, not what its type is | The type is already in the schema. The reason is what a reviewer needs |
 | Spans | Half-open `[start, end)`. Codon-indexed unless the field name ends in `_nt` | Removes an entire class of off-by-one bugs by convention |

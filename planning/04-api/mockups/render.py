@@ -200,7 +200,7 @@ def front_html() -> str:
     informed = ", ".join(f'<code>{t}</code>' for t in REC["informed_by"])
     excluded = ", ".join(f'<code>{t}</code>' for t in REC["not_informed_by"])
     return (
-        HEAD.format(title="CodonForge — Pareto front")
+        HEAD.format(title="DNA Design Suite — Pareto front")
         + f"""
 <header class="mast">
   <div class="k">Document</div>
@@ -345,7 +345,7 @@ def status_html() -> str:
     hv_s = ", ".join(f"{x:.4g}" for x in hv)
 
     return (
-        HEAD.format(title="CodonForge — warnings and status")
+        HEAD.format(title="DNA Design Suite — warnings and status")
         + f"""
 <header class="mast">
   <div class="k">Document</div>

@@ -80,7 +80,7 @@ An **absolute** gate, correctly: a 90 % interval covering 70 % is wrong by defin
 `DEP-BEN-003`. The record in `benchmarks/corpus/gates.json` is not this
 table. No checked tool emits windowed local accessibility that this project
 can add as a competitor, so the run that exists is CAI-only: native,
-`cai_greedy`, and one CodonForge design on `usage.cai`. The claim is 50 of
+`cai_greedy`, and one DNA Design Suite design on `usage.cai`. The claim is 50 of
 50 proteins. `aceB` codon 14 and `thrA` codons 28 and 243 are `AGG`. That
 codon has count 0 in the 54 ribosomal CDS, so the table lists weight 0 and
 `usage.cai` is 0 while any such codon remains. The v2.4.2 search left them
@@ -91,9 +91,9 @@ applied.
 
 | | |
 | --- | --- |
-| Setup | Fixed benchmark set of ≥50 proteins. CodonForge runs with exactly two objectives (`structure.mfe_global`, `usage.cai`) to make the comparison apples-to-apples. Competitor outputs enter through the seed-import path so both sides are scored by identical code. |
+| Setup | Fixed benchmark set of ≥50 proteins. DNA Design Suite runs with exactly two objectives (`structure.mfe_global`, `usage.cai`) to make the comparison apples-to-apples. Competitor outputs enter through the seed-import path so both sides are scored by identical code. |
 | Statistic | 2-D hypervolume with a fixed, published reference point |
-| Threshold | CodonForge HV ≥ **0.98 ×** the best competitor's HV on ≥90 % of proteins, **and** ≥1 CodonForge point strictly non-dominated by the competitor front on ≥50 % of proteins |
+| Threshold | DNA Design Suite HV ≥ **0.98 ×** the best competitor's HV on ≥90 % of proteins, **and** ≥1 DNA Design Suite point strictly non-dominated by the competitor front on ≥50 % of proteins |
 | On failure | Phase 2 does not exit. Not being able to match a specialist two-objective optimizer on its own two objectives means the search or the objective implementation is wrong. |
 
 The `0.98` rather than `1.0` is deliberate: LinearDesign solves a restricted problem with a dynamic program that is exact for its formulation, and a general-purpose MOEA matching an exact DP to within 2 % is the right expectation. Demanding strict dominance everywhere would be demanding that a general tool beat a specialist at the specialist's own game.

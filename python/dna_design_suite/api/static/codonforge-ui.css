@@ -1,0 +1,1044 @@
+/* DNA Design Suite design-phase tokens.
+   Not Tailwind. Spacing is 5/10/20/40 (IGV track padding), not 4/8/16.
+   Colour is named after the state it means, not after a palette step. */
+
+:root {
+  --ink: #1c1917;
+  --ink-dim: #5c574e;
+  --paper: #f3efe4;
+  --track: #e6e0d2;
+  --rule: #b7ae9c;
+  --label: #3f3a34;
+
+  --feasible: #2c5f4a;
+  --feasible-wash: #d5e4db;
+  --infeasible: #8f2d2d;
+  --infeasible-wash: #f0d4d0;
+
+  --unknown-a: #c9c3b6;
+  --unknown-b: #ddd8cc;
+  --unknown-ink: #5c574e;
+
+  --diagnostic: #8d6b24;
+  --diagnostic-wash: #efe3c4;
+
+  --refusal-ink: #5c1515;
+  --refusal-wash: #f4d6d0;
+
+  --warning-ink: #6b4a10;
+  --warning-rule: #c4922a;
+  --warning-wash: #f5ead0;
+
+  --recommended: #1a4a73;
+  --recommended-wash: #d5e2ee;
+  --structure-opt: #3a5f4d;
+  --structure-opt-wash: #d7e4db;
+
+  /* Base-pair tints for the helix. The convention is IGV.js's default
+     nucleotide palette (igvteam/igv.js, js/util/nucleotideColors.js,
+     defaultNucleotideColors): A rgb(0,200,0), C rgb(0,0,200), T rgb(255,0,0),
+     G rgb(209,113,5). Each is muted by one rule: HSL saturation x 0.4,
+     lightness set to 0.58. Hue is kept, so A green, T red, C blue and G amber
+     (IGV's G is orange, not yellow). python/tests/test_helix.py recomputes
+     these four from the source colours. */
+  --base-a: #69bf69;
+  --base-t: #bf6969;
+  --base-g: #bd966b;
+  --base-c: #6969bf;
+
+  --space-1: 5px;
+  --space-2: 10px;
+  --space-3: 20px;
+  --space-4: 40px;
+
+  --font-ui: "IBM Plex Sans", "Noto Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans Mono", ui-monospace, monospace;
+  --font-title: "Source Serif 4", "Source Serif Pro", "Noto Serif", serif;
+
+  --label-col: 13.5rem;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-x: clip;
+}
+
+body {
+  /* Full-bleed lab-bench layout, not a centered card. */
+  max-width: none;
+}
+
+h1 {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 1.7rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-1) 0;
+}
+
+h2 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  margin: var(--space-3) 0 var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-1);
+}
+
+a { color: var(--recommended); }
+
+.mast {
+  display: grid;
+  grid-template-columns: var(--label-col) 1fr;
+  border-bottom: 2px solid var(--ink);
+  background: var(--track);
+}
+
+.mast .k {
+  padding: var(--space-3);
+  border-right: 1px solid var(--rule);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.mast .v { padding: var(--space-3) var(--space-3) var(--space-3) var(--space-3); }
+
+.sub {
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+  max-width: 52rem;
+}
+
+.mono, code, .id {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+.rail {
+  display: grid;
+  grid-template-columns: var(--label-col) 1fr;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rail .k {
+  padding: var(--space-2) var(--space-3);
+  border-right: 1px solid var(--rule);
+  color: var(--label);
+  font-size: 0.82rem;
+}
+
+.rail .v { padding: var(--space-2) var(--space-3); }
+
+.page {
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.chip {
+  transition: background-color 150ms linear, color 150ms linear;
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  /* Square. Genome-browser tracks are not pills. */
+  border-radius: 0;
+}
+
+.chip.feasible { color: var(--feasible); background: var(--feasible-wash); }
+.chip.infeasible { color: var(--infeasible); background: var(--infeasible-wash); }
+.chip.unknown {
+  color: var(--unknown-ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--unknown-a),
+    var(--unknown-a) 4px,
+    var(--unknown-b) 4px,
+    var(--unknown-b) 8px
+  );
+}
+.chip.diagnostic { color: var(--diagnostic); background: var(--diagnostic-wash); }
+.chip.refusal { color: var(--refusal-ink); background: var(--refusal-wash); }
+.chip.warning { color: var(--warning-ink); background: var(--warning-wash); border-color: var(--warning-rule); }
+.chip.recommended { color: var(--recommended); background: var(--recommended-wash); }
+.chip.structure { color: var(--structure-opt); background: var(--structure-opt-wash); }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+table.data th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  border-bottom: 2px solid var(--ink);
+  padding: var(--space-1) var(--space-2);
+}
+
+table.data td {
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-1) var(--space-2);
+  vertical-align: top;
+}
+
+table.data tr.rec td { background: var(--recommended-wash); }
+table.data tr.sopt td { background: var(--structure-opt-wash); }
+
+td.unk {
+  color: var(--unknown-ink);
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--unknown-a),
+    var(--unknown-a) 4px,
+    var(--unknown-b) 4px,
+    var(--unknown-b) 8px
+  );
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.plot {
+  background: var(--track);
+  border: 1px solid var(--ink);
+  padding: var(--space-2);
+  width: 100%;
+  height: auto;
+  aspect-ratio: 720 / 300;
+  display: block;
+}
+
+.seq {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  background: var(--track);
+  border: 1px solid var(--rule);
+  padding: var(--space-2);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* The request editor is a document, not a sequence track. The mockup's
+   nowrap track style would hide the JSON on one clipped line. */
+textarea.seq, input.seq {
+  width: min(52rem, 100%);
+  white-space: pre-wrap;
+}
+textarea.seq { min-height: 9rem; display: block; }
+
+button {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.callout {
+  border-left: 4px solid var(--recommended);
+  background: var(--recommended-wash);
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.callout.structure {
+  border-left-color: var(--structure-opt);
+  background: var(--structure-opt-wash);
+}
+
+.callout.warning {
+  border-left-color: var(--warning-rule);
+  background: var(--warning-wash);
+}
+
+.note {
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  max-width: 48rem;
+}
+
+.nav {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.86rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+button.tab {
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+button.tab.active {
+  border-bottom-color: var(--recommended);
+  color: var(--recommended);
+}
+
+.viewer-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.viewer-layout > * {
+  min-width: 0;
+}
+
+.config-panel {
+  border-left: 1px solid var(--rule);
+  padding-left: var(--space-2);
+}
+
+.config-panel label {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.viewer {
+  overflow-x: auto;
+  white-space: nowrap;
+  max-width: 100%;
+  cursor: text;
+  user-select: none;
+  line-height: 1.6;
+}
+
+.nt {
+  transition: background-color 100ms linear, color 100ms linear;
+}
+
+.nt.region { background: var(--recommended-wash); }
+.nt.flank { background: var(--diagnostic-wash); }
+.nt.selected, .nt.amplicon { background: var(--recommended); color: var(--paper); }
+.nt.bind-f { background: var(--structure-opt-wash); }
+.nt.bind-r { background: var(--warning-wash); }
+
+.selection-tip {
+  position: fixed;
+  z-index: 2;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  pointer-events: none;
+}
+
+.primer-results-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  min-width: 0;
+}
+
+@media (min-width: 960px) {
+  .primer-results-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem);
+  }
+}
+
+.primer-results-layout .callout,
+.primer-results-layout .note {
+  grid-column: 1 / -1;
+}
+
+.pair-detail {
+  border-left: 1px solid var(--rule);
+  padding-left: var(--space-2);
+  animation: pair-slide 200ms cubic-bezier(0, 0, 0.38, 0.9) both;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+@keyframes pair-slide {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.mono-reveal {
+  animation: mono-type 300ms steps(24, end) both;
+}
+
+@keyframes mono-type {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+.zone-chip {
+  transition: background-color 150ms linear, color 150ms linear;
+}
+
+.bar.indeterminate > span {
+  width: 35%;
+  animation: bar-slide 900ms cubic-bezier(0.2, 0, 0.38, 0.9) infinite alternate;
+}
+
+@keyframes bar-slide {
+  from { margin-left: 0; }
+  to { margin-left: 65%; }
+}
+
+.zone-green { color: var(--feasible); }
+.zone-amber { color: var(--warning-ink); background: var(--warning-wash); }
+.zone-red { color: var(--refusal-ink); background: var(--refusal-wash); }
+
+.detail-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 150ms cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+@media (max-width: 720px) {
+  .viewer-layout { grid-template-columns: 1fr; }
+  .config-panel { border-left: 0; padding-left: 0; }
+  .primer-results-layout { grid-template-columns: minmax(0, 1fr); }
+  .pair-detail { border-left: 0; padding-left: 0; }
+}
+
+.tier-track {
+  display: grid;
+  grid-template-columns: 11rem 6rem 1fr 8rem;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.bar {
+  height: 10px;
+  background: var(--unknown-a);
+  border: 1px solid var(--ink);
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--feasible);
+  /* Carbon productive standard easing (cubic-bezier(0.2, 0, 0.38, 0.9)).
+     Duration is the requested ~300ms, between Carbon duration-moderate-02
+     (240ms) and duration-slow-01 (400ms). Productive motion only: the bar
+     width changes with the generation count. */
+  transition: width 300ms cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+.warn-row {
+  display: grid;
+  grid-template-columns: 9rem 8rem 16rem 1fr;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+  border-left: 4px solid var(--warning-rule);
+  padding-left: var(--space-2);
+  background: var(--warning-wash);
+  margin-bottom: var(--space-1);
+}
+
+.warn-row .code {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.warn-row.head {
+  background: transparent;
+  border-left-color: transparent;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+
+.fixture {
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-2);
+}
+
+/* Motion follows IBM Carbon Design System productive tokens, the motion
+   reference for the IBM Plex family already used here:
+   https://carbondesignsystem.com/guidelines/motion/overview/
+   - standard productive easing: cubic-bezier(0.2, 0, 0.38, 0.9)
+   - entrance productive easing: cubic-bezier(0, 0, 0.38, 0.9)
+   - duration-moderate-01: 150ms (warning group max-height)
+   - entrance at the requested ~200ms (result reveal)
+   Productive motion is for frequent, utilitarian changes. It must not block
+   the content, and it must not loop under something the reader is using. */
+
+.callout.refusal {
+  border-left-color: var(--infeasible);
+  background: var(--refusal-wash);
+}
+
+.callout.pulse-once {
+  animation: cf-pulse 400ms cubic-bezier(0.2, 0, 0.38, 0.9) 1;
+}
+
+.callout.structure.pulse-once {
+  animation: cf-pulse-structure 400ms cubic-bezier(0.2, 0, 0.38, 0.9) 1;
+}
+
+@keyframes cf-pulse {
+  0% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 2px var(--recommended); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+@keyframes cf-pulse-structure {
+  0% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 2px var(--structure-opt); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+.reveal {
+  animation: cf-reveal 200ms cubic-bezier(0, 0, 0.38, 0.9) both;
+}
+
+/* An error message waits for the helix to stop and turn red first. */
+.reveal.reveal-late {
+  animation-delay: 1500ms;
+}
+
+@keyframes cf-reveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.hscroll {
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.hscroll > table.data {
+  width: max-content;
+  min-width: 100%;
+}
+
+table.data tr.is-hot td {
+  box-shadow: inset 0 -2px 0 var(--ink);
+}
+
+.plot rect.is-hot {
+  stroke: var(--ink);
+  stroke-width: 2px;
+}
+
+.plot-readout {
+  min-height: 1.4em;
+}
+
+.seq-block {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  background: var(--track);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: var(--space-2);
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.seq-block:not(.viewer) {
+  white-space: normal;
+}
+
+.codon {
+  margin-right: 0.4em;
+}
+
+.codon.top {
+  background: var(--recommended-wash);
+}
+
+button.warn-toggle {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--warning-wash);
+  color: var(--warning-ink);
+  border: 1px solid var(--warning-rule);
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+.warn-group.refusal button.warn-toggle {
+  background: var(--refusal-wash);
+  color: var(--refusal-ink);
+  border-color: var(--infeasible);
+}
+
+.warn-body {
+  max-height: 0;
+  overflow: hidden;
+  /* Carbon duration-moderate-01. */
+  transition: max-height 150ms cubic-bezier(0.2, 0, 0.38, 0.9);
+}
+
+.seq-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-1) 0;
+}
+
+@media (max-width: 720px) {
+  .tier-track,
+  .mast,
+  .rail,
+  .warn-row {
+    grid-template-columns: 1fr;
+  }
+
+  .mast .k,
+  .rail .k {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .page {
+    padding: var(--space-3);
+  }
+
+  .nav {
+    flex-wrap: wrap;
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar > span,
+  .warn-body,
+  .reveal,
+  .callout.pulse-once,
+  .callout.structure.pulse-once,
+  .pair-detail,
+  .mono-reveal,
+  .nt,
+  .zone-chip {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* DNA helix (helix.js). The module builds the SVG and gives every rung half
+   its turn-0 pose inline; everything that moves is here, so
+   prefers-reduced-motion is a media query and not a script check.
+
+   Every animation below is transform or opacity keyframes, which the browser
+   runs without restyling the page on each frame. The keyframes read the
+   geometry from custom properties the module sets on the SVG, so no constant
+   is repeated in this file. Rung halves all use hx-move and hx-fade and differ
+   only by a negative delay (--hx-f, the rung's phase as a fraction of a turn).
+   Strand B's depth is strand A's, offset by the strand offset (--hx-dphase).
+   The backbone is a single translateY of one pitch. All of them have one
+   length, so the backbone and the rungs turn as one helix.
+
+   Where CSS trig is not supported the keyframes are invalid and the helix
+   stays at its inline turn-0 pose: a still picture, not a broken one.
+
+   Easing is IBM Carbon's expressive standard curve, cubic-bezier(0.4, 0.14,
+   0.3, 1), at duration-slow-01 (400ms). The pose changes once per job, which
+   is expressive rather than productive motion:
+   https://carbondesignsystem.com/guidelines/motion/overview/ */
+
+@keyframes hx-slide {
+  from { transform: translateY(0); }
+  to { transform: translateY(calc(var(--hx-pitch) * 1px)); }
+}
+
+/* b runs 0 to 360 degrees. A rung half is a unit line placed at its mid angle. */
+@keyframes hx-move {
+  0% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(0deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(0deg))); }
+  4.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(15deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(15deg))); }
+  8.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(30deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(30deg))); }
+  12.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(45deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(45deg))); }
+  16.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(60deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(60deg))); }
+  20.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(75deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(75deg))); }
+  25% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(90deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(90deg))); }
+  29.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(105deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(105deg))); }
+  33.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(120deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(120deg))); }
+  37.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(135deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(135deg))); }
+  41.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(150deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(150deg))); }
+  45.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(165deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(165deg))); }
+  50% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(180deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(180deg))); }
+  54.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(195deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(195deg))); }
+  58.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(210deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(210deg))); }
+  62.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(225deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(225deg))); }
+  66.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(240deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(240deg))); }
+  70.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(255deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(255deg))); }
+  75% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(270deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(270deg))); }
+  79.1667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(285deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(285deg))); }
+  83.3333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(300deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(300deg))); }
+  87.5% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(315deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(315deg))); }
+  91.6667% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(330deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(330deg))); }
+  95.8333% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(345deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(345deg))); }
+  100% { transform: translateX(calc((var(--hx-cx) + var(--hx-m) * cos(360deg)) * 1px)) scaleX(calc(var(--hx-h) * sin(360deg))); }
+}
+
+/* Depth of a strand end, 0.3 at the back to 1 at the front. This is strand A's;
+   strand B's is the same curve, 'delta' of a turn later. */
+@keyframes hx-fade {
+  0% { opacity: calc(0.3 + 0.7 * (1 - sin(0deg - var(--hx-delta) / 2)) / 2); }
+  4.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(15deg - var(--hx-delta) / 2)) / 2); }
+  8.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(30deg - var(--hx-delta) / 2)) / 2); }
+  12.5% { opacity: calc(0.3 + 0.7 * (1 - sin(45deg - var(--hx-delta) / 2)) / 2); }
+  16.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(60deg - var(--hx-delta) / 2)) / 2); }
+  20.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(75deg - var(--hx-delta) / 2)) / 2); }
+  25% { opacity: calc(0.3 + 0.7 * (1 - sin(90deg - var(--hx-delta) / 2)) / 2); }
+  29.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(105deg - var(--hx-delta) / 2)) / 2); }
+  33.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(120deg - var(--hx-delta) / 2)) / 2); }
+  37.5% { opacity: calc(0.3 + 0.7 * (1 - sin(135deg - var(--hx-delta) / 2)) / 2); }
+  41.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(150deg - var(--hx-delta) / 2)) / 2); }
+  45.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(165deg - var(--hx-delta) / 2)) / 2); }
+  50% { opacity: calc(0.3 + 0.7 * (1 - sin(180deg - var(--hx-delta) / 2)) / 2); }
+  54.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(195deg - var(--hx-delta) / 2)) / 2); }
+  58.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(210deg - var(--hx-delta) / 2)) / 2); }
+  62.5% { opacity: calc(0.3 + 0.7 * (1 - sin(225deg - var(--hx-delta) / 2)) / 2); }
+  66.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(240deg - var(--hx-delta) / 2)) / 2); }
+  70.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(255deg - var(--hx-delta) / 2)) / 2); }
+  75% { opacity: calc(0.3 + 0.7 * (1 - sin(270deg - var(--hx-delta) / 2)) / 2); }
+  79.1667% { opacity: calc(0.3 + 0.7 * (1 - sin(285deg - var(--hx-delta) / 2)) / 2); }
+  83.3333% { opacity: calc(0.3 + 0.7 * (1 - sin(300deg - var(--hx-delta) / 2)) / 2); }
+  87.5% { opacity: calc(0.3 + 0.7 * (1 - sin(315deg - var(--hx-delta) / 2)) / 2); }
+  91.6667% { opacity: calc(0.3 + 0.7 * (1 - sin(330deg - var(--hx-delta) / 2)) / 2); }
+  95.8333% { opacity: calc(0.3 + 0.7 * (1 - sin(345deg - var(--hx-delta) / 2)) / 2); }
+  100% { opacity: calc(0.3 + 0.7 * (1 - sin(360deg - var(--hx-delta) / 2)) / 2); }
+}
+
+@keyframes hx-glow {
+  0% { opacity: var(--hx-rest); }
+  12% { opacity: 1; }
+  36% { opacity: var(--hx-rest); }
+  100% { opacity: var(--hx-rest); }
+}
+
+.helix-stage {
+  --hx-ease: cubic-bezier(0.4, 0.14, 0.3, 1);
+  --hx-period: 9s;
+  --hx-h-centre: 300px;
+  --hx-h-corner: 150px;
+  --hx-h-badge: 120px;
+  position: relative;
+  height: var(--hx-h-centre);
+  margin: var(--space-3) 0;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.hx-svg {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  aspect-ratio: 2 / 3;
+  transform: translateX(-50%);
+}
+
+.hx-bb {
+  animation: hx-slide var(--hx-period) linear infinite;
+}
+
+.hx-bb path {
+  fill: none;
+  stroke: var(--recommended);
+  stroke-linecap: butt;
+}
+
+.hx-rung path {
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: butt;
+  transition: stroke 300ms linear;
+}
+
+.hx-rung .hx-a {
+  animation:
+    hx-move var(--hx-period) linear calc(var(--hx-f) * var(--hx-period) * -1) infinite,
+    hx-fade var(--hx-period) linear calc(var(--hx-f) * var(--hx-period) * -1) infinite;
+}
+
+.hx-rung .hx-b {
+  animation:
+    hx-move var(--hx-period) linear calc(var(--hx-f) * var(--hx-period) * -1) infinite,
+    hx-fade var(--hx-period) linear calc((var(--hx-f) + var(--hx-dphase)) * var(--hx-period) * -1)
+      infinite;
+}
+
+.hx-nA { stroke: var(--base-a); }
+.hx-nT { stroke: var(--base-t); }
+.hx-nG { stroke: var(--base-g); }
+.hx-nC { stroke: var(--base-c); }
+
+.hx-rung {
+  transition: opacity 300ms linear;
+}
+
+/* Running: the rungs dim and a pulse passes up the ladder, one rung every
+   70ms, bottom to top. */
+.helix-stage[data-helix-state="running"] .hx-rung {
+  --hx-rest: 0.45;
+  opacity: var(--hx-rest);
+  animation: hx-glow 2400ms linear calc(var(--hx-i) * 70ms) infinite;
+}
+
+/* Error: rotation stops where it is and the rungs go to the refusal red. */
+.helix-stage[data-helix-state="error"] .hx-bb,
+.helix-stage[data-helix-state="error"] .hx-rung path {
+  animation-play-state: paused;
+}
+
+.helix-stage[data-helix-state="error"] .hx-rung path {
+  stroke: var(--refusal-ink);
+}
+
+@media (max-width: 720px) {
+  .helix-stage {
+    --hx-h-centre: 220px;
+    --hx-h-corner: 130px;
+    --hx-h-badge: 100px;
+  }
+}
+
+/* Poses are motion, so they apply only when motion is allowed. Under
+   prefers-reduced-motion the helix stays at its idle pose with no animation,
+   which is a static picture of the same geometry and colours. */
+@media (prefers-reduced-motion: no-preference) {
+  .helix-stage {
+    transition: height 400ms var(--hx-ease);
+  }
+
+  .hx-svg {
+    transition:
+      left 400ms var(--hx-ease),
+      transform 400ms var(--hx-ease);
+  }
+
+  .helix-stage[data-helix-pose="corner"] { height: var(--hx-h-corner); }
+  .helix-stage[data-helix-pose="badge"] { height: var(--hx-h-badge); }
+
+  .helix-stage[data-helix-pose="corner"] .hx-svg,
+  .helix-stage[data-helix-pose="badge"] .hx-svg {
+    left: 100%;
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hx-bb,
+  .hx-rung .hx-a,
+  .hx-rung .hx-b,
+  .helix-stage[data-helix-state="running"] .hx-rung {
+    animation: none;
+  }
+
+  .hx-rung,
+  .hx-rung path {
+    transition: none;
+  }
+}
+
+/* Guided submission. Same tokens, same 5/10/20/40 rhythm, radius 0. */
+
+:root { color-scheme: light; }
+
+.skip {
+  position: absolute;
+  left: var(--space-2);
+  top: var(--space-2);
+  background: var(--ink);
+  color: var(--paper);
+  padding: var(--space-1) var(--space-2);
+  z-index: 3;
+  transform: translateY(-200%);
+}
+
+.skip:focus { transform: none; }
+
+.nav-brand {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.tablist { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+.nav-note { margin: 0; flex: 1 1 16rem; }
+
+.lead {
+  max-width: 46rem;
+  margin: 0 0 var(--space-3) 0;
+}
+
+.step-no {
+  font-family: var(--font-mono);
+  color: var(--recommended);
+  margin-right: var(--space-1);
+}
+
+.optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-dim);
+}
+
+.field-help {
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+  max-width: 46rem;
+  margin: var(--space-1) 0 0 0;
+}
+
+.next-step {
+  margin: var(--space-2) 0 0 0;
+  padding: var(--space-1) var(--space-2);
+  border-left: 4px solid var(--recommended);
+  background: var(--recommended-wash);
+  max-width: 46rem;
+}
+
+.tier-plain {
+  margin: 0 0 var(--space-2) 0;
+  color: var(--ink-dim);
+  font-family: var(--font-ui);
+  font-size: 0.86rem;
+}
+
+label, .check {
+  display: block;
+  margin: var(--space-1) 0;
+}
+
+.check { padding: var(--space-1) 0; }
+
+input, select, textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: var(--space-1) var(--space-2);
+  max-width: 100%;
+}
+
+input.seq, select, textarea.seq { font-family: var(--font-mono); }
+
+.narrow { width: 6rem; }
+
+.stack { margin-top: var(--space-2); }
+
+.file-label input { display: block; margin-top: var(--space-1); }
+
+button.secondary {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+
+button.go {
+  background: var(--recommended);
+  color: var(--paper);
+  min-height: 44px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+button.tab { min-height: 44px; }
+
+.run-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-3) 0;
+}
+
+.advanced {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  margin: var(--space-3) 0;
+  padding: var(--space-2) 0;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+fieldset {
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  margin: var(--space-2) 0 0 0;
+  padding: var(--space-2);
+}
+
+legend { padding: 0 var(--space-1); }
+
+.region-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+:focus-visible {
+  outline: 2px solid var(--recommended);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  input, select, textarea, button.go, button.secondary {
+    font-size: 1rem;
+  }
+
+  .seq-actions { flex-wrap: wrap; }
+
+  button, .file-label { max-width: 100%; }
+}

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from codonforge import _core
+from dna_design_suite import _core
 
 SCHEMA_DIR = Path(__file__).resolve().parents[2] / "schemas" / "v1"
 
@@ -199,7 +199,7 @@ def test_tst_lapi_001_gradient_request_is_refused_at_the_boundary() -> None:
     document = _query(
         outputs={"scalars": True, "gradients": True},
     )
-    # Schema-valid: the contract admits the field so a non-CodonForge consumer
+    # Schema-valid: the contract admits the field so a non-DNA Design Suite consumer
     # can use it. The Rust contract still refuses, which is the point.
     _validate(document, "landscape_query.schema.json")
 

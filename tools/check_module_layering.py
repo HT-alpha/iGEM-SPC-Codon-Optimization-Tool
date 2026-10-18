@@ -141,7 +141,7 @@ def scaffold(mods: dict) -> None:
     (pyext / "src").mkdir(parents=True, exist_ok=True)
     if not (pyext / "src" / "lib.rs").exists():
         (pyext / "src" / "lib.rs").write_text(
-            "//! PyO3 glue producing the `codonforge._core` extension module.\n"
+            "//! PyO3 glue producing the `dna_design_suite._core` extension module.\n"
             "//!\n//! This is the ONLY crate permitted to depend on pyo3\n"
             "//! (ADR-0001). `tools/check_module_layering.py --check` enforces it.\n",
             encoding="utf-8",
@@ -189,7 +189,7 @@ def real_rust_edges(mods: dict, rep: Report) -> dict[str, set[str]]:
 
 
 _PY_IMPORT = re.compile(
-    r"^\s*(?:from\s+codonforge\.([a-z_]+)|import\s+codonforge\.([a-z_]+))",
+    r"^\s*(?:from\s+dna_design_suite(?:\.codon)?\.([a-z_]+)|import\s+dna_design_suite(?:\.codon)?\.([a-z_]+))",
     re.MULTILINE,
 )
 

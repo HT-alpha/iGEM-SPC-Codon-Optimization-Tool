@@ -61,7 +61,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      # The page serves demo files from codonforge/api/examples. A checkout
+      # The page serves demo files from dna_design_suite/api/examples. A checkout
       # does not have that copy until this script writes it.
       - run: python tools/stage_wheel_examples.py
       - uses: PyO3/maturin-action@v1
@@ -109,7 +109,7 @@ jobs:
       - run: pip install dist/*.whl
       - run: |
           python -c "
-          import codonforge
-          assert codonforge.core_available(), 'wheel did not ship the compiled core'
-          print('core', codonforge.core_version())
+          import dna_design_suite
+          assert dna_design_suite.core_available(), 'wheel did not ship the compiled core'
+          print('core', dna_design_suite.core_version())
           "

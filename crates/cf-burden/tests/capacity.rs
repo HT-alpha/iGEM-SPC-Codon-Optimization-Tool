@@ -89,7 +89,7 @@ fn tst_burd_005_tier_3_reports_a_mismatch_score_not_a_growth_prediction() {
         estimate.reported_unit(),
         "dimensionless",
         "DEP-BURD-003: reporting the same unit at all three tiers would be the single \
-         most misleading thing CodonForge could do"
+         most misleading thing DNA Design Suite could do"
     );
     assert!(
         !estimate.calibrated(),

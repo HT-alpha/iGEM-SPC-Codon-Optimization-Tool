@@ -18,7 +18,7 @@ import random
 
 import pytest
 
-from codonforge.orchestrator.archive import ORIGINS, CandidateArchive
+from dna_design_suite.codon.orchestrator.archive import ORIGINS, CandidateArchive
 
 # Origins used as arbitrary stage labels. Which ones they are does not matter,
 # and that is the point.

@@ -1,7 +1,7 @@
 # Template for docs/legal-clearance.yaml — copy, fill in, commit.
 #
 # AMD-013 cleared ViennaRNA and LinearFold from their primary licence texts and
-# concluded that CodonForge does not practise LinearDesign's claimed method.
+# concluded that DNA Design Suite does not practise LinearDesign's claimed method.
 # The licence reading is plain. The patent conclusion is an engineer's reading
 # of claim text, made without confirming grant status, and it needs a human with
 # actual authority to sign off before a release ships.
@@ -27,7 +27,7 @@ scope: |
     - ViennaRNA and LinearFold licence terms against a free, non-commercial
       distribution, including the attribution obligations in NOTICE;
     - the LinearDesign claim-scope analysis (US 2022/0269951 A1,
-      EP 4 030 438 A1) and the conclusion that CodonForge's architecture does
+      EP 4 030 438 A1) and the conclusion that DNA Design Suite's architecture does
       not practise the claimed CFG-over-DFA method;
     - the fact that grant status was not confirmed and that claim scope outside
       the US and EP was not examined.

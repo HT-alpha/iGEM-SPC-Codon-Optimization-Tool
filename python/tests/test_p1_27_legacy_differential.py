@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pytest
 
-from codonforge import _core
+from dna_design_suite import _core
 
 ROOT = Path(__file__).resolve().parents[2]
 

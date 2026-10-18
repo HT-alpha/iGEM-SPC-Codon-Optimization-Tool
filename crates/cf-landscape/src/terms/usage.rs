@@ -156,7 +156,7 @@ impl CodonUsageTable {
 /// `w` is 1 by construction, so including them would leave the product
 /// unchanged while inflating `n`, which pulls every CAI toward 1 by an amount
 /// that depends on how much methionine the protein happens to contain. That is
-/// the standard definition, not a CodonForge convention, and it is stated here
+/// the standard definition, not a DNA Design Suite convention, and it is stated here
 /// because the alternative reading is easy to implement by accident.
 ///
 /// ## Why the state is `(sum_log, zero_count)` rather than a running product

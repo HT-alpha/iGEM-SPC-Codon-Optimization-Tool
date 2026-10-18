@@ -26,7 +26,7 @@ So the hot path is ~10⁶ decomposable-term delta evaluations and ~10⁵ full-se
 
 | Runtime | Modules | Justification |
 | --- | --- | --- |
-| `rust-core` (Rust 2021, compiled into `codonforge._core`, abi3 wheel) | `cf-types`, `cf-metrics`, `cf-landscape-api`, `cf-constraints`, `cf-epistasis` (scoring), `cf-burden`, `cf-biophys-structure`, `cf-biophys-kinetics`, `cf-landscape`, `cf-search` | Per-move hot path, or a type/trait definition that the hot path needs. |
+| `rust-core` (Rust 2021, compiled into `dna_design_suite._core`, abi3 wheel) | `cf-types`, `cf-metrics`, `cf-landscape-api`, `cf-constraints`, `cf-epistasis` (scoring), `cf-burden`, `cf-biophys-structure`, `cf-biophys-kinetics`, `cf-landscape`, `cf-search` | Per-move hot path, or a type/trait definition that the hot path needs. |
 | `python-orchestration` (CPython ≥3.11) | `cf-ingest`, `cf-modelreg`, `cf-decision`, `cf-orchestrator`, `cf-active`, `cf-api`, `cf-cli`, `cf-bench`, `cf-testkit`, all `*/train/` targets | Called `10⁰–10²` times per job; benefits from Biopython, pandas, PyTorch, FastAPI, matplotlib. |
 | `python-worker` (CPython ≥3.11 + PyTorch) | `cf-biophys-lm`, GPU batch scoring | Needs torch; isolated so a CPU-only install never imports it. |
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/model_manifest.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/model_manifest.schema.json",
   "title": "ModelManifest",
   "description": "Versioning scheme for host-specific trained model artifacts (BRIEF-2.2-d): epistatic surface weights, burden-model parameters, fine-tuned LM checkpoints.\n\nVERSION SEMANTICS (see ADR-0009 for the full rules):\n  artifact_id = cf:<kind>:<host_id | host_agnostic>:<MAJOR.MINOR.PATCH>\n    MAJOR - the artifact's OUTPUT changes meaning: new term id, changed unit, changed sign convention, or a bumped contract_major. Not auto-upgradable.\n    MINOR - retrained on new or additional data, or a changed architecture, with the same output meaning. Auto-upgradable on a channel; changes results.\n    PATCH - identical training data and architecture; a bug fix, a recalibration, or a re-export. Auto-upgradable; may change results only within the calibration tolerance.\n\nThe artifact_id is a COORDINATE, not an identity. Identity is `weights[].digest`. A channel can be re-pointed and a MINOR can be rebuilt, so anything claiming reproducibility must cite the digest. This is why LandscapeLockfile records both.\n\nTENANT ISOLATION IS DECLARED HERE AND ENFORCED BY TST-ACT-002: for an artifact with isolation.scope = public, every entry in training.datasets must have no tenant_id. There is no code path that trains a public artifact on tenant data.",
   "type": "object",

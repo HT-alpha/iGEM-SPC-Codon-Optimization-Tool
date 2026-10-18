@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CodonForge against DNA Chisel, cai_greedy, and LinearDesign if the binary runs.
+"""DNA Design Suite against DNA Chisel, cai_greedy, and LinearDesign if the binary runs.
 
 Part A of the v2.9.3 design-quality study. Numbers come from this process.
 A tool that does not run is recorded as a failure, not as a score.
@@ -48,8 +48,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 import benchmark_common as common  # noqa: E402
-from codonforge.bench.baselines import cai_greedy  # noqa: E402
-from codonforge.modelreg import ArtifactStore  # noqa: E402
+from dna_design_suite.codon.bench.baselines import cai_greedy  # noqa: E402
+from dna_design_suite.modelreg import ArtifactStore  # noqa: E402
 
 LINEAR_DESIGN_BIN = Path(
     os.environ.get(
@@ -66,7 +66,7 @@ DNA_CHISEL_ZERO_FLOOR = 0.001
 
 
 def chisel_spec(constraints: dict[str, Any]) -> dict[str, Any]:
-    """Map one CodonForge constraint set onto DNA Chisel specifications.
+    """Map one DNA Design Suite constraint set onto DNA Chisel specifications.
 
     A rule that does not have the same accept/reject language is listed in
     ``not_comparable`` and is not sent. The assembly file's rules do map;
@@ -97,7 +97,7 @@ def chisel_spec(constraints: dict[str, Any]) -> dict[str, Any]:
             comparable.append(constraint["id"])
             notes.append(
                 f"{constraint['id']}: EnforceGCContent window steps by 1, "
-                "the same starts the CodonForge checker uses"
+                "the same starts the DNA Design Suite checker uses"
             )
         elif kind == "restriction_site":
             site = rule["site"].upper()
@@ -555,7 +555,7 @@ def cross_check_saved(path: Path) -> None:
     """Evaluate saved sequences with DNA Chisel. Does not re-optimise.
 
     The optimiser rows stay as they were written. This adds ``chisel_evaluate``
-    on CodonForge and DNA Chisel rows so both checkers are on the same CDS.
+    on DNA Design Suite and DNA Chisel rows so both checkers are on the same CDS.
     """
     document = json.loads(path.read_text(encoding="utf-8"))
     weights = common.load_weights()
@@ -645,7 +645,7 @@ def main() -> None:
         "with the floor. Seed is numpy and random seed 7, one run, unless a probe says otherwise."
     )
     objective_cf = (
-        "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, "
+        "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, "
         "seed 7, host escherichia_coli:511145/MG1655, translation table 11. "
         "The generation cap is what stops tier 3; the window is longer than 4."
     )

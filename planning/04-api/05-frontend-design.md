@@ -1,4 +1,4 @@
-# CodonForge frontend — design-phase brief (Part D)
+# DNA Design Suite frontend — design-phase brief (Part D)
 
 **Substitution, disclosed.** This environment has no frontend-design skill and
 no Visualizer tool. That absence was confirmed twice independently in prior
@@ -100,7 +100,7 @@ Surfaces, in the order a user actually moves through a job.
 | User question | Source | Presentation |
 | --- | --- | --- |
 | What is the set? | `candidates[]`, `reduction` | Table + scatter. `reduction.method` is shown (`none` in this run). |
-| Which one does CodonForge name? | `recommended.candidate_id`, `rule`, `differs_from_last_stage` | Callout, not a silent sort. |
+| Which one does DNA Design Suite name? | `recommended.candidate_id`, `rule`, `differs_from_last_stage` | Callout, not a silent sort. |
 | Which axes informed that name? | `recommended.informed_by`, `recommended.not_informed_by` | Named lists, same discipline as `CF-ORCH-006`. In this run: informed_by `usage.cai`; not_informed_by `structure.local_accessibility`. |
 | Is someone else better on an excluded axis? | Members with a real score on that axis | A second, explicitly labelled mark: *structure-optimal among scored*. Not a second `recommended`. |
 | Is it feasible? | `constraint_report.feasible` (boolean) | Two-valued chip. Never a third state. |

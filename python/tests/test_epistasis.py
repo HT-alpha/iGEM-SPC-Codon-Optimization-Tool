@@ -7,9 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.epistasis.artifact import ArtifactError, load_calibration, verify_artifact
-from codonforge.epistasis.train import held_out_split
-from codonforge.modelreg.manifest import digest_of
+from dna_design_suite.codon.epistasis.artifact import (
+    ArtifactError,
+    load_calibration,
+    verify_artifact,
+)
+from dna_design_suite.codon.epistasis.train import held_out_split
+from dna_design_suite.modelreg.manifest import digest_of
 
 
 def test_the_panel_genes_are_removed_before_the_fit() -> None:

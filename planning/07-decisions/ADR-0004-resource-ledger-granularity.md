@@ -59,7 +59,7 @@ Tier 3 is the answer to "organisms lacking published tRNA abundance or proteomic
 | --- | --- |
 | Track per-tRNA-gene demand | No decision-relevant resolution gained; codon choice cannot address individual genes. |
 | Track amino-acid and energy pools | Constant under the design operator (§Decision). Would present the user with objectives that cannot be improved. |
-| Require tRNA abundance data, refuse hosts without it | Restricts CodonForge to ~5 organisms and forfeits the open-source, any-host goal. |
+| Require tRNA abundance data, refuse hosts without it | Restricts DNA Design Suite to ~5 organisms and forfeits the open-source, any-host goal. |
 | Use a generic "typical bacterium" tRNA profile for unknown hosts | Worse than tier 3, and dishonest: it presents another organism's biology as this one's. Tier 3 at least uses the host's *own* genome. |
 | Full two-phase ledger in v1 | Needs kinetic parameters that do not exist for most hosts; `EXP-03` first. |
 

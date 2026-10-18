@@ -18,10 +18,10 @@ import pytest
 from referencing import Registry, Resource
 from test_orchestrator import CDS, HOST, constraint_set, host_profile
 
-from codonforge.api import serve
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator import score_sequences
-from codonforge.orchestrator.design import DesignRequest
+from dna_design_suite.api import serve
+from dna_design_suite.codon.orchestrator import score_sequences
+from dna_design_suite.codon.orchestrator.design import DesignRequest
+from dna_design_suite.modelreg import ArtifactStore
 
 TENANT = "t_localdev1"
 OTHER = "t_otherdev1"
@@ -92,30 +92,25 @@ def test_a_missing_credential_is_a_problem(base: str) -> None:
 
 
 def test_an_unimplemented_route_is_cf_cli_003(base: str) -> None:
-    status, kind, payload = _call("GET", f"{base}/v1/hosts", _headers())
+    status, kind, payload = _call("POST", f"{base}/v1/seeds:import", _headers(), {})
     assert status == 501
     assert kind.startswith("application/problem+json")
     assert payload["code"] == "CF-CLI-003"
     assert payload["status"] == 501
-    assert "catalog" in payload["detail"]
-    status, kind, feasibility = _call("POST", f"{base}/v1/feasibility", _headers(), {})
-    assert status == 501
-    assert kind.startswith("application/problem+json")
-    assert feasibility["code"] == "CF-CLI-003"
-    assert "constraint_report.feasible" in feasibility["detail"]
+    assert "not wired" in payload["detail"]
 
 
-def test_a_protein_body_is_not_a_stub_design(base: str) -> None:
+def test_a_protein_without_a_usage_table_is_rejected(base: str) -> None:
     status, kind, payload = _call(
         "POST",
         f"{base}/v1/jobs",
         _headers(),
         {"input": {"kind": "protein", "protein": "MKT"}},
     )
-    assert status == 501
+    assert status == 400
     assert kind.startswith("application/problem+json")
-    assert payload["code"] == "CF-CLI-003"
-    assert "protein" in payload["detail"]
+    assert payload["code"] == "CF-CLI-001"
+    assert "host_profile" in payload["detail"]
 
 
 def test_calibration_is_fitted_or_absent(base: str) -> None:

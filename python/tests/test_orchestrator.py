@@ -18,12 +18,12 @@ from pathlib import Path
 
 import pytest
 
-from codonforge import _core
-from codonforge.modelreg import ArtifactStore, Pin, ResolutionRequest, resolve, seal
-from codonforge.orchestrator import ComputeBudget, Job, JobInputs
-from codonforge.orchestrator.budget import TierPlanError
-from codonforge.orchestrator.job import _engine_refusal
-from codonforge.predictors.structure import StructureEngineError
+from dna_design_suite import _core
+from dna_design_suite.codon.orchestrator import ComputeBudget, Job, JobInputs
+from dna_design_suite.codon.orchestrator.budget import TierPlanError
+from dna_design_suite.codon.orchestrator.job import _engine_refusal
+from dna_design_suite.codon.predictors.structure import StructureEngineError
+from dna_design_suite.modelreg import ArtifactStore, Pin, ResolutionRequest, resolve, seal
 
 HOST = "escherichia_coli:511145/BL21"
 
@@ -252,7 +252,7 @@ def test_tst_orch_001_an_unsealed_lockfile_cannot_start_a_job(
     store: ArtifactStore, tmp_path: Path
 ) -> None:
     """A job that could seal later could also resolve later."""
-    from codonforge.modelreg import Lockfile
+    from dna_design_suite.modelreg import Lockfile
 
     unsealed = Lockfile(
         lockfile_id="lock_01JBQ8Z4K7M2N3P5R6T7V8W9XZ",
@@ -288,7 +288,7 @@ def test_tst_orch_001_a_job_replays_its_lockfile_before_running(
     )
     target.unlink()
 
-    from codonforge.modelreg import RegistryError
+    from dna_design_suite.modelreg import RegistryError
 
     with pytest.raises(RegistryError) as excinfo:
         job.run()
@@ -657,7 +657,7 @@ def test_p1_29_a_short_l0_batch_fails_as_land_012_not_a_raw_exception(
         del temperature_c, session
         return [0.5] * (len(sequences) - 1)
 
-    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", short)
+    monkeypatch.setattr("dna_design_suite.codon.orchestrator.structure_diag.evaluate", short)
     job = make_job(store, tmp_path, total=2, segment=2).run()
     assert job.state == "failed"
     problem = job.problem
@@ -686,10 +686,10 @@ def test_p1_29_a_missing_structure_engine_fails_as_stru_003(
         del sequences, temperature_c, session
         raise StructureEngineError(
             "CF-STRU-003",
-            "no structure engine is installed, and CodonForge ships none",
+            "no structure engine is installed, and DNA Design Suite ships none",
         )
 
-    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", missing)
+    monkeypatch.setattr("dna_design_suite.codon.orchestrator.structure_diag.evaluate", missing)
     job = make_job(store, tmp_path, total=2, segment=2).run()
     assert job.state == "failed"
     problem = job.problem
@@ -698,7 +698,7 @@ def test_p1_29_a_missing_structure_engine_fails_as_stru_003(
     assert problem["stage"] == "tier3"
     assert problem["subject"] == "structure.local_accessibility"
     assert "ships none" in problem["detail"]
-    assert problem["title"] == "No structure engine is installed and CodonForge ships none"
+    assert problem["title"] == "No structure engine is installed and DNA Design Suite ships none"
 
 
 def test_p1_29_a_non_problem_scorer_error_still_crashes(
@@ -722,7 +722,7 @@ def test_p1_29_a_non_problem_scorer_error_still_crashes(
         del sequences, temperature_c, session
         raise ValueError("not a problem document")
 
-    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", broken)
+    monkeypatch.setattr("dna_design_suite.codon.orchestrator.structure_diag.evaluate", broken)
     job = make_job(store, tmp_path, total=2, segment=2)
     with pytest.raises(ValueError, match="not a problem document"):
         job.run()
@@ -745,7 +745,7 @@ def test_p1_29_an_ill_typed_l0_return_is_land_012_even_with_a_code_attribute(
 
     class CodedReturn:
         code = "CF-STRU-003"
-        detail = "no structure engine is installed, and CodonForge ships none"
+        detail = "no structure engine is installed, and DNA Design Suite ships none"
 
     def coded_shape(
         sequences: list[str], temperature_c: float = 37.0, session: object = None
@@ -753,7 +753,7 @@ def test_p1_29_an_ill_typed_l0_return_is_land_012_even_with_a_code_attribute(
         del sequences, temperature_c, session
         return CodedReturn()  # type: ignore[return-value]
 
-    monkeypatch.setattr("codonforge.orchestrator.structure_diag.evaluate", coded_shape)
+    monkeypatch.setattr("dna_design_suite.codon.orchestrator.structure_diag.evaluate", coded_shape)
     job = make_job(store, tmp_path, total=2, segment=2).run()
     assert job.state == "failed"
     problem = job.problem

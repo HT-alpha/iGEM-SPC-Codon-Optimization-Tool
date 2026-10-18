@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/host_profile.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/host_profile.schema.json",
   "title": "HostProfile",
   "description": "Host reference data (BRIEF-2.2-c): tRNA gene copy number and abundance, codon usage, tAI weights, ribosome pool parameters, and the estimated translational capacity.\n\nTHE `data_completeness` BLOCK IS LOAD-BEARING. It is not documentation - it is the input to the model-tiering decision rules in ADR-0003 (which epistasis window/order to fit) and ADR-0004 (which capacity estimator tier to use). A host with no Ribo-seq and no proteomics is a legal, supported, first-class case that degrades to a documented reduced-capability configuration; see AMD-006.",
   "type": "object",

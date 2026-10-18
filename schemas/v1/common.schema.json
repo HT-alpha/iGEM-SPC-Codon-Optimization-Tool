@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/common.schema.json",
-  "title": "CodonForge shared definitions",
-  "description": "Primitive types and value objects reused across every CodonForge contract. Nothing in this file is a message on its own; it exists so that identifier syntax, provenance and uncertainty are defined exactly once.",
+  "$id": "https://dna_design_suite.org/schemas/v1/common.schema.json",
+  "title": "DNA Design Suite shared definitions",
+  "description": "Primitive types and value objects reused across every DNA Design Suite contract. Nothing in this file is a message on its own; it exists so that identifier syntax, provenance and uncertainty are defined exactly once.",
   "$defs": {
     "SchemaVersion": {
       "type": "string",
@@ -63,7 +63,7 @@
     "Anticodon": { "type": "string", "pattern": "^[ACGTIU]{3}$", "description": "tRNA anticodon, 5'->3'. I denotes inosine at the wobble position, which the wobble table treats explicitly." },
     "CodonSpan": {
       "type": "object",
-      "description": "Half-open interval over CODON indices [start, end). All spans in CodonForge are codon-indexed; nucleotide indices appear only in ingest-facing schemas and are always named *_nt.",
+      "description": "Half-open interval over CODON indices [start, end). All spans in DNA Design Suite are codon-indexed; nucleotide indices appear only in ingest-facing schemas and are always named *_nt.",
       "properties": {
         "start": { "type": "integer", "minimum": 0 },
         "end": { "type": "integer", "minimum": 1 }

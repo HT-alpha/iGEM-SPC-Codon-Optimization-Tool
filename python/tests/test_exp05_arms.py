@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from codonforge.bench.corpus import load_panel, select_genes
-from codonforge.bench.exp05_campaign import host_profile, run_one
-from codonforge.modelreg import ArtifactStore
+from dna_design_suite.codon.bench.corpus import load_panel, select_genes
+from dna_design_suite.codon.bench.exp05_campaign import host_profile, run_one
+from dna_design_suite.modelreg import ArtifactStore
 
 
 def test_baldwinian_repair_counts_differ_from_lamarckian(tmp_path: Path) -> None:
