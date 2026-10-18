@@ -1,5 +1,6 @@
-# Developer entry points. CI runs the same commands (.github/workflows/ci.yml),
-# so a green `make check` locally means a green CI run.
+# Developer entry points. On a change that touches Rust or Python, CI runs
+# the same commands (.github/workflows/ci.yml), so a green `make check`
+# locally means a green CI run. A docs-only diff skips that gate.
 
 VENV ?= .venv
 PY   := $(VENV)/bin/python

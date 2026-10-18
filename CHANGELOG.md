@@ -54,11 +54,15 @@ GAC). That codon alone fails `c_kmer12`, and no one-codon or two-codon
 partner of it is feasible at a higher CAI. Empty constraints, Golden Gate,
 BioBrick, and the 54 nt enumerated assembly case stay at gap 0.
 
-Wheels build on push. `.github/workflows/wheels.yml` uploads a wheel for
-Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, and Windows x64,
-plus an sdist. One `cp311-abi3` wheel covers CPython 3.11 through 3.13.
-The workflow does not publish to PyPI. The README says how to install a
-downloaded wheel, and how Hugo uploads it with twine from his own token.
+Wheels build when Hugo asks, not on every push.
+`.github/workflows/wheels.yml` runs on `workflow_dispatch` and on a
+version tag `v*.*.*`. A manual run builds Linux x86_64 unless the target
+input is `all`. `all`, and a version tag, build Linux x86_64, Linux
+aarch64, macOS x86_64, macOS aarch64, and Windows x64, plus an sdist.
+The Monday cron is gone. One `cp311-abi3` wheel covers CPython 3.11
+through 3.13. The workflow does not publish to PyPI. The README says
+how to dispatch a build, how to install a downloaded wheel, and how
+Hugo uploads it with twine from his own token.
 
 Tier 3 on yeeJ with structure was spending its time in repair, not in the
 fold. On a release build of this machine, before the k-mer change:

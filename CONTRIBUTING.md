@@ -69,6 +69,52 @@ All five must pass. `check_schema_sync` also verifies that every `CF-*` code
 cited in `planning/` is registered in `cf-types`, so inventing a code in prose
 without defining it is caught.
 
+## Continuous integration
+
+CI is `ubuntu-latest` only. It runs on pull requests and on pushes to
+`main`. A feature-branch push is not a second CI run beside the pull
+request. `concurrency` puts a pull request and a push of the same branch
+in one group and cancels the older run.
+
+`make check` stays the gate when a diff touches Rust or Python. That gate
+is clippy, the per-crate tests, the `cf-pyext` build, pytest on 3.11 and
+3.12, the generated-asset check, and the repository invariants. A diff
+that is only documentation does not run the heavy jobs. Documentation
+means `docs/` (including `docs/benchmarks/`) and the root files
+`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `AGENTS.md`, and
+`LICENSE`. The invariant job still runs. Anything else — `crates/`,
+`python/`, `planning/`, `schemas/`, `tools/`, `examples/`, a workflow —
+runs the full gate. An empty or unreadable diff runs the full gate too,
+so a filter failure cannot go green by skipping the tests.
+
+The classifier is `tools/ci_path_filter.py`. Cargo caches are
+`Swatinem/rust-cache`, including clippy. pip caches through
+`actions/setup-python`, keyed on `pyproject.toml`.
+
+## Building wheels
+
+Wheels are not built on a push, and there is no weekly schedule. Those
+runs were spending private-repository Actions minutes on five platform
+builds for commits that were never published. macOS and Windows runners
+cost more than Linux, which is why they are opt-in.
+
+To build one: **Actions → wheels → Run workflow**. The default target is
+Linux x86_64, plus an sdist, plus a check that the Linux wheel installs
+with no Rust toolchain. Choose **all** when you are about to publish.
+That adds Linux aarch64, macOS x86_64, macOS aarch64, and Windows x64.
+
+Pushing a version tag `v*.*.*` (for example `v0.1.0`) builds that same
+full set. A tag with a hyphen (`v0.1.0-igem`) skips `legal-clearance`,
+and every wheel job needs that job, so nothing is built. Creating a
+GitHub Release does not start the workflow. Publish from the tag run,
+or dispatch the workflow yourself.
+
+The workflow uploads artifacts. It does not publish to PyPI. Download
+`wheel-*` and `sdist`, then `twine upload` from a machine that has your
+token. The token stays out of the repository. `tools/wheel_targets.py`
+is the platform list; the workflow reads it. Wheel compiles use
+`sccache` through `PyO3/maturin-action`.
+
 ## What a change is expected to carry
 
 **Tests that would fail without it.** The bar here is specifically that a test

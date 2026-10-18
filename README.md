@@ -36,8 +36,9 @@ Python 3.11 or newer is required. One wheel per operating system covers
 ### Install a wheel
 
 Download the wheel for this machine from the GitHub Actions **wheels**
-artifacts on a push to this repository, or from a release once one is
-attached. The artifact names are `wheel-<runner>-<target>` and `sdist`.
+artifacts. A push does not build them. Start the workflow by hand, or
+push a version tag, as described under [Publishing a release](#publishing-a-release).
+The artifact names are `wheel-<runner>-<target>` and `sdist`.
 
 Linux x86_64. `virtualenv` is the bootstrap `make setup` uses. `python3 -m venv` is only the fallback when virtualenv itself cannot be installed, because that module needs `ensurepip`.
 
@@ -96,15 +97,27 @@ python -m dna_design_suite.api
 ### Publishing a release
 
 The wheel workflow uploads artifacts. It does not publish to PyPI and it
-has no PyPI token. To publish, after `python tools/check_release_clearance.py`
-passes:
+has no PyPI token. It does not run on an ordinary push, and it has no
+weekly schedule.
 
-1. Open the **wheels** run for the tag (or `workflow_dispatch`).
+A manual run builds Linux x86_64, an sdist, and an install check. Choose
+`all` when you are about to publish. That adds Linux aarch64, macOS
+x86_64, macOS aarch64, and Windows x64. Pushing a version tag such as
+`v0.1.0` builds that full set. A tag that contains a hyphen
+(`v0.1.0-igem`) skips the legal-clearance job, and the wheel jobs that
+need it are skipped too. Creating a GitHub Release does not start this
+workflow. The tag push does, or run it by hand.
+
+To publish, after `python tools/check_release_clearance.py` passes:
+
+1. Actions → **wheels** → **Run workflow**, and set the target to `all`.
+   Or push a version tag `v*.*.*` and open the run that tag started.
 2. Download every `wheel-*` artifact and the `sdist` artifact.
 3. From a machine that already has a PyPI account and a token you supply
    yourself: `pip install twine` and `twine upload dist/*`.
 
-Do not add the token to the repository or to the workflow.
+Do not add the token to the repository or to the workflow. The platform
+list the workflow reads is `tools/wheel_targets.py`.
 
 ### First run
 
