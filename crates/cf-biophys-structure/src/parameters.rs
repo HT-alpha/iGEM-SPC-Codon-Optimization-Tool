@@ -142,7 +142,7 @@ impl StructureParameters {
                     CfError::new(
                         code::STRU_BAD_PARAMETERS,
                         "structure parameter provenance does not state whether the set is \
-                         redistributable; CodonForge records the claim and never vendors \
+                         redistributable; DNA Design Suite records the claim and never vendors \
                          on the strength of it, but an unstated claim is not a claim",
                     )
                 })?,

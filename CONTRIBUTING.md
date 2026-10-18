@@ -1,8 +1,8 @@
-# Contributing to CodonForge
+# Contributing to DNA Design Suite
 
 ## The two toolchains
 
-CodonForge is a Rust core (`crates/`) exposed to Python (`python/`) through a
+DNA Design Suite is a Rust core (`crates/`) exposed to Python (`python/`) through a
 single PyO3 extension. You need both toolchains: a stable Rust compiler and
 Python 3.11 or later.
 
@@ -32,7 +32,7 @@ afternoon.
 | Directory | Contents |
 | --- | --- |
 | `crates/` | The Rust core, one crate per architectural module |
-| `python/codonforge/` | Ingest, model registry, orchestration, decision, CLI |
+| `python/dna_design_suite/` | Ingest, model registry, orchestration, decision, CLI |
 | `planning/` | The normative planning package: schemas, ADRs, specs, tickets |
 | `schemas/v1/` | Runtime copies of the schemas, synced from `planning/02-schemas/` |
 | `tools/` | Repository invariant checks |

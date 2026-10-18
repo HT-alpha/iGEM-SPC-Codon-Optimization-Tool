@@ -2004,7 +2004,7 @@
           "cumulative_s": 1.777816674
         },
         {
-          "function": "<built-in method codonforge._core.resolve_feasible_seed>",
+          "function": "<built-in method dna_design_suite._core.resolve_feasible_seed>",
           "file": "~",
           "line": 0,
           "calls": 1,
@@ -2096,7 +2096,7 @@
           "cumulative_s": 0.070030333
         },
         {
-          "function": "<built-in method codonforge._core.primer_search>",
+          "function": "<built-in method dna_design_suite._core.primer_search>",
           "file": "~",
           "line": 0,
           "calls": 1,

@@ -101,13 +101,13 @@ An additive term (say `structure.mfe_global` gaining a sibling) bumps none of th
 
 ## 5. Rate limiting and quotas
 
-Design jobs are the expensive resource, so limits are expressed in job-seconds rather than requests: a per-tenant concurrent-job cap and a rolling compute-seconds quota, both returned in `X-CodonForge-Quota-*` headers. Read endpoints get a conventional request-rate limit. Exceeding either returns `429` with `Retry-After` and code `CF-QUOTA-001`.
+Design jobs are the expensive resource, so limits are expressed in job-seconds rather than requests: a per-tenant concurrent-job cap and a rolling compute-seconds quota, both returned in `X-DNA Design Suite-Quota-*` headers. Read endpoints get a conventional request-rate limit. Exceeding either returns `429` with `Retry-After` and code `CF-QUOTA-001`.
 
 ---
 
 ## 6. This build
 
-`DEP-API-001`. The server is the Python standard library. `POST /v1/jobs` takes the library `DesignRequest`. A body whose `input.kind` is `protein`, `construct`, or `single_cds`, or whose `objectives_preset` is not `none`, returns `CF-CLI-003` rather than a translated job. `GET /v1/hosts`, `/v1/models`, `/v1/observations`, `/v1/recalibrations`, `/v1/seeds:import`, and `POST /v1/feasibility` return `CF-CLI-003` with a reason. Feasibility of a finished candidate is `constraint_report.feasible` on the front. `GET /` serves the result page, which renders those documents and does not embed scores. A job id the caller cannot see is `CF-AUTH-003` for both a missing id and another tenant's id.
+`DEP-API-001`. The server is the Python standard library. `POST /v1/jobs` takes the library `DesignRequest`. `DEP-API-002`: hosts are the example codon-usage files on disk; models are the verified Potts file or `{installed: false}`; presets expand to shipped term ids; protein input is reverse-translated with the caller's usage table; construct input is the GenBank CDS in the body; `POST /v1/feasibility` runs the five existing checks. An empty feasibility body is `400`. `POST /v1/seeds:import` stays `CF-CLI-003`. Feasibility of a finished candidate is also `constraint_report.feasible` on the front. `GET /` serves the result page, which renders those documents and does not embed scores. A job id the caller cannot see is `CF-AUTH-003` for both a missing id and another tenant's id.
 
 ## 7. Tests
 

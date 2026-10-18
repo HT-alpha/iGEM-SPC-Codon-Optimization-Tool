@@ -65,7 +65,7 @@ def test_no_forbidden_structure_dependency() -> None:
     distribution satisfies. What still must not happen:
 
     * a **runtime** dependency on a structure engine, which would make
-      CodonForge's wheel assert a relationship with software it does not ship;
+      DNA Design Suite's wheel assert a relationship with software it does not ship;
     * **any** appearance of LinearDesign, whose exclusion is a patent question
       that no licence finding touches;
     * any of them in a **Rust** manifest, which is where vendoring would begin
@@ -133,7 +133,7 @@ def test_the_compiled_extension_is_not_older_than_its_sources() -> None:
     """
     import pathlib
 
-    from codonforge import _core
+    from dna_design_suite import _core
 
     root = pathlib.Path(__file__).resolve().parents[2]
     extension = pathlib.Path(_core.__file__)
@@ -160,7 +160,7 @@ def test_amd_013_no_grammar_intersection_reaches_the_search_layer():
     US 2022/0269951 A1 and EP 4 030 438 A1 both claim, as a required element of
     every independent claim, intersecting a context-free grammar onto a DFA of
     synonymous codon choices and searching the intersected grammar. That element
-    is what CodonForge must not practise; the general idea of optimizing codons
+    is what DNA Design Suite must not practise; the general idea of optimizing codons
     against structure is not what is claimed.
 
     A prohibition that nothing checks is a prohibition that erodes, so this test

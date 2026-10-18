@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Consistency checker for the CodonForge planning package.
+"""Consistency checker for the DNA Design Suite planning package.
 
-This is planning-package tooling, not CodonForge backend code. It exists so that
+This is planning-package tooling, not DNA Design Suite backend code. It exists so that
 a package made of schemas, graphs and cross-referenced documents can be reviewed
 mechanically instead of by eye. It answers, for every check, a question a
 reviewer would otherwise have to answer manually:

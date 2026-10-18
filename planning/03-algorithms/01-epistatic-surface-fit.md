@@ -1,7 +1,7 @@
 # Algorithm (a) — Fitting the Epistatic Surface by Pseudo-Likelihood
 
 Satisfies: `BRIEF-2.3-a`.
-Owning module: `cf-epistasis` (scoring in Rust, fitting in `codonforge.epistasis.train`).
+Owning module: `cf-epistasis` (scoring in Rust, fitting in `dna_design_suite.codon.epistasis.train`).
 Open question resolved here: [ADR-0003](../07-decisions/ADR-0003-epistasis-window-and-order.md) (window size and interaction order).
 Experiments that must run before Phase 3 ships: `EXP-01`, `EXP-02`, `EXP-08`.
 
@@ -52,7 +52,7 @@ F_i(x) = h(x) + Σ    [ J_d(x, c_{i+d}) + J_d(c_{i−d}, x) ]
 
 Standard DCA/Potts normalizes over the full alphabet. **Here the partition function runs over the synonymous set only.** Three consequences follow, and they are the reason this formulation was chosen over a plain codon-pair-bias table or a plain DCA:
 
-1. The model is *directly* a model of the quantity CodonForge manipulates — synonymous codon choice — rather than a model of sequence that must be reinterpreted.
+1. The model is *directly* a model of the quantity DNA Design Suite manipulates — synonymous codon choice — rather than a model of sequence that must be reinterpreted.
 2. The amino-acid sequence is conditioned on rather than modelled, so the parameters transfer across proteins. This is the generalization bet that `RISK-EPI-001` names and `EXP-01` tests.
 3. Amino-acid composition cannot leak into the objective. A model normalized over all 64 codons would assign higher likelihood to sequences rich in common amino acids, which is meaningless when the protein is fixed.
 
@@ -172,7 +172,7 @@ The nuisance covariates `β₁…β₄` exist for the same reason: they are the 
 | Option | Verdict |
 | --- | --- |
 | Fit `ψ` freely | Wastes the (much larger) native-CDS data that constrains `J`. |
-| Force `ψ_d = γ_d · J_d` | Too strong: what is *frequent* in native genes is not identical to what is *fast*, and conflating them re-introduces the codon-usage fallacy CodonForge exists to move past. |
+| Force `ψ_d = γ_d · J_d` | Too strong: what is *frequent* in native genes is not identical to what is *fast*, and conflating them re-introduces the codon-usage fallacy DNA Design Suite exists to move past. |
 | **Empirical-Bayes shrinkage: `ψ_d ~ N(γ_d·J_d, τ_d²)`, with `γ_d, τ_d` fit** | Chosen. Data-poor hosts shrink toward the context model; data-rich hosts pull away from it. `γ_d` is itself an interesting diagnostic — how much "frequent" and "fast" actually agree in this host. |
 
 `EXP-02` measures whether the shrinkage helps on held-out genes versus free fitting; if it does not, the prior is dropped and `ψ` is fit freely.

@@ -2,8 +2,8 @@
 """Copy the demo files a wheel has to serve into the package tree.
 
 ``examples/`` is the copy the README and a source checkout use. An installed
-wheel has no repository around it, so ``codonforge.api`` also looks in
-``python/codonforge/api/examples``. Those bytes are this script's output.
+wheel has no repository around it, so ``dna_design_suite.api`` also looks in
+``python/dna_design_suite/api/examples``. Those bytes are this script's output.
 ``python/tests/test_frontend_entry.py`` refuses a drift between the two.
 """
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "examples"
-DEST = ROOT / "python" / "codonforge" / "api" / "examples"
+DEST = ROOT / "python" / "dna_design_suite" / "api" / "examples"
 NAMES = (
     "biobrick_rfc10.json",
     "golden_gate.json",

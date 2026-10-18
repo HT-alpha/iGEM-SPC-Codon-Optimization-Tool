@@ -70,7 +70,7 @@
       "status": 200,
       "subject": "structure.local_accessibility",
       "title": "A term is scored by the population loop only",
-      "type": "https://codonforge.org/problems/cf-srch-010"
+      "type": "https://dna_design_suite.org/problems/cf-srch-010"
     },
     {
       "code": "CF-SRCH-001",
@@ -80,7 +80,7 @@
       "status": 200,
       "subject": "potts_guided",
       "title": "A specified variation operator is unavailable and the mix was renormalized",
-      "type": "https://codonforge.org/problems/cf-srch-001"
+      "type": "https://dna_design_suite.org/problems/cf-srch-001"
     },
     {
       "code": "CF-SRCH-001",
@@ -90,7 +90,7 @@
       "status": 200,
       "subject": "block_gibbs",
       "title": "A specified variation operator is unavailable and the mix was renormalized",
-      "type": "https://codonforge.org/problems/cf-srch-001"
+      "type": "https://dna_design_suite.org/problems/cf-srch-001"
     },
     {
       "code": "CF-ORCH-007",
@@ -99,7 +99,7 @@
       "status": 200,
       "subject": "mutation",
       "title": "A later stage did not improve on an earlier one",
-      "type": "https://codonforge.org/problems/cf-orch-007"
+      "type": "https://dna_design_suite.org/problems/cf-orch-007"
     }
   ]
 }

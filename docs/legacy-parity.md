@@ -1,4 +1,4 @@
-# Legacy parity: `codon_6.0.py` and the CodonForge constraint checker
+# Legacy parity: `codon_6.0.py` and the DNA Design Suite constraint checker
 
 Ticket `P1-27`. Test: `python/tests/test_p1_27_legacy_differential.py` (`TST-CONS-007`).
 
@@ -114,7 +114,7 @@ check assumes it — but was not stated in the constraint contract. It now is.
 | 3 | Backbone-only repeats unexamined | Reported, non-actionable | **Keep legacy's question**, but report the violation. No confirmation needed — this preserves the legacy outcome. |
 
 Items 1 and 2 change which designs are called feasible, so a construct the
-prototype accepted may be rejected by CodonForge. That is the intended
+prototype accepted may be rejected by DNA Design Suite. That is the intended
 improvement, but it is a behaviour change against the tool this repository
 already ships, and it should be an explicit decision rather than a side effect.
 

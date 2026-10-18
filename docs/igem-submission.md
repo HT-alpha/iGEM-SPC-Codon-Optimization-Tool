@@ -21,7 +21,7 @@ distribution still needs a separate legal review.
 
 ## What it does
 
-CodonForge designs a coding sequence for *Escherichia coli* under explicit
+DNA Design Suite designs a coding sequence for *Escherichia coli* under explicit
 objectives and hard sequence constraints. The search runs tier 1 (exact
 dynamic programming for an additive objective), tier 2 (block coordinate
 ascent), and tier 3 (a multi-objective population). The result is a Pareto
@@ -61,7 +61,7 @@ deviation of zero.
 
 - This v2.4.2 note claims `GATE-BEN-001` only as the CAI-only comparison
   on 48 of 50 proteins. `aceB` (`AGG` at codon 14) and `thrA` (`AGG` at
-  codons 28 and 243) were the exclusions then: CodonForge and the native
+  codons 28 and 243) were the exclusions then: DNA Design Suite and the native
   CDS scored 0, and `cai_greedy` scored 1, including after 20 generations.
   The current `gates.json` claim is in
   [`project-status.md`](project-status.md). The MFE fronts are not the same
@@ -111,13 +111,13 @@ deviation of zero.
 
 ## Install
 
-ViennaRNA is installed by the user. CodonForge does not vendor it.
+ViennaRNA is installed by the user. DNA Design Suite does not vendor it.
 
 ```sh
 pip install ViennaRNA
 # A PyPI wheel is not published for this tag. Install from a checkout
 # (README Quick start), then:
-python -m codonforge.cli.main design \
+python -m dna_design_suite.cli.main design \
     --host escherichia_coli:511145/MG1655 \
     --cds "$(tr -d '\n' < examples/rpsL.cds)" \
     --host-profile examples/mg1655_ribosomal_usage.json \
@@ -178,9 +178,9 @@ the Baldwinian arm for `rpsJ` and `rpsL`. That is not a hypervolume
 separation. The finding at this budget is inconclusive, and Lamarckian
 stays the default.
 
-## PrimerForge
+## Primer design
 
-PrimerForge, added in the DNA Design Suite after the 2026-10-05 sign-off,
+Primer design, added in the DNA Design Suite after the 2026-10-05 sign-off,
 designs primer pairs for a region the user selects on a DNA sequence and
 also checks one pasted pair. Melting temperatures and dimer ΔG use SantaLucia
 1998 Table 2 (`docs/primerforge-validation.md`), as a digested parameter

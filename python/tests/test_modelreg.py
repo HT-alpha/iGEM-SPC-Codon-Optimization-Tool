@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.modelreg import (
+from dna_design_suite.modelreg import (
     ArtifactStore,
     Lockfile,
     Pin,

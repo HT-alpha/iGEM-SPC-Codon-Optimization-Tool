@@ -51,7 +51,7 @@ use std::cell::RefCell;
 
 /// The folding span the structure term declares, in nucleotides.
 ///
-/// Must match `codonforge.orchestrator.structure_diag.SPAN_NT`. Two constants
+/// Must match `dna_design_suite.codon.orchestrator.structure_diag.SPAN_NT`. Two constants
 /// for one quantity is the pattern this project keeps finding, so
 /// `TST-STRU-007` asserts they agree rather than trusting a comment — the Rust
 /// side needs it to declare an interaction radius before any Python has run,
@@ -1192,7 +1192,7 @@ fn stash_escaped_scorer_error(err: pyo3::PyErr) {
     ESCAPED_SCORER_ERROR.with(|slot| *slot.borrow_mut() = Some(err));
 }
 
-/// A scorer that raised. Keep a registered CodonForge code; do not invent one.
+/// A scorer that raised. Keep a registered DNA Design Suite code; do not invent one.
 fn scorer_raised(err: pyo3::PyErr) -> CfError {
     if let Some(coded) = problem_code_from_python(&err) {
         return coded;
@@ -1204,7 +1204,7 @@ fn scorer_raised(err: pyo3::PyErr) -> CfError {
     // `CF-LAND-012`.
     CfError::new(
         code::LAND_BATCH_UNEXPECTED,
-        "the L0 scorer raised an exception that is not a CodonForge problem",
+        "the L0 scorer raised an exception that is not a DNA Design Suite problem",
     )
 }
 

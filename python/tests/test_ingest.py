@@ -17,8 +17,8 @@ import pytest
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from codonforge import _core
-from codonforge.ingest import (
+from dna_design_suite import _core
+from dna_design_suite.ingest import (
     IngestError,
     IngestReport,
     build_host_profile,

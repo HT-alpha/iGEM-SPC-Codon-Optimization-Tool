@@ -1,4 +1,4 @@
-"""The DNA helix (python/codonforge/api/static/helix.js and its stylesheet block).
+"""The DNA helix (python/dna_design_suite/api/static/helix.js and its stylesheet block).
 
 The helix is a frontend-only element, so most of what matters is checked from
 three directions. The numbers it draws must be traceable: the radius and the
@@ -34,11 +34,11 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.api import serve
-from codonforge.modelreg import ArtifactStore
+from dna_design_suite.api import serve
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
-STATIC = ROOT / "python" / "codonforge" / "api" / "static"
+STATIC = ROOT / "python" / "dna_design_suite" / "api" / "static"
 HELIX_JS = STATIC / "helix.js"
 APP_JS = STATIC / "app.js"
 CSS = STATIC / "codonforge-ui.css"

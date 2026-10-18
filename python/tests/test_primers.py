@@ -1,4 +1,4 @@
-"""PrimerForge routes: manual analysis and asynchronous search."""
+"""Primer design routes: manual analysis and asynchronous search."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.api import serve
-from codonforge.modelreg import ArtifactStore
-from codonforge.primers import service
-from codonforge.primers.sequence import clean_template
+from dna_design_suite.api import serve
+from dna_design_suite.modelreg import ArtifactStore
+from dna_design_suite.primer import service
+from dna_design_suite.primer.sequence import clean_template
 
 TENANT = "t_localdev1"
 
@@ -126,7 +126,7 @@ def test_a_stable_gc_dimer_is_refused(base: str) -> None:
 
 
 def test_an_amber_dg_is_flagged_and_not_refused() -> None:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     # The zone function is exercised in Rust. This pair is the published
     # CaPIP hetero-dimer, whose Table 2 ΔG is about −5.8, inside (−9, −4).
@@ -286,11 +286,11 @@ def test_yeej_primer_job_omits_the_amplicon_by_default(base: str) -> None:
     assert len(product) == 6843
     assert len(document) < len(opted)
     # The search document with every amplicon is still 166429 bytes. The HTTP
-    # job that used to return those strings is 169009 bytes. The default GET
-    # is 31980. The timestamp is fixed width, so the lengths do not move
-    # with the clock.
-    assert len(document) == 31980, len(document)
-    assert len(opted) == 169009, len(opted)
+    # job that used to return those strings is 169015 bytes. The default GET
+    # is 31986. The problem-type host is dna_design_suite.org. The timestamp
+    # is fixed width, so the lengths do not move with the clock.
+    assert len(document) == 31986, len(document)
+    assert len(opted) == 169015, len(opted)
 
     pair_id = recommended["pair_id"]
     code, bare = _bytes("GET", f"{base}/v1/primers/{job_id}/pair/{pair_id}")

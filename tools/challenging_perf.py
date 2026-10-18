@@ -127,7 +127,7 @@ def _fasta(path: Path) -> str:
 
 
 def _sequences() -> dict[str, str]:
-    from codonforge.bench.corpus import load_panel, select_genes
+    from dna_design_suite.codon.bench.corpus import load_panel, select_genes
 
     found = {gene["gene"]: gene["cds"] for gene in select_genes(load_panel())}
     validation = ROOT / "benchmarks" / "validation" / "sequences"
@@ -162,9 +162,9 @@ def _rss_kb() -> int:
 
 
 def _run_design(spec: dict) -> dict:
-    from codonforge import _core
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator.design import DesignRequest, design
+    from dna_design_suite import _core
+    from dna_design_suite.codon.orchestrator.design import DesignRequest, design
+    from dna_design_suite.modelreg import ArtifactStore
 
     sequences = _sequences()
     cds = sequences[spec["gene"]]
@@ -248,9 +248,9 @@ def _run_design(spec: dict) -> dict:
 
 
 def _run_operon(spec: dict) -> dict:
-    from codonforge import _core
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator import Cistron, design_operon
+    from dna_design_suite import _core
+    from dna_design_suite.codon.orchestrator import Cistron, design_operon
+    from dna_design_suite.modelreg import ArtifactStore
 
     sequences = _sequences()
     cistrons = [
@@ -290,7 +290,7 @@ def _run_operon(spec: dict) -> dict:
 
 
 def _run_primer(spec: dict) -> dict:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     sequence = _sequences()[spec["gene"]]
     flank = 300

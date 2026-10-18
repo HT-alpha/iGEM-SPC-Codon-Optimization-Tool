@@ -1,11 +1,11 @@
-# CodonForge module dependency graph (machine-readable).
+# DNA Design Suite module dependency graph (machine-readable).
 #
 # This file is the normative source for §2.1's "dependency graph between modules,
 # called out explicitly so circular dependencies are caught at design time".
 # `planning/tools/validate_planning_package.py` asserts that the `depends_on`
 # relation is a DAG and that every declared dependency names a real module.
 #
-# `layer` is the architectural layer from the CodonForge architecture proposal
+# `layer` is the architectural layer from the DNA Design Suite architecture proposal
 # that the module implements ("support" = engineering scaffolding with no
 # corresponding architectural layer).
 #
@@ -20,7 +20,7 @@ schema_version: 1
 runtimes:
   rust-core:
     description: >-
-      Compiled crates linked into the `codonforge._core` extension module
+      Compiled crates linked into the `dna_design_suite._core` extension module
       (PyO3/abi3 wheel). Hot loops, no Python objects, no GIL held.
   python-orchestration:
     description: >-
@@ -134,7 +134,7 @@ modules:
     rank: 1
     layer: support
     runtime: python-orchestration
-    path: python/codonforge/modelreg
+    path: python/dna_design_suite/modelreg
     responsibility: >-
       Model artifact registry: manifests, semantic versions, content digests,
       channels, tenant isolation scopes, the query-time resolution algorithm,
@@ -150,7 +150,7 @@ modules:
     rank: 1
     layer: support
     runtime: python-orchestration
-    path: python/codonforge/testkit
+    path: python/dna_design_suite/testkit
     responsibility: >-
       Synthetic hosts, synthetic Potts surfaces, brute-forceable toy design
       spaces, planted-violation sequence generators, Hypothesis strategies.
@@ -165,7 +165,7 @@ modules:
     rank: 2
     layer: context-ingestion
     runtime: python-orchestration
-    path: python/codonforge/ingest
+    path: python/dna_design_suite/ingest
     responsibility: >-
       FASTA/GenBank parsing to the canonical representation, construct-context
       assembly (multi-cistron layout, RBS/promoter annotation), host reference
@@ -187,7 +187,7 @@ modules:
     responsibility: >-
       Synonymous-restricted Potts context model plus the negative-binomial
       dwell head. Scoring (L1 delta-capable) lives in Rust; the
-      pseudo-likelihood fitter lives in `codonforge.epistasis.train` and is a
+      pseudo-likelihood fitter lives in `dna_design_suite.codon.epistasis.train` and is a
       separate build target that may import `cf-ingest`.
     depends_on: [cf-types, cf-landscape-api]
     public_contract: planning/03-algorithms/01-epistatic-surface-fit.md
@@ -250,7 +250,7 @@ modules:
     rank: 2
     layer: biophysical-predictors
     runtime: python-worker
-    path: python/codonforge/biophys_lm
+    path: python/dna_design_suite/codon/biophys_lm
     responsibility: >-
       Codon language-model naturalness term (CodonTransformer / CodonBERT
       class models). L0-only by default, optional L2 gradients w.r.t. relaxed
@@ -315,7 +315,7 @@ modules:
     rank: 4
     layer: decision-support
     runtime: python-orchestration
-    path: python/codonforge/decision
+    path: python/dna_design_suite/codon/decision
     responsibility: >-
       Pareto front post-processing: probabilistic dominance, robustness
       scoring, front reduction/knee detection, per-position rationale tagging,
@@ -332,7 +332,7 @@ modules:
     rank: 5
     layer: support
     runtime: python-orchestration
-    path: python/codonforge/orchestrator
+    path: python/dna_design_suite/codon/orchestrator
     responsibility: >-
       Job lifecycle, landscape lockfile pinning at submission time, worker
       pool management, checkpoint/resume, provenance recording, budget tier
@@ -350,7 +350,7 @@ modules:
     rank: 5
     layer: active-learning
     runtime: python-orchestration
-    path: python/codonforge/active
+    path: python/dna_design_suite/active
     responsibility: >-
       Wet-lab observation ingestion, validation, tenant dataset append,
       scheduled recalibration jobs, acceptance gating, exploration-arm
@@ -368,12 +368,12 @@ modules:
     rank: 6
     layer: support
     runtime: python-orchestration
-    path: python/codonforge/api
+    path: python/dna_design_suite/api
     responsibility: >-
       REST surface, auth/tenancy, idempotency keys, and the OpenAPI document.
       This build is the standard-library server in `DEP-API-001`, and front
       presentation calls `cf-decision` rather than reducing inside the handler.
-    depends_on: [cf-types, cf-orchestrator, cf-decision, cf-active, cf-modelreg]
+    depends_on: [cf-types, cf-orchestrator, cf-decision, cf-active, cf-modelreg, cf-ingest]
     public_contract: planning/04-api/openapi.yaml
     tests:
       - TST-API-001
@@ -384,9 +384,9 @@ modules:
     rank: 6
     layer: support
     runtime: python-orchestration
-    path: python/codonforge/cli
+    path: python/dna_design_suite/cli
     responsibility: >-
-      `codonforge` command-line entry point. A thin argument-parsing shell
+      `dna-design-suite` command-line entry point. A thin argument-parsing shell
       over `cf-orchestrator`; every CLI verb maps 1:1 to a library call.
     depends_on: [cf-types, cf-orchestrator, cf-active, cf-modelreg]
     public_contract: planning/04-api/02-cli-and-library.md
@@ -397,7 +397,7 @@ modules:
     rank: 6
     layer: support
     runtime: python-orchestration
-    path: python/codonforge/bench
+    path: python/dna_design_suite/codon/bench
     responsibility: >-
       Benchmark harness: reference datasets, baseline adapters, indicator
       computation, threshold gates, and the regression-performance suite.
@@ -434,7 +434,7 @@ avoided_cycles:
     how_broken: >-
       `cf-active` enqueues a recalibration job descriptor into the registry.
       A separate training entry point (a distinct build target per predictor,
-      e.g. `codonforge.epistasis.train`) consumes it. Artifacts are the only
+      e.g. `dna_design_suite.codon.epistasis.train`) consumes it. Artifacts are the only
       shared surface. See planning/04-api/03-active-learning-ingestion.md.
 
   - would_be: cf-decision <-> cf-search

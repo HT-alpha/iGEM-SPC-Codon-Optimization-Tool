@@ -13,12 +13,12 @@ from pathlib import Path
 
 import pytest
 
-from codonforge import _core
-from codonforge.active.observations import ObservationError, accept
-from codonforge.active.outcome import fit_outcome
-from codonforge.api import serve
-from codonforge.modelreg import ArtifactStore
-from codonforge.modelreg.manifest import digest_of
+from dna_design_suite import _core
+from dna_design_suite.active.observations import ObservationError, accept
+from dna_design_suite.active.outcome import fit_outcome
+from dna_design_suite.api import serve
+from dna_design_suite.modelreg import ArtifactStore
+from dna_design_suite.modelreg.manifest import digest_of
 
 TENANT = "t_localdev1"
 OTHER = "t_otherdev1"
@@ -202,11 +202,12 @@ def test_post_and_get_observations_are_tenant_scoped(base: str) -> None:
     assert "coefficients" not in payload["outcome_model"]
 
     second = _explicit("ATGGGGGGG", 4.0, _IDS[1])
-    status, payload = _call("POST", f"{base}/v1/observations", _headers(), second)
+    status, fitted = _call("POST", f"{base}/v1/observations", _headers(), second)
     assert status == 202
-    assert payload["outcome_model"]["state"] == "fitted"
-    assert payload["outcome_model"]["feature"] == "gc_fraction"
-    assert payload["outcome_model"]["n"] == 2
+    assert fitted["outcome_model"]["state"] == "fitted"
+    assert fitted["outcome_model"]["feature"] == "gc_fraction"
+    assert fitted["outcome_model"]["n"] == 2
+    assert fitted["recalibration"]["state"] == "fitted"
 
     status, listed = _call("GET", f"{base}/v1/observations", _headers())
     assert status == 200
@@ -219,9 +220,12 @@ def test_post_and_get_observations_are_tenant_scoped(base: str) -> None:
     assert other["outcome_model"]["state"] == "not_fitted"
 
     status, recal = _call("GET", f"{base}/v1/recalibrations", _headers())
-    assert status == 501
-    assert recal["code"] == "CF-CLI-003"
+    assert status == 200
+    assert recal["recalibrations"]
+    assert recal["recalibrations"][0]["digest"] == fitted["recalibration"]["digest"]
+    assert recal["recalibrations"][0]["model"] == "phase5_ols"
 
     status, hosts = _call("GET", f"{base}/v1/hosts", _headers())
-    assert status == 501
-    assert hosts["code"] == "CF-CLI-003"
+    assert status == 200
+    assert hosts["hosts"]
+    assert all(item["installed"] for item in hosts["hosts"])

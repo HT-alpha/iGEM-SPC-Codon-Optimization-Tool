@@ -15,11 +15,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from codonforge import _core
-from codonforge.bench.baselines import cai_greedy
-from codonforge.bench.corpus import ribosomal_usage
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator.design import DesignRequest, design, score_sequences
+from dna_design_suite import _core
+from dna_design_suite.codon.bench.baselines import cai_greedy
+from dna_design_suite.codon.bench.corpus import ribosomal_usage
+from dna_design_suite.codon.orchestrator.design import DesignRequest, design, score_sequences
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
 

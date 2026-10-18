@@ -11,7 +11,7 @@ The duplication is deliberate and is the point. A canonicalizer that agrees
 with itself proves nothing; the only way to find out whether an implementation
 follows the spec rather than its own habits is to compare it against a
 different one. `python/tests/test_contract_sequence_schema.py` asserts that
-this module and `codonforge._core` agree byte for byte, so a divergence in
+this module and `dna_design_suite._core` agree byte for byte, so a divergence in
 either fails CI.
 
 It is kept dependency-free (stdlib only) so that the planning-package validator

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/job_request.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/job_request.schema.json",
   "title": "DesignJobRequest",
-  "description": "The body of POST /v1/jobs (BRIEF-2.4-a). Also the exact argument object of the library entry point `codonforge.design()`, so REST, CLI and library never diverge.\n\nOBJECTIVES ARE EXPLICIT AND SO ARE CONSTRAINTS. There is no `mode: 'balanced'` shortcut that silently picks an objective set, because a design produced under an unrecorded objective set is not comparable to anything. Presets exist, but a preset expands to an explicit list at submission and the expansion is echoed in the job status.",
+  "description": "The body of POST /v1/jobs (BRIEF-2.4-a). Also the exact argument object of the library entry point `dna_design_suite.design()`, so REST, CLI and library never diverge.\n\nOBJECTIVES ARE EXPLICIT AND SO ARE CONSTRAINTS. There is no `mode: 'balanced'` shortcut that silently picks an objective set, because a design produced under an unrecorded objective set is not comparable to anything. Presets exist, but a preset expands to an explicit list at submission and the expansion is echoed in the job status.",
   "type": "object",
   "properties": {
     "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },

@@ -1,6 +1,6 @@
 # Phase 4 — Systems-Level Joint Search
 
-**What Phase 4 delivers:** multi-cistron design against a shared resource ledger — the capability that distinguishes CodonForge from every per-gene codon optimizer — plus the performance work needed to hit the 15 kb budget.
+**What Phase 4 delivers:** multi-cistron design against a shared resource ledger — the capability that distinguishes DNA Design Suite from every per-gene codon optimizer — plus the performance work needed to hit the 15 kb budget.
 
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |

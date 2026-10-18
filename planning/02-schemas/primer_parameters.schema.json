@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/primer_parameters.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/primer_parameters.schema.json",
   "title": "PrimerParameters",
-  "description": "Nearest-neighbour parameters for primer Tm and two-state dimer/hairpin ΔG.\n\nSame discipline as structure_parameters (DEP-STRU-001): the numbers are a provenance-tracked document with a digest, not constants compiled into the engine. The primer engine reads this document and refuses it when the digest does not match. SantaLucia 1998 Table 2 is the set shipped with PrimerForge; it is a transcription of the open full text, not a table extracted from ViennaRNA or from OligoAnalyzer.",
+  "description": "Nearest-neighbour parameters for primer Tm and two-state dimer/hairpin ΔG.\n\nSame discipline as structure_parameters (DEP-STRU-001): the numbers are a provenance-tracked document with a digest, not constants compiled into the engine. The primer engine reads this document and refuses it when the digest does not match. SantaLucia 1998 Table 2 is the set shipped with Primer design; it is a transcription of the open full text, not a table extracted from ViennaRNA or from OligoAnalyzer.",
   "type": "object",
   "properties": {
     "schema_version": { "$ref": "common.schema.json#/$defs/SchemaVersion" },

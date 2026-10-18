@@ -15,7 +15,7 @@ make lint      # cargo clippy -D warnings, ruff check
 Run a design end to end:
 
 ```sh
-.venv/bin/python -m codonforge.cli.main design \
+.venv/bin/python -m dna_design_suite.cli.main design \
     --host escherichia_coli:511145/BL21 --cds <CDS> \
     --host-profile host.json --constraints constraints.json \
     --objectives usage.cai --seed 20260828 --output explain
@@ -47,7 +47,7 @@ get fixed in the same change, with a `DEP-*` identifier registered in
 `planning/00-scope/04-departure-index.md`.
 
 `crates/` is the Rust core, one crate per module in
-`planning/01-modules/modules.yaml`. `python/codonforge/` is ingest, the model
+`planning/01-modules/modules.yaml`. `python/dna_design_suite/` is ingest, the model
 registry, orchestration, decision and the CLI. `crates/cf-pyext` is the only
 crate allowed to depend on `pyo3` and the only place the boundary is crossed —
 enforced by `check_module_layering.py`.
@@ -127,8 +127,8 @@ The API server has no CLI entry point. From the repo root, after `make build`:
 .venv/bin/python -c '
 from pathlib import Path
 import time
-from codonforge.api import serve
-from codonforge.modelreg import ArtifactStore
+from dna_design_suite.api import serve
+from dna_design_suite.modelreg import ArtifactStore
 serve(ArtifactStore(Path("/tmp/codonforge-artifacts")), port=8765)
 print("http://127.0.0.1:8765/", flush=True)
 while True:
@@ -137,7 +137,7 @@ while True:
 ```
 
 No environment variable is required. Static files are read from
-`python/codonforge/api/static` on each request. A new path is served only after
+`python/dna_design_suite/api/static` on each request. A new path is served only after
 the process restarts, because the route table is built at import.
 
 MCP sign-in does not complete under automation. Authenticating the Adapter

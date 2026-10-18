@@ -13,7 +13,7 @@ An HTML rendering is `DNA-Design-Suite-performance-report-2026-10-17.html`.
 
 ## Executive summary
 
-On a release build (Cargo `opt-level` 3, thin LTO), CodonForge and PrimerForge
+On a release build (Cargo `opt-level` 3, thin LTO), DNA Design Suite and Primer design
 match every published output pin from the v2.9.4 harsh suite: 76 rows, no pin
 failures, and the same CAI values, CDS hashes, primer pairs, ΔG values, operon
 joint costs, and the CAI-only `GATE-BEN-001` claim of 50 of 50. The opt-level 1
@@ -23,7 +23,7 @@ with empty constraints (CAI 1), 2.727 s under the assembly rules (CAI
 0.9727484991594185, of which seed repair is 1.764 s), 4.203 s under the tighter harsh set, and
 4.012 s at budget `standard` with 4 generations, which does not change that
 assembly CDS. CAI plus structure on yeeJ is 3.458 s at the pinned vector
-`[0.9723247970586831, 2.4166863375261896]`. PrimerForge on the 7077 nt yeeJ
+`[0.9723247970586831, 2.4166863375261896]`. Primer design on the 7077 nt yeeJ
 template with 300 nt flanks is 0.052 s and returns the pinned pair
 `TGACCGACAAATATTATG` / `GAACTACAGTGGTTTAAA`, product 6843, ΔG −1.283850000000001.
 A single design stays near 53 MiB RSS. Three API designs serialized by
@@ -116,7 +116,7 @@ Golden Gate and BioBrick are `examples/golden_gate.json` and
 of 2 (`constraint_set_id` `cst_harsh_assembly`). It is a stress set. It is
 not a published feasibility claim.
 
-## CodonForge
+## DNA Design Suite
 
 Budget `fast` with generations 0 runs tier 1 and tier 2. A structure
 objective is L0, so those jobs use 2 generations. Budget `standard` with
@@ -361,7 +361,7 @@ sixth of the design call on yeeJ, after the seed. The profiled wrapper also
 spends 0.211 s in `_sequences` loading the corpus. That cost is the harness,
 measured inside cProfile, and is outside `design()`.
 
-## PrimerForge
+## Primer design
 
 Release harsh suite unless the row says profile. Primer length 18–25 except
 the oligo pools, which request 12–36. Tm target 60 °C. The 40-oligo cap
@@ -435,7 +435,7 @@ refusals the suite requires.
 
 `GATE-BEN-001` is the stored CAI-only claim, then a fresh `run_cai_only`.
 Release: claimed 50 of 50, `codonforge_ge_greedy` 50, `behind_greedy` empty,
-zero genes below the stored CodonForge CAI. Wall 5.985 s, RSS 50332 KiB.
+zero genes below the stored DNA Design Suite CAI. Wall 5.985 s, RSS 50332 KiB.
 Opt-level 1: 6.314 s, same claim. This is the CAI comparison against
 `cai_greedy` on 50 *E. coli* K-12 proteins. It is not an MFE comparison and
 not LinearDesign or CDSfold.
@@ -595,7 +595,7 @@ so the rank is by the outermost cost that a change would have to move.
    0.43 s in the wrapped tier 1 and tier 2 calls. The rest sits in the
    front, including the annotation in item 4.
 
-7. **PrimerForge is small next to seed repair.** The slowest primer row is
+7. **Primer design is small next to seed repair.** The slowest primer row is
    0.080 s (yfhM, lengths 12–36, 13850 windows). Time goes to `tm_prefilter`,
    `rank`, and `dimer`, in that order on the wide pool. The 40-oligo cap
    still stops the survivor list at 1600. Raising it would change which

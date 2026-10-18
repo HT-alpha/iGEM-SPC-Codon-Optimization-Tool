@@ -7,14 +7,14 @@ from pathlib import Path
 import pytest
 from test_orchestrator import CDS, FIVE_PRIME, HOST, THREE_PRIME, host_profile
 
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator import (
+from dna_design_suite.codon.orchestrator import (
     DesignError,
     DesignRequest,
     design,
     local_structure,
     structure_diag,
 )
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -110,7 +110,7 @@ def test_local_structure_is_measured_and_min_codon_frequency_is_not(tmp_path: Pa
     designed = result.front["candidates"][0]["sequences"][0]["cds"]
     rule = constraints["constraints"][0]["rule"]
     measured = local_structure.measure(designed, rule, {})
-    from codonforge.predictors.viennarna import ViennaRNAEngine
+    from dna_design_suite.codon.predictors.viennarna import ViennaRNAEngine
 
     direct = ViennaRNAEngine().local_accessibility(
         designed, window_nt=1, span_nt=1, temperature_c=37.0
@@ -222,7 +222,7 @@ def test_structure_stays_on_its_own_axis_when_burden_is_also_ranked(tmp_path: Pa
 
 
 def test_explain_prints_a_tradeoff_from_the_front(tmp_path: Path) -> None:
-    from codonforge.cli import writers
+    from dna_design_suite.cli import writers
 
     result = design(
         _request(

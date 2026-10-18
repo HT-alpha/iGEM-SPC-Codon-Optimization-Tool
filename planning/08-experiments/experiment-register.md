@@ -174,7 +174,7 @@ Every entry states the question, why planning cannot answer it, the design, the 
 
 **Why planning cannot answer it.** Every other experiment here validates a *component*. This one validates the *thesis*. All the component tests could pass while the thesis fails — for instance if the improvements are real but small relative to variation in expression from RBS context and plasmid copy number.
 
-**Design.** A blinded head-to-head panel: for each of ≥8 target proteins, build and measure (i) the CodonForge full-objective design, (ii) a CAI-maximized design, (iii) a LinearDesign output, (iv) the native/wild-type sequence, (v) a CodonForge design with the epistasis and burden layers *ablated*. Measure expression, growth cost and soluble fraction with adequate replication. Randomize plate positions; blind the assay operator to the design arm.
+**Design.** A blinded head-to-head panel: for each of ≥8 target proteins, build and measure (i) the DNA Design Suite full-objective design, (ii) a CAI-maximized design, (iii) a LinearDesign output, (iv) the native/wild-type sequence, (v) a DNA Design Suite design with the epistasis and burden layers *ablated*. Measure expression, growth cost and soluble fraction with adequate replication. Randomize plate positions; blind the assay operator to the design arm.
 
 **Decision rule.** Pre-register the primary endpoint (soluble active protein per unit growth cost) and a target effect size. Arm (v) — the ablation — is what isolates the new layers' contribution from the rest of the pipeline, and it is what makes the result interpretable rather than merely positive.
 

@@ -123,7 +123,7 @@ def _length_bin(nt: int) -> str:
 
 
 def _valid_cds(header: str, sequence: str) -> dict[str, Any] | None:
-    from codonforge.bench.corpus import _gene, _header_problem
+    from dna_design_suite.codon.bench.corpus import _gene, _header_problem
 
     problem = _header_problem(header, sequence)
     if problem:
@@ -135,7 +135,7 @@ def _valid_cds(header: str, sequence: str) -> dict[str, Any] | None:
         return None
     if sequence[-3:] not in {"TAA", "TAG", "TGA"}:
         return None
-    from codonforge import _core
+    from dna_design_suite import _core
 
     try:
         # from_cds refuses an internal stop. A record that fails that check
@@ -156,7 +156,12 @@ def _valid_cds(header: str, sequence: str) -> dict[str, Any] | None:
 
 
 def load_records() -> list[dict[str, Any]]:
-    from codonforge.bench.corpus import CDS_PATH, iter_cds, load_panel, verify_shipped_cds
+    from dna_design_suite.codon.bench.corpus import (
+        CDS_PATH,
+        iter_cds,
+        load_panel,
+        verify_shipped_cds,
+    )
 
     panel = load_panel()
     verify_shipped_cds(panel)
@@ -390,8 +395,8 @@ def _run_design(payload: dict[str, Any]) -> dict[str, Any]:
     sys.path.insert(0, str(ROOT / "benchmarks" / "validation"))
     import cai_independent
 
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator.design import DesignError, DesignRequest, design
+    from dna_design_suite.codon.orchestrator.design import DesignError, DesignRequest, design
+    from dna_design_suite.modelreg import ArtifactStore
 
     weights = cai_independent.load_ribosomal_weights(Path(payload["weights_path"]))
     profile = {
@@ -403,9 +408,12 @@ def _run_design(payload: dict[str, Any]) -> dict[str, Any]:
             },
         }
     }
-    digest = "sha256:" + hashlib.sha256(
-        json.dumps(profile, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    digest = (
+        "sha256:"
+        + hashlib.sha256(
+            json.dumps(profile, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+    )
     started = time.perf_counter()
     try:
         result = design(
@@ -468,9 +476,7 @@ def _run_design(payload: dict[str, Any]) -> dict[str, Any]:
         "cds": cds,
         "cai": cai["cai"],
         "feasible": bool(report.get("feasible")),
-        "n_actionable": sum(
-            1 for item in report.get("violations") or [] if item.get("actionable")
-        ),
+        "n_actionable": sum(1 for item in report.get("violations") or [] if item.get("actionable")),
         "vector": vector,
         "generations_run": result.job.generations_run,
         "termination": (result.job.tier3 or {}).get("termination") if result.job.tier3 else None,
@@ -514,9 +520,7 @@ def summarize(path: Path) -> dict[str, Any]:
     report: dict[str, Any] = {"n_rows": len(rows), "presets": {}}
     for key, items in sorted(groups.items()):
         walls = [
-            float(item["wall_s"])
-            for item in items
-            if isinstance(item.get("wall_s"), (int, float))
+            float(item["wall_s"]) for item in items if isinstance(item.get("wall_s"), (int, float))
         ]
         ok = [
             item
@@ -673,7 +677,7 @@ def run_corpus(out_dir: Path, presets: list[str] | None, limit: int | None) -> N
     sys.path.insert(0, str(ROOT / "benchmarks" / "validation"))
     import cai_independent
 
-    from codonforge.bench.baselines import cai_greedy
+    from dna_design_suite.codon.bench.baselines import cai_greedy
 
     out_dir.mkdir(parents=True, exist_ok=True)
     sample = load_sample()

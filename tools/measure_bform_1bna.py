@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Measure B-form helix parameters from a PDB coordinate file (1BNA).
 
-The DNA helix in the web UI (python/codonforge/api/static/helix.js) takes two
+The DNA helix in the web UI (python/dna_design_suite/api/static/helix.js) takes two
 numbers the brief does not give: the radius of the phosphate backbone and the
 angular offset between the two strands. This script derives both, plus the
 twist and rise the brief does give, from the coordinates of PDB entry 1BNA

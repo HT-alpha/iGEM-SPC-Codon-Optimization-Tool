@@ -27,18 +27,18 @@ sys.path.insert(0, str(ROOT / "benchmarks" / "validation"))
 
 import cai_independent  # noqa: E402
 
-from codonforge import __version__ as PACKAGE_VERSION  # noqa: E402
-from codonforge import _core  # noqa: E402
-from codonforge.modelreg import ArtifactStore  # noqa: E402
-from codonforge.orchestrator.design import DesignRequest, design, score_sequences  # noqa: E402
-from codonforge.orchestrator.structure_diag import (  # noqa: E402
+from dna_design_suite import __version__ as PACKAGE_VERSION  # noqa: E402
+from dna_design_suite import _core  # noqa: E402
+from dna_design_suite.codon.orchestrator.design import DesignRequest, design, score_sequences  # noqa: E402
+from dna_design_suite.codon.orchestrator.structure_diag import (  # noqa: E402
     SPAN_NT,
     TEMPERATURE_C,
     WINDOW_NT,
 )
-from codonforge.orchestrator.structure_diag import (  # noqa: E402
+from dna_design_suite.codon.orchestrator.structure_diag import (  # noqa: E402
     evaluate as accessibility_evaluate,
 )
+from dna_design_suite.modelreg import ArtifactStore  # noqa: E402
 
 HOST = "escherichia_coli:511145/MG1655"
 TRANSLATION_TABLE = 11

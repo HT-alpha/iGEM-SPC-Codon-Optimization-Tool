@@ -55,7 +55,7 @@ Full detection over a fresh sequence is `O(n)` for everything except `local_stru
 
 `DEP-SRCH-023`: before a seed is feasible, the single-codon GC sweeps can stop while a window is still outside its band, and k-mer repair will not edit until that penalty is gone. rpoC under the assembly set stalled there (five 50 nt windows, 28 repeated 12-mers) even though a synonymous CDS exists. After a cycle that does not lower the progress score, at most four times, one pair of codons inside the first outside window is tried. The pair is kept when the offender count falls and pattern hits do not rise. K-mer excess may rise; the next cycle repairs it. A seed that is already feasible never takes this branch. The in-loop operator is unchanged.
 
-`DEP-SRCH-024`: the four pairs above only edit the middle of the first outside window, so a conflict that sits on the edge of that window, or on a repeated word elsewhere, can still stall. After those attempts leave the seed infeasible, at most four further pair edits are tried. The sites are a spread of up to eight codons across the whole stuck window, including both edges, plus up to eight codons that overlap an over-limit k-mer, and the combined list is capped at twelve. A pair is kept only when the packed progress score falls and pattern hits do not rise. A feasible seed never takes the branch. The in-loop operator is unchanged.
+`DEP-SRCH-026`: the four pairs above only edit the middle of the first outside window, so a conflict that sits on the edge of that window, or on a repeated word elsewhere, can still stall. After those attempts leave the seed infeasible, at most four further pair edits are tried. The sites are a spread of up to eight codons across the whole stuck window, including both edges, plus up to eight codons that overlap an over-limit k-mer, and the combined list is capped at twelve. A pair is kept only when the packed progress score falls and pattern hits do not rise. A feasible seed never takes the branch. The in-loop operator is unchanged.
 
 **Overlapping counting is the default** for `kmer_repeat`, matching `count_overlapping()` in the existing `codon_6.0.py` prototype. Python's `str.count` is non-overlapping and undercounts tandem repeats, which are exactly the structures a synthesis vendor rejects. The schema exposes `count_overlapping` so the semantics are explicit rather than inherited by accident.
 
@@ -188,7 +188,7 @@ The ledger is per-run, shared across the population, and decays on a generation 
 
 ## 5. Feasibility analysis before the search starts
 
-The existing prototype's failure mode is instructive: after exhausting 1 000 restarts it prints `Error: Exceeded max restarts (1000) without finding a solution.` and stops. The user learns nothing about *why*, or which constraint to relax. CodonForge runs a feasibility analysis at submission and returns a specific, actionable diagnosis instead.
+The existing prototype's failure mode is instructive: after exhausting 1 000 restarts it prints `Error: Exceeded max restarts (1000) without finding a solution.` and stops. The user learns nothing about *why*, or which constraint to relax. DNA Design Suite runs a feasibility analysis at submission and returns a specific, actionable diagnosis instead.
 
 ```
 ANALYSE_FEASIBILITY(protein, flanks, C) -> FeasibilityReport

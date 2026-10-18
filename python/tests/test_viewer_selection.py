@@ -1,4 +1,4 @@
-"""Drag selection in the PrimerForge sequence viewer.
+"""Drag selection in the Primer design sequence viewer.
 
 Chrome retargets pointermove to the element that called setPointerCapture.
 The viewer does that, so event.target during a drag is the viewer and not the
@@ -22,12 +22,12 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.api import serve
-from codonforge.modelreg import ArtifactStore
+from dna_design_suite.api import serve
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
-VIEWER_JS = ROOT / "python" / "codonforge" / "api" / "static" / "viewer.js"
-APP_JS = ROOT / "python" / "codonforge" / "api" / "static" / "app.js"
+VIEWER_JS = ROOT / "python" / "dna_design_suite" / "api" / "static" / "viewer.js"
+APP_JS = ROOT / "python" / "dna_design_suite" / "api" / "static" / "app.js"
 NODE = shutil.which("node")
 
 STUB = r"""

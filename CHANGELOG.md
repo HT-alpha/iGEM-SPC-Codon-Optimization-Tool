@@ -7,10 +7,10 @@ of v2.9.2.
 
 Seed repair that is still infeasible after the middle-of-window GC pairs now
 tries at most four pair edits spread across the whole stuck window and the
-over-limit k-mers (`DEP-SRCH-024`). A pair is kept only when the packed
+over-limit k-mers (`DEP-SRCH-026`). A pair is kept only when the packed
 progress score falls and pattern hits do not rise. A seed that is already
 feasible never takes the branch. Tier 3 stops when the non-dominated front
-is unchanged for the caller's stagnation window (`DEP-SRCH-025`). Hypervolume
+is unchanged for the caller's stagnation window (`DEP-SRCH-027`). Hypervolume
 stagnation is checked first, and the front fingerprint travels in the
 checkpoint. A job also enforces the published wall, scaled by CDS length
 between the 2 kb and 15 kb anchors, and an 8 GiB resident cap
@@ -86,7 +86,7 @@ codon-sized probe: `repair` 0.746 s; `l0_batch` 0.658 s; wall 3.060 s. Before
 the seed-resolution change above, that vector was
 `[0.9575892496987667, 2.408954059933615]`, with 1 full fold, 21 local edits,
 12 hits. The same job on this tree is
-`[0.9723247970586831, 2.4166863375261896]`, 1 full fold, 18 local edits,
+`[0.9723247970586831, 2.4166863375261896]`, 1 full fold, 11 local edits,
 12 hits. The v2.9.2 note's 3.202 s tier 3 was
 `opt-level = 1`, which is what `make build` produces. These two numbers are
 the release profile, measured the same way on both sides. Merged with
@@ -106,7 +106,7 @@ product 6843, ΔG −1.283850000000001.
 ## v2.9.2
 
 DNA Design Suite note for this tree. The package version stays 0.1.0.
-`python -m codonforge.cli.main --version` prints 0.1.0. The profile and the
+`python -m dna_design_suite.cli.main --version` prints 0.1.0. The profile and the
 ranked backlog are `docs/benchmarks/v2.9.2-profiles.md`.
 
 Seed repair under the assembly rules was scanning the whole CDS, including a
@@ -126,13 +126,13 @@ The 300 nt CDS-flank document is the same bytes.
 
 ## v2.9.1
 
-DNA Design Suite note for this tree: CodonForge and PrimerForge share one
+DNA Design Suite note for this tree: DNA Design Suite and Primer design share one
 page. The three measured changes are the CAI-only gate, the structure fold
 cache, and the operon ledger. The numbers are in
 `docs/benchmarks/v2.9.1-validation.md` and
 `docs/benchmarks/v2.9.1-challenging-perf.md`. A pasteable tag note is
 `docs/release-v2.9.1.md`. The package version stays 0.1.0.
-`python -m codonforge.cli.main --version` prints 0.1.0.
+`python -m dna_design_suite.cli.main --version` prints 0.1.0.
 
 Search on `usage.cai` no longer treats a zero-weight codon as a flat
 landscape. When the incumbent has any counted weight of 0, tiers 1 and 2
@@ -185,7 +185,7 @@ Recalibration is not scheduled. `GET /v1/recalibrations` stays `CF-CLI-003`.
 `DEP-ACT-003`.
 
 The package version stays 0.1.0.
-`python -m codonforge.cli.main --version` prints 0.1.0.
+`python -m dna_design_suite.cli.main --version` prints 0.1.0.
 
 ## v2.8.0
 
@@ -229,7 +229,7 @@ The interaction radius is `Codons(10)`. The job sets `tier2_block` to
 `max(8, window)`. `P1-26` stays held. `DEP-LAND-005`.
 
 The package version stays 0.1.0.
-`python -m codonforge.cli.main --version` prints 0.1.0.
+`python -m dna_design_suite.cli.main --version` prints 0.1.0.
 
 ## v2.6.0
 
@@ -273,7 +273,7 @@ BBa_E0040_onestop, waaS, and the elastin-like repeat are in
 `docs/benchmarks/v2.6.0-phase2.md`.
 
 The package version stays 0.1.0.
-`python -m codonforge.cli.main --version` prints 0.1.0.
+`python -m dna_design_suite.cli.main --version` prints 0.1.0.
 
 ## v2.5.1
 
@@ -295,7 +295,7 @@ codon whose weight is 0. Presets for BioBrick RFC[10], Golden Gate, and a
 general synthesis rule set are on the page. `examples/rpsL_constraints.json`
 is named as a set that checks nothing.
 
-PrimerForge strips a FASTA header the same way on the page and the API,
+Primer design strips a FASTA header the same way on the page and the API,
 accepts lowercase by uppercasing it, and names an illegal base with its
 position. The 3′ GC clamp is labelled informational. Self-dimer and
 heterodimer ΔG stay on SantaLucia 1998 Table 2 without dangling ends, which
@@ -304,14 +304,14 @@ is not primer3's number.
 The page can trim a registry CDS at the first standard-code stop. Untrimmed
 BBa_E0040 still exits 2 with `CF-SEQ-003` when that box is off.
 
-`python -m codonforge.cli.main` no longer prints a `RuntimeWarning`.
+`python -m dna_design_suite.cli.main` no longer prints a `RuntimeWarning`.
 
 ## v2.5.0
 
 The DNA Design Suite page is a guided form for people who are not
 programmers. The API routes are the same ones as v2.4.2.
 
-CodonForge asks for a coding sequence (paste or FASTA upload), a host, a
+DNA Design Suite asks for a coding sequence (paste or FASTA upload), a host, a
 codon-usage table, optional constraints, and objectives, then runs. The
 bundled `examples/mg1655_ribosomal_usage.json` is a button, and it loads on
 its own when the page opens. The rpsL demo fills the CDS, that table, and
@@ -327,11 +327,11 @@ word UNKNOWN. FASTA, GenBank, and CSV are downloaded from that document.
 `CF-*` refusals, including Phase 1 routes that answer `CF-CLI-003`, name a
 next step instead of leaving the reader with the JSON alone.
 
-PrimerForge is the other tab. A region can be dragged, typed as a start and
+Primer design is the other tab. A region can be dragged, typed as a start and
 end, or set to the whole sequence. The same helix, tokens, and typefaces are
 used on both tabs.
 
-The page is started with `python -m codonforge.api`. It binds port 8000,
+The page is started with `python -m dna_design_suite.api`. It binds port 8000,
 opens a browser, and blocks until Ctrl+C. README has the PowerShell command
 as well as the macOS and Linux one.
 
@@ -354,7 +354,7 @@ wins by construction on that flat objective. The two proteins are
 the claim.
 
 `check_cai_gate` refuses a claim that covers a protein whose recorded
-CodonForge score is below `cai_greedy`. `tools/gate_controls.sh` writes an
+DNA Design Suite score is below `cai_greedy`. `tools/gate_controls.sh` writes an
 all-50 claim into `gates.json` and requires that refusal.
 
 The canonical status note is `docs/project-status.md`.
@@ -370,10 +370,10 @@ to be present; omitting the zero-count codons makes that test fail.
 The CAI-only `GATE-BEN-001` comparison was run again with that table. The 50
 scores are the same as v2.4.0. `claimed` stays false.
 
-- `aceB` (`NP_418438.1`): `AGG` at codon 14. Native CAI 0, CodonForge 0,
+- `aceB` (`NP_418438.1`): `AGG` at codon 14. Native CAI 0, DNA Design Suite 0,
   `cai_greedy` 1.
 - `thrA` (`NP_414543.1`): `AGG` at codons 28 and 243. Native CAI 0,
-  CodonForge 0, `cai_greedy` 1.
+  DNA Design Suite 0, `cai_greedy` 1.
 
 `usage.cai` is 0 while any counted codon has weight 0. The 4-generation
 search did not remove those codons. `cai_greedy` replaces each codon with
@@ -407,7 +407,7 @@ No new fitted model and no change to the repair default.
   included: its interior motif is `CF-SRCH-006`, the same refusal as `rplL`.
 - `GATE-BEN-001` (`DEP-BEN-003`) is a CAI-only comparison of 50 proteins.
   `claimed` is false. `aceB` and `thrA` contain `AGG`, missing from the
-  ribosomal-protein weight table, so CodonForge and the native CDS score 0
+  ribosomal-protein weight table, so DNA Design Suite and the native CDS score 0
   and `cai_greedy` scores 1. The other 48 are at least the greedy value.
   CDSfold, RNAplfold and LinearDesign were not added.
 
@@ -416,7 +416,7 @@ remain held. Clearance is unchanged.
 
 ## v2.3.1
 
-The PrimerForge sequence viewer selects the dragged region again.
+The Primer design sequence viewer selects the dragged region again.
 
 In Chrome, `setPointerCapture` on the viewer retargets `pointermove` to the
 viewer, so `event.target` is no longer the nucleotide and `indexAt` ignored
@@ -469,14 +469,14 @@ file list so it can be fetched.
   helix's keyframes and rules add 10 kB to the shared stylesheet.
 - `python/tests/test_helix.py` has 18 tests, and `tools/helix_controls.sh` injects
   24 defects, one per property they guard; all 24 are caught.
-- `app.js` is now loaded as a module. PrimerForge's poll loop gains the same
-  `catch` the CodonForge one has, so a network failure there ends in the error
+- `app.js` is now loaded as a module. Primer design's poll loop gains the same
+  `catch` the DNA Design Suite one has, so a network failure there ends in the error
   state and a message instead of an unhandled rejection.
 - Unchanged: every disclosure on both tabs, the tab colours, the typography, the
   spacing, the Pareto table. The helix takes its place in the page flow above
   the placeholder notes.
 
-Found while testing and not changed: dragging across the PrimerForge sequence
+Found while testing and not changed: dragging across the Primer design sequence
 viewer selects one nucleotide in Chrome, because `setPointerCapture` retargets
 `pointermove` to the viewer and `indexAt()` then finds no `[data-index]`. It
 does the same on v2.2.0.
@@ -516,7 +516,7 @@ New in this tag:
 - The dwell head is not fitted. GSE53767 states no 5′-end A-site offset.
   `GET /v1/calibration` returns `dwell.state: not_fitted`.
 - `GATE-BEN-001` stays unclaimed: global MFE is not windowed accessibility.
-- PrimerForge added no landscape term. The tier-2 block is unchanged, and
+- Primer design added no landscape term. The tier-2 block is unchanged, and
   `P1-26` stays held.
 
 Still not claimed:
@@ -541,7 +541,7 @@ Still not claimed:
   `sha256:f03c0e882509ec34d8ad0fc327759dabc9b67cdf803a8892bdaeabf475a60bb3`.
 - `actions/checkout@v5` and `actions/setup-python@v6` replace the Node 20
   majors. Wheel upload and download use Node 24 majors as well.
-- PrimerForge polls primer tiers, drags a live selection, links a hovered
+- Primer design polls primer tiers, drags a live selection, links a hovered
   pair to its binding sites, slides the detail panel in, recolours
   threshold chips from the values already on the pair, and names the
   filter that removed the most candidates on `CF-PRIM-001`.
@@ -558,8 +558,8 @@ Still not claimed:
 
 ## v2.0.0
 
-The page is the DNA Design Suite. CodonForge remains the codon-optimization
-tool. PrimerForge is the new primer-design tab.
+The page is the DNA Design Suite. DNA Design Suite remains the codon-optimization
+tool. Primer design is the new primer-design tab.
 
 New since v1.1.0:
 

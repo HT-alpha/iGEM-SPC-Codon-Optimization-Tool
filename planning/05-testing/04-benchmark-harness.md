@@ -42,10 +42,10 @@ Each dataset has a manifest with a content digest and per-record provenance. A b
 
 The comparison `BRIEF-2.5` names explicitly, and the one most likely to be read adversarially. Design choices that make it fair in both directions:
 
-- **Restrict CodonForge to two objectives** (`structure.mfe_global`, `usage.cai`). Comparing a 5-objective front against a 2-objective one on 2 axes is not a comparison.
+- **Restrict DNA Design Suite to two objectives** (`structure.mfe_global`, `usage.cai`). Comparing a 5-objective front against a 2-objective one on 2 axes is not a comparison.
 - **Sweep the competitor's trade-off parameter.** LinearDesign's `λ` traces its own frontier; comparing against a single `λ` point is a straw man. The sweep is recorded in `SeedSet.seeds[].source.parameters`.
 - **Score both sides with the same code**, via seed import and `/v1/score`.
-- **Report constraint feasibility alongside** (`GATE-BEN-002`). Competitor tools frequently violate the user's assembly constraints, and an MFE/CAI comparison that ignores feasibility flatters CodonForge unfairly in one direction and the competitors unfairly in the other. Both numbers are published.
+- **Report constraint feasibility alongside** (`GATE-BEN-002`). Competitor tools frequently violate the user's assembly constraints, and an MFE/CAI comparison that ignores feasibility flatters DNA Design Suite unfairly in one direction and the competitors unfairly in the other. Both numbers are published.
 - **Use the same folding engine for both sides**, recorded in the lockfile. A ViennaRNA MFE and a native-kernel MFE are not the same number, and a benchmark that mixes them is measuring the engine.
 
 Threshold: `GATE-BEN-001`.

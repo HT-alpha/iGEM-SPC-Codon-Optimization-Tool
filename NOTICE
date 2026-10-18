@@ -1,5 +1,5 @@
-CodonForge
-Copyright (c) the CodonForge contributors.
+DNA Design Suite
+Copyright (c) the DNA Design Suite contributors.
 
 Licensed under the Apache License, Version 2.0. See LICENSE.
 
@@ -7,7 +7,7 @@ Licensed under the Apache License, Version 2.0. See LICENSE.
 Third-party attribution
 ================================================================================
 
-CodonForge does not bundle, vendor, or redistribute any of the software named
+DNA Design Suite does not bundle, vendor, or redistribute any of the software named
 below. Each is an optional backend that the user installs themselves, detected
 at runtime behind the StructureEngine seam. The credits here are given because
 the licences require credit from anyone who uses the software, and because the
@@ -47,21 +47,21 @@ distribution) states:
     Note that the file ./src/ViennaRNA/plotting/naview.c has its own copyright
     attached.
 
-Two consequences CodonForge holds itself to:
+Two consequences DNA Design Suite holds itself to:
 
-  * Condition 1 is satisfied by construction. CodonForge is distributed free of
+  * Condition 1 is satisfied by construction. DNA Design Suite is distributed free of
     charge and does not redistribute ViennaRNA at all - the user installs it -
     so no fee attaches to any copy of the package or to a derived work. If
-    CodonForge is ever distributed for a fee, this arrangement must be
+    DNA Design Suite is ever distributed for a fee, this arrangement must be
     re-examined before that release ships.
 
-  * The naview.c carve-out does not apply while CodonForge only depends on
+  * The naview.c carve-out does not apply while DNA Design Suite only depends on
     ViennaRNA. It would apply immediately to anyone proposing to vendor
     ViennaRNA source into this repository, and such a proposal needs its own
     licence check before proceeding.
 
 ViennaRNA's bundled thermodynamic parameter files (misc/*.par) carry no licence
-header of their own. CodonForge does not redistribute them either: ViennaRNA
+header of their own. DNA Design Suite does not redistribute them either: ViennaRNA
 loads its own tables. Any proposal to bundle or redistribute those files
 directly reopens a question this project has not resolved and must not assume.
 
@@ -103,7 +103,7 @@ required element of every independent claim, intersecting a context-free grammar
 with a deterministic finite automaton over synonymous codon choices and
 searching the result.
 
-CodonForge contains no context-free grammar. That exclusion is enforced by a
+DNA Design Suite contains no context-free grammar. That exclusion is enforced by a
 test rather than by intention alone - see
 test_amd_013_no_grammar_intersection_reaches_the_search_layer.
 

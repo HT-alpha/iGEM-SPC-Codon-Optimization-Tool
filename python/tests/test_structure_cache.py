@@ -26,14 +26,14 @@ import random
 
 import pytest
 
-from codonforge.orchestrator.structure_diag import FoldSession
-from codonforge.predictors import (
+from dna_design_suite.codon.orchestrator.structure_diag import FoldSession
+from dna_design_suite.codon.predictors import (
     StructureEngineError,
     available_engines,
     select_engine,
 )
-from codonforge.predictors.cache import AccessibilityCache
-from codonforge.predictors.viennarna import accessibility_penalty
+from dna_design_suite.codon.predictors.cache import AccessibilityCache
+from dna_design_suite.codon.predictors.viennarna import accessibility_penalty
 
 _ENGINE_PRESENT = "viennarna" in available_engines()
 

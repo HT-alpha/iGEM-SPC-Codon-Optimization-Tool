@@ -1421,7 +1421,7 @@
         },
         {
           "function": "design",
-          "file": "/workspace/python/codonforge/orchestrator/design.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/design.py",
           "line": 183,
           "calls": 1,
           "cumulative_s": 1.203263326
@@ -1435,63 +1435,63 @@
         },
         {
           "function": "run",
-          "file": "/workspace/python/codonforge/orchestrator/job.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/job.py",
           "line": 267,
           "calls": 1,
           "cumulative_s": 0.7021681790000001
         },
         {
           "function": "_run_seeding_tiers",
-          "file": "/workspace/python/codonforge/orchestrator/job.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/job.py",
           "line": 702,
           "calls": 1,
           "cumulative_s": 0.702107911
         },
         {
           "function": "_front",
-          "file": "/workspace/python/codonforge/orchestrator/design.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/design.py",
           "line": 449,
           "calls": 1,
           "cumulative_s": 0.496376741
         },
         {
           "function": "annotate",
-          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py",
           "line": 232,
           "calls": 1,
           "cumulative_s": 0.48672517200000004
         },
         {
           "function": "evaluate",
-          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py",
           "line": 165,
           "calls": 1,
           "cumulative_s": 0.474603728
         },
         {
           "function": "evaluate",
-          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py",
           "line": 97,
           "calls": 1,
           "cumulative_s": 0.47459348100000004
         },
         {
           "function": "_one",
-          "file": "/workspace/python/codonforge/orchestrator/structure_diag.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py",
           "line": 138,
           "calls": 1,
           "cumulative_s": 0.47458121500000006
         },
         {
           "function": "prime",
-          "file": "/workspace/python/codonforge/predictors/cache.py",
+          "file": "/workspace/python/dna_design_suite/codon/predictors/cache.py",
           "line": 83,
           "calls": 1,
           "cumulative_s": 0.471040495
         },
         {
           "function": "local_accessibility",
-          "file": "/workspace/python/codonforge/predictors/viennarna.py",
+          "file": "/workspace/python/dna_design_suite/codon/predictors/viennarna.py",
           "line": 80,
           "calls": 1,
           "cumulative_s": 0.470756359
@@ -1511,7 +1511,7 @@
           "cumulative_s": 0.46814446400000004
         },
         {
-          "function": "<built-in method codonforge._core.search_tier2_polish>",
+          "function": "<built-in method dna_design_suite._core.search_tier2_polish>",
           "file": "~",
           "line": 0,
           "calls": 1,
@@ -1519,13 +1519,13 @@
         },
         {
           "function": "_repair_seed",
-          "file": "/workspace/python/codonforge/orchestrator/job.py",
+          "file": "/workspace/python/dna_design_suite/codon/orchestrator/job.py",
           "line": 788,
           "calls": 1,
           "cumulative_s": 0.23162807600000002
         },
         {
-          "function": "<built-in method codonforge._core.resolve_feasible_seed>",
+          "function": "<built-in method dna_design_suite._core.resolve_feasible_seed>",
           "file": "~",
           "line": 0,
           "calls": 1,
@@ -1540,20 +1540,20 @@
         },
         {
           "function": "select_genes",
-          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "file": "/workspace/python/dna_design_suite/codon/bench/corpus.py",
           "line": 168,
           "calls": 1,
           "cumulative_s": 0.178333807
         },
         {
           "function": "iter_cds",
-          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "file": "/workspace/python/dna_design_suite/codon/bench/corpus.py",
           "line": 84,
           "calls": 8282,
           "cumulative_s": 0.163420265
         },
         {
-          "function": "<built-in method codonforge._core.search_tier1_seed>",
+          "function": "<built-in method dna_design_suite._core.search_tier1_seed>",
           "file": "~",
           "line": 0,
           "calls": 1,
@@ -1561,14 +1561,14 @@
         },
         {
           "function": "verify_shipped_cds",
-          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "file": "/workspace/python/dna_design_suite/codon/bench/corpus.py",
           "line": 57,
           "calls": 1,
           "cumulative_s": 0.093041488
         },
         {
           "function": "_selected_cds_sha256",
-          "file": "/workspace/python/codonforge/bench/corpus.py",
+          "file": "/workspace/python/dna_design_suite/codon/bench/corpus.py",
           "line": 146,
           "calls": 1,
           "cumulative_s": 0.091473941
@@ -1588,7 +1588,7 @@
           "cumulative_s": 0.072808307
         }
       ],
-      "text": "         633478 function calls (630181 primitive calls) in 1.443 seconds\n\n   Ordered by: cumulative time\n   List reduced from 846 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    1.443    1.443 /workspace/tools/profile_suite.py:121(_design)\n        1    0.000    0.000    1.203    1.203 /workspace/python/codonforge/orchestrator/design.py:183(design)\n       14    0.000    0.000    0.704    0.050 /workspace/tools/profile_suite.py:94(inner)\n        1    0.000    0.000    0.702    0.702 /workspace/python/codonforge/orchestrator/job.py:267(run)\n        1    0.000    0.000    0.702    0.702 /workspace/python/codonforge/orchestrator/job.py:702(_run_seeding_tiers)\n        1    0.000    0.000    0.496    0.496 /workspace/python/codonforge/orchestrator/design.py:449(_front)\n        1    0.000    0.000    0.487    0.487 /workspace/python/codonforge/orchestrator/structure_diag.py:232(annotate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/codonforge/orchestrator/structure_diag.py:165(evaluate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/codonforge/orchestrator/structure_diag.py:97(evaluate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/codonforge/orchestrator/structure_diag.py:138(_one)\n        1    0.000    0.000    0.471    0.471 /workspace/python/codonforge/predictors/cache.py:83(prime)\n        1    0.001    0.001    0.471    0.471 /workspace/python/codonforge/predictors/viennarna.py:80(local_accessibility)\n        1    0.001    0.001    0.469    0.469 /workspace/.venv/lib/python3.12/site-packages/RNA/RNA.py:9952(pfl_fold_up)\n        1    0.468    0.468    0.468    0.468 {built-in method RNA._RNA.pfl_fold_up}\n        1    0.312    0.312    0.312    0.312 {built-in method codonforge._core.search_tier2_polish}\n        1    0.000    0.000    0.232    0.232 /workspace/python/codonforge/orchestrator/job.py:788(_repair_seed)\n        1    0.228    0.228    0.228    0.228 {built-in method codonforge._core.resolve_feasible_seed}\n        1    0.000    0.000    0.219    0.219 /workspace/tools/profile_suite.py:56(_sequences)\n        1    0.003    0.003    0.178    0.178 /workspace/python/codonforge/bench/corpus.py:168(select_genes)\n     8282    0.069    0.000    0.163    0.000 /workspace/python/codonforge/bench/corpus.py:84(iter_cds)\n        1    0.149    0.149    0.149    0.149 {built-in method codonforge._core.search_tier1_seed}\n        1    0.000    0.000    0.093    0.093 /workspace/python/codonforge/bench/corpus.py:57(verify_shipped_cds)\n        1    0.003    0.003    0.091    0.091 /workspace/python/codonforge/bench/corpus.py:146(_selected_cds_sha256)\n     69/7    0.000    0.000    0.073    0.010 <frozen importlib._bootstrap>:1349(_find_and_load)\n     69/7    0.000    0.000    0.073    0.010 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)\n\n\n",
+      "text": "         633478 function calls (630181 primitive calls) in 1.443 seconds\n\n   Ordered by: cumulative time\n   List reduced from 846 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    1.443    1.443 /workspace/tools/profile_suite.py:121(_design)\n        1    0.000    0.000    1.203    1.203 /workspace/python/dna_design_suite/codon/orchestrator/design.py:183(design)\n       14    0.000    0.000    0.704    0.050 /workspace/tools/profile_suite.py:94(inner)\n        1    0.000    0.000    0.702    0.702 /workspace/python/dna_design_suite/codon/orchestrator/job.py:267(run)\n        1    0.000    0.000    0.702    0.702 /workspace/python/dna_design_suite/codon/orchestrator/job.py:702(_run_seeding_tiers)\n        1    0.000    0.000    0.496    0.496 /workspace/python/dna_design_suite/codon/orchestrator/design.py:449(_front)\n        1    0.000    0.000    0.487    0.487 /workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py:232(annotate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py:165(evaluate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py:97(evaluate)\n        1    0.000    0.000    0.475    0.475 /workspace/python/dna_design_suite/codon/orchestrator/structure_diag.py:138(_one)\n        1    0.000    0.000    0.471    0.471 /workspace/python/dna_design_suite/codon/predictors/cache.py:83(prime)\n        1    0.001    0.001    0.471    0.471 /workspace/python/dna_design_suite/codon/predictors/viennarna.py:80(local_accessibility)\n        1    0.001    0.001    0.469    0.469 /workspace/.venv/lib/python3.12/site-packages/RNA/RNA.py:9952(pfl_fold_up)\n        1    0.468    0.468    0.468    0.468 {built-in method RNA._RNA.pfl_fold_up}\n        1    0.312    0.312    0.312    0.312 {built-in method dna_design_suite._core.search_tier2_polish}\n        1    0.000    0.000    0.232    0.232 /workspace/python/dna_design_suite/codon/orchestrator/job.py:788(_repair_seed)\n        1    0.228    0.228    0.228    0.228 {built-in method dna_design_suite._core.resolve_feasible_seed}\n        1    0.000    0.000    0.219    0.219 /workspace/tools/profile_suite.py:56(_sequences)\n        1    0.003    0.003    0.178    0.178 /workspace/python/dna_design_suite/codon/bench/corpus.py:168(select_genes)\n     8282    0.069    0.000    0.163    0.000 /workspace/python/dna_design_suite/codon/bench/corpus.py:84(iter_cds)\n        1    0.149    0.149    0.149    0.149 {built-in method dna_design_suite._core.search_tier1_seed}\n        1    0.000    0.000    0.093    0.093 /workspace/python/dna_design_suite/codon/bench/corpus.py:57(verify_shipped_cds)\n        1    0.003    0.003    0.091    0.091 /workspace/python/dna_design_suite/codon/bench/corpus.py:146(_selected_cds_sha256)\n     69/7    0.000    0.000    0.073    0.010 <frozen importlib._bootstrap>:1349(_find_and_load)\n     69/7    0.000    0.000    0.073    0.010 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)\n\n\n",
       "state": "succeeded",
       "name": "yeeJ-assembly",
       "suite": "cprofile"
@@ -1618,7 +1618,7 @@
           "cumulative_s": 0.063450859
         },
         {
-          "function": "<built-in method codonforge._core.primer_search>",
+          "function": "<built-in method dna_design_suite._core.primer_search>",
           "file": "~",
           "line": 0,
           "calls": 1,
@@ -1786,7 +1786,7 @@
           "cumulative_s": 3.65e-07
         }
       ],
-      "text": "         84 function calls in 0.063 seconds\n\n   Ordered by: cumulative time\n   List reduced from 26 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.063    0.063 /workspace/tools/profile_suite.py:207(_primer)\n        1    0.063    0.063    0.063    0.063 {built-in method codonforge._core.primer_search}\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/__init__.py:299(loads)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/decoder.py:332(decode)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/decoder.py:343(raw_decode)\n        2    0.000    0.000    0.000    0.000 {method 'encode' of 'str' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method _hashlib.openssl_sha256}\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/__init__.py:183(dumps)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/encoder.py:183(encode)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/encoder.py:205(iterencode)\n        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}\n        1    0.000    0.000    0.000    0.000 /workspace/tools/profile_suite.py:84(_rss_kb)\n        1    0.000    0.000    0.000    0.000 {built-in method resource.getrusage}\n        2    0.000    0.000    0.000    0.000 {method 'match' of 're.Pattern' objects}\n       43    0.000    0.000    0.000    0.000 /workspace/tools/profile_suite.py:227(<lambda>)\n        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1390(_handle_fromlist)\n        1    0.000    0.000    0.000    0.000 {method 'hexdigest' of '_hashlib.HASH' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method builtins.__import__}\n        1    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}\n        2    0.000    0.000    0.000    0.000 {built-in method time.perf_counter}\n        4    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}\n        7    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}\n        4    0.000    0.000    0.000    0.000 {built-in method builtins.len}\n        2    0.000    0.000    0.000    0.000 {method 'end' of 're.Match' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}\n\n\n",
+      "text": "         84 function calls in 0.063 seconds\n\n   Ordered by: cumulative time\n   List reduced from 26 to 25 due to restriction <25>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n        1    0.000    0.000    0.063    0.063 /workspace/tools/profile_suite.py:207(_primer)\n        1    0.063    0.063    0.063    0.063 {built-in method dna_design_suite._core.primer_search}\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/__init__.py:299(loads)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/decoder.py:332(decode)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/decoder.py:343(raw_decode)\n        2    0.000    0.000    0.000    0.000 {method 'encode' of 'str' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method _hashlib.openssl_sha256}\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/__init__.py:183(dumps)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/encoder.py:183(encode)\n        1    0.000    0.000    0.000    0.000 /usr/lib/python3.12/json/encoder.py:205(iterencode)\n        1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}\n        1    0.000    0.000    0.000    0.000 /workspace/tools/profile_suite.py:84(_rss_kb)\n        1    0.000    0.000    0.000    0.000 {built-in method resource.getrusage}\n        2    0.000    0.000    0.000    0.000 {method 'match' of 're.Pattern' objects}\n       43    0.000    0.000    0.000    0.000 /workspace/tools/profile_suite.py:227(<lambda>)\n        1    0.000    0.000    0.000    0.000 <frozen importlib._bootstrap>:1390(_handle_fromlist)\n        1    0.000    0.000    0.000    0.000 {method 'hexdigest' of '_hashlib.HASH' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method builtins.__import__}\n        1    0.000    0.000    0.000    0.000 {method 'startswith' of 'str' objects}\n        2    0.000    0.000    0.000    0.000 {built-in method time.perf_counter}\n        4    0.000    0.000    0.000    0.000 {built-in method builtins.isinstance}\n        7    0.000    0.000    0.000    0.000 {method 'get' of 'dict' objects}\n        4    0.000    0.000    0.000    0.000 {built-in method builtins.len}\n        2    0.000    0.000    0.000    0.000 {method 'end' of 're.Match' objects}\n        1    0.000    0.000    0.000    0.000 {built-in method builtins.hasattr}\n\n\n",
       "state": "succeeded",
       "name": "primer-yeeJ",
       "suite": "cprofile"

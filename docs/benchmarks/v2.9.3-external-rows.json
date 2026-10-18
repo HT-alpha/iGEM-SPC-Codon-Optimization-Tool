@@ -142,7 +142,7 @@
         "zero_weight_codons": 0
       },
       "nt": 375,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -276,7 +276,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -420,7 +420,7 @@
         "zero_weight_codons": 0
       },
       "nt": 375,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -615,7 +615,7 @@
         "zero_weight_codons": 0
       },
       "nt": 375,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -839,7 +839,7 @@
         "zero_weight_codons": 0
       },
       "nt": 306,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -882,7 +882,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -1022,7 +1022,7 @@
         "zero_weight_codons": 0
       },
       "nt": 306,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -1217,7 +1217,7 @@
         "zero_weight_codons": 0
       },
       "nt": 306,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -1437,7 +1437,7 @@
         "zero_weight_codons": 0
       },
       "nt": 717,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -1571,7 +1571,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -1715,7 +1715,7 @@
         "zero_weight_codons": 0
       },
       "nt": 717,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -1912,7 +1912,7 @@
         "zero_weight_codons": 0
       },
       "nt": 717,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -2134,7 +2134,7 @@
         "zero_weight_codons": 0
       },
       "nt": 675,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -2268,7 +2268,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -2416,7 +2416,7 @@
         "zero_weight_codons": 0
       },
       "nt": 675,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -2611,7 +2611,7 @@
         "zero_weight_codons": 0
       },
       "nt": 675,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -2834,7 +2834,7 @@
         "zero_weight_codons": 0
       },
       "nt": 711,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -2968,7 +2968,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -3116,7 +3116,7 @@
         "zero_weight_codons": 0
       },
       "nt": 711,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -3311,7 +3311,7 @@
         "zero_weight_codons": 0
       },
       "nt": 711,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -3534,7 +3534,7 @@
         "zero_weight_codons": 0
       },
       "nt": 861,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -3668,7 +3668,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -3812,7 +3812,7 @@
         "zero_weight_codons": 0
       },
       "nt": 861,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -4011,7 +4011,7 @@
         "zero_weight_codons": 0
       },
       "nt": 861,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -4231,7 +4231,7 @@
         "zero_weight_codons": 0
       },
       "nt": 936,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -4365,7 +4365,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -4512,7 +4512,7 @@
         "zero_weight_codons": 0
       },
       "nt": 936,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -4707,7 +4707,7 @@
         "zero_weight_codons": 0
       },
       "nt": 936,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -4929,7 +4929,7 @@
         "zero_weight_codons": 0
       },
       "nt": 1968,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -5063,7 +5063,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -5212,7 +5212,7 @@
         "zero_weight_codons": 0
       },
       "nt": 1968,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -5410,7 +5410,7 @@
         "zero_weight_codons": 0
       },
       "nt": 1968,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -5634,7 +5634,7 @@
         "zero_weight_codons": 0
       },
       "nt": 3075,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -5768,7 +5768,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -5917,7 +5917,7 @@
         "zero_weight_codons": 0
       },
       "nt": 3075,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -6117,7 +6117,7 @@
         "zero_weight_codons": 0
       },
       "nt": 3075,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -6342,7 +6342,7 @@
         "zero_weight_codons": 0
       },
       "nt": 7077,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -6476,7 +6476,7 @@
           "c_kmer12"
         ],
         "notes": [
-          "c_gc50: EnforceGCContent window steps by 1, the same starts the CodonForge checker uses",
+          "c_gc50: EnforceGCContent window steps by 1, the same starts the DNA Design Suite checker uses",
           "c_bsai: AvoidPattern(GGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsaI site matches this string.",
           "c_bsmbi: AvoidPattern(CGTCTC) with strand both, which also rejects the reverse complement. Biopython's BsmBI site matches this string.",
           "c_ecori: AvoidPattern(GAATTC) with strand both, which also rejects the reverse complement. Biopython's EcoRI site matches this string.",
@@ -6629,7 +6629,7 @@
         "zero_weight_codons": 0
       },
       "nt": 7077,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,
@@ -6829,7 +6829,7 @@
         "zero_weight_codons": 0
       },
       "nt": 7077,
-      "objective_note": "CodonForge usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
+      "objective_note": "DNA Design Suite usage.cai, budget standard, generations 4, stagnation window 21, seed 7, host escherichia_coli:511145/MG1655, translation table 11. The generation cap is what stops tier 3; the window is longer than 4.",
       "our_checker": {
         "actionable_by_id": {},
         "feasible": true,

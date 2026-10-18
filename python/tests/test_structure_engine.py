@@ -9,7 +9,7 @@ thing once `AMD-013` made ViennaRNA the engine rather than the reference:
 * `TST-STRU-001` compared "the native kernel" against an installed ViennaRNA.
   With ViennaRNA *as* the engine that compares it to itself.
 * `TST-STRU-004` required agreement with "an independent brute-force partition
-  function". CodonForge has no parameter set of its own, so no such reference
+  function". DNA Design Suite has no parameter set of its own, so no such reference
   can be built, and a test that pretended to would be fabricating exactly the
   thing `DEP-STRU-001` exists to prevent.
 
@@ -28,7 +28,7 @@ import os
 
 import pytest
 
-from codonforge.predictors import (
+from dna_design_suite.codon.predictors import (
     StructureEngineError,
     available_engines,
     select_engine,
@@ -186,7 +186,7 @@ def test_tst_stru_004_an_impossible_window_is_absent_rather_than_reported_as_zer
 
 @vienna
 def test_tst_stru_004_the_penalty_orders_designs_the_way_the_objective_needs():
-    from codonforge.predictors.viennarna import accessibility_penalty
+    from dna_design_suite.codon.predictors.viennarna import accessibility_penalty
 
     engine = select_engine("viennarna")
     folded = accessibility_penalty(engine.local_accessibility(HAIRPIN, 4, len(HAIRPIN), 37.0))
@@ -220,7 +220,7 @@ def test_tst_stru_003_with_no_engine_installed_the_job_is_refused_not_degraded(
     a refusal: a proxy would return a number for every candidate, so every
     downstream check would pass while the objective meant nothing.
     """
-    import codonforge.predictors.structure as seam
+    import dna_design_suite.codon.predictors.structure as seam
 
     monkeypatch.setattr(seam, "available_engines", lambda: [])
     with pytest.raises(StructureEngineError) as caught:
@@ -250,7 +250,7 @@ def test_tst_stru_003_no_import_of_an_absent_package_is_attempted():
 
 
 def seam_path() -> str:
-    import codonforge.predictors.structure as seam
+    import dna_design_suite.codon.predictors.structure as seam
 
     return seam.__file__
 
@@ -258,7 +258,7 @@ def seam_path() -> str:
 def test_tst_stru_003_a_requested_but_absent_engine_is_named_in_the_refusal(
     monkeypatch,
 ):
-    import codonforge.predictors.structure as seam
+    import dna_design_suite.codon.predictors.structure as seam
 
     monkeypatch.setattr(seam, "available_engines", lambda: ["viennarna"])
     with pytest.raises(StructureEngineError) as caught:
@@ -275,7 +275,7 @@ def test_amd_001_the_engine_offers_no_global_mfe_to_the_search_loop():
     loop nothing to call, and the cheapest way to keep that true is a test that
     fails when the method reappears.
     """
-    from codonforge.predictors.viennarna import ViennaRNAEngine
+    from dna_design_suite.codon.predictors.viennarna import ViennaRNAEngine
 
     assert not hasattr(ViennaRNAEngine, "global_mfe"), (
         "AMD-001 excludes global MFE from the search loop; if an exact-tier "

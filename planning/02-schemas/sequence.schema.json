@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/sequence.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/sequence.schema.json",
   "title": "CodonSequence",
   "description": "The canonical internal sequence representation (BRIEF-2.2-a). Every module speaks this type; FASTA/GenBank exist only at the ingest boundary.\n\nFRAME SAFETY IS STRUCTURAL, NOT VALIDATED. The coding region is stored as `cds`, whose regex admits only whole codons, and untranslated context is stored in separate `five_prime_flank`/`three_prime_flank` fields. There is therefore no representable state in which an edit shifts the reading frame: the only mutating operation the type exposes is `substitute(codon_index, codon)`, which replaces three characters at offset 3*i.\n\nIn memory the codons are a Vec<u8> of codon indices under the convention index = 16*b0 + 4*b1 + b2 with A=0, C=1, G=2, T=3. The JSON form is a plain string because planning artifacts, golden tests and bug reports must be human-readable and diffable.\n\nINVARIANTS (checked by TST-CORE-001, enforced at construction):\n  I1  len(cds) == 3 * codon_count\n  I2  translate(cds, translation_table) == protein\n  I3  protein is invariant under every operator in cf-search and cf-constraints\n  I4  every locked span lies within [0, codon_count)\n  I5  digest == sha256 of the RFC 8785 canonical JSON of this document with `digest` removed",
   "type": "object",

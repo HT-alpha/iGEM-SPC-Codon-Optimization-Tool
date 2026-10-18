@@ -3,7 +3,7 @@
 
 Heavier than ``tools/challenging_perf.py`` and ``tools/profile_suite.py``:
 the next-longest real CDS after yeeJ, a tighter assembly set, CAI with
-structure or burden or Potts, a long operon, PrimerForge on long templates
+structure or burden or Potts, a long operon, Primer design on long templates
 and wide oligo windows, and a few concurrent API jobs.
 
 Seed is 7. Host is ``escherichia_coli:511145/BL21``. Codon weights are
@@ -200,7 +200,7 @@ def _sha(text: str) -> str:
 
 
 def _wrap_core() -> dict[str, dict[str, float | int]]:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     totals: dict[str, dict[str, float | int]] = {}
 
@@ -240,9 +240,9 @@ def _window_count(span: int, primer_min: int, primer_max: int) -> int:
 
 
 def _design_row(spec: dict, sequences: dict[str, str]) -> dict:
-    from codonforge import _core
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator.design import DesignRequest, design
+    from dna_design_suite import _core
+    from dna_design_suite.codon.orchestrator.design import DesignRequest, design
+    from dna_design_suite.modelreg import ArtifactStore
 
     totals = _wrap_core()
     cds = sequences[spec["gene"]]
@@ -377,7 +377,7 @@ def _design_pin(spec: dict, payload: dict) -> dict:
 
 
 def _seed_row(spec: dict, sequences: dict[str, str]) -> dict:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     cds = sequences[spec["gene"]]
     request = {
@@ -424,7 +424,7 @@ def _seed_pin(spec: dict, feasible: bool, cai: float | None) -> dict:
 
 
 def _primer_row(spec: dict, sequences: dict[str, str]) -> dict:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     sequence = sequences[spec["gene"]]
     flank = int(spec["flank"])
@@ -489,9 +489,9 @@ def _primer_row(spec: dict, sequences: dict[str, str]) -> dict:
 
 
 def _operon_row(spec: dict, sequences: dict[str, str]) -> dict:
-    from codonforge import _core
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator import Cistron, design_operon
+    from dna_design_suite import _core
+    from dna_design_suite.codon.orchestrator import Cistron, design_operon
+    from dna_design_suite.modelreg import ArtifactStore
 
     cistrons = [
         Cistron(sequences[gene], float(flux), gene)
@@ -547,24 +547,29 @@ def _http(method: str, url: str, body: dict | None = None, headers: dict | None 
 
 def _api_row(_spec: dict, sequences: dict[str, str]) -> dict:
     """Concurrent accepts, one serialized design worker, refused routes."""
-    from codonforge.api import serve
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator.design import DesignError, DesignRequest, design
+    from dna_design_suite.api import serve
+    from dna_design_suite.codon.orchestrator.design import DesignRequest, design
+    from dna_design_suite.modelreg import ArtifactStore
 
-    refused_library = None
-    try:
-        design(
-            DesignRequest(
-                host=HOST,
-                cds="ATGGGGTAATAA",
-                host_profile=_profile(),
-                objectives=["usage.cai"],
-            ),
-            ArtifactStore(Path("/tmp/cf-harsh-bg")),
-            background=True,
-        )
-    except DesignError as exc:
-        refused_library = exc.code
+    handle = design(
+        DesignRequest(
+            host=HOST,
+            cds="ATGGGGTAA",
+            host_profile=_profile(),
+            objectives=["usage.cai"],
+            constraints={
+                "schema_version": "1.0.0",
+                "constraint_set_id": "cst_none",
+                "constraints": [],
+            },
+            generations=0,
+            budget="fast",
+        ),
+        ArtifactStore(Path("/tmp/cf-harsh-bg")),
+        background=True,
+    )
+    background_result = handle.result(timeout=60)
+    background_ok = bool(handle.job_id) and background_result.job.state == "succeeded"
 
     server = serve(ArtifactStore(Path("/tmp/cf-harsh-api")))
     base = f"http://127.0.0.1:{server.server_address[1]}"
@@ -573,8 +578,18 @@ def _api_row(_spec: dict, sequences: dict[str, str]) -> dict:
         "Content-Type": "application/json",
     }
     hosts_status, hosts_body = _http("GET", f"{base}/v1/hosts", headers=headers)
-    feas_status, feas_body = _http("POST", f"{base}/v1/feasibility", {}, headers)
+    empty_feas_status, _empty_feas = _http("POST", f"{base}/v1/feasibility", {}, headers)
     rpsl = sequences["rpsL"]
+    feas_status, feas_body = _http(
+        "POST",
+        f"{base}/v1/feasibility",
+        {
+            "cds": rpsl,
+            "constraints": _constraints(None),
+            "translation_table": 11,
+        },
+        headers,
+    )
     jobs = []
     for index, (gene, objectives) in enumerate(
         (
@@ -714,8 +729,18 @@ def _api_row(_spec: dict, sequences: dict[str, str]) -> dict:
             time.sleep(0.05)
     primer_wall = time.perf_counter() - primer_started
     server.shutdown()
-    hosts_code = (hosts_body or {}).get("code") if isinstance(hosts_body, dict) else None
-    feas_code = (feas_body or {}).get("code") if isinstance(feas_body, dict) else None
+    hosts_ok = (
+        hosts_status == 200
+        and isinstance(hosts_body, dict)
+        and any(item.get("installed") for item in hosts_body.get("hosts") or [])
+    )
+    checks = (feas_body or {}).get("checks_run") if isinstance(feas_body, dict) else None
+    feas_ok = (
+        empty_feas_status == 400
+        and feas_status == 200
+        and isinstance(checks, list)
+        and len(checks) == 5
+    )
     primer_ok = (
         primer_pair is not None
         and primer_pair.get("forward_sequence") == PRIMER_PIN["forward_sequence"]
@@ -725,9 +750,9 @@ def _api_row(_spec: dict, sequences: dict[str, str]) -> dict:
     )
     designs_ok = pending == {} and all(item["state"] == "succeeded" for item in finished)
     pin_ok = (
-        refused_library == "CF-CLI-003"
-        and hosts_code == "CF-CLI-003"
-        and feas_code == "CF-CLI-003"
+        background_ok
+        and hosts_ok
+        and feas_ok
         and dwell_code == "CF-LAND-001"
         and designs_ok
         and primer_ok
@@ -752,24 +777,28 @@ def _api_row(_spec: dict, sequences: dict[str, str]) -> dict:
         if primer_pair is None
         else primer_pair.get("hetero_dimer_dG"),
         "refusals": {
-            "library_background": refused_library,
-            "GET /v1/hosts": {"http": hosts_status, "code": hosts_code},
-            "POST /v1/feasibility": {"http": feas_status, "code": feas_code},
+            "library_background": "handle" if background_ok else "failed",
+            "GET /v1/hosts": {"http": hosts_status, "ok": hosts_ok},
+            "POST /v1/feasibility": {
+                "empty_http": empty_feas_status,
+                "http": feas_status,
+                "checks": checks,
+            },
             "dwell": {"http": dwell_status, "code": dwell_code},
         },
         "errors": errors,
         "pin": {
             "ok": pin_ok,
             "detail": (
-                f"background={refused_library} hosts={hosts_code} "
-                f"feasibility={feas_code} dwell={dwell_code} primer_ok={primer_ok}"
+                f"background={background_ok} hosts={hosts_ok} "
+                f"feasibility={feas_ok} dwell={dwell_code} primer_ok={primer_ok}"
             ),
         },
     }
 
 
 def _gate_row(_spec: dict, _sequences: dict[str, str]) -> dict:
-    from codonforge.bench.corpus import check_cai_gate, run_cai_only
+    from dna_design_suite.codon.bench.corpus import check_cai_gate, run_cai_only
 
     stored_gate = json.loads((ROOT / "benchmarks" / "corpus" / "gates.json").read_text())[0]
     stored_rows = json.loads((ROOT / "benchmarks" / "corpus" / "cai_only.json").read_text())

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Attribute CodonForge and PrimerForge time, then record peak RSS.
+"""Attribute DNA Design Suite and Primer design time, then record peak RSS.
 
 Seed is 7. Host is ``escherichia_coli:511145/BL21``. Codon weights are
 ``examples/mg1655_ribosomal_usage.json``. This is the v2.9.1 challenging
-sweep plus PrimerForge flank and region rows, stage timings, and the Rust
+sweep plus Primer design flank and region rows, stage timings, and the Rust
 counters behind ``CF_SEED_PROFILE`` and ``CF_PRIMER_PROFILE``.
 
 Each row is its own process. ``ru_maxrss`` is that process. Linux reports
@@ -54,7 +54,7 @@ def _fasta(path: Path) -> str:
 
 
 def _sequences() -> dict[str, str]:
-    from codonforge.bench.corpus import load_panel, select_genes
+    from dna_design_suite.codon.bench.corpus import load_panel, select_genes
 
     found = {gene["gene"]: gene["cds"] for gene in select_genes(load_panel())}
     validation = ROOT / "benchmarks" / "validation" / "sequences"
@@ -86,7 +86,7 @@ def _rss_kb() -> int:
 
 
 def _wrap_core() -> dict[str, dict[str, float | int]]:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     totals: dict[str, dict[str, float | int]] = {}
 
@@ -119,8 +119,8 @@ def _wrap_core() -> dict[str, dict[str, float | int]]:
 
 
 def _design(gene: str, objectives: list[str], constraints: str | None, generations: int) -> dict:
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator.design import DesignRequest, design
+    from dna_design_suite.codon.orchestrator.design import DesignRequest, design
+    from dna_design_suite.modelreg import ArtifactStore
 
     totals = _wrap_core()
     sequences = _sequences()
@@ -160,7 +160,7 @@ def _design(gene: str, objectives: list[str], constraints: str | None, generatio
         payload["front_bytes"] = len(json.dumps(result.front).encode())
         payload["status_bytes"] = len(json.dumps(result.status).encode())
         designed = chosen["sequences"][0]["cds"]
-        from codonforge import _core
+        from dna_design_suite import _core
 
         payload["protein_identical"] = _core.translate(designed, 11) == _core.translate(cds, 11)
     session = result.job._fold_session
@@ -174,7 +174,7 @@ def _design(gene: str, objectives: list[str], constraints: str | None, generatio
 
 
 def _seed_profile(gene: str) -> dict:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     sequences = _sequences()
     cds = sequences[gene]
@@ -207,7 +207,7 @@ def _seed_profile(gene: str) -> dict:
 def _primer(
     sequence: str, start: int, end: int, flank: int, product_min: int | None = None
 ) -> dict:
-    from codonforge import _core
+    from dna_design_suite import _core
 
     region = end - start
     body = {
@@ -245,8 +245,8 @@ def _primer(
 
 
 def _operon(genes: list[str], fluxes: list[float]) -> dict:
-    from codonforge.modelreg import ArtifactStore
-    from codonforge.orchestrator import Cistron, design_operon
+    from dna_design_suite.codon.orchestrator import Cistron, design_operon
+    from dna_design_suite.modelreg import ArtifactStore
 
     sequences = _sequences()
     cistrons = [

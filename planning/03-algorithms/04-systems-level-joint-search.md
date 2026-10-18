@@ -187,4 +187,6 @@ Fully specified in [ADR-0004](../07-decisions/ADR-0004-resource-ledger-granulari
 
 ## 8. What this build runs
 
-`DEP-SRCH-019` — `design_operon` designs each cistron with the existing single-CDS job, then keeps a synonymous swap only when `burden.growth_cost` of the caller-supplied flux-weighted codon counts falls and the sequence stays feasible. Shadow prices, native-proteome demand, and the joint NSGA-III refinement in §4 are not run. The caller supplies every flux. A default expression rate would be an invented number.
+`DEP-SRCH-019` — `design_operon` designs each cistron with the existing single-CDS job, then keeps a synonymous swap only when `burden.growth_cost` of the caller-supplied flux-weighted codon counts falls and the sequence stays feasible. Native-proteome demand is not run. The caller supplies every flux. A default expression rate would be an invented number.
+
+`DEP-SRCH-025` — Shadow prices are the 64 finite differences of that same cost. A slot the caller's table cannot score is null. After the coordinate passes, a joint refinement adopts a sequence only when the joint cost falls.

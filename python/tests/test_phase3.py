@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from test_orchestrator import CDS, FIVE_PRIME, HOST, THREE_PRIME, host_profile
 
-from codonforge import _core
-from codonforge.epistasis.artifact import artifact_path
-from codonforge.epistasis.context import TERM_ID
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator import DesignError, DesignRequest, design
+from dna_design_suite import _core
+from dna_design_suite.codon.epistasis.artifact import artifact_path
+from dna_design_suite.codon.epistasis.context import TERM_ID
+from dna_design_suite.codon.orchestrator import DesignError, DesignRequest, design
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -45,7 +45,7 @@ def test_a_missing_potts_artifact_is_refused(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "codonforge.epistasis.context.artifact_path",
+        "dna_design_suite.codon.epistasis.context.artifact_path",
         lambda: tmp_path / "missing-manifest.json",
     )
     with pytest.raises(DesignError) as excinfo:

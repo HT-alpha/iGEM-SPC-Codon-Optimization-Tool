@@ -92,7 +92,7 @@ Not everything is retrained from scratch. The recalibration kind depends on what
 
 **Adapters rather than full fine-tunes** for the common case, for three reasons: they are cheap enough to run on a handful of observations, they cannot destroy the base model's behaviour outside the tenant's own region, and they make the isolation invariant of [ADR-0006](../07-decisions/ADR-0006-active-learning-data-isolation.md) checkable by inspecting a small artifact rather than a whole set of weights.
 
-`DEP-ACT-003` — This build validates and appends observations. The secondary model is ordinary least squares of one uncensored numeric readout on the GC fraction of an explicit CDS. Fewer than two such rows, a constant GC fraction, a censored value, or two latent quantities that both have enough rows stay `not_fitted`, and no coefficient is reported. Recalibration is not scheduled and no artifact is trained. `GET /v1/recalibrations` stays `CF-CLI-003`.
+`DEP-ACT-003` — This build validates and appends observations. The secondary model is ordinary least squares of one uncensored numeric readout on the GC fraction of an explicit CDS. Fewer than two such rows, a constant GC fraction, a censored value, or two latent quantities that both have enough rows stay `not_fitted`, and no coefficient is reported. A `fitted` result stores that coefficient record under the artifact store, tenant-scoped and append-only. `not_fitted` is not scheduled. No model-channel pointer moves.
 
 ---
 

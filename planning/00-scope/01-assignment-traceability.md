@@ -49,7 +49,7 @@ Each has an explicit, justified answer. Where a *parameter* within the answer ge
 | --- | --- |
 | **4.a** Schemas in a concrete serializable form, reviewable line by line | 15 JSON Schema (draft 2020-12) files plus a closed tag vocabulary, each with a worked example, all machine-validated; plus typed interface stubs. See [`../02-schemas/README.md`](../02-schemas/README.md). |
 | **4.b** Every departure flagged with a one-line rationale | 28 `DEP-*` markers, flagged in place and collected in [`04-departure-index.md`](04-departure-index.md). |
-| **4.c** No production implementation code | The package contains schemas, pseudocode listings, interface stubs and one validator script. The validator is planning-package tooling — it checks this document's own consistency and contains no CodonForge domain logic. Pseudocode is written in a deliberately non-executable style. |
+| **4.c** No production implementation code | The package contains schemas, pseudocode listings, interface stubs and one validator script. The validator is planning-package tooling — it checks this document's own consistency and contains no DNA Design Suite domain logic. Pseudocode is written in a deliberately non-executable style. |
 | **4.d** Name the experiment where data does not yet exist | 11 entries in [`../08-experiments/experiment-register.md`](../08-experiments/experiment-register.md), each with a **pre-registered decision rule** and a fallback. |
 
 ---

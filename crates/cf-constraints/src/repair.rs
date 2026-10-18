@@ -388,8 +388,10 @@ pub fn repair(
     });
 
     for violation in queue {
-        // An earlier repair may already have cleared it.
-        if !still_present(checker, target, masking, &violation) {
+        // An earlier repair may already have cleared it. One check, the same
+        // span-and-id test the inner search uses.
+        let current = checker.check(&target.view(masking));
+        if !violation_still_listed(&current, &violation) {
             continue;
         }
 
@@ -489,13 +491,17 @@ fn search_minimal_fix(
                 continue;
             }
             *work += 1;
-            let mut probe = target.clone();
-            probe.substitute(region, codon_index, alternative)?;
-            // One checker pass answers both questions. Two passes returned the
-            // same multiset and doubled the cost of every probe.
-            let (present, remaining) = probe_status(checker, &probe, masking, violation);
-            if present || remaining >= before {
-                // Still the original hit, or a fix that created another.
+            // One check, not two. `still_present` and `actionable_blocking`
+            // each used to scan the whole construct, so every synonym paid
+            // for the violation list twice and then threw it away. The
+            // accept/reject is the same list.
+            let violations =
+                checked_substitute(target, checker, masking, region, codon_index, alternative)?;
+            if violation_still_listed(&violations, violation) {
+                continue;
+            }
+            if blocking_len(&violations) >= before {
+                // Fixed one and created another: not a fix.
                 continue;
             }
             let cost = objective
@@ -542,7 +548,8 @@ fn search_minimal_fix(
                     *work += 1;
                     let mut probe = state.clone();
                     probe.substitute(region, codon_index, alternative)?;
-                    let (present, remaining) = probe_status(checker, &probe, masking, violation);
+                    let violations = checker.check(&probe.view(masking));
+                    let remaining = blocking_len(&violations);
                     let mut extended = edits.clone();
                     extended.push(Edit {
                         region,
@@ -554,7 +561,7 @@ fn search_minimal_fix(
                         + objective
                             .delta(region, codon_index, alternative)
                             .unwrap_or(0.0);
-                    if !present && remaining < before {
+                    if !violation_still_listed(&violations, violation) && remaining < before {
                         return Ok(Some(Fix {
                             edits: extended,
                             cost: extended_cost,
@@ -603,32 +610,35 @@ fn actionable_blocking(
         .collect()
 }
 
-/// Whether `violation` is still reported, and how many blocking actionable
-/// hits the probe has. Both come from one `check`.
-fn probe_status(
-    checker: &ConstraintChecker,
-    target: &RepairTarget,
-    masking: KmerMasking,
-    violation: &Violation,
-) -> (bool, usize) {
-    let hits = actionable_blocking(checker, target, masking);
-    let present = hits.iter().any(|hit| {
-        hit.constraint_id == violation.constraint_id
-            && hit.start_nt == violation.start_nt
-            && hit.end_nt == violation.end_nt
-    });
-    (present, hits.len())
+fn blocking_len(violations: &[Violation]) -> usize {
+    violations
+        .iter()
+        .filter(|v| v.class == ConstraintClass::Blocking && v.actionable)
+        .count()
 }
 
-fn still_present(
-    checker: &ConstraintChecker,
-    target: &RepairTarget,
-    masking: KmerMasking,
-    violation: &Violation,
-) -> bool {
-    checker.check(&target.view(masking)).iter().any(|v| {
+fn violation_still_listed(violations: &[Violation], violation: &Violation) -> bool {
+    violations.iter().any(|v| {
         v.constraint_id == violation.constraint_id
             && v.start_nt == violation.start_nt
             && v.end_nt == violation.end_nt
     })
+}
+
+/// The violation list after one synonymous trial.
+///
+/// The probe is discarded. Repair applies an accepted edit through
+/// `RepairTarget::substitute` on the real target, so this clone cannot leak
+/// into the sequence that is scored.
+fn checked_substitute(
+    target: &RepairTarget,
+    checker: &ConstraintChecker,
+    masking: KmerMasking,
+    region: usize,
+    codon_index: usize,
+    alternative: Codon,
+) -> Result<Vec<Violation>> {
+    let mut probe = target.clone();
+    probe.substitute(region, codon_index, alternative)?;
+    Ok(checker.check(&probe.view(masking)))
 }

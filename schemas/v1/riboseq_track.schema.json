@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/riboseq_track.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/riboseq_track.schema.json",
   "title": "RiboSeqTrack",
   "description": "Ribosome-profiling reference data (BRIEF-2.2-c). This is the training input for the epistatic surface's dwell head.\n\nSTORAGE IS OUT-OF-LINE BY DEFAULT. A single bacterial Ribo-seq dataset is ~1.3 million codon observations per replicate; embedding counts in JSON would produce ~30 MB documents that no reviewer can read and no cache can hold. The document therefore describes the data and points at a Parquet blob by digest. `inline` storage exists only for the synthetic test suite and for small golden fixtures.\n\nPROCESSING METADATA IS MANDATORY, NOT OPTIONAL. A-site offset assignment is the single largest source of between-lab disagreement in codon-level dwell estimates; two tracks processed with different offset rules are not poolable. Recording the rule is what makes the cross-dataset generalization experiment EXP-01 interpretable.",
   "type": "object",

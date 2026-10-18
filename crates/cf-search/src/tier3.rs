@@ -130,7 +130,7 @@ pub enum Termination {
     HypervolumeStagnation,
     /// The non-dominated front's fingerprint was unchanged over the window.
     ///
-    /// `DEP-SRCH-025`. Checked only when hypervolume has not stagnated, so a
+    /// `DEP-SRCH-027`. Checked only when hypervolume has not stagnated, so a
     /// run that has stopped improving on both signals still reports
     /// hypervolume. This catches a front that is stable while the reference
     /// point still jitters.
@@ -195,7 +195,7 @@ pub fn front_unchanged(history: &[u64], window: usize) -> bool {
 ///
 /// `TST-SRCH-019` names hypervolume as the reason a constant objective stops.
 /// Front stability is the extra stop for a reference point that still moves
-/// after the non-dominated set has settled. `DEP-SRCH-025`.
+/// after the non-dominated set has settled. `DEP-SRCH-027`.
 pub fn classify_stop(
     hypervolume: &[f64],
     front: &[u64],
