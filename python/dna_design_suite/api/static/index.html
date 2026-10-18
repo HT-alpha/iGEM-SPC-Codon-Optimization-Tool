@@ -71,6 +71,23 @@
         </label>
         <p id="help-locus" class="field-help" hidden>Use the gene, label, or locus tag of the CDS you want. Leave this blank when the file has one CDS.</p>
         <p id="cds-note" class="note" aria-live="polite">No sequence yet. The rpsL demo is the E. coli K-12 MG1655 gene rpsL, 125 codons.</p>
+        <label for="starting-cds">Starting CDS <span class="optional">optional</span></label>
+        <textarea id="starting-cds" class="seq" rows="3" spellcheck="false" aria-describedby="help-starting" placeholder="A synonymous coding sequence to start from"></textarea>
+        <p id="help-starting" class="field-help">Leave blank to start from the coding sequence above. If you paste another coding sequence, it must translate to the same protein. A difference is CF-SEQ-004 and names the residue positions. The search then starts from this sequence.</p>
+        <div class="seq-actions">
+          <label for="seed-tool">Tool that wrote the starting CDS
+            <select id="seed-tool">
+              <option value="manual" selected>manual</option>
+              <option value="dnachisel">DNA Chisel</option>
+              <option value="idt_optimizer">IDT</option>
+              <option value="genscript">GenScript</option>
+              <option value="jcat">JCat</option>
+              <option value="native">native</option>
+            </select>
+          </label>
+          <button type="button" id="check-seed" class="secondary">Check starting CDS</button>
+        </div>
+        <p id="seed-note" class="note" aria-live="polite"></p>
       </div>
     </div>
   </section>
@@ -102,6 +119,20 @@
         </div>
         <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. 1.0 means every counted codon is a top synonym of the table that was loaded. Stops and single-codon families are excluded. A codon whose weight is 0 makes the whole CAI 0. Kazusa (taxid 316407) is genome-wide frequencies converted to relative adaptiveness. Loading it replaces the table the search uses, so the result is a different number, not a second column on the ribosomal score. A finished design also reports the Kazusa number beside the table it optimized.</p>
         <p id="profile-note" class="note" aria-live="polite">No codon table loaded yet.</p>
+        <label for="usage-text">Import a usage table or CDS set <span class="optional">optional</span></label>
+        <textarea id="usage-text" class="seq" rows="4" spellcheck="false" aria-describedby="help-usage" placeholder="Kazusa text, a codon/count table, or FASTA CDS"></textarea>
+        <p id="help-usage" class="field-help">Paste Kazusa text (triplet and a count in parentheses), a codon and count table, or FASTA coding sequences. Relative adaptiveness is each count divided by the maximum in its synonymous family. Unobserved families stay at 0. No pseudocount is added. The table is stored as user_supplied, not as a highly expressed Sharp and Li set, unless you say so. GET /v1/hosts remains the example files, not a catalogue of organisms.</p>
+        <div class="seq-actions">
+          <label class="file-label" for="usage-file">Upload usage text<input id="usage-file" type="file" accept=".txt,.tsv,.csv,.fa,.fasta,text/plain"></label>
+          <label for="usage-label">How to label the counts
+            <select id="usage-label">
+              <option value="user_supplied" selected>user_supplied</option>
+              <option value="highly_expressed">highly_expressed (only if these counts are that set)</option>
+            </select>
+          </label>
+          <button type="button" id="import-usage" class="secondary">Import usage</button>
+        </div>
+        <p id="usage-note" class="note" aria-live="polite"></p>
       </div>
     </div>
   </section>
@@ -173,7 +204,13 @@
           <label class="check"><input id="obj-violation" type="checkbox"> Constraint violations <span class="mono">constraint.violation_count</span></label>
           <p class="field-help">How many constraint rules the sequence still breaks. The result table says whether this term was ranked on or only reported.</p>
           <label class="check"><input id="obj-structure" type="checkbox"> Local mRNA structure <span class="mono">structure.local_accessibility</span></label>
-          <p class="field-help">How folded the messenger RNA is near each codon. The computer running this server needs ViennaRNA installed; DNA Design Suite does not include it. If it is missing, the job can still finish and this score is shown as UNKNOWN. UNKNOWN means not measured. It is not zero and it is not a bad score.</p>
+          <p class="field-help">How folded the messenger RNA is near each codon. ViennaRNA reports an accessibility from its partition function. If it is missing, the job refuses this objective with CF-STRU-003 rather than inventing a score. UNKNOWN means not measured. It is not zero and it is not a bad score.</p>
+          <label for="structure-engine">Structure engine</label>
+          <select id="structure-engine" aria-describedby="help-structure-engine">
+            <option value="viennarna" selected>ViennaRNA (thermodynamic, must be installed)</option>
+            <option value="nussinov">Nussinov matching (approximate, always available)</option>
+          </select>
+          <p id="help-structure-engine" class="field-help">Nussinov is an opt-in maximum matching: pair score 1 for A–U, G–C and G–U, hairpin of at least 3 (Nussinov and Jacobson, PNAS 1980). The score is the mean paired fraction between 0 and 1. It is not a free energy in kcal/mol and not an unpaired probability. Temperature does not enter it. It is not used unless you select it.</p>
         </fieldset>
       </div>
     </div>
@@ -257,14 +294,86 @@
   <p class="note">The designs the search kept. When there is one objective, this is that one design. The recommended candidate is marked. A column is a score the search used. UNKNOWN means that score was not measured. FASTA, GenBank, and CSV download from this result.</p>
   <div id="front-root"><p class="note empty-state">No front yet. A finished job fills this panel. A failure names its code and the reason in words.</p></div>
 
+  <section class="step" aria-labelledby="step-measurement">
+    <h2 id="step-measurement"><span class="step-no">6</span> Lab measurement <span class="optional">optional</span></h2>
+    <p class="field-help">Record a number you measured. It is stored and can be downloaded as CSV. The server may fit a straight line of that number against GC fraction. That line does not change codon choices, and no sequence model is trained.</p>
+    <div class="rail">
+      <div class="k"><label for="measure-cds">Measured coding sequence</label></div>
+      <div class="v">
+        <textarea id="measure-cds" class="seq" rows="2" spellcheck="false" placeholder="ATG..."></textarea>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="measure-host">Host</label></div>
+      <div class="v"><input id="measure-host" class="seq" value="escherichia_coli:511145/MG1655" spellcheck="false"></div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="measure-kind">What was measured</label></div>
+      <div class="v">
+        <select id="measure-kind">
+          <option value="protein_abundance" selected>Expression (protein abundance)</option>
+          <option value="mrna_abundance">mRNA abundance</option>
+          <option value="translation_efficiency">Translation efficiency</option>
+          <option value="host_fitness">Host fitness</option>
+          <option value="solubility">Solubility</option>
+          <option value="activity">Activity</option>
+        </select>
+        <label for="measure-assay">Assay
+          <select id="measure-assay">
+            <option value="fluorescence" selected>fluorescence</option>
+            <option value="luminescence">luminescence</option>
+            <option value="western_blot">western blot</option>
+            <option value="growth_rate">growth rate</option>
+            <option value="od600_auc">OD600 area</option>
+            <option value="specific_activity">specific activity</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="measure-value">Value and unit</label></div>
+      <div class="v">
+        <input id="measure-value" class="seq narrow" type="number" step="any" aria-label="Measured value">
+        <input id="measure-unit" class="seq narrow" value="RFU" aria-label="Unit of the measurement">
+        <label for="measure-condition">Condition id <input id="measure-condition" class="seq" value="cond_unspecified"></label>
+        <label for="measure-control">Control role
+          <select id="measure-control">
+            <option value="negative" selected>negative</option>
+            <option value="positive">positive</option>
+            <option value="wild_type">wild type</option>
+            <option value="empty_vector">empty vector</option>
+            <option value="reference_construct">reference construct</option>
+          </select>
+        </label>
+        <label for="measure-censoring">Censoring
+          <select id="measure-censoring">
+            <option value="none" selected>none</option>
+            <option value="left">left</option>
+            <option value="right">right</option>
+            <option value="interval">interval</option>
+          </select>
+        </label>
+        <label for="measure-date">Measured on <input id="measure-date" class="seq" type="date"></label>
+      </div>
+    </div>
+    <div class="run-row">
+      <button type="button" id="save-measurement" class="secondary">Save measurement</button>
+      <button type="button" id="export-measurements" class="secondary">Download CSV</button>
+    </div>
+    <p id="measure-note" class="note" aria-live="polite"></p>
+  </section>
+
   <details class="advanced">
     <summary>What this version does not do</summary>
     <div class="note" id="unbuilt-root">
       <p>A request this build cannot run answers CF-CLI-003. Nothing is silently skipped.</p>
       <ul>
-        <li>GET /v1/hosts is the codon-usage files installed here, not a list of every organism. A name you type still needs a table.</li>
-        <li>GET /v1/models is the verified context model, or an empty list when that file is not installed. This page has no form for a lab measurement. POST /v1/observations stores a validated measurement. Dwell is not scored.</li>
-        <li>Importing another optimizer’s output is not wired.</li>
+        <li>Dwell is not scored (CF-LAND-001). No paper states one 5′ A-site offset for GEO GSE53767, so this version does not invent one and does not report a zero deviation.</li>
+        <li>GET /v1/hosts is the codon-usage files installed here, not a list of every organism. A name you type still needs a table. Import a Kazusa file, a count table, or your own CDS set for another organism.</li>
+        <li>GET /v1/models is the verified context model, or an empty list when that file is not installed. A saved lab measurement is stored and exported. The GC-fraction line, when one can be fit, does not change codon choices. No sequence model is trained.</li>
+        <li>Feasibility reports a proof only when it can show a synonymous CDS the checker accepts, or an exact finding. Otherwise the report says the checks are necessary conditions and the set is unknown.</li>
+        <li>Nussinov is an approximate matching you must opt into. It is not used when ViennaRNA is missing, and it is not a free-energy score.</li>
+        <li>On the assembly rules, rpsL stays at CAI 0.9866866273575934. CAG at codon 74 is blocked by PstI, and GAC at codon 88 by a 12-mer whose cheapest feasible repair costs more CAI than that codon returns. The higher number is an infeasible sequence.</li>
       </ul>
     </div>
   </details>

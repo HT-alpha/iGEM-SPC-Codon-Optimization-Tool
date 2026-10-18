@@ -77,6 +77,12 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--job-id")
     d.add_argument("--checkpoint-dir", help="DEP-CLI-001: where checkpoints are written")
     d.add_argument("--resume", action="store_true", help="continue from the checkpoint")
+    d.add_argument("--starting-cds", help="synonymous CDS to search from")
+    d.add_argument(
+        "--structure-engine",
+        choices=["viennarna", "nussinov"],
+        help="viennarna, or the opt-in approximate nussinov matching",
+    )
 
     f = sub.add_parser("front", parents=[common], help="show a stored front")
     f.add_argument("--front", required=True)
@@ -90,6 +96,33 @@ def build_parser() -> argparse.ArgumentParser:
     feas.add_argument("--translation-table", type=int, default=11)
 
     sub.add_parser("terms", parents=[common], help="list built-in terms and directions")
+
+    seeds = sub.add_parser("seeds", help="import a starting CDS")
+    seeds_sub = seeds.add_subparsers(dest="seeds_verb")
+    seed_import = seeds_sub.add_parser(
+        "import", parents=[common], help="check a CDS against a protein"
+    )
+    seed_import.add_argument("--tool", default="manual")
+    seed_import.add_argument("--input", required=True, help="tool output or a raw CDS")
+    seed_import.add_argument("--target-protein")
+    seed_import.add_argument("--target-cds")
+    seed_import.add_argument("--translation-table", type=int, default=11)
+    seed_import.add_argument("--host")
+
+    hosts = sub.add_parser("hosts", help="import a codon-usage table")
+    hosts_sub = hosts.add_subparsers(dest="hosts_verb")
+    host_import = hosts_sub.add_parser(
+        "import", parents=[common], help="read Kazusa, a table, or CDS"
+    )
+    host_import.add_argument("--input", required=True)
+    host_import.add_argument("--format", default="auto", choices=["auto", "kazusa", "table", "cds"])
+    host_import.add_argument("--translation-table", type=int, default=11)
+    host_import.add_argument("--organism", default="")
+    host_import.add_argument(
+        "--label",
+        default="user_supplied",
+        choices=["user_supplied", "highly_expressed"],
+    )
     return parser
 
 
@@ -123,7 +156,75 @@ def _dispatch(args: argparse.Namespace) -> int:
         return _show(Path(args.status), args)
     if args.verb == "feasibility":
         return _feasibility(args)
+    if args.verb == "seeds":
+        return _seeds(args)
+    if args.verb == "hosts":
+        return _hosts(args)
     return _design(args)
+
+
+def _seeds(args: argparse.Namespace) -> int:
+    if getattr(args, "seeds_verb", None) != "import":
+        raise DesignError(
+            "CF-CLI-001",
+            "use: seeds import --input <file>",
+            exit_code=EXIT_INVALID_INPUT,
+        )
+    from dna_design_suite.ingest.seeds import KNOWN_TOOLS, import_seeds
+
+    tool = args.tool or "manual"
+    if tool not in KNOWN_TOOLS:
+        raise DesignError(
+            "CF-CLI-001",
+            f"tool {tool!r} is not one of {', '.join(sorted(KNOWN_TOOLS))}",
+            exit_code=EXIT_INVALID_INPUT,
+        )
+    payload = Path(args.input).read_text(encoding="utf-8")
+    protein = args.target_protein
+    if not protein:
+        if not args.target_cds:
+            raise DesignError(
+                "CF-CLI-001",
+                "seeds import needs --target-protein or --target-cds",
+                exit_code=EXIT_INVALID_INPUT,
+            )
+        protein = json.loads(
+            _core.sequence_document(args.target_cds, args.translation_table, None, None, None)
+        )["protein"]
+    document = import_seeds(
+        protein,
+        args.translation_table,
+        [{"tool": tool, "payload": payload}],
+        host_id=args.host,
+    )
+    print(json.dumps(document, indent=2, sort_keys=True))
+    accepted = [item for item in document["seeds"] if item["acceptance"]["accepted"]]
+    return EXIT_OK if accepted else EXIT_INVALID_INPUT
+
+
+def _hosts(args: argparse.Namespace) -> int:
+    if getattr(args, "hosts_verb", None) != "import":
+        raise DesignError(
+            "CF-CLI-001",
+            "use: hosts import --input <file>",
+            exit_code=EXIT_INVALID_INPUT,
+        )
+    from dna_design_suite.ingest.errors import IngestError
+    from dna_design_suite.ingest.usage_table import parse_usage_table
+
+    text = Path(args.input).read_text(encoding="utf-8")
+    try:
+        profile = parse_usage_table(
+            text,
+            translation_table=args.translation_table,
+            source_format=args.format,
+            organism=args.organism,
+            label=args.label,
+        )
+    except IngestError as exc:
+        raise DesignError(exc.code, exc.detail, exit_code=EXIT_INVALID_INPUT) from exc
+    print(json.dumps(profile, indent=2, sort_keys=True))
+    return EXIT_OK
 
 
 def _design(args: argparse.Namespace) -> int:
@@ -246,6 +347,8 @@ def _request(args: argparse.Namespace) -> DesignRequest:
         job_id=args.job_id,
         checkpoint_dir=args.checkpoint_dir,
         resume=args.resume,
+        starting_cds=args.starting_cds or "",
+        structure_engine=args.structure_engine or "",
     )
 
 
@@ -337,9 +440,7 @@ def _feasibility(args: argparse.Namespace) -> int:
         )
     )
     evaluated = local_structure.evaluated_ids(constraints)
-    report["undetectable"] = [
-        item for item in report["undetectable"] if item not in evaluated
-    ]
+    report["undetectable"] = [item for item in report["undetectable"] if item not in evaluated]
     cache: dict[tuple[Any, ...], float] = {}
     for item in local_structure.rules(constraints):
         if not item["blocking"]:

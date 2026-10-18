@@ -51,7 +51,7 @@ result.explain("cand_a1b2c3d4")   # rendered per-position rationale
 
 Three properties the library must have and the REST surface cannot provide:
 
-- **Synchronous by default.** A researcher in a notebook wants a blocking call. `design(..., background=True)` returns a handle (`job_id`, `done()`, `result(timeout)`) and the job runs on a worker pool (`DEP-CLI-006`). The call does not run the job on the caller's thread. `DEP-CLI-004` records the Phase 1 refusal. Seed import stays `CF-CLI-003`.
+- **Synchronous by default.** A researcher in a notebook wants a blocking call. `design(..., background=True)` returns a handle (`job_id`, `done()`, `result(timeout)`) and the job runs on a worker pool (`DEP-CLI-006`). The call does not run the job on the caller's thread. `DEP-CLI-004` records the Phase 1 refusal. Seed import is `DEP-API-003`. An unknown route stays `CF-CLI-003`.
 - **In-process execution.** No server, no network, no daemon. `cf.design` drives the same Rust core directly through `dna_design_suite._core`.
 - **Every intermediate is reachable.** `cf.landscape.score(...)`, `cf.constraints.analyse(...)`, `cf.search.tier2(...)` are public. A methods paper needs to run one layer in isolation, and forcing that through a REST API would be absurd.
 

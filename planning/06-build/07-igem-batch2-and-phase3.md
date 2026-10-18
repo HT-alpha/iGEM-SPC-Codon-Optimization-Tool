@@ -22,7 +22,7 @@ The page does not call a host catalog, a model catalog, an observation
 store, a preset expander, or the five-check feasibility analyser. Promoting
 those would be building surfaces the demo does not exercise.
 
-Batch 2 left them as `CF-CLI-003` (`DEP-API-001`). `DEP-API-002` now serves the rows that have real shipped data. Seed import stays `CF-CLI-003`:
+Batch 2 left them as `CF-CLI-003` (`DEP-API-001`). `DEP-API-002` now serves the rows that have real shipped data. Seed import is `DEP-API-003`:
 
 | Surface | Why it is not promoted |
 | --- | --- |
@@ -30,7 +30,7 @@ Batch 2 left them as `CF-CLI-003` (`DEP-API-001`). `DEP-API-002` now serves the 
 | `objectives_preset` | A preset would hide which term ids the caller asked for. The page's `informed_by` / `not_informed_by` lists need those ids |
 | `GET /v1/hosts`, `GET /v1/models` | No catalog is installed. A job carries the caller's `host_profile`. An empty list would look like a catalog. Public channels are `P3-15` |
 | `POST /v1/observations`, `GET /v1/recalibrations` | Wet-lab ingestion is not this release |
-| `POST /v1/seeds:import` | The route is not wired. An external baseline, if one is used, is a user-installed executable invoked by the harness, never a vendored binary |
+| `POST /v1/seeds:import` | Wired (`DEP-API-003`). A coding sequence is accepted when it translates to the target protein. An external baseline binary is still not vendored. |
 | `POST /v1/feasibility` | The five checks in `03-algorithms/06-constraint-repair.md` §5 (`CF-FEAS-001` through `CF-FEAS-005`) are not this build. The CLI's `constraint_violations` report is a detector pass, not that analyser. Wrapping the detector and returning `200` would look like the analyser |
 
 `RISK-TIME-004`.

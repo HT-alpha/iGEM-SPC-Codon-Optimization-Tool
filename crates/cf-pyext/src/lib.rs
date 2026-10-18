@@ -23,6 +23,8 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+mod nussinov;
+
 use cf_constraints::legacy::{self, LegacyScenario};
 use cf_constraints::{
     analyse, ConstraintChecker, ConstraintSet, ConstructView, DesignSpace, KmerMasking,
@@ -755,9 +757,17 @@ fn feasibility_analyse(
         .iter()
         .map(|check| check.as_str())
         .collect();
+    let witness = report.witness.as_ref().map(|item| {
+        serde_json::json!({
+            "cds": item.cds,
+            "scope": item.scope.as_str(),
+        })
+    });
     Ok(serde_json::json!({
         "feasible": report.feasible,
         "necessary_conditions_only": report.necessary_conditions_only,
+        "satisfiability": report.satisfiability.as_str(),
+        "witness": witness,
         "checks_run": checks_run,
         "findings": findings,
     })
@@ -830,6 +840,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(constraint_feasible_batch, m)?)?;
     m.add_function(wrap_pyfunction!(constraint_violations, m)?)?;
     m.add_function(wrap_pyfunction!(feasibility_analyse, m)?)?;
+    m.add_function(wrap_pyfunction!(nussinov::nussinov_accessibility, m)?)?;
     m.add_function(wrap_pyfunction!(landscape_query_round_trip, m)?)?;
     m.add_function(wrap_pyfunction!(landscape_response_round_trip, m)?)?;
     m.add_function(wrap_pyfunction!(legacy_prefix_accepts, m)?)?;

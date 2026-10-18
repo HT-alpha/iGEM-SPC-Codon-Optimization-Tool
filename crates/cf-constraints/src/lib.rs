@@ -39,7 +39,10 @@ pub mod tabu;
 pub mod window;
 
 pub use detect::{ConstraintChecker, ConstructView, KmerMasking, Violation};
-pub use feasibility::{analyse, CheckId, DesignSpace, FeasibilityReport, Finding};
+pub use feasibility::{
+    analyse, CheckId, DesignSpace, FeasibilityReport, FeasibilityWitness, Finding, Satisfiability,
+    WitnessScope,
+};
 pub use kmer::{count_overlapping, KmerIndex};
 pub use motif::MotifAutomaton;
 pub use repair::{

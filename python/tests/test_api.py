@@ -95,12 +95,12 @@ def test_a_missing_credential_is_a_problem(base: str) -> None:
 
 
 def test_an_unimplemented_route_is_cf_cli_003(base: str) -> None:
-    status, kind, payload = _call("POST", f"{base}/v1/seeds:import", _headers(), {})
+    status, kind, payload = _call("POST", f"{base}/v1/not-a-route", _headers(), {})
     assert status == 501
     assert kind.startswith("application/problem+json")
     assert payload["code"] == "CF-CLI-003"
     assert payload["status"] == 501
-    assert "not wired" in payload["detail"]
+    assert "not implemented" in payload["detail"]
 
 
 def test_a_protein_without_a_usage_table_is_rejected(base: str) -> None:

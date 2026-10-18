@@ -5,6 +5,35 @@
 Package version stays 0.1.0. This note is the DNA Design Suite delta on top
 of v2.9.2.
 
+`POST /v1/seeds:import`, `seeds import`, and `starting_cds` accept a
+synonymous coding sequence and refuse a different protein with `CF-SEQ-004`
+and the residue positions (`DEP-API-003`). An empty field is omitted from
+the request identity, so a job that does not set it keeps its lockfile.
+`POST /v1/hosts:import` and `hosts import` turn Kazusa text, a delimited
+count table, or a CDS set into `user_supplied` relative adaptiveness
+(`DEP-API-004`). `genome_wide` is refused (`CF-HOST-003`). Unobserved
+families stay at weight 0 and are named. No pseudocount is added.
+`POST /v1/measurements` stores the same observation document as
+`POST /v1/observations`, and `GET /v1/observations?format=csv` exports it
+(`DEP-ACT-004`). The GC-fraction line does not change codon choices.
+Dwell stays `CF-LAND-001`: no stated A-site offset for GSE53767, and a zero
+deviation is not reported. Feasibility adds `satisfiability` and, when it
+can, a synonymous witness (`DEP-CONS-007`). An exact finding is
+`proven_unsatisfiable`. A checker-feasible CDS with no findings is
+`proven_satisfiable`. Anything else stays `unknown` and
+`necessary_conditions_only`. `structure_engine=nussinov` is an opt-in
+maximum matching (`DEP-STRU-006`), mean paired fraction in [0, 1], not a
+free energy. The default is still ViennaRNA, and a missing install is still
+`CF-STRU-003`. The rpsL assembly CAI stays
+0.9866866273575934. Codons 74 and 88 are the only ones off their heaviest
+synonym. CAG at 74 is blocked by PstI, and every Leu repair of that site
+costs more than the CAG gain. GAC at 88 is blocked by one 12-mer, and every
+feasible repair of that repeat costs more than the GAC gain. The difference
+0.0038104428470379093 is the distance to an infeasible sequence. Harmonization
+and a vendor result screen are not in this change.
+
+
+
 Seed repair that is still infeasible after the middle-of-window GC pairs now
 tries at most four pair edits spread across the whole stuck window and the
 over-limit k-mers (`DEP-SRCH-026`). A pair is kept only when the packed

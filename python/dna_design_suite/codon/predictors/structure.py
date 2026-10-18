@@ -126,10 +126,14 @@ def available_engines() -> list[str]:
 def select_engine(preferred: str | None = None) -> StructureEngine:
     """Pick a structure engine, or refuse.
 
-    There is no fallback and no default engine, and that is the point.
+    There is no silent fallback and no default engine, and that is the point.
     `AMD-013` re-scoped `P2-08` from a from-scratch kernel to a binding, which
     means a machine with nothing installed has nothing to fold with. The honest
     response is `CF-STRU-003` naming what to install.
+
+    `preferred="nussinov"` is the one opt-in exception (`DEP-STRU-006`). It is
+    a combinatorial matching, not a thermodynamic fold, and it is never
+    selected because ViennaRNA is missing.
 
     The alternative — degrading to some cheap proxy for accessibility — would
     produce a number for every candidate, so every downstream check would pass
@@ -137,6 +141,11 @@ def select_engine(preferred: str | None = None) -> StructureEngine:
     `DEP-STRU-001` was written against, in a different costume.
     """
     from dna_design_suite.codon.predictors.viennarna import ViennaRNAEngine
+
+    if preferred == "nussinov":
+        from dna_design_suite.codon.predictors.nussinov import NussinovEngine
+
+        return NussinovEngine()
 
     engines = available_engines()
     if preferred is not None:
