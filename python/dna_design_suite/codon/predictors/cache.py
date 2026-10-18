@@ -196,3 +196,88 @@ class AccessibilityCache:
         self._sequence = edited
         self._values = values
         return list(values)
+
+    def _region_bounds(self, length: int, low: int, high: int) -> tuple[int, int]:
+        """Nucleotide span whose fold covers windows `[low, high)`.
+
+        The same span `substitute` folds for one edit. Windows outside it do
+        not depend on bases inside the edit.
+        """
+        region_start = max(0, low - self.span_nt)
+        region_stop = min(length, high + self.window_nt - 1 + self.span_nt)
+        return region_start, region_stop
+
+    def apply_edits(self, edits: list[tuple[int, str]]) -> tuple[list[float], str]:
+        """Apply several same-length edits and fold each overlapping cluster once.
+
+        A single edit goes through `substitute`, so that path is unchanged.
+        Edits whose fold regions overlap or abut are one region fold: folding
+        them separately would recompute the shared windows. Edits whose
+        regions do not meet stay separate folds. One fold of the span between
+        distant edits refolds bases that neither edit can change. When a
+        cluster covers the whole sequence, the result is one full fold.
+        The returned penalty matches a fold of the edited sequence.
+        """
+        if self._sequence is None:
+            raise StructureEngineError(
+                "CF-STRU-005", "the cache has not been primed with a sequence"
+            )
+        if len(edits) == 1:
+            start, replacement = edits[0]
+            return self.substitute(start, replacement), "substitute"
+        sequence = self._sequence
+        edited = sequence
+        for start, replacement in sorted(edits, key=lambda item: item[0], reverse=True):
+            stop = start + len(replacement)
+            if start < 0 or stop > len(edited):
+                raise StructureEngineError(
+                    "CF-STRU-004",
+                    f"edit [{start}, {stop}) falls outside a sequence of {len(edited)} nt",
+                )
+            edited = edited[:start] + replacement + edited[stop:]
+        if len(edited) != len(sequence):
+            return self.prime(edited), "prime"
+        spans: list[tuple[int, int, int, int]] = []
+        for start, replacement in edits:
+            low, high = self.affected_window_range(start, start + len(replacement))
+            region_start, region_stop = self._region_bounds(len(edited), low, high)
+            spans.append((region_start, region_stop, low, high))
+        spans.sort()
+        clusters: list[tuple[int, int, int, int]] = []
+        for region_start, region_stop, low, high in spans:
+            if clusters and region_start <= clusters[-1][1]:
+                prev_start, prev_stop, prev_low, prev_high = clusters[-1]
+                clusters[-1] = (
+                    prev_start,
+                    max(prev_stop, region_stop),
+                    min(prev_low, low),
+                    max(prev_high, high),
+                )
+            else:
+                clusters.append((region_start, region_stop, low, high))
+        if any(
+            stop - start >= len(edited) or stop <= start or stop - start < self.window_nt
+            for start, stop, _, _ in clusters
+        ):
+            return self.prime(edited), "prime"
+        values = list(self._values)
+        recomputed_total = 0
+        for region_start, region_stop, low, high in clusters:
+            region = edited[region_start:region_stop]
+            folded = list(
+                self.engine.local_accessibility(
+                    region, self.window_nt, self.span_nt, self.temperature_c
+                )
+            )
+            self.stats.folds += 1
+            for index in range(low, high):
+                end_in_sequence = index + self.window_nt - 1
+                offset = end_in_sequence - region_start - (self.window_nt - 1)
+                if 0 <= offset < len(folded):
+                    values[index] = folded[offset]
+                    recomputed_total += 1
+        self.stats.windows_recomputed += recomputed_total
+        self.stats.windows_reused += len(values) - recomputed_total
+        self._sequence = edited
+        self._values = values
+        return list(values), "region"

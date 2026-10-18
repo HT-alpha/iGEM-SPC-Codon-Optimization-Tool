@@ -150,10 +150,18 @@ class FoldSession:
         parent_sequence, edits = parent
         if cache.current_sequence() != parent_sequence:
             cache.hold(parent_sequence, self._windows[parent_sequence])
-        values: list[float] = []
-        for start, codon in edits:
+        if len(edits) == 1:
+            start, codon = edits[0]
             values = list(cache.substitute(start, codon))
             self.local_edits += 1
+        else:
+            # Overlapping edits share one region fold. Distant edits stay
+            # separate folds. A single codon stays on `substitute`.
+            values, kind = cache.apply_edits(edits)
+            if kind == "prime":
+                self.full_folds += 1
+            else:
+                self.local_edits += 1
         if cache.current_sequence() != sequence:
             # The edit list did not reconstruct the sequence. Fold it rather
             # than store a penalty for a different string.

@@ -20,7 +20,11 @@ import pytest
 
 from dna_design_suite import _core
 from dna_design_suite.codon.orchestrator import ComputeBudget, Job, JobInputs
-from dna_design_suite.codon.orchestrator.budget import TierPlanError
+from dna_design_suite.codon.orchestrator.budget import (
+    LAPTOP_RSS_BYTES,
+    TierPlanError,
+    wall_budget_ms,
+)
 from dna_design_suite.codon.orchestrator.job import _engine_refusal
 from dna_design_suite.codon.predictors.structure import StructureEngineError
 from dna_design_suite.modelreg import ArtifactStore, Pin, ResolutionRequest, resolve, seal
@@ -199,6 +203,50 @@ def inputs() -> JobInputs:
         tier2_block=4,
         tier2_sweeps=3,
     )
+
+
+def test_wall_budget_matches_the_published_anchors() -> None:
+    """The cap is the ADR-0008 table, not a duration fitted to a gene."""
+    assert wall_budget_ms("fast", 100) == 30_000
+    assert wall_budget_ms("fast", 2000) == 30_000
+    assert wall_budget_ms("fast", 15_000) == 120_000
+    assert wall_budget_ms("fast", 8500) == 75_000
+    assert wall_budget_ms("standard", 2000) == 600_000
+    assert wall_budget_ms("standard", 15_000) == 3_600_000
+    assert wall_budget_ms("exact", 2000) == 35 * 60 * 1000
+    assert wall_budget_ms("exact", 15_000) == 4 * 60 * 60 * 1000
+    assert LAPTOP_RSS_BYTES == 8 * 1024 * 1024 * 1024
+
+
+def test_a_zero_wall_budget_is_cf_budget_003(store: ArtifactStore, tmp_path: Path) -> None:
+    job_inputs = inputs()
+    job_inputs.wall_budget_ms = 0
+    job = make_job(store, tmp_path, total=2, segment=2, job_inputs=job_inputs)
+    job.run()
+    assert job.state == "failed"
+    assert job.problem is not None
+    assert job.problem["code"] == "CF-BUDGET-003"
+    assert "wall-clock" in job.problem["detail"]
+
+
+def test_a_one_byte_rss_cap_is_cf_budget_003(store: ArtifactStore, tmp_path: Path) -> None:
+    job_inputs = inputs()
+    job_inputs.max_rss_bytes = 1
+    job_inputs.wall_budget_ms = 120_000
+    job = make_job(store, tmp_path, total=1, segment=1, job_inputs=job_inputs)
+    job.run()
+    assert job.state == "failed"
+    assert job.problem is not None
+    assert job.problem["code"] == "CF-BUDGET-003"
+    assert "memory cap" in job.problem["detail"]
+
+
+def test_a_future_wall_budget_still_succeeds(store: ArtifactStore, tmp_path: Path) -> None:
+    job_inputs = inputs()
+    job_inputs.wall_budget_ms = 120_000
+    job = make_job(store, tmp_path, total=1, segment=1, job_inputs=job_inputs)
+    job.run()
+    assert job.state == "succeeded"
 
 
 def make_job(

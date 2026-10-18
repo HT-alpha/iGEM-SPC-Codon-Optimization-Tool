@@ -34,6 +34,7 @@ pub mod motif;
 pub mod repair;
 pub mod seed;
 pub mod spec;
+pub mod spend;
 pub mod tabu;
 pub mod window;
 
@@ -46,13 +47,14 @@ pub use repair::{
     ObjectiveDelta, RepairOutcome, RepairRng, RepairTarget, WorkAccounting,
 };
 pub use seed::{
-    explain_deviations, resolve_feasible_seed, BaselineDeviation, SeedReport, SeedResidual,
-    UnsearchedRule,
+    explain_deviations, resolve_feasible_seed, resolve_feasible_seed_limited, BaselineDeviation,
+    SeedReport, SeedResidual, UnsearchedRule,
 };
 pub use spec::{
     AssemblySpec, Constraint, ConstraintClass, ConstraintSet, ExpansionReport, RepairPolicy, Rule,
     Scope, Strand,
 };
+pub use spend::SpendLimit;
 pub use tabu::TabuLedger;
 pub use window::{find_runs, GcIndex, Run};
 

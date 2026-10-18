@@ -53,6 +53,36 @@ EXECUTED_TIERS: tuple[str, ...] = (
     "decision",
 )
 
+#: ADR-0008 published walls, in seconds. The short anchor is a single gene of
+#: at most 2 kb. The long anchor is a multi-cistron of at most 15 kb. `exact`
+#: publishes no target; the estimate column (35 min, about 4 h) is the cap.
+_WALL_SECONDS: dict[str, tuple[int, int]] = {
+    "fast": (30, 120),
+    "standard": (600, 3600),
+    "exact": (35 * 60, 4 * 60 * 60),
+}
+_SHORT_NT = 2000
+_LONG_NT = 15000
+
+#: ADR-0008 laptop profile: 8 GB. `/proc` reports kibibytes, so this is 8 GiB.
+LAPTOP_RSS_BYTES = 8 * 1024 * 1024 * 1024
+
+
+def wall_budget_ms(tier: str, cds_nt: int) -> int:
+    """Length-scaled wall cap, in milliseconds, from the ADR-0008 anchors.
+
+    A CDS at or under 2 kb uses the short-gene target. Longer CDS are linear
+    between the 2 kb and 15 kb anchors, and the same line continues past 15 kb.
+    """
+    short_s, long_s = _WALL_SECONDS[tier]
+    if cds_nt <= _SHORT_NT:
+        seconds = short_s
+    else:
+        span = _LONG_NT - _SHORT_NT
+        seconds = short_s + (long_s - short_s) * (cds_nt - _SHORT_NT) / span
+    return int(seconds * 1000)
+
+
 #: The only tier whose progress is denominated in generations.
 #:
 #: Tier 1 runs once and tier 2 runs sweeps, so reporting the loop's

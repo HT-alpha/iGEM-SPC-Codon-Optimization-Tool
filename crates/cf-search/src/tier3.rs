@@ -35,7 +35,7 @@ use cf_landscape_api::batch::{BatchProtocol, BatchResults};
 use crate::rationing::{Observation, Rationer};
 
 use cf_constraints::repair::{ActionableViolation, RepairTarget};
-use cf_constraints::{ConstraintChecker, ConstructView, KmerMasking, TabuLedger};
+use cf_constraints::{ConstraintChecker, ConstructView, KmerMasking, SpendLimit, TabuLedger};
 use cf_metrics::{
     associate, crowding_distance, das_dennis, das_dennis_two_layer, fast_nondominated_sort,
     niching_select, normalize, placeable, Ranked,
@@ -128,6 +128,13 @@ impl Selection {
 pub enum Termination {
     /// Hypervolume stopped improving over the stagnation window.
     HypervolumeStagnation,
+    /// The non-dominated front's fingerprint was unchanged over the window.
+    ///
+    /// `DEP-SRCH-027`. Checked only when hypervolume has not stagnated, so a
+    /// run that has stopped improving on both signals still reports
+    /// hypervolume. This catches a front that is stable while the reference
+    /// point still jitters.
+    FrontUnchanged,
     /// The generation cap was reached.
     GenerationLimit,
     /// The caller's segment ended; the run can continue.
@@ -139,6 +146,7 @@ impl Termination {
     pub fn as_summary(&self) -> &'static str {
         match self {
             Self::HypervolumeStagnation => "hypervolume_stagnation",
+            Self::FrontUnchanged => "front_unchanged",
             Self::GenerationLimit => "generation_limit",
             Self::SegmentComplete => "generation_limit",
         }
@@ -167,6 +175,70 @@ pub fn stagnated(history: &[f64], window: usize, relative_epsilon: f64) -> bool 
     let latest = recent[recent.len() - 1];
     let scale = baseline.abs().max(f64::MIN_POSITIVE);
     (latest - baseline) / scale <= relative_epsilon
+}
+
+/// Whether the non-dominated front has been the same sequence of fingerprints
+/// for `window` steps after a baseline.
+///
+/// A history shorter than `window + 1` is never unchanged: the run has to have
+/// had the chance to move. One differing tail entry keeps the run going.
+pub fn front_unchanged(history: &[u64], window: usize) -> bool {
+    if window == 0 || history.len() <= window {
+        return false;
+    }
+    let recent = &history[history.len() - window - 1..];
+    let baseline = recent[0];
+    recent.iter().all(|item| *item == baseline)
+}
+
+/// Hypervolume stagnation wins when both signals would stop the run.
+///
+/// `TST-SRCH-019` names hypervolume as the reason a constant objective stops.
+/// Front stability is the extra stop for a reference point that still moves
+/// after the non-dominated set has settled. `DEP-SRCH-027`.
+pub fn classify_stop(
+    hypervolume: &[f64],
+    front: &[u64],
+    window: usize,
+    relative_epsilon: f64,
+) -> Option<Termination> {
+    if stagnated(hypervolume, window, relative_epsilon) {
+        Some(Termination::HypervolumeStagnation)
+    } else if front_unchanged(front, window) {
+        Some(Termination::FrontUnchanged)
+    } else {
+        None
+    }
+}
+
+/// FNV-1a over the non-dominated members, in their stable order.
+///
+/// Not `DefaultHasher`: that seed changes per process, and a resumed run would
+/// see different fingerprints than the run that wrote the checkpoint.
+fn front_fingerprint(members: &[Individual]) -> u64 {
+    const OFFSET: u64 = 0xcbf29ce484222325;
+    const PRIME: u64 = 0x100000001b3;
+    let mut hash = OFFSET;
+    let mix = |hash: &mut u64, byte: u8| {
+        *hash ^= u64::from(byte);
+        *hash = hash.wrapping_mul(PRIME);
+    };
+    for member in nondominated(members) {
+        for byte in member.genotype.sequence().cds_string().as_bytes() {
+            mix(&mut hash, *byte);
+        }
+        mix(&mut hash, 0xff);
+        for value in &member.objectives {
+            let bits = value.map(f64::to_bits).unwrap_or(u64::MAX);
+            for byte in bits.to_le_bytes() {
+                mix(&mut hash, byte);
+            }
+        }
+        for byte in member.violation.to_bits().to_le_bytes() {
+            mix(&mut hash, byte);
+        }
+    }
+    hash
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -231,6 +303,12 @@ pub struct Tier3Checkpoint {
     /// the whole window again, so a job checkpointed near convergence would
     /// keep going where an uninterrupted one stopped.
     pub hypervolume_history: Vec<f64>,
+    /// One fingerprint of the non-dominated front per generation actually run.
+    ///
+    /// Travels for the same reason `hypervolume_history` does: a resumed run
+    /// that started this empty would not see a stable front until it had
+    /// filled the window again. Values are FNV-1a, not `DefaultHasher`.
+    pub front_history: Vec<u64>,
     /// The batch protocol's snapshot, when an L0 term is running.
     ///
     /// `P2-05a`. Carries the deferral queue and the stranded set, so a resumed
@@ -269,6 +347,11 @@ pub struct Tier3Request<'a> {
     /// under until this ticket: `evaluate_one` computed everything per
     /// individual and `BatchProtocol` was never reached.
     pub l0: Option<&'a dyn L0Scorer>,
+    /// Wall-clock and resident-memory cap. Default is unlimited.
+    ///
+    /// `DEP-BUDG-002`. Checked at the start of each generation. A seed repair
+    /// that is still inside one Rust call checks the same cap on its own.
+    pub limits: SpendLimit,
 }
 
 /// An objective too expensive to evaluate per move.
@@ -408,6 +491,7 @@ pub fn seed_population(seeds: &[Genotype], request: &Tier3Request<'_>) -> Result
         repairs_succeeded: 0,
         batch: None,
         hypervolume_history: Vec::new(),
+        front_history: Vec::new(),
     })
 }
 
@@ -501,6 +585,8 @@ pub fn run_generations(
 
     let mut members = checkpoint.members.clone();
     let mut history = checkpoint.hypervolume_history.clone();
+    let mut front_history = checkpoint.front_history.clone();
+    request.limits.enforce()?;
     // Both travel in the checkpoint. The protocol carries the deferral queue
     // and the stranded set behind `CF-SRCH-016`; losing either on resume would
     // make a long job's warning quietly disappear at exactly the point it is
@@ -533,6 +619,7 @@ pub fn run_generations(
         termination = Termination::GenerationLimit;
     }
     for generation in first..last {
+        request.limits.enforce()?;
         // A stream per absolute generation, so generation k sees the same
         // randomness whether it is the first of a resumed segment or the
         // fiftieth of an uninterrupted run.
@@ -660,12 +747,14 @@ pub fn run_generations(
             profile.hypervolume_ns += started.elapsed().as_nanos();
             profile.hypervolume_calls += 1;
         }
-        if stagnated(
+        front_history.push(front_fingerprint(&members));
+        if let Some(reason) = classify_stop(
             &history,
+            &front_history,
             request.config.stagnation_window,
             request.config.stagnation_epsilon,
         ) {
-            termination = Termination::HypervolumeStagnation;
+            termination = reason;
             break;
         }
         if generation + 1 >= request.config.max_generations {
@@ -685,6 +774,7 @@ pub fn run_generations(
             repairs_attempted,
             repairs_succeeded,
             hypervolume_history: history,
+            front_history,
             batch: request.l0.map(|_| protocol.snapshot()),
         },
         front,

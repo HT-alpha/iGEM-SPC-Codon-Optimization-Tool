@@ -21,7 +21,9 @@
 use std::sync::{Mutex, OnceLock};
 
 use cf_burden::GrowthCostTerm;
-use cf_constraints::{explain_deviations, resolve_feasible_seed, ConstraintChecker};
+use cf_constraints::{
+    explain_deviations, resolve_feasible_seed_limited, ConstraintChecker, SpendLimit,
+};
 use cf_epistasis::{ContextNaturalnessTerm, PottsModel};
 use cf_landscape::terms::constraints::ViolationCountTerm;
 use cf_landscape::terms::structure::LocalAccessibilityTerm;
@@ -438,6 +440,14 @@ pub struct TierInputs<'a> {
     pub host_digest: &'a str,
     pub root_seed: u64,
     pub context_digest: Option<&'a str>,
+    /// Unix milliseconds. Absent means no wall-clock cap.
+    pub deadline_unix_ms: Option<u64>,
+    /// Absent means no resident-memory cap.
+    pub max_rss_bytes: Option<u64>,
+}
+
+fn spend_limit(inputs: &TierInputs<'_>) -> SpendLimit {
+    SpendLimit::from_caps(inputs.deadline_unix_ms, inputs.max_rss_bytes)
 }
 
 fn host_context(inputs: &TierInputs<'_>) -> Result<HostContext> {
@@ -541,7 +551,12 @@ pub fn run_tier2(inputs: &TierInputs<'_>, block: usize, sweeps: u32) -> Result<V
 /// `CF-SRCH-006` whose detail names the rules still broken and what to change.
 pub fn run_seed_resolve(inputs: &TierInputs<'_>) -> Result<Value> {
     let weights = codon_adaptiveness(inputs.host_profile);
-    let report = resolve_feasible_seed(inputs.sequence, inputs.checker, &weights)?;
+    let report = resolve_feasible_seed_limited(
+        inputs.sequence,
+        inputs.checker,
+        &weights,
+        spend_limit(inputs),
+    )?;
     let mut document = json!({
         "cds": report.sequence.cds_string(),
         "sequence": report.sequence.to_json()?,
@@ -824,6 +839,7 @@ pub fn run_tier3_segment(
         evaluator: &evaluator,
         config: &config,
         root_seed: tier3_seed(inputs.root_seed),
+        limits: spend_limit(inputs),
         // No L0 term reaches the registry by default: the structure term ships
         // as a diagnostic (`DEP-STRU-003`) and the LM is Phase 3. `P2-05a`
         // builds the path and proves it with a real crossing; wiring a term
@@ -939,6 +955,7 @@ fn checkpoint_to_json(checkpoint: &Tier3Checkpoint) -> Result<Value> {
         "repairs_attempted": checkpoint.repairs_attempted,
         "repairs_succeeded": checkpoint.repairs_succeeded,
         "hypervolume_history": checkpoint.hypervolume_history,
+        "front_history": checkpoint.front_history.iter().map(|item| item.to_string()).collect::<Vec<_>>(),
         "batch": checkpoint.batch,
     }))
 }
@@ -1040,6 +1057,21 @@ fn checkpoint_from_json(document: &Value, request: &Tier3Request<'_>) -> Result<
             .get("hypervolume_history")
             .and_then(Value::as_array)
             .map(|a| a.iter().filter_map(Value::as_f64).collect())
+            .unwrap_or_default(),
+        front_history: map
+            .get("front_history")
+            .and_then(Value::as_array)
+            .map(|entries| {
+                entries
+                    .iter()
+                    .filter_map(|value| {
+                        value
+                            .as_str()
+                            .and_then(|text| text.parse::<u64>().ok())
+                            .or_else(|| value.as_u64())
+                    })
+                    .collect()
+            })
             .unwrap_or_default(),
         batch: map.get("batch").filter(|v| !v.is_null()).cloned(),
     })

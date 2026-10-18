@@ -5,6 +5,23 @@
 Package version stays 0.1.0. This note is the DNA Design Suite delta on top
 of v2.9.2.
 
+Seed repair that is still infeasible after the middle-of-window GC pairs now
+tries at most four pair edits spread across the whole stuck window and the
+over-limit k-mers (`DEP-SRCH-026`). A pair is kept only when the packed
+progress score falls and pattern hits do not rise. A seed that is already
+feasible never takes the branch. Tier 3 stops when the non-dominated front
+is unchanged for the caller's stagnation window (`DEP-SRCH-027`). Hypervolume
+stagnation is checked first, and the front fingerprint travels in the
+checkpoint. A job also enforces the published wall, scaled by CDS length
+between the 2 kb and 15 kb anchors, and an 8 GiB resident cap
+(`DEP-BUDG-002`). A deadline is checked on every call. The resident reading
+may be reused for 200 ms. Passing either returns `CF-BUDGET-003`. Callers
+that omit the fields stay unlimited. Overlapping structure edits share one
+region fold; edits whose fold regions do not meet stay separate folds, so a
+long CDS is not refolded between distant codon changes. The penalty matches
+a full fold. The 255-gene corpus and the before/after distributions are
+`docs/benchmarks/v2.10-generality.md`.
+
 rpoC under the assembly rules returned `CF-SRCH-006`. Single-codon GC
 sweeps left 50 nt windows outside the band, and k-mer repair will not edit
 while that penalty remains, so the cycle stopped. A synonymous CDS exists.
@@ -69,7 +86,7 @@ codon-sized probe: `repair` 0.746 s; `l0_batch` 0.658 s; wall 3.060 s. Before
 the seed-resolution change above, that vector was
 `[0.9575892496987667, 2.408954059933615]`, with 1 full fold, 21 local edits,
 12 hits. The same job on this tree is
-`[0.9723247970586831, 2.4166863375261896]`, 1 full fold, 18 local edits,
+`[0.9723247970586831, 2.4166863375261896]`, 1 full fold, 11 local edits,
 12 hits. The v2.9.2 note's 3.202 s tier 3 was
 `opt-level = 1`, which is what `make build` produces. These two numbers are
 the release profile, measured the same way on both sides. Merged with

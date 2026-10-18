@@ -293,6 +293,75 @@ def test_fold_session_reuses_a_duplicate_and_edits_one_codon() -> None:
 
 
 @vienna
+def test_fold_session_folds_several_codon_edits_as_one_region() -> None:
+    """Two codon edits inside the incremental budget are one engine call.
+
+    Calling `substitute` once per codon would fold the region twice and this
+    count would be 2. The penalty still matches a full fold of the edited CDS.
+    """
+    sequence = random_sequence(480, seed=11)
+    edited = sequence
+    for start in (90, 120):
+        codon = "GGG" if edited[start : start + 3] != "GGG" else "AAA"
+        edited = edited[:start] + codon + edited[start + 3 :]
+    session = FoldSession()
+    session.evaluate([sequence])
+    cache = session._cache
+    assert cache is not None
+    calls = {"n": 0}
+    original = cache.engine.local_accessibility
+
+    def counted(seq: str, window: int, span: int, temperature: float) -> list[float]:
+        calls["n"] += 1
+        return original(seq, window, span, temperature)
+
+    cache.engine.local_accessibility = counted  # type: ignore[method-assign]
+    try:
+        values = session.evaluate([edited])
+    finally:
+        cache.engine.local_accessibility = original  # type: ignore[method-assign]
+    assert calls["n"] == 1
+    assert session.local_edits == 1
+    assert session.full_folds == 1
+    assert values[0] == accessibility_penalty(full_recompute(edited))
+
+
+@vienna
+def test_fold_session_folds_distant_codon_edits_as_separate_regions() -> None:
+    """Two edits whose fold regions do not meet are two engine calls.
+
+    Folding the span between them refolds bases neither edit can change.
+    Each penalty still matches a full fold. The parent fold is the only
+    full fold.
+    """
+    sequence = random_sequence(480, seed=13)
+    edited = sequence
+    for start in (0, 400):
+        codon = "GGG" if edited[start : start + 3] != "GGG" else "AAA"
+        edited = edited[:start] + codon + edited[start + 3 :]
+    session = FoldSession()
+    session.evaluate([sequence])
+    cache = session._cache
+    assert cache is not None
+    calls = {"n": 0}
+    original = cache.engine.local_accessibility
+
+    def counted(seq: str, window: int, span: int, temperature: float) -> list[float]:
+        calls["n"] += 1
+        return original(seq, window, span, temperature)
+
+    cache.engine.local_accessibility = counted  # type: ignore[method-assign]
+    try:
+        values = session.evaluate([edited])
+    finally:
+        cache.engine.local_accessibility = original  # type: ignore[method-assign]
+    assert calls["n"] == 2
+    assert session.local_edits == 1
+    assert session.full_folds == 1
+    assert values[0] == accessibility_penalty(full_recompute(edited))
+
+
+@vienna
 def test_fold_session_folds_a_distant_sequence_from_scratch() -> None:
     sequence = random_sequence(240, seed=5)
     # Two codon edits is past the length//160 budget of 1, so this is a full fold.

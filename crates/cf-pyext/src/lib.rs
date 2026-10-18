@@ -624,6 +624,10 @@ fn with_tier_inputs(
         host_digest: text("host_digest")?,
         root_seed: field("root_seed")?.as_u64().unwrap_or(0),
         context_digest: request.get("context_digest").and_then(|item| item.as_str()),
+        deadline_unix_ms: request
+            .get("deadline_unix_ms")
+            .and_then(|item| item.as_u64()),
+        max_rss_bytes: request.get("max_rss_bytes").and_then(|item| item.as_u64()),
     })
     .map_err(to_py_err)?;
     Ok(value.to_string())

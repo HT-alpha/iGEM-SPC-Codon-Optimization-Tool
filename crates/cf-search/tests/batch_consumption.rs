@@ -169,6 +169,7 @@ fn request<'a>(
         config,
         root_seed: 0x5eed,
         l0: scorer.map(|s| s as &dyn L0Scorer),
+        limits: cf_constraints::SpendLimit::default(),
     }
 }
 
@@ -369,6 +370,7 @@ fn tst_srch_023_a_declined_item_is_unknown_not_zero() {
         config: &cfg,
         root_seed: 0x5eed,
         l0: Some(&declining as &dyn L0Scorer),
+        limits: cf_constraints::SpendLimit::default(),
     };
     let start = seed_population(&toy_seeds(), &req).expect("seed");
     let report = run_generations(&start, &req, 2).expect("run");
