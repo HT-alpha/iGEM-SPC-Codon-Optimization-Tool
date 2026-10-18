@@ -16,7 +16,7 @@
 //! `DEP-SRCH-015`.
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering as AtomicOrdering};
 use std::time::Instant;
 
@@ -153,6 +153,17 @@ const CLIMB_SITES: usize = 48;
 const CLIMB_PAIR_SITES: usize = 6;
 const CLIMB_PARTNER_TRIALS: usize = 48;
 const KMER_ROUNDS: u32 = 12;
+/// Log-weight change below which a pair cannot raise `cai_of`.
+///
+/// The geometric mean is `exp` of the mean of one `ln` per counted codon.
+/// Adding a few thousand of those terms rounds by well under `1e-8`. A pair
+/// whose shifts sum to less than `-1e-6` is a real drop, so the ascent's
+/// strict `cai > cai_before` test would reject it. Pairs closer than that
+/// still get evaluated, which is what keeps a near-tie on the same side of
+/// the comparison the full sum uses.
+const CAI_SHIFT_REJECT: f64 = -1e-6;
+/// Absent link in the per-rule k-mer position chain.
+const KMER_NONE: u32 = u32::MAX;
 
 /// One constraint the checker still reports after seed resolution.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -411,6 +422,20 @@ fn prefer_weight(weights: &[f64; 64], candidate: Codon, incumbent: Codon) -> boo
     }
 }
 
+/// `true` when the pair is still worth scoring.
+///
+/// `None` means a counted weight of 0 was introduced, and the geometric mean
+/// becomes 0. A sum below [`CAI_SHIFT_REJECT`] cannot come back above the
+/// incumbent once `cai_of` adds the rest of the CDS. Anything closer, including
+/// a tie, is left to that full sum so the comparison stays the one the ascent
+/// already used.
+fn shifts_can_raise_cai(left: Option<f64>, right: Option<f64>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => left + right > CAI_SHIFT_REJECT,
+        _ => false,
+    }
+}
+
 fn cai_of(sequence: &CodonSequence, weights: &[f64; 64]) -> f64 {
     let mut sum = 0.0;
     let mut counted = 0usize;
@@ -443,6 +468,7 @@ struct GcBand {
     offenders: u32,
 }
 
+#[derive(Clone)]
 struct KmerCfg {
     id: String,
     k: usize,
@@ -450,16 +476,218 @@ struct KmerCfg {
     canonical: bool,
 }
 
+/// Count and editable-touch total for one packed word, plus the head of the
+/// position chain. The chain is how a climb finds the other copy of a repeat
+/// without packing every window in the construct.
+#[derive(Clone, Copy)]
+struct KmerSlot {
+    count: u32,
+    touch: u32,
+    head: u32,
+}
+
+const KMER_EMPTY: u8 = 0;
+const KMER_FULL: u8 = 1;
+const KMER_TOMB: u8 = 2;
+
+#[derive(Clone, Copy)]
+struct KmerEntry {
+    key: u64,
+    slot: KmerSlot,
+    state: u8,
+}
+
+impl KmerEntry {
+    fn empty() -> Self {
+        Self {
+            key: 0,
+            slot: KmerSlot {
+                count: 0,
+                touch: 0,
+                head: KMER_NONE,
+            },
+            state: KMER_EMPTY,
+        }
+    }
+}
+
+/// Open-addressed counts. The bucket array is sized once from the window count
+/// and never grows or shrinks: `std` `HashMap` in this toolchain reallocates
+/// downward on `remove`, and the next insert reallocates upward, which is a
+/// rehash on every codon that retires a word. A packed word sits in the low
+/// `2k` bits, so the probe mixes it with a multiply before masking.
+struct KmerTable {
+    slots: Vec<KmerEntry>,
+    spare: Vec<KmerEntry>,
+    full: usize,
+    tombs: usize,
+}
+
+impl KmerTable {
+    fn new(windows: usize) -> Self {
+        if windows == 0 {
+            return Self {
+                slots: Vec::new(),
+                spare: Vec::new(),
+                full: 0,
+                tombs: 0,
+            };
+        }
+        // Two times the most distinct keys, rounded up, so a full sequence of
+        // unique words still leaves empty buckets for the probe to stop.
+        let buckets = windows.saturating_mul(2).max(8).next_power_of_two();
+        Self {
+            slots: vec![KmerEntry::empty(); buckets],
+            spare: vec![KmerEntry::empty(); buckets],
+            full: 0,
+            tombs: 0,
+        }
+    }
+
+    fn get(&self, key: u64) -> Option<KmerSlot> {
+        self.index_of(key).map(|index| self.slots[index].slot)
+    }
+
+    fn set_head(&mut self, key: u64, head: u32) {
+        let index = self
+            .index_of(key)
+            .expect("k-mer count exists before its chain head changes");
+        self.slots[index].slot.head = head;
+    }
+
+    fn for_each(&self, mut visit: impl FnMut(u64, KmerSlot)) {
+        for entry in &self.slots {
+            if entry.state == KMER_FULL {
+                visit(entry.key, entry.slot);
+            }
+        }
+    }
+
+    fn upsert(&mut self, key: u64, slot: KmerSlot) {
+        if self.slots.is_empty() {
+            panic!("k-mer table has no buckets");
+        }
+        if self.full + self.tombs + 1 >= self.slots.len() {
+            self.compact();
+            if self.full + 1 >= self.slots.len() {
+                panic!("k-mer table cannot hold another key");
+            }
+        }
+        let mask = self.slots.len() - 1;
+        let mut index = mix_kmer(key) & mask;
+        let mut tomb = None;
+        for _ in 0..self.slots.len() {
+            match self.slots[index].state {
+                KMER_EMPTY => {
+                    let dest = tomb.unwrap_or(index);
+                    if tomb.is_some() {
+                        self.tombs -= 1;
+                    }
+                    self.slots[dest] = KmerEntry {
+                        key,
+                        slot,
+                        state: KMER_FULL,
+                    };
+                    self.full += 1;
+                    return;
+                }
+                KMER_TOMB => {
+                    if tomb.is_none() {
+                        tomb = Some(index);
+                    }
+                }
+                KMER_FULL if self.slots[index].key == key => {
+                    self.slots[index].slot = slot;
+                    return;
+                }
+                _ => {}
+            }
+            index = (index + 1) & mask;
+        }
+        self.compact();
+        self.upsert(key, slot);
+    }
+
+    fn remove(&mut self, key: u64) {
+        let Some(index) = self.index_of(key) else {
+            return;
+        };
+        self.slots[index].state = KMER_TOMB;
+        self.full -= 1;
+        self.tombs += 1;
+        if self.tombs > self.slots.len() / 4 && self.tombs > self.full {
+            self.compact();
+        }
+    }
+
+    fn index_of(&self, key: u64) -> Option<usize> {
+        if self.slots.is_empty() {
+            return None;
+        }
+        let mask = self.slots.len() - 1;
+        let mut index = mix_kmer(key) & mask;
+        for _ in 0..self.slots.len() {
+            match self.slots[index].state {
+                KMER_EMPTY => return None,
+                KMER_FULL if self.slots[index].key == key => return Some(index),
+                _ => index = (index + 1) & mask,
+            }
+        }
+        None
+    }
+
+    fn compact(&mut self) {
+        for entry in &mut self.spare {
+            *entry = KmerEntry::empty();
+        }
+        for entry in &self.slots {
+            if entry.state == KMER_FULL {
+                place(&mut self.spare, entry.key, entry.slot);
+            }
+        }
+        std::mem::swap(&mut self.slots, &mut self.spare);
+        self.tombs = 0;
+    }
+}
+
+#[inline]
+fn mix_kmer(key: u64) -> usize {
+    key.wrapping_mul(0x517cc1b727220a95) as usize
+}
+
+fn place(slots: &mut [KmerEntry], key: u64, slot: KmerSlot) {
+    let mask = slots.len() - 1;
+    let mut index = mix_kmer(key) & mask;
+    for _ in 0..slots.len() {
+        if slots[index].state != KMER_FULL {
+            slots[index] = KmerEntry {
+                key,
+                slot,
+                state: KMER_FULL,
+            };
+            return;
+        }
+        index = (index + 1) & mask;
+    }
+    panic!("k-mer compact found no empty bucket");
+}
+
+/// One rule's words. `forward[pos]` is the non-canonical packing of `nt[pos..pos+k]`
+/// when `valid[pos]` is set. A codon edit rewrites the `k + 2` windows that
+/// overlap those three bases by patching two-bit lanes, then unlinks and
+/// relinks only those windows.
+struct KmerRule {
+    forward: Vec<u64>,
+    valid: Vec<u8>,
+    touches: Vec<u8>,
+    next: Vec<u32>,
+    prev: Vec<u32>,
+    counts: KmerTable,
+}
+
 struct KmerBook {
     rules: Vec<KmerCfg>,
-    counts: Vec<HashMap<u64, u32>>,
-    /// Occurrences of each key whose span overlaps an editable nucleotide.
-    ///
-    /// The checker's k-mer violation is actionable when any occurrence touches
-    /// an editable span. A repeat that lives entirely in a flank or a locked
-    /// codon still adds to [`Self::excess`] — repair uses that total — but it
-    /// does not add to [`Self::actionable_excess`].
-    touching: Vec<HashMap<u64, u32>>,
+    index: Vec<KmerRule>,
     excess: Vec<u64>,
     /// Sum of `count - max` over keys that exceed the limit and have at least
     /// one editable occurrence. Zero exactly when `ConstraintChecker::check`
@@ -470,32 +698,44 @@ struct KmerBook {
     /// compares. It is not [`Self::actionable_excess`]: a key that is over the
     /// limit by five still contributes one.
     offenders: Vec<u64>,
-    editable: Vec<(usize, usize)>,
 }
 
 impl KmerBook {
     fn build(nt: &[u8], rules: Vec<KmerCfg>, editable: &[(usize, usize)]) -> Self {
         let mut book = Self {
-            counts: vec![HashMap::new(); rules.len()],
-            touching: vec![HashMap::new(); rules.len()],
+            index: Vec::with_capacity(rules.len()),
             excess: vec![0; rules.len()],
             actionable_excess: vec![0; rules.len()],
             offenders: vec![0; rules.len()],
-            editable: editable.to_vec(),
             rules,
         };
-        let rule_count = book.rules.len();
-        for rule_index in 0..rule_count {
+        for rule_index in 0..book.rules.len() {
             let k = book.rules[rule_index].k;
-            let canonical = book.rules[rule_index].canonical;
-            if nt.len() < k {
-                continue;
-            }
-            for pos in 0..=nt.len() - k {
-                if let Some(key) = pack(nt, pos, k, canonical) {
-                    let touches = spans_overlap(&book.editable, pos, pos + k);
-                    book.bump(rule_index, key, 1, touches);
+            let windows = kmer_window_count(nt.len(), k);
+            let mut rule = KmerRule {
+                forward: vec![0; windows],
+                valid: vec![0; windows],
+                touches: vec![0; windows],
+                next: vec![KMER_NONE; windows],
+                prev: vec![KMER_NONE; windows],
+                counts: KmerTable::new(windows),
+            };
+            for pos in 0..windows {
+                rule.touches[pos] = u8::from(spans_overlap(editable, pos, pos + k));
+                if let Some(packed) = pack_forward(nt, pos, k) {
+                    rule.forward[pos] = packed;
+                    rule.valid[pos] = 1;
                 }
+            }
+            book.index.push(rule);
+            for pos in 0..windows {
+                if book.index[rule_index].valid[pos] == 0 {
+                    continue;
+                }
+                let key = book.canonical_at(rule_index, pos);
+                let touches = book.index[rule_index].touches[pos] != 0;
+                book.bump(rule_index, key, 1, touches);
+                book.link(rule_index, pos, key);
             }
         }
         book
@@ -509,10 +749,147 @@ impl KmerBook {
         self.actionable_excess.iter().sum()
     }
 
+    fn replace(&mut self, nt: &mut [u8], at: usize, bases: [u8; 3]) {
+        let old = [nt[at], nt[at + 1], nt[at + 2]];
+        let plain = codon_acgt(old) && codon_acgt(bases);
+        for rule in 0..self.rules.len() {
+            self.detach(rule, at);
+        }
+        if plain {
+            for rule in 0..self.rules.len() {
+                self.patch(rule, at, old, bases);
+            }
+        }
+        nt[at..at + 3].copy_from_slice(&bases);
+        if !plain {
+            for rule in 0..self.rules.len() {
+                self.repack(rule, nt, at);
+            }
+        }
+        for rule in 0..self.rules.len() {
+            self.attach(rule, at);
+        }
+    }
+
+    fn detach(&mut self, rule: usize, at: usize) {
+        let (lo, hi) = self.span(rule, at);
+        for pos in lo..hi {
+            if self.index[rule].valid[pos] == 0 {
+                continue;
+            }
+            let key = self.canonical_at(rule, pos);
+            self.unlink(rule, pos, key);
+            let touches = self.index[rule].touches[pos] != 0;
+            self.bump(rule, key, -1, touches);
+        }
+    }
+
+    fn attach(&mut self, rule: usize, at: usize) {
+        let (lo, hi) = self.span(rule, at);
+        for pos in lo..hi {
+            if self.index[rule].valid[pos] == 0 {
+                continue;
+            }
+            let key = self.canonical_at(rule, pos);
+            let touches = self.index[rule].touches[pos] != 0;
+            self.bump(rule, key, 1, touches);
+            self.link(rule, pos, key);
+        }
+    }
+
+    /// Rewrite stored forward words for an `ACGT` codon edit.
+    ///
+    /// Each affected window changes in one or two lanes. The lane is
+    /// `2 * (k - 1 - offset)` bits up from the low end, which is the same
+    /// placement `pack_forward` uses, so the stored word stays equal to a
+    /// fresh pack.
+    fn patch(&mut self, rule: usize, at: usize, old: [u8; 3], bases: [u8; 3]) {
+        let k = self.rules[rule].k;
+        let (lo, hi) = self.span(rule, at);
+        for pos in lo..hi {
+            if self.index[rule].valid[pos] == 0 {
+                continue;
+            }
+            let mut key = self.index[rule].forward[pos];
+            for offset in 0..3 {
+                let place = at + offset;
+                if place < pos || place >= pos + k {
+                    continue;
+                }
+                let shift = 2 * (k - 1 - (place - pos));
+                let mask = 3u64 << shift;
+                let old_code = match old[offset] {
+                    b'A' => 0,
+                    b'C' => 1,
+                    b'G' => 2,
+                    b'T' => 3,
+                    _ => unreachable!("plain edit"),
+                };
+                debug_assert_eq!(
+                    (key >> shift) & 3,
+                    old_code,
+                    "stored k-mer drifted from the buffer"
+                );
+                let new_code = match bases[offset] {
+                    b'A' => 0,
+                    b'C' => 1,
+                    b'G' => 2,
+                    b'T' => 3,
+                    _ => unreachable!("plain edit"),
+                };
+                key = (key & !mask) | (new_code << shift);
+            }
+            self.index[rule].forward[pos] = key;
+        }
+    }
+
+    fn repack(&mut self, rule: usize, nt: &[u8], at: usize) {
+        let k = self.rules[rule].k;
+        let (lo, hi) = self.span(rule, at);
+        for pos in lo..hi {
+            if let Some(packed) = pack_forward(nt, pos, k) {
+                self.index[rule].forward[pos] = packed;
+                self.index[rule].valid[pos] = 1;
+            } else {
+                self.index[rule].forward[pos] = 0;
+                self.index[rule].valid[pos] = 0;
+            }
+        }
+    }
+
+    fn span(&self, rule: usize, at: usize) -> (usize, usize) {
+        let windows = self.index[rule].forward.len();
+        if windows == 0 {
+            return (0, 0);
+        }
+        let k = self.rules[rule].k;
+        let lo = at.saturating_sub(k - 1);
+        let hi = (at + 3).min(windows);
+        (lo, hi)
+    }
+
+    fn canonical_at(&self, rule: usize, pos: usize) -> u64 {
+        let packed = self.index[rule].forward[pos];
+        if self.rules[rule].canonical {
+            packed.min(reverse_pack(packed, self.rules[rule].k))
+        } else {
+            packed
+        }
+    }
+
+    fn stored_key(&self, rule: usize, pos: usize) -> Option<u64> {
+        if self.index[rule].valid.get(pos).copied().unwrap_or(0) == 0 {
+            return None;
+        }
+        Some(self.canonical_at(rule, pos))
+    }
+
     fn bump(&mut self, rule: usize, key: u64, delta: i32, touches: bool) {
         let max = self.rules[rule].max_occurrences;
-        let before = self.counts[rule].get(&key).copied().unwrap_or(0);
-        let before_touch = self.touching[rule].get(&key).copied().unwrap_or(0);
+        let (before, before_touch, before_head) = match self.index[rule].counts.get(key) {
+            Some(slot) => (slot.count, slot.touch, slot.head),
+            None => (0, 0, KMER_NONE),
+        };
         let before_over = u64::from(before.saturating_sub(max));
         let before_act = actionable_over(before, before_touch, max);
         let before_off = u64::from(before_act > 0);
@@ -524,8 +901,7 @@ impl KmerBook {
                 next_touch <= 0,
                 "editable occurrences outlived the k-mer count"
             );
-            self.counts[rule].remove(&key);
-            self.touching[rule].remove(&key);
+            self.index[rule].counts.remove(key);
             self.excess[rule] -= before_over;
             self.actionable_excess[rule] -= before_act;
             self.offenders[rule] -= before_off;
@@ -533,12 +909,14 @@ impl KmerBook {
         }
         let after = next as u32;
         let after_touch = next_touch.max(0) as u32;
-        self.counts[rule].insert(key, after);
-        if after_touch == 0 {
-            self.touching[rule].remove(&key);
-        } else {
-            self.touching[rule].insert(key, after_touch);
-        }
+        self.index[rule].counts.upsert(
+            key,
+            KmerSlot {
+                count: after,
+                touch: after_touch,
+                head: before_head,
+            },
+        );
         let after_over = u64::from(after.saturating_sub(max));
         let after_act = actionable_over(after, after_touch, max);
         let after_off = u64::from(after_act > 0);
@@ -547,30 +925,51 @@ impl KmerBook {
         self.offenders[rule] = self.offenders[rule] - before_off + after_off;
     }
 
-    fn replace(&mut self, nt: &mut [u8], at: usize, bases: [u8; 3]) {
-        self.adjust(nt, at, -1);
-        nt[at..at + 3].copy_from_slice(&bases);
-        self.adjust(nt, at, 1);
+    fn link(&mut self, rule: usize, pos: usize, key: u64) {
+        let pos_u = u32::try_from(pos).expect("k-mer position fits in u32");
+        debug_assert_eq!(self.index[rule].next[pos], KMER_NONE);
+        debug_assert_eq!(self.index[rule].prev[pos], KMER_NONE);
+        let head = self.index[rule]
+            .counts
+            .get(key)
+            .map(|slot| slot.head)
+            .unwrap_or(KMER_NONE);
+        self.index[rule].next[pos] = head;
+        self.index[rule].prev[pos] = KMER_NONE;
+        if head != KMER_NONE {
+            self.index[rule].prev[head as usize] = pos_u;
+        }
+        self.index[rule].counts.set_head(key, pos_u);
     }
 
-    fn adjust(&mut self, nt: &[u8], at: usize, delta: i32) {
-        let rule_count = self.rules.len();
-        for rule_index in 0..rule_count {
-            let k = self.rules[rule_index].k;
-            let canonical = self.rules[rule_index].canonical;
-            if nt.len() < k {
-                continue;
-            }
-            let lo = at.saturating_sub(k - 1);
-            let hi = (at + 3).min(nt.len() - k + 1);
-            for pos in lo..hi {
-                if let Some(key) = pack(nt, pos, k, canonical) {
-                    let touches = spans_overlap(&self.editable, pos, pos + k);
-                    self.bump(rule_index, key, delta, touches);
-                }
-            }
+    fn unlink(&mut self, rule: usize, pos: usize, key: u64) {
+        let next = self.index[rule].next[pos];
+        let prev = self.index[rule].prev[pos];
+        if prev == KMER_NONE {
+            self.index[rule].counts.set_head(key, next);
+        } else {
+            self.index[rule].next[prev as usize] = next;
         }
+        if next != KMER_NONE {
+            self.index[rule].prev[next as usize] = prev;
+        }
+        self.index[rule].next[pos] = KMER_NONE;
+        self.index[rule].prev[pos] = KMER_NONE;
     }
+}
+
+fn kmer_window_count(n: usize, k: usize) -> usize {
+    if k == 0 || k > 32 || n < k {
+        0
+    } else {
+        n - k + 1
+    }
+}
+
+fn codon_acgt(bases: [u8; 3]) -> bool {
+    bases
+        .iter()
+        .all(|base| matches!(base, b'A' | b'C' | b'G' | b'T'))
 }
 
 /// `count - max` when this key is an actionable k-mer violation, else 0.
@@ -586,7 +985,7 @@ fn actionable_over(count: u32, touching: u32, max: u32) -> u64 {
     }
 }
 
-fn pack(seq: &[u8], pos: usize, k: usize, canonical: bool) -> Option<u64> {
+fn pack_forward(seq: &[u8], pos: usize, k: usize) -> Option<u64> {
     let mut key = 0u64;
     for offset in 0..k {
         let code = match seq[pos + offset] {
@@ -597,9 +996,6 @@ fn pack(seq: &[u8], pos: usize, k: usize, canonical: bool) -> Option<u64> {
             _ => return None,
         };
         key = (key << 2) | code;
-    }
-    if canonical {
-        key = key.min(reverse_pack(key, k));
     }
     Some(key)
 }
@@ -1569,6 +1965,12 @@ impl<'a> Solver<'a> {
                         if codon_i == current_i && codon_j == current_j {
                             continue;
                         }
+                        if !shifts_can_raise_cai(
+                            self.log_shift(index, current_i, codon_i),
+                            self.log_shift(partner, current_j, codon_j),
+                        ) {
+                            continue;
+                        }
                         self.set_codon(index, codon_i)?;
                         self.set_codon(partner, codon_j)?;
                         let cai = cai_of(&self.seq, self.weights);
@@ -1925,28 +2327,21 @@ impl<'a> Solver<'a> {
     }
 
     fn collect_kmer_sites(&self, at: usize, primary: usize, sites: &mut BTreeSet<usize>) {
-        let n = self.nt.len();
         for (rule_index, rule) in self.kmers.rules.iter().enumerate() {
-            let k = rule.k;
-            if k == 0 || k > 32 || n < k {
+            let (lo, hi) = self.kmers.span(rule_index, at);
+            if lo == hi {
                 continue;
             }
-            let lo = at.saturating_sub(k - 1);
-            let hi = (at + 3).min(n - k + 1);
             let mut keys = Vec::new();
             for pos in lo..hi {
-                if let Some(key) = pack(&self.nt, pos, k, rule.canonical) {
-                    let count = self.kmers.counts[rule_index]
-                        .get(&key)
-                        .copied()
-                        .unwrap_or(0);
-                    let touch = self.kmers.touching[rule_index]
-                        .get(&key)
-                        .copied()
-                        .unwrap_or(0);
-                    if count > rule.max_occurrences && touch > 0 {
-                        keys.push(key);
-                    }
+                let Some(key) = self.kmers.stored_key(rule_index, pos) else {
+                    continue;
+                };
+                let Some(slot) = self.kmers.index[rule_index].counts.get(key) else {
+                    continue;
+                };
+                if slot.count > rule.max_occurrences && slot.touch > 0 {
+                    keys.push(key);
                 }
             }
             if keys.is_empty() {
@@ -1954,11 +2349,18 @@ impl<'a> Solver<'a> {
             }
             keys.sort_unstable();
             keys.dedup();
-            for pos in 0..=n - k {
-                if let Some(key) = pack(&self.nt, pos, k, rule.canonical) {
-                    if keys.binary_search(&key).is_ok() {
-                        self.collect_codons(pos, pos + k, primary, sites);
-                    }
+            for key in keys {
+                let Some(mut pos) = self.kmers.index[rule_index]
+                    .counts
+                    .get(key)
+                    .map(|slot| slot.head)
+                else {
+                    continue;
+                };
+                while pos != KMER_NONE {
+                    let start = pos as usize;
+                    self.collect_codons(start, start + rule.k, primary, sites);
+                    pos = self.kmers.index[rule_index].next[start];
                 }
             }
         }
@@ -1998,8 +2400,7 @@ impl<'a> Solver<'a> {
         let bases = codon.to_bytes();
         let homo_span = homo_window(&self.nt, at, bases);
         self.homo_penalty = self.homo_after(at, bases);
-        self.gc_penalty += self.gc_delta(at, bases);
-        self.revise_gc_offenders(at, bases);
+        self.gc_penalty += self.charge_gc(at, bases);
         let kmer_started = seed_profile_on().then(Instant::now);
         self.kmers.replace(&mut self.nt, at, bases);
         if let Some(kmer_started) = kmer_started {
@@ -2042,6 +2443,47 @@ impl<'a> Solver<'a> {
             SEED_PROFILE.gc_delta.record(started);
         }
         delta
+    }
+
+    /// Penalty change and the offender-count update, in one window walk.
+    ///
+    /// `gc_delta` is the virtual probe the sweeps use, before a codon is
+    /// written. A committed or trial `set_codon` needs that same penalty and
+    /// the integer offender delta together. Walking the overlapping windows
+    /// twice was the same arithmetic with twice the reads.
+    fn charge_gc(&mut self, at: usize, bases: [u8; 3]) -> f64 {
+        let started = seed_profile_on().then(Instant::now);
+        let n = self.nt.len();
+        let mut penalty_delta = 0.0;
+        for band_index in 0..self.bands.len() {
+            let window = self.bands[band_index].window;
+            if window == 0 || n < window {
+                continue;
+            }
+            let lo = at.saturating_sub(window - 1);
+            let hi = (at + 3).min(n - window + 1);
+            let mut offender_delta: i32 = 0;
+            for start in lo..hi {
+                let end = start + window;
+                if !spans_overlap(&self.editable, start, end) {
+                    continue;
+                }
+                let before = prefix_value(&self.prefix, &self.prefix_adds, end)
+                    - prefix_value(&self.prefix, &self.prefix_adds, start);
+                let after = adjusted_gc(before, &self.nt, at, bases, start, end);
+                penalty_delta += band_penalty(after, &self.bands[band_index])
+                    - band_penalty(before, &self.bands[band_index]);
+                offender_delta += i32::from(window_outside(after, &self.bands[band_index]))
+                    - i32::from(window_outside(before, &self.bands[band_index]));
+            }
+            let next = self.bands[band_index].offenders as i32 + offender_delta;
+            debug_assert!(next >= 0, "gc offender count went negative");
+            self.bands[band_index].offenders = next.max(0) as u32;
+        }
+        if let Some(started) = started {
+            SEED_PROFILE.gc_delta.record(started);
+        }
+        penalty_delta
     }
 
     fn gc_delta_inner(&self, at: usize, bases: [u8; 3]) -> f64 {
@@ -2298,32 +2740,6 @@ impl<'a> Solver<'a> {
         counts
     }
 
-    fn revise_gc_offenders(&mut self, at: usize, bases: [u8; 3]) {
-        let n = self.nt.len();
-        for band in &mut self.bands {
-            if band.window == 0 || n < band.window {
-                continue;
-            }
-            let lo = at.saturating_sub(band.window - 1);
-            let hi = (at + 3).min(n - band.window + 1);
-            let mut delta: i32 = 0;
-            for start in lo..hi {
-                let end = start + band.window;
-                if !spans_overlap(&self.editable, start, end) {
-                    continue;
-                }
-                let before = prefix_value(&self.prefix, &self.prefix_adds, end)
-                    - prefix_value(&self.prefix, &self.prefix_adds, start);
-                let after = adjusted_gc(before, &self.nt, at, bases, start, end);
-                delta += i32::from(window_outside(after, band))
-                    - i32::from(window_outside(before, band));
-            }
-            let next = band.offenders as i32 + delta;
-            debug_assert!(next >= 0, "gc offender count went negative");
-            band.offenders = next.max(0) as u32;
-        }
-    }
-
     fn pattern_count(&self) -> usize {
         let started = seed_profile_on().then(Instant::now);
         let count = if self.patterns.incremental {
@@ -2395,32 +2811,31 @@ impl<'a> Solver<'a> {
 
     fn hot_codons_inner(&self) -> Vec<usize> {
         let mut indexes = Vec::new();
-        for rule in &self.kmers.rules {
-            if self.nt.len() < rule.k {
-                continue;
-            }
+        let last = self.seq.codon_count().saturating_sub(1);
+        for (rule_index, rule) in self.kmers.rules.iter().enumerate() {
             // Both copies. Marking only the occurrence that pushed the count
             // over the limit left the earlier copy out of the pair search, and
             // the edit that breaks the repeat can sit on that earlier copy.
-            let mut seen: HashMap<u64, Vec<usize>> = HashMap::new();
-            for pos in 0..=self.nt.len() - rule.k {
-                let Some(key) = pack(&self.nt, pos, rule.k, rule.canonical) else {
-                    continue;
-                };
-                seen.entry(key).or_default().push(pos);
-            }
-            let last = self.seq.codon_count().saturating_sub(1);
-            for positions in seen.values() {
-                if positions.len() <= rule.max_occurrences as usize {
-                    continue;
+            // Chain order is not position order; the index list is sorted below.
+            let mut heads = Vec::new();
+            self.kmers.index[rule_index].counts.for_each(|_key, slot| {
+                if slot.count > rule.max_occurrences {
+                    heads.push(slot.head);
                 }
-                for pos in positions {
-                    let cds_pos = pos.saturating_sub(self.cds_off);
+            });
+            heads.sort_unstable();
+            for mut pos in heads {
+                while pos != KMER_NONE {
+                    let start = pos as usize;
+                    let cds_pos = start.saturating_sub(self.cds_off);
                     let start_codon = cds_pos / 3;
                     let end_codon = (cds_pos + rule.k - 1) / 3;
-                    for codon in start_codon..=end_codon.min(last) {
-                        indexes.push(codon);
+                    if start_codon <= last {
+                        for codon in start_codon..=end_codon.min(last) {
+                            indexes.push(codon);
+                        }
                     }
+                    pos = self.kmers.index[rule_index].next[start];
                 }
             }
         }
@@ -3818,5 +4233,325 @@ mod tests {
             });
         }
         out
+    }
+
+    fn audit_kmer(book: &KmerBook, rule: usize) -> BTreeMap<u64, (u32, u32, Vec<usize>)> {
+        let mut out = BTreeMap::new();
+        let mut rows = Vec::new();
+        book.index[rule]
+            .counts
+            .for_each(|key, slot| rows.push((key, slot)));
+        for (key, slot) in rows {
+            let mut positions = Vec::new();
+            let mut pos = slot.head;
+            let mut guard = 0usize;
+            while pos != KMER_NONE {
+                positions.push(pos as usize);
+                pos = book.index[rule].next[pos as usize];
+                guard += 1;
+                assert!(
+                    guard <= book.index[rule].forward.len() + 1,
+                    "cycle in the k-mer chain for {key}"
+                );
+            }
+            positions.sort_unstable();
+            assert_eq!(positions.len() as u32, slot.count, "chain length for {key}");
+            out.insert(key, (slot.count, slot.touch, positions));
+        }
+        let mut seen = vec![0u8; book.index[rule].forward.len()];
+        for (_, _, positions) in out.values() {
+            for &pos in positions {
+                seen[pos] += 1;
+            }
+        }
+        for (pos, hits) in seen.iter().enumerate() {
+            if book.index[rule].valid[pos] == 1 {
+                assert_eq!(*hits, 1, "valid window {pos} linked {hits} times");
+            } else {
+                assert_eq!(*hits, 0, "invalid window {pos} is linked");
+            }
+        }
+        out
+    }
+
+    fn assert_book_matches_rebuild(
+        nt: &[u8],
+        book: &KmerBook,
+        rules: &[KmerCfg],
+        editable: &[(usize, usize)],
+        step: &str,
+    ) {
+        let rebuilt = KmerBook::build(nt, rules.to_vec(), editable);
+        assert_eq!(book.excess(), rebuilt.excess(), "{step} excess");
+        assert_eq!(
+            book.actionable_excess(),
+            rebuilt.actionable_excess(),
+            "{step} actionable excess"
+        );
+        assert_eq!(book.offenders, rebuilt.offenders, "{step} offenders");
+        assert_eq!(book.rules.len(), rebuilt.rules.len());
+        for rule in 0..book.rules.len() {
+            let k = book.rules[rule].k;
+            for pos in 0..book.index[rule].forward.len() {
+                let packed = pack_forward(nt, pos, k);
+                if book.index[rule].valid[pos] == 1 {
+                    assert_eq!(
+                        packed,
+                        Some(book.index[rule].forward[pos]),
+                        "{step} rule {rule} forward {pos}"
+                    );
+                } else {
+                    assert!(
+                        packed.is_none(),
+                        "{step} rule {rule} window {pos} should not pack"
+                    );
+                }
+            }
+            assert_eq!(
+                audit_kmer(book, rule),
+                audit_kmer(&rebuilt, rule),
+                "{step} rule {rule}"
+            );
+        }
+    }
+
+    /// A codon edit touches `k - 1` windows before the codon, not `k - 2`.
+    /// The repeated `AAAACCCC` and the `N` run make chains longer than one
+    /// and force a window to become valid or invalid.
+    #[test]
+    fn kmer_replace_matches_a_rebuild_and_does_not_rehash() {
+        let mut nt = b"ACGT".repeat(12);
+        nt[10..18].copy_from_slice(b"AAAACCCC");
+        nt[30..38].copy_from_slice(b"AAAACCCC");
+        nt[20..24].copy_from_slice(b"NNNN");
+        let rules = vec![
+            KmerCfg {
+                id: "c4".into(),
+                k: 4,
+                max_occurrences: 1,
+                canonical: false,
+            },
+            KmerCfg {
+                id: "c6".into(),
+                k: 6,
+                max_occurrences: 2,
+                canonical: true,
+            },
+            KmerCfg {
+                id: "c8".into(),
+                k: 8,
+                max_occurrences: 1,
+                canonical: false,
+            },
+        ];
+        let editable = vec![(6usize, nt.len() - 6)];
+        let mut book = KmerBook::build(&nt, rules.clone(), &editable);
+        assert_book_matches_rebuild(&nt, &book, &rules, &editable, "build");
+        let reserved: Vec<usize> = book
+            .index
+            .iter()
+            .map(|rule| rule.counts.slots.len())
+            .collect();
+        let edits = [
+            (10usize, *b"TTT"),
+            (21, *b"ACG"),
+            (0, *b"GGG"),
+            (nt.len() - 3, *b"TTT"),
+            (16, *b"AAA"),
+            (22, *b"NNN"),
+        ];
+        for (at, bases) in edits {
+            book.replace(&mut nt, at, bases);
+            assert_book_matches_rebuild(&nt, &book, &rules, &editable, &format!("edit {at}"));
+        }
+        let mut state = 0x0F1E_2D3C_4B5A_6978u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let alphabet = b"ACGTN";
+        for step in 0..200 {
+            let at = (next() as usize) % (nt.len() - 2);
+            let bases = [
+                alphabet[(next() as usize) % alphabet.len()],
+                alphabet[(next() as usize) % alphabet.len()],
+                alphabet[(next() as usize) % alphabet.len()],
+            ];
+            book.replace(&mut nt, at, bases);
+            if step % 20 == 0 || bases.contains(&b'N') {
+                assert_book_matches_rebuild(&nt, &book, &rules, &editable, &format!("step {step}"));
+            }
+        }
+        assert_book_matches_rebuild(&nt, &book, &rules, &editable, "final");
+        for (rule, cap) in reserved.iter().enumerate() {
+            assert_eq!(
+                book.index[rule].counts.slots.len(),
+                *cap,
+                "rule {rule} rehashed"
+            );
+        }
+    }
+
+    #[test]
+    fn codon_edits_keep_kmer_counts_gc_penalty_and_only_skip_losing_pairs() {
+        let compiled = checker(vec![
+            (
+                "c_gc",
+                Rule::GcWindow {
+                    window_nt: 12,
+                    min: 0.2,
+                    max: 0.7,
+                },
+            ),
+            (
+                "c_gc30",
+                Rule::GcWindow {
+                    window_nt: 18,
+                    min: 0.1,
+                    max: 0.8,
+                },
+            ),
+            (
+                "c_k4",
+                Rule::KmerRepeat {
+                    k: 4,
+                    max_occurrences: 1,
+                    count_overlapping: true,
+                    canonical_strand: false,
+                },
+            ),
+            (
+                "c_k6",
+                Rule::KmerRepeat {
+                    k: 6,
+                    max_occurrences: 2,
+                    count_overlapping: true,
+                    canonical_strand: true,
+                },
+            ),
+        ]);
+        let cds = "ATGGCTGCATGGCAGTTACGTGGACCTAACCCCGCTAACTAA".to_string();
+        let sequence = CodonSequence::from_cds(&cds, 11)
+            .unwrap()
+            .with_five_prime_flank("ACGTACGT")
+            .unwrap()
+            .with_three_prime_flank("TTAA")
+            .unwrap();
+        let weights = weight_table(
+            &sequence,
+            &[
+                ("GCA", 0.15),
+                ("GCC", 0.4),
+                ("GCG", 0.25),
+                ("TTA", 0.2),
+                ("TTG", 0.55),
+                ("CTT", 0.35),
+                ("CTC", 0.45),
+                ("CTA", 0.3),
+                ("CTG", 0.7),
+            ],
+        );
+        let mut solver = Solver::new(sequence, &compiled, &weights, TieBreak::Weight).unwrap();
+        let reserved: Vec<usize> = solver
+            .kmers
+            .index
+            .iter()
+            .map(|rule| rule.counts.slots.len())
+            .collect();
+        let rules = kmer_rules(solver.checker);
+        let mut state = 0xA5A5_5A5A_1234_5678u64;
+        let mut next = || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let positions = solver.seq.codon_count();
+        for step in 0..60 {
+            let index = (next() as usize) % positions;
+            if solver.seq.is_locked(index) {
+                continue;
+            }
+            let synonyms = solver.seq.synonyms_at(index);
+            let codon = synonyms[(next() as usize) % synonyms.len()];
+            solver.set_codon(index, codon).unwrap();
+            assert_book_matches_rebuild(
+                &solver.nt,
+                &solver.kmers,
+                &rules,
+                &solver.editable,
+                &format!("codon {step}"),
+            );
+            let prefix = gc_prefix(&solver.nt);
+            let expected = gc_penalty_of(&solver.nt, &prefix, &solver.bands, &solver.editable);
+            let drift = (solver.gc_penalty - expected).abs();
+            assert!(drift < 1e-8, "codon {step} gc penalty drifted by {drift}");
+            for band in &solver.bands {
+                let offenders = count_gc_offenders(&solver.nt, &prefix, band, &solver.editable);
+                assert_eq!(band.offenders, offenders, "codon {step} {}", band.id);
+            }
+        }
+        for (rule, cap) in reserved.iter().enumerate() {
+            let now = solver.kmers.index[rule].counts.slots.len();
+            let len = solver.kmers.index[rule].counts.full;
+            assert_eq!(
+                now, *cap,
+                "rule {rule} rehashed during codon edits (len {len}, was {cap}, now {now})"
+            );
+        }
+        let index = 1;
+        let partner = 2;
+        let light = solver
+            .seq
+            .synonyms_at(index)
+            .iter()
+            .copied()
+            .find(|codon| solver.weights[codon.index_usize()] < 0.5)
+            .expect("alanine has a light synonym");
+        let heavy = solver
+            .seq
+            .synonyms_at(partner)
+            .iter()
+            .copied()
+            .find(|codon| solver.weights[codon.index_usize()] == 1.0)
+            .expect("alanine has its heavy synonym");
+        solver.set_codon(index, light).unwrap();
+        solver.set_codon(partner, heavy).unwrap();
+        let current_i = solver.seq.codons()[index];
+        let current_j = solver.seq.codons()[partner];
+        let before = cai_of(&solver.seq, solver.weights);
+        let syn_i = solver.seq.synonyms_at(index).to_vec();
+        let syn_j = solver.seq.synonyms_at(partner).to_vec();
+        let mut rejected = 0u32;
+        let mut improving = 0u32;
+        for &codon_i in &syn_i {
+            for &codon_j in &syn_j {
+                if codon_i == current_i && codon_j == current_j {
+                    continue;
+                }
+                let keep = shifts_can_raise_cai(
+                    solver.log_shift(index, current_i, codon_i),
+                    solver.log_shift(partner, current_j, codon_j),
+                );
+                solver.set_codon(index, codon_i).unwrap();
+                solver.set_codon(partner, codon_j).unwrap();
+                let cai = cai_of(&solver.seq, solver.weights);
+                solver.set_codon(partner, current_j).unwrap();
+                solver.set_codon(index, current_i).unwrap();
+                if !keep {
+                    rejected += 1;
+                    assert!(
+                        cai <= before,
+                        "rejected pair raised CAI from {before} to {cai}"
+                    );
+                } else if cai > before {
+                    improving += 1;
+                }
+            }
+        }
+        assert!(rejected > 0, "no losing pair was rejected");
+        assert!(improving > 0, "no improving pair stayed eligible");
     }
 }
