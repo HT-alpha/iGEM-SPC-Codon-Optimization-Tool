@@ -23,6 +23,7 @@ NAMES = (
     "rpsL.cds",
     "rpsL_constraints.json",
     "synthesis.json",
+    "BBa_E0040.fa",
 )
 
 

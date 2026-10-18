@@ -82,6 +82,9 @@ def test_version_and_health_need_no_credential(base: str) -> None:
     assert status == 200
     assert health["status"] == "ok"
     assert health["workers_ready"] == 0
+    from dna_design_suite.codon.predictors.structure import available_engines
+
+    assert health["structure_engines"] == available_engines()
 
 
 def test_a_missing_credential_is_a_problem(base: str) -> None:

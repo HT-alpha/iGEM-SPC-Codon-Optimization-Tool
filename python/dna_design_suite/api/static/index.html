@@ -14,34 +14,62 @@
     <button type="button" class="tab active" id="tab-btn-codon" role="tab" aria-selected="true" aria-controls="tab-codon" data-tab="codon">Codon design</button>
     <button type="button" class="tab" id="tab-btn-primer" role="tab" aria-selected="false" aria-controls="tab-primer" data-tab="primer">Primer design</button>
   </div>
-  <p class="note nav-note">DNA Design Suite. Two tools, one page. Codon design rewrites a gene. Primer design picks PCR primers. Faces: IBM Plex Sans / Mono and Source Serif 4 when installed.</p>
+  <p class="note nav-note" id="suite-version">DNA Design Suite. Codon design rewrites a gene for a host. Primer design picks a PCR pair.</p>
 </nav>
 
 <header class="mast">
-  <div class="k">Document</div>
+  <div class="k">Start here</div>
   <div class="v">
     <h1>DNA Design Suite</h1>
-    <p class="sub">Paste a coding sequence, name the host, and run. A score that was not measured stays blank. Feasibility is yes or no on the candidate, not a third state.</p>
-    <p id="calibration" class="note">epistasis.context_naturalness absent</p>
+    <p class="sub">Paste DNA, a protein, or a GenBank file. Choose a codon table and the rules. Run design. The job keeps running in the background, and the finished gene can be copied or saved as FASTA, GenBank, or a CSV of the scores.</p>
+    <div class="status-strip">
+      <p id="calibration" class="note">epistasis.context_naturalness absent</p>
+      <p id="engine-status" class="note" aria-live="polite">Checking whether ViennaRNA is installed.</p>
+      <p id="model-status" class="note" aria-live="polite">Checking installed models.</p>
+    </div>
   </div>
 </header>
 
 <div class="page" id="tab-codon" role="tabpanel" aria-labelledby="tab-btn-codon">
-  <p class="lead">Codon design keeps the protein the same and changes which codons spell it, so the gene suits the host you name. Five steps. The later ones already have a working default.</p>
+  <ol class="flow" aria-label="Codon design steps">
+    <li>Sequence</li>
+    <li>Host</li>
+    <li>Rules</li>
+    <li>Run</li>
+    <li>Results</li>
+  </ol>
+  <p class="lead">Codon design keeps the protein the same and changes which codons spell it, so the gene suits the host you name. Later steps already have a working default.</p>
 
   <section class="step" aria-labelledby="step-seq">
-    <h2 id="step-seq"><span class="step-no">1</span> Coding sequence</h2>
+    <h2 id="step-seq"><span class="step-no">1</span> Sequence</h2>
     <div class="rail">
-      <div class="k"><label for="cds-text">DNA coding sequence</label></div>
+      <div class="k"><label for="input-kind">What you are pasting</label></div>
+      <div class="v">
+        <select id="input-kind" aria-describedby="help-kind">
+          <option value="dna" selected>DNA coding sequence</option>
+          <option value="protein">Protein sequence</option>
+          <option value="construct">GenBank file</option>
+        </select>
+        <p id="help-kind" class="field-help">DNA is the coding sequence only. A protein is reverse-translated with the codon table you load, then designed. A GenBank file uses one CDS feature. If the file has more than one, type that feature’s name.</p>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="k"><label for="cds-text">Sequence</label></div>
       <div class="v">
         <textarea id="cds-text" class="seq" rows="6" spellcheck="false" aria-describedby="help-cds cds-note" placeholder="ATG... or a FASTA record"></textarea>
-        <p id="help-cds" class="field-help">Paste the coding sequence only (the part that is translated), or a FASTA file’s sequence. It should start with a start codon, use A, C, G and T, and its length should divide by 3. A protein sequence (M, L, K…) is not accepted here.</p>
+        <p id="help-cds" class="field-help">For DNA, paste the coding sequence (the part that is translated) or a FASTA record. It should use A, C, G and T, and its length should divide by 3. Switch the menu above for a protein (M, L, K…) or a GenBank record.</p>
         <div class="seq-actions">
           <button type="button" id="load-demo">Load the rpsL demo</button>
-          <label class="file-label" for="cds-file">Upload FASTA or text<input id="cds-file" type="file" accept=".fa,.fasta,.fna,.ffn,.txt,.cds,text/plain"></label>
+          <button type="button" id="load-gfp" class="secondary">Load BBa_E0040</button>
+          <label class="file-label" for="cds-file">Upload FASTA, GenBank, or text<input id="cds-file" type="file" accept=".fa,.fasta,.fna,.ffn,.gb,.gbk,.genbank,.txt,.cds,text/plain"></label>
         </div>
+        <p class="field-help">rpsL is the E. coli K-12 MG1655 gene, 125 codons. BBa_E0040 is the untrimmed iGEM GFP part.</p>
         <label class="check"><input id="trim-stop" type="checkbox"> Trim at the first in-frame stop</label>
         <p class="field-help">Off unless you tick it. Standard-code stops are TAA, TAG and TGA. An iGEM part that ends TAATAA, such as untrimmed BBa_E0040 (720 bp), keeps the first stop and drops the second (717 bp). With the box off, that part is still refused as CF-SEQ-003.</p>
+        <label class="stack" id="locus-wrap" for="locus" hidden>CDS name in the file
+          <input id="locus" class="seq" type="text" spellcheck="false" autocomplete="off" aria-describedby="help-locus" placeholder="reporter">
+        </label>
+        <p id="help-locus" class="field-help" hidden>Use the gene, label, or locus tag of the CDS you want. Leave this blank when the file has one CDS.</p>
         <p id="cds-note" class="note" aria-live="polite">No sequence yet. The rpsL demo is the E. coli K-12 MG1655 gene rpsL, 125 codons.</p>
       </div>
     </div>
@@ -50,39 +78,36 @@
   <section class="step" aria-labelledby="step-host">
     <h2 id="step-host"><span class="step-no">2</span> Host</h2>
     <div class="rail">
-      <div class="k"><label for="host-select">Organism the gene will run in</label></div>
+      <div class="k"><label for="host-select">Codon-usage table</label></div>
       <div class="v">
         <select id="host-select" aria-describedby="help-host">
-          <option value="escherichia_coli:511145/MG1655" selected>E. coli K-12 MG1655</option>
-          <option value="escherichia_coli:511145/BL21">E. coli BL21</option>
-          <option value="custom">Other host (type the name)</option>
+          <option value="">Loading codon tables…</option>
         </select>
         <label class="stack" id="host-custom-wrap" for="host-custom" hidden>Host name
           <input id="host-custom" class="seq" type="text" spellcheck="false" placeholder="genus_species:taxid/strain" autocomplete="off">
         </label>
-        <p id="help-host" class="field-help">The name is a label on the job. The codon table in the next step is what the optimizer actually uses. The bundled table is from E. coli K-12 MG1655 ribosomal proteins. If you pick another host, load that host’s table.</p>
+        <label class="stack" for="host-name">Name recorded on the job
+          <input id="host-name" class="seq" type="text" spellcheck="false" autocomplete="off" aria-describedby="help-host" value="escherichia_coli:511145/MG1655">
+        </label>
+        <p id="help-host" class="field-help">The menu is the codon-usage files installed with this page, from GET /v1/hosts. It is not a catalogue of every organism. The name is a label on the job and has to look like genus_species:taxid/strain. The filled-in name is the rpsL demo host. The table is what the optimizer uses. The bundled table is <span class="mono">examples/mg1655_ribosomal_usage.json</span>, counted from E. coli K-12 MG1655 ribosomal proteins and labelled user-supplied.</p>
       </div>
     </div>
-  </section>
-
-  <section class="step" aria-labelledby="step-profile">
-    <h2 id="step-profile"><span class="step-no">3</span> Codon-usage table</h2>
     <div class="rail">
-      <div class="k"><label for="load-profile">How often this host uses each codon</label></div>
+      <div class="k"><label for="load-profile">Table on this job</label></div>
       <div class="v">
         <div class="seq-actions">
           <button type="button" id="load-profile">Use E. coli MG1655 ribosomal proteins</button>
           <button type="button" id="load-kazusa" class="secondary">Use Kazusa E. coli genome-wide</button>
           <label class="file-label" for="profile-file">Upload a usage JSON<input id="profile-file" type="file" accept=".json,application/json"></label>
         </div>
-        <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. 1.0 means every counted codon is a top synonym of the table that was loaded. Stops and single-codon families are excluded. A codon whose weight is 0 makes the whole CAI 0. The first button loads <span class="mono">examples/mg1655_ribosomal_usage.json</span>, counted from ribosomal-protein genes and labelled user-supplied. The page loads it when it opens. Kazusa (taxid 316407) is genome-wide frequencies converted to relative adaptiveness. Loading it replaces the table the search uses, so the result is a different number, not a second column on the ribosomal score. A finished design also reports the Kazusa number beside the table it optimized.</p>
+        <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. 1.0 means every counted codon is a top synonym of the table that was loaded. Stops and single-codon families are excluded. A codon whose weight is 0 makes the whole CAI 0. Kazusa (taxid 316407) is genome-wide frequencies converted to relative adaptiveness. Loading it replaces the table the search uses, so the result is a different number, not a second column on the ribosomal score. A finished design also reports the Kazusa number beside the table it optimized.</p>
         <p id="profile-note" class="note" aria-live="polite">No codon table loaded yet.</p>
       </div>
     </div>
   </section>
 
   <section class="step" aria-labelledby="step-constraints">
-    <h2 id="step-constraints"><span class="step-no">4</span> Constraints <span class="optional">optional</span></h2>
+    <h2 id="step-constraints"><span class="step-no">3</span> Rules <span class="optional">optional</span></h2>
     <div class="rail">
       <div class="k"><label for="constraint-mode">Rules the sequence must obey</label></div>
       <div class="v">
@@ -127,12 +152,20 @@
   </section>
 
   <section class="step" aria-labelledby="step-objectives">
-    <h2 id="step-objectives"><span class="step-no">5</span> What to optimize</h2>
+    <h2 id="step-objectives"><span class="step-no">4</span> What to optimize</h2>
     <div class="rail">
-      <div class="k">Objectives</div>
+      <div class="k"><label for="objective-preset">Preset</label></div>
       <div class="v">
+        <select id="objective-preset" aria-describedby="help-preset">
+          <option value="cai" selected>CAI only</option>
+          <option value="cai_burden">CAI and codon-usage burden</option>
+          <option value="cai_structure">CAI and local mRNA structure</option>
+          <option value="cai_context">CAI and the context model</option>
+          <option value="custom">Scores I tick below</option>
+        </select>
+        <p id="help-preset" class="field-help">A preset is expanded by the server. The finished job lists the term ids it actually used. CAI only is the right first design. Structure needs ViennaRNA on this computer. The context model is used only when it is installed. Choose “Scores I tick below” to send the boxes instead of a preset.</p>
         <fieldset>
-          <legend>Scores. CAI is enough for a first design.</legend>
+          <legend>Scores. Codon adaptation index is enough for a first design.</legend>
           <label class="check"><input id="obj-cai" type="checkbox" checked> CAI <span class="mono">usage.cai</span></label>
           <p class="field-help">Codon adaptation index. Higher means the codons look more like the highly expressed genes in the table you loaded. This is the usual first objective. The search maximizes it.</p>
           <label class="check"><input id="obj-gc" type="checkbox"> Whole-gene GC fraction <span class="mono">usage.gc_content</span></label>
@@ -207,27 +240,30 @@
 
   <div class="run-row">
     <button type="button" id="submit" class="go">Run design</button>
-    <p class="note">Sends the request to POST /v1/jobs. Fast, on the rpsL demo, usually finishes within a minute.</p>
+    <button type="button" id="check-feasibility" class="secondary">Check these rules</button>
+    <p class="note">Run design posts the job and returns immediately. Fast, on the rpsL demo, usually finishes within a minute. Check these rules asks whether the DNA you pasted can satisfy the constraints. It does not start a design.</p>
   </div>
   <div id="submit-error" role="alert"></div>
+  <div id="feasibility-root" aria-live="polite"><p class="note empty-state">Rules not checked yet. Check these rules uses the DNA in the box. A protein or a GenBank file is checked on the finished design.</p></div>
 
   <div id="codon-helix" class="helix-stage" aria-hidden="true"></div>
   <h2 id="status">Status</h2>
-  <div id="status-root" aria-live="polite"><p class="note">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p></div>
+  <div id="status-root" aria-live="polite"><p class="note empty-state">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p></div>
+
+  <h2 id="jobs-heading">Background jobs</h2>
+  <div id="jobs-root" aria-live="polite"><p class="note empty-state">No jobs yet. Run design starts one in the background. This list is filled from GET /v1/jobs.</p></div>
 
   <h2 id="front">Pareto front</h2>
-  <p class="note">The designs the search kept. When there is one objective, this is that one design. A column is a score the search used. UNKNOWN means that score was not measured.</p>
-  <div id="front-root"><p class="note">No front yet. A finished job fills this panel. A failure names its CF-* code here.</p></div>
+  <p class="note">The designs the search kept. When there is one objective, this is that one design. The recommended candidate is marked. A column is a score the search used. UNKNOWN means that score was not measured. FASTA, GenBank, and CSV download from this result.</p>
+  <div id="front-root"><p class="note empty-state">No front yet. A finished job fills this panel. A failure names its code and the reason in words.</p></div>
 
   <details class="advanced">
     <summary>What this version does not do</summary>
     <div class="note" id="unbuilt-root">
-      <p>These requests answer CF-CLI-003. Nothing is silently skipped. Use the form above instead of those routes.</p>
+      <p>A request this build cannot run answers CF-CLI-003. Nothing is silently skipped.</p>
       <ul>
-        <li>There is no host catalog. Type the host and load a codon table. GET /v1/hosts is not a list of organisms.</li>
-        <li>There is no model catalog, and this page has no form for a lab measurement. POST /v1/observations stores a validated measurement. GET /v1/recalibrations answers CF-CLI-003 and does not refit a model.</li>
-        <li>A protein sequence is not reverse-translated, and a multi-gene construct is not expanded. Paste one DNA coding sequence.</li>
-        <li>The separate feasibility route is not wired. After a job, read constraint_report.feasible on the design. It is true or false.</li>
+        <li>GET /v1/hosts is the codon-usage files installed here, not a list of every organism. A name you type still needs a table.</li>
+        <li>GET /v1/models is the verified context model, or an empty list when that file is not installed. This page has no form for a lab measurement. POST /v1/observations stores a validated measurement. Dwell is not scored.</li>
         <li>Importing another optimizer’s output is not wired.</li>
       </ul>
     </div>
@@ -294,7 +330,7 @@
   </div>
   <div id="primer-helix" class="helix-stage" aria-hidden="true"></div>
   <div id="primer-error" role="alert"></div>
-  <div id="primer-results"></div>
+  <div id="primer-results"><p class="note empty-state">No primer pairs yet. Paste a template, choose a region, then Find primer pairs. You can also paste a pair you already have and check it below.</p></div>
 
   <h2>Check a pair you already have</h2>
   <p class="note">Paste two primers. This posts to /v1/primers/analyze and returns immediately. It does not search.</p>

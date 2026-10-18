@@ -75,8 +75,9 @@ const NEXT_STEP = {
   "CF-AUTH-001": "The access token was missing or not in the expected shape. Open Advanced and use a token that starts with t_ followed by 8 to 32 letters or digits. The value already filled in works on this page.",
   "CF-AUTH-003": "That job was started with a different token. Use the same token, or run the design again.",
   "CF-CLI-001": "The request was incomplete or not in the shape this server accepts. Check that the coding sequence uses only A, C, G and T, that its length divides by 3, and that a codon-usage table is loaded.",
+  "CF-SEQ-013": "The host name is not in the shape genus_species:taxid/strain. The rpsL demo uses escherichia_coli:511145/MG1655. The codon table is chosen separately from that name.",
   "CF-CLI-002": "The job finished without a candidate. A constraint that no synonymous sequence can satisfy is a common cause. Remove a rule and run again.",
-  "CF-CLI-003": "This version does not provide that feature. Design from the form on this page: a DNA coding sequence, a host name, and a codon-usage table. Primer design, the other tab, picks PCR primers. Seed import is not wired. Dwell is not scored.",
+  "CF-CLI-003": "This version does not provide that feature. Codon design accepts DNA, a protein, or one GenBank CDS. Primer design, the other tab, picks PCR primers. Seed import is not wired. Dwell is not scored.",
   "CF-IDEM-001": "The same submit was sent twice with different contents. Reload the page and run the design once.",
   "CF-LAND-001": "That objective is not available. Choose CAI, whole-gene GC fraction, constraint violations, or local mRNA structure.",
   "CF-LAND-004": "That term is reported, not ranked. Leave it unchecked, or keep CAI as the objective.",
@@ -161,7 +162,8 @@ function problemCallout(problem) {
   if (!problem || !problem.code) {
     return `<div class="callout refusal"><strong>No CF-* code.</strong> <span class="note">The response did not name a registered code.</span></div>`;
   }
-  return `<div class="callout refusal"><strong>${codeLink(problem)}</strong> ${escapeText(problem.title || "")}<div class="note">${escapeText(problem.detail || "")}</div>${nextStep(problem)}</div>`;
+  const human = problem.detail || problem.title || "";
+  return `<div class="callout refusal"><p class="human">${escapeText(human)}</p><p class="note"><strong>${codeLink(problem)}</strong> ${escapeText(problem.title || "")}</p>${nextStep(problem)}</div>`;
 }
 
 function lateReveal(html) {
@@ -194,6 +196,7 @@ function renderWarnings(document) {
       const refusal = group.some(isRefusal);
       const open = openStages.has(stage);
       const codes = [...new Set(group.map((item) => item.code).filter(Boolean))].join(", ");
+      const firstDetail = (group.find((item) => item.detail) || {}).detail || "";
       const rows = group
         .map(
           (warning) =>
@@ -203,7 +206,7 @@ function renderWarnings(document) {
       const kind = refusal ? "refusal" : "notice";
       const label = refusal ? "hard refusal" : "notice";
       return `<section class="warn-group ${kind}${open ? " open" : ""}" data-stage="${escapeAttr(stage)}">
-        <button type="button" class="warn-toggle" aria-expanded="${open ? "true" : "false"}">${escapeText(stage)} · ${group.length} · ${escapeText(label)}${codes ? ` · ${escapeText(codes)}` : ""}</button>
+        <button type="button" class="warn-toggle" aria-expanded="${open ? "true" : "false"}">${escapeText(stage)} · ${group.length} · ${escapeText(label)}${codes ? ` · ${escapeText(codes)}` : ""}${firstDetail ? ` — ${escapeText(firstDetail)}` : ""}</button>
         <div class="warn-body">
           <div class="warn-row head"><div>code</div><div>stage</div><div>subject</div><div>title</div></div>
           ${rows}
@@ -239,6 +242,7 @@ function bindWarnings() {
 }
 
 function renderStatus(document) {
+  lastJobStatus = document;
   captureOpenStages();
   if (tierJobId !== (document.job_id || "")) {
     tierFraction.clear();
@@ -268,8 +272,12 @@ function renderStatus(document) {
   const failed = document.state === "failed" ? lateReveal(problemCallout(document.problem)) : document.problem && document.problem.code ? problemCallout(document.problem) : "";
   const stateKind = document.state === "succeeded" ? "feasible" : document.state === "failed" ? "refusal" : "warning";
   const plainState = STATE_PLAIN[document.state] || "";
+  const running = document.state === "queued" || document.state === "running";
+  const stop = running
+    ? `<button type="button" id="cancel-job" class="secondary">Stop this job</button>`
+    : "";
   statusRoot.innerHTML = `
-    <div class="rail"><div class="k">Job</div><div class="v mono">${escapeText(document.job_id || "")}</div></div>
+    <div class="rail"><div class="k">Job</div><div class="v mono">${escapeText(document.job_id || "")} ${stop}</div></div>
     <div class="rail"><div class="k">State</div><div class="v">${chip(stateKind, document.state || "")}${plainState ? `<p class="field-help">${escapeText(plainState)}</p>` : ""}</div></div>
     ${failed}
     <h2>Tiers</h2>
@@ -280,6 +288,12 @@ function renderStatus(document) {
     ${renderWarnings(document)}
   `;
   bindWarnings();
+  const cancelButton = statusRoot.querySelector("#cancel-job");
+  if (cancelButton && document.job_id) {
+    cancelButton.addEventListener("click", () => {
+      cancelJob(document.job_id);
+    });
+  }
   requestAnimationFrame(() => {
     statusRoot.querySelectorAll(".bar > span").forEach((span) => {
       span.style.width = `${span.dataset.target}%`;
@@ -599,20 +613,50 @@ function resultSummary(front) {
   }
   const cds = (candidate.sequences || [])[0] && candidate.sequences[0].cds;
   const lengthNote = cds ? `<p class="note">${cds.length} bases, ${Math.floor(cds.length / 3)} codons.</p>` : "";
+  const violations = report && Array.isArray(report.violations) ? report.violations : [];
+  const violationList = violations.length
+    ? `<ul class="finding-list">${violations
+        .map(
+          (item) =>
+            `<li><span class="mono">${escapeText(item.constraint_id || "")}</span> ${escapeText(item.detail || "")}</li>`,
+        )
+        .join("")}</ul>`
+    : "";
+  const copy = cds
+    ? `<button type="button" data-copy="${escapeAttr(cds)}">Copy coding sequence</button>`
+    : "";
   return `<section class="result-summary">
     <h2>Your design</h2>
+    <p class="field-help">This is the recommended candidate. The table further down lists every design the search kept.</p>
     <p class="mono">${escapeText(candidate.candidate_id)}</p>
     ${lengthNote}
     ${feasible}
+    ${violationList}
+    ${submittedGcWindows()}
     ${scores}
     ${rationaleNotes(candidate)}
+    <div id="compare-root"><p class="note">The comparison with what you submitted appears here when this page still has that sequence.</p></div>
     <div class="seq-actions">
+      ${copy}
       <button type="button" data-export="fasta">Download FASTA</button>
       <button type="button" data-export="genbank">Download GenBank</button>
       <button type="button" data-export="csv">Download CSV</button>
     </div>
     <p class="field-help">FASTA and CSV include every design on this front. GenBank is the one named above. The numbers are the ones in the result document.</p>
   </section>`;
+}
+
+function submittedGcWindows() {
+  const constraints = lastSubmitted && lastSubmitted.constraints;
+  const rules = constraints && constraints.constraints;
+  if (!Array.isArray(rules)) return "";
+  const windows = rules.filter((item) => item && item.rule && item.rule.kind === "gc_window");
+  if (!windows.length) return "";
+  const lines = windows.map((item) => {
+    const rule = item.rule;
+    return `every ${rule.window_nt} nt, GC fraction between ${rule.min} and ${rule.max} (${item.id || "gc_window"})`;
+  });
+  return `<p class="field-help"><strong>GC window on this job.</strong> ${escapeText(lines.join("; "))}. A GC window is a sliding stretch and a hard band. It is separate from the single whole-gene GC fraction.</p>`;
 }
 
 function rationaleNotes(candidate) {
@@ -711,6 +755,7 @@ async function loadFront(jobId) {
   const front = await call("GET", `/v1/jobs/${jobId}/front?reduction=default&max_candidates=20`);
   if (front.status === 200 && front.payload && !front.payload.code) {
     codonHelix.setState(renderFront(front.payload) ? "result" : "error");
+    fillComparison(front.payload);
   } else {
     showFrontFailure(front);
     codonHelix.setState("error");
@@ -718,6 +763,117 @@ async function loadFront(jobId) {
 }
 
 let pollToken = 0;
+let lastJobStatus = null;
+let compareToken = 0;
+
+function gcCount(sequence) {
+  const letters = String(sequence || "").toUpperCase();
+  if (!letters.length) return null;
+  const gc = (letters.match(/[GC]/g) || []).length;
+  return { gc, length: letters.length };
+}
+
+function codonChanges(before, after) {
+  if (!before || !after || before.length !== after.length || before.length % 3 !== 0) return null;
+  let changed = 0;
+  for (let index = 0; index < before.length; index += 3) {
+    if (before.slice(index, index + 3) !== after.slice(index, index + 3)) changed += 1;
+  }
+  return { changed, total: before.length / 3 };
+}
+
+function inputDnaForComparison() {
+  if (!lastSubmitted) return "";
+  if (typeof lastSubmitted.cds === "string" && lastSubmitted.cds) return lastSubmitted.cds;
+  const incoming = lastSubmitted.input;
+  if (incoming && incoming.kind === "single_cds" && typeof incoming.sequence === "string") return incoming.sequence;
+  return "";
+}
+
+function scoreTermsForComparison() {
+  const resolved = (lastJobStatus && lastJobStatus.resolved_objectives) || [];
+  const terms = resolved.map((term) => term.term_id).filter(Boolean);
+  if (terms.length) return terms;
+  return Array.isArray(lastSubmitted && lastSubmitted.objectives) ? lastSubmitted.objectives : [];
+}
+
+async function fillComparison(front) {
+  const slot = document.getElementById("compare-root");
+  if (!slot) return;
+  const token = ++compareToken;
+  const recommended = front.recommended || {};
+  const candidates = front.candidates || [];
+  const candidate = candidates.find((item) => item.candidate_id === recommended.candidate_id) || candidates[0];
+  const designed = candidate && candidate.sequences && candidate.sequences[0] ? candidate.sequences[0].cds || "" : "";
+  const incoming = lastSubmitted && lastSubmitted.input;
+  const kind = incoming && incoming.kind;
+  const input = inputDnaForComparison();
+  let body = "";
+  if (kind === "protein") {
+    body = `<p class="field-help">You pasted a protein. The server reverse-translates it with the codon table on the job: the synonym with the highest relative adaptiveness, and the alphabetically earlier codon when those weights tie. Then it searches. This page does not keep a separate DNA “before”.</p>`;
+  } else if (kind === "construct") {
+    body = `<p class="field-help">You pasted a GenBank record. The server used one CDS feature. The coding sequence below is the design. This page does not rebuild the rest of the record.</p>`;
+  } else if (input && designed && input === designed) {
+    body = `<p class="field-help">The recommended coding sequence is the same letters as the DNA you submitted.</p>`;
+  } else if (input && designed) {
+    const diff = codonChanges(input, designed);
+    const before = gcCount(input);
+    const after = gcCount(designed);
+    const diffLine = diff
+      ? `<p>${diff.changed} of ${diff.total} codon positions are not the same letters.</p>`
+      : `<p>The two sequences are different lengths (${input.length} and ${designed.length} bases), so this page does not line them up codon by codon.</p>`;
+    const countLine = (count) => count ? `${count.gc} G or C of ${count.length} bases` : "";
+    body = `<div class="compare">
+      <div class="pane"><h3>Submitted DNA</h3><p>${escapeText(countLine(before))}</p><p class="note">Counted on this page. This is not the usage.gc_content score.</p></div>
+      <div class="pane"><h3>Recommended coding sequence</h3><p>${escapeText(countLine(after))}</p><p class="note">Counted on this page. This is not the usage.gc_content score.</p></div>
+    </div>${diffLine}`;
+  } else {
+    body = `<p class="note">No submitted DNA is available to put beside this design.</p>`;
+  }
+  slot.innerHTML = `<h2>Before and after</h2>${body}<div id="score-compare"></div>`;
+  const terms = scoreTermsForComparison();
+  if (!input || !designed || !lastSubmitted || !lastSubmitted.host_profile || !terms.length) return;
+  const scoreSlot = document.getElementById("score-compare");
+  if (scoreSlot) scoreSlot.innerHTML = `<p class="note">Scoring the submitted DNA and the recommended sequence on the same terms.</p>`;
+  const scored = await call("POST", "/v1/score", {
+    host: lastSubmitted.host,
+    cds: input,
+    host_profile: lastSubmitted.host_profile,
+    objectives: terms,
+    constraints: lastSubmitted.constraints || EMPTY_CONSTRAINTS,
+    five_prime_flank: lastSubmitted.five_prime_flank || "",
+    three_prime_flank: lastSubmitted.three_prime_flank || "",
+    translation_table: lastSubmitted.translation_table || 11,
+    budget: lastSubmitted.budget || "fast",
+    seed: Number.isFinite(lastSubmitted.seed) ? lastSubmitted.seed : 0,
+    generations: lastSubmitted.generations || 4,
+    sequences: [input, designed],
+  });
+  if (token !== compareToken) return;
+  const live = document.getElementById("score-compare");
+  if (!live) return;
+  if (!scored.payload || scored.payload.code || !Array.isArray(scored.payload.results)) {
+    const problem = scored.payload && scored.payload.code ? scored.payload : null;
+    live.innerHTML = problem
+      ? problemCallout(problem)
+      : `<p class="note">The score request did not return numbers for both sequences.</p>`;
+    return;
+  }
+  const [beforeScore, afterScore] = scored.payload.results;
+  const rows = terms
+    .map((term) => {
+      const label = TERM_PLAIN[term] || term;
+      const show = (record) => {
+        if (!record || record[term] === undefined || record[term] === null) return "UNKNOWN";
+        const numeric = Number(record[term]);
+        return Number.isFinite(numeric) ? numeric.toFixed(6) : "UNKNOWN";
+      };
+      return `<tr><td>${escapeText(label)} <span class="mono">${escapeText(term)}</span></td><td class="mono">${escapeText(show(beforeScore))}</td><td class="mono">${escapeText(show(afterScore))}</td></tr>`;
+    })
+    .join("");
+  live.innerHTML = `<p class="field-help">These numbers are from POST /v1/score, on the terms the job resolved. UNKNOWN means that term was not measured.</p>
+    <div class="hscroll"><table class="data"><thead><tr><th>Score</th><th>Submitted DNA</th><th>Recommended</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 
 async function poll(jobId) {
   const token = ++pollToken;
@@ -731,6 +887,7 @@ async function poll(jobId) {
       ["queued", "running"].includes(status.payload.state)
     ) {
       renderStatus(status.payload);
+      refreshJobs();
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       if (token !== pollToken) return;
       status = await call("GET", `/v1/jobs/${jobId}`);
@@ -743,6 +900,7 @@ async function poll(jobId) {
       return;
     }
     renderStatus(status.payload);
+    refreshJobs();
     if (status.payload.state !== "succeeded") {
       const problem = status.payload.problem || { code: "", title: "", detail: "" };
       frontRoot.innerHTML = lateReveal(status.payload.problem ? problemCallout(problem) : `<div class="callout refusal"><strong>Job ${escapeText(status.payload.state || "unfinished")}.</strong> <span class="note">No front was requested, because the job did not succeed. The status document did not include a problem code.</span></div>`);
@@ -838,12 +996,13 @@ frontRoot.addEventListener("pointerout", (event) => {
   clearHot();
 });
 
-frontRoot.addEventListener("click", (event) => {
+document.body.addEventListener("click", (event) => {
   const button = event.target.closest("[data-copy]");
-  if (button) {
-    copyRaw(button.dataset.copy || "", button);
-    return;
-  }
+  if (!button) return;
+  copyRaw(button.dataset.copy || "", button);
+});
+
+frontRoot.addEventListener("click", (event) => {
   const exporter = event.target.closest("[data-export]");
   if (exporter) exportFront(exporter.dataset.export);
 });
@@ -888,8 +1047,8 @@ function refreshOptimizedHandoff() {
   const slot = document.getElementById("use-optimized");
   if (!slot) return;
   slot.innerHTML = window.optimizedCds
-    ? `<button type="button" id="use-optimized-sequence">Use optimized sequence</button>`
-    : "";
+    ? `<p class="note">A coding sequence from Codon design is ready.</p><button type="button" id="use-optimized-sequence">Use that coding sequence</button>`
+    : `<p class="note empty-state">No codon design yet. A finished gene on the Codon design tab can be copied into this box.</p>`;
 }
 
 document.querySelectorAll("button.tab").forEach((button) => {
@@ -1114,13 +1273,13 @@ function detailPanel(pair) {
     .map((flag) => `<div class="zone-chip ${zoneClass(flag)}">${escapeText(flag.property)} ${escapeText(flag.observed)} · ${escapeText(flag.threshold)}</div>`)
     .join("");
   return `<div class="pair-detail">
-    <p><strong>Forward</strong> <span class="mono">${escapeText(pair.forward_sequence)}</span></p>
+    <p><strong>Forward</strong> <span class="mono">${escapeText(pair.forward_sequence)}</span> <button type="button" data-copy="${escapeAttr(pair.forward_sequence || "")}">Copy forward primer</button></p>
     <p>GC ${escapeText(pair.gc_forward)}% · Tm ${escapeText(Number(pair.tm_forward).toFixed(2))} °C
       <button type="button" class="param-help" title="${escapeAttr(pair.parameter_citation || "")}">?</button></p>
     <p class="note">${escapeText(pair.parameter_set_id || "")} ${escapeText(pair.parameter_digest || "")}</p>
     <pre class="mono mono-reveal">${escapeText(pair.hairpin_diagram_forward || "")}</pre>
     <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_forward)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_forward)} · 3′ clamp, informational, not a filter: ${pair.gc_clamp_forward ? "G or C" : "not G or C"}</p>
-    <p><strong>Reverse</strong> <span class="mono">${escapeText(pair.reverse_sequence)}</span></p>
+    <p><strong>Reverse</strong> <span class="mono">${escapeText(pair.reverse_sequence)}</span> <button type="button" data-copy="${escapeAttr(pair.reverse_sequence || "")}">Copy reverse primer</button></p>
     <pre class="mono mono-reveal">${escapeText(pair.hairpin_diagram_reverse || "")}</pre>
     <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_reverse)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_reverse)} · 3′ clamp, informational, not a filter: ${pair.gc_clamp_reverse ? "G or C" : "not G or C"}</p>
     <p><strong>Pair</strong> hetero-dimer ΔG ${escapeText(pair.hetero_dimer_dG)} · 3′ ΔG ${escapeText(pair.hetero_dimer_3prime_dG)} · Tm mismatch ${escapeText(pair.tm_mismatch)} · product ${escapeText(pair.product_size)}</p>
@@ -1428,6 +1587,50 @@ function cleanedCds(raw) {
   return { sequence, notes, illegal: illegal ? [...new Set(illegal)] : [] };
 }
 
+function inputKind() {
+  const node = document.getElementById("input-kind");
+  return node ? node.value : "dna";
+}
+
+function cleanedProtein(raw) {
+  const lines = String(raw || "").split(/\r?\n/);
+  const kept = [];
+  const notes = [];
+  let header = false;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (trimmed.startsWith(">") || trimmed.startsWith(";")) {
+      header = true;
+      continue;
+    }
+    kept.push(trimmed);
+  }
+  if (header) notes.push("Removed the FASTA header.");
+  const sequence = kept.join("").replaceAll(/\s+/g, "").toUpperCase();
+  const illegal = sequence.match(/[^ACDEFGHIKLMNPQRSTVWY*]/g);
+  return { sequence, notes, illegal: illegal ? [...new Set(illegal)] : [] };
+}
+
+function applyInputKind() {
+  const kind = inputKind();
+  const box = document.getElementById("cds-text");
+  const locus = document.getElementById("locus-wrap");
+  const locusHelp = document.getElementById("help-locus");
+  const trim = document.getElementById("trim-stop");
+  const trimLabel = trim && trim.closest("label");
+  if (locus) locus.hidden = kind !== "construct";
+  if (locusHelp) locusHelp.hidden = kind !== "construct";
+  if (trimLabel) trimLabel.hidden = kind !== "dna";
+  if (box) {
+    if (kind === "protein") box.placeholder = "MKT... or a FASTA protein record";
+    else if (kind === "construct") box.placeholder = "LOCUS ... ORIGIN ... //";
+    else box.placeholder = "ATG... or a FASTA record";
+  }
+  refreshSequenceNote();
+  syncRequest();
+}
+
 function refreshSequenceNote() {
   const note = document.getElementById("cds-note");
   const box = document.getElementById("cds-text");
@@ -1436,16 +1639,46 @@ function refreshSequenceNote() {
     note.textContent = "No sequence yet. The rpsL demo is the E. coli K-12 MG1655 gene rpsL, 125 codons.";
     return;
   }
+  const kind = inputKind();
+  if (kind === "protein") {
+    const parsed = cleanedProtein(box.value);
+    const parts = [...parsed.notes];
+    if (!parsed.sequence) parts.push("No amino-acid letters were found.");
+    else if (parsed.illegal.length) parts.push(`These letters are not amino acids in this form: ${parsed.illegal.join(", ")}.`);
+    else {
+      const residues = parsed.sequence.replaceAll("*", "");
+      parts.push(`${residues.length} amino acids${parsed.sequence.endsWith("*") ? ", with a stop written at the end" : ""}.`);
+      if (/^[ACGT]+$/.test(residues) && residues.length >= 30 && residues.length % 3 === 0) {
+        parts.push("These letters are also DNA bases. If this is a gene, switch to DNA coding sequence.");
+      }
+    }
+    note.textContent = parts.join(" ");
+    return;
+  }
+  if (kind === "construct") {
+    const text = box.value;
+    const parts = [];
+    if (!/LOCUS/i.test(text)) parts.push("No LOCUS line yet.");
+    if (!/ORIGIN/i.test(text)) parts.push("No ORIGIN line yet.");
+    const locus = document.getElementById("locus");
+    parts.push(locus && locus.value.trim() ? `CDS name ${locus.value.trim()}.` : "No CDS name. That is fine when the file has one CDS.");
+    note.textContent = parts.join(" ");
+    return;
+  }
   const parsed = cleanedCds(box.value);
   const parts = [...parsed.notes];
   if (!parsed.sequence) {
     parts.push("No A, C, G or T bases were found.");
   } else if (parsed.illegal.length) {
-    parts.push(`These letters are not DNA bases: ${parsed.illegal.join(", ")}. A protein sequence cannot be optimized here.`);
+    parts.push(`These letters are not DNA bases: ${parsed.illegal.join(", ")}. For a protein, change “What you are pasting” to Protein sequence.`);
   } else if (parsed.sequence.length % 3 !== 0) {
     parts.push(`${parsed.sequence.length} bases. That is not a multiple of 3, so it is not a whole number of codons.`);
   } else {
     parts.push(`${parsed.sequence.length} bases, ${parsed.sequence.length / 3} codons.`);
+    const trim = document.getElementById("trim-stop");
+    if (parsed.sequence.endsWith("TAATAA") && trim && !trim.checked) {
+      parts.push("The sequence ends with TAATAA. Trim at the first in-frame stop is off unless you tick it.");
+    }
   }
   note.textContent = parts.join(" ");
 }
@@ -1529,12 +1762,26 @@ function constraintsForRequest() {
   }
 }
 
+const HOST_ID = /^[a-z0-9]+(?:_[a-z0-9]+)*:[0-9]+(?:\/[A-Za-z0-9._-]+)?$/;
+
 function selectedHost() {
+  const named = document.getElementById("host-name");
   const select = document.getElementById("host-select");
-  if (select.value !== "custom") return select.value;
-  const custom = document.getElementById("host-custom").value.trim();
-  if (!custom) throw new Error("Type a host name, or pick E. coli from the list.");
-  return custom;
+  const custom = select && select.value === "custom" ? document.getElementById("host-custom").value.trim() : "";
+  const host = (named && named.value.trim()) || custom;
+  if (!host) {
+    throw new Error("Type a host name such as escherichia_coli:511145/MG1655. The menu chooses the codon table, which is separate from this name.");
+  }
+  if (!HOST_ID.test(host)) {
+    throw new Error(`“${host}” is not a host name this server accepts. Use genus_species:taxid/strain, for example escherichia_coli:511145/MG1655.`);
+  }
+  return host;
+}
+
+function objectiveFields() {
+  const preset = document.getElementById("objective-preset");
+  if (preset && preset.value && preset.value !== "custom") return { objectives_preset: preset.value };
+  return { objectives: selectedObjectives() };
 }
 
 function selectedObjectives() {
@@ -1547,33 +1794,60 @@ function selectedObjectives() {
   return chosen;
 }
 
+function flankValue(id) {
+  return document.getElementById(id).value.toUpperCase().replace(/[^ACGT]/g, "");
+}
+
 function buildRequest() {
+  const kind = inputKind();
   const box = document.getElementById("cds-text");
-  const parsed = cleanedCds(box.value);
-  if (!parsed.sequence) throw new Error("Paste a coding sequence, or load the rpsL demo.");
-  if (parsed.illegal.length) {
-    throw new Error(`These letters are not DNA bases: ${parsed.illegal.join(", ")}. Paste a coding sequence, not a protein.`);
-  }
-  if (parsed.sequence.length % 3 !== 0) {
-    throw new Error(`The sequence is ${parsed.sequence.length} bases long, which is not a whole number of codons. Check that the copy is complete.`);
-  }
+  const raw = box.value;
   if (!loadedProfile || !loadedProfile.codon_usage) {
-    throw new Error("Load a codon-usage table. The button uses the bundled E. coli MG1655 ribosomal table.");
+    throw new Error("Load a codon-usage table. The list is the files installed on this computer. The first button loads examples/mg1655_ribosomal_usage.json.");
   }
-  const flank = (id) => document.getElementById(id).value.toUpperCase().replace(/[^ACGT]/g, "");
-  return {
+  const body = {
     host: selectedHost(),
-    cds: parsed.sequence,
     host_profile: loadedProfile,
-    objectives: selectedObjectives(),
     constraints: constraintsForRequest(),
-    five_prime_flank: flank("flank-5"),
-    three_prime_flank: flank("flank-3"),
+    five_prime_flank: flankValue("flank-5"),
+    three_prime_flank: flankValue("flank-3"),
     translation_table: Number(document.getElementById("translation-table").value) || 11,
     budget: document.getElementById("budget").value,
     seed: Number(document.getElementById("seed").value) || 0,
     generations: Number(document.getElementById("generations").value) || 4,
+    ...objectiveFields(),
   };
+  if (kind === "protein") {
+    const parsed = cleanedProtein(raw);
+    if (!parsed.sequence) throw new Error("Paste a protein sequence, or switch to DNA and load the rpsL demo.");
+    if (parsed.illegal.length) {
+      throw new Error(`These letters are not amino acids in this form: ${parsed.illegal.join(", ")}. The server also refuses a residue the translation table does not name.`);
+    }
+    body.input = { kind: "protein", protein: parsed.sequence };
+    return body;
+  }
+  if (kind === "construct") {
+    const text = raw.trim();
+    if (!text) throw new Error("Paste a GenBank record, or switch to DNA and load the rpsL demo.");
+    if (!/LOCUS/i.test(text) && !/ORIGIN/i.test(text)) {
+      throw new Error("That text does not look like a GenBank record. It needs a LOCUS line and an ORIGIN. A coding sequence belongs under DNA coding sequence.");
+    }
+    const locus = document.getElementById("locus").value.trim();
+    const input = { kind: "construct", genbank: text };
+    if (locus) input.locus = locus;
+    body.input = input;
+    return body;
+  }
+  const parsed = cleanedCds(raw);
+  if (!parsed.sequence) throw new Error("Paste a coding sequence, or load the rpsL demo.");
+  if (parsed.illegal.length) {
+    throw new Error(`These letters are not DNA bases: ${parsed.illegal.join(", ")}. For a protein, change “What you are pasting” to Protein sequence.`);
+  }
+  if (parsed.sequence.length % 3 !== 0) {
+    throw new Error(`The sequence is ${parsed.sequence.length} bases long, which is not a whole number of codons. Check that the copy is complete.`);
+  }
+  body.input = { kind: "single_cds", sequence: parsed.sequence };
+  return body;
 }
 
 function syncRequest() {
@@ -1634,21 +1908,293 @@ async function loadExampleConstraints() {
   syncRequest();
 }
 
-async function loadDemo() {
-  const response = await fetch("/examples/rpsL.cds");
-  if (!response.ok) throw new Error("The rpsL demo sequence could not be loaded.");
+const hostsById = new Map();
+
+function hostOptionLabel(host) {
+  const usage = host.profile && host.profile.codon_usage;
+  const source = usage && typeof usage.source === "string" ? usage.source.trim() : "";
+  const filename = host.filename || host.id;
+  if (!source) return filename;
+  const sentence = source.split(". ")[0];
+  return `${filename} — ${sentence}`;
+}
+
+function applySelectedHost() {
+  const select = document.getElementById("host-select");
+  const wrap = document.getElementById("host-custom-wrap");
+  if (!select) return;
+  if (wrap) wrap.hidden = select.value !== "custom";
+  if (select.value === "custom" || !select.value) {
+    syncRequest();
+    return;
+  }
+  const host = hostsById.get(select.value);
+  if (host && host.profile && host.profile.codon_usage) {
+    loadedProfile = host.profile;
+    const source = host.profile.codon_usage.source;
+    setProfileNote(
+      source
+        ? `Loaded ${host.filename} from GET /v1/hosts. ${source}`
+        : `Loaded ${host.filename} from GET /v1/hosts.`,
+    );
+  }
+  syncRequest();
+}
+
+async function selectInstalledHost(filename, fallback) {
+  const host = [...hostsById.values()].find((item) => item.filename === filename);
+  if (host) {
+    document.getElementById("host-select").value = host.id;
+    applySelectedHost();
+    return;
+  }
+  await fallback();
+}
+
+let hostsPromise = null;
+
+async function loadHosts() {
+  if (!hostsPromise) {
+    hostsPromise = loadHostsOnce().catch((error) => {
+      hostsPromise = null;
+      throw error;
+    });
+  }
+  return hostsPromise;
+}
+
+async function loadHostsOnce() {
+  const select = document.getElementById("host-select");
+  const response = await call("GET", "/v1/hosts");
+  if (!select) return;
+  if (!response.payload || response.payload.code || !Array.isArray(response.payload.hosts)) {
+    const detail = response.payload && (response.payload.detail || response.payload.code);
+    setProfileNote(detail ? `The codon-table list did not load. ${detail}` : "The codon-table list did not load.");
+    if (!loadedProfile) await loadBundledProfile();
+    if (loadedProfile && select && ![...select.options].some((option) => option.value === "mg1655_ribosomal_usage")) {
+      const option = document.createElement("option");
+      option.value = "mg1655_ribosomal_usage";
+      option.textContent = "mg1655_ribosomal_usage.json";
+      select.replaceChildren(option);
+      const custom = document.createElement("option");
+      custom.value = "custom";
+      custom.textContent = "Other host (type the name and upload a table)";
+      select.appendChild(custom);
+      select.value = "mg1655_ribosomal_usage";
+    }
+    return;
+  }
+  const previous = select.value;
+  hostsById.clear();
+  select.replaceChildren();
+  for (const host of response.payload.hosts) {
+    if (!host || !host.id || host.installed === false) continue;
+    hostsById.set(host.id, host);
+    const option = document.createElement("option");
+    option.value = host.id;
+    option.textContent = hostOptionLabel(host);
+    select.appendChild(option);
+  }
+  const custom = document.createElement("option");
+  custom.value = "custom";
+  custom.textContent = "Other host (type the name and upload a table)";
+  select.appendChild(custom);
+  if (!hostsById.size) {
+    setProfileNote("No codon-usage file is installed. Upload a usage JSON.");
+    select.value = "custom";
+    applySelectedHost();
+    return;
+  }
+  const preferred = hostsById.has(previous)
+    ? previous
+    : hostsById.has("mg1655_ribosomal_usage")
+      ? "mg1655_ribosomal_usage"
+      : [...hostsById.keys()][0];
+  select.value = preferred;
+  applySelectedHost();
+}
+
+async function loadModels() {
+  const note = document.getElementById("model-status");
+  if (!note) return;
+  const response = await call("GET", "/v1/models");
+  if (!response.payload || response.payload.code) {
+    const code = response.payload && response.payload.code ? response.payload.code : "";
+    const detail = response.payload && response.payload.detail ? response.payload.detail : "The model list did not load.";
+    note.textContent = code ? `${code}: ${detail}` : detail;
+    return;
+  }
+  const models = Array.isArray(response.payload.models) ? response.payload.models : [];
+  if (response.payload.installed && models.length) {
+    note.textContent = `Installed model: ${models.map((item) => item.id).filter(Boolean).join(", ")}.`;
+    return;
+  }
+  note.textContent = "No context model is installed. epistasis.context_naturalness will not be scored. CAI does not need it.";
+}
+
+async function loadEngineStatus() {
+  const note = document.getElementById("engine-status");
+  if (!note) return;
+  try {
+    const response = await fetch("/v1/healthz");
+    const payload = await response.json();
+    const engines = Array.isArray(payload.structure_engines) ? payload.structure_engines : [];
+    if (engines.includes("viennarna")) {
+      note.textContent = "ViennaRNA is installed on this computer. Local mRNA structure can be measured. A score that is still missing is UNKNOWN, not zero.";
+      return;
+    }
+    if (engines.length) {
+      note.textContent = `Structure engines reported by this server: ${engines.join(", ")}. ViennaRNA is not installed. DNA Design Suite does not include it, and a structure score that is not measured is UNKNOWN, not zero.`;
+      return;
+    }
+    note.textContent = "ViennaRNA is not installed. DNA Design Suite does not include a folding program. CAI does not need one. If you ask for local mRNA structure, a score that is not measured is UNKNOWN, not zero.";
+  } catch (error) {
+    note.textContent = "The page could not read whether ViennaRNA is installed.";
+  }
+}
+
+async function loadVersion() {
+  const note = document.getElementById("suite-version");
+  if (!note) return;
+  try {
+    const response = await fetch("/v1/version");
+    const payload = await response.json();
+    if (payload && payload.version) note.textContent = `DNA Design Suite ${payload.version}. Codon design rewrites a gene for a host. Primer design picks a PCR pair.`;
+  } catch (error) {
+    note.textContent = "DNA Design Suite. Codon design rewrites a gene for a host. Primer design picks a PCR pair.";
+  }
+}
+
+function stateChipKind(state) {
+  if (state === "succeeded") return "feasible";
+  if (state === "failed") return "refusal";
+  return "warning";
+}
+
+async function refreshJobs() {
+  const root = document.getElementById("jobs-root");
+  if (!root) return;
+  const listed = await call("GET", "/v1/jobs");
+  if (!listed.payload || listed.payload.code) {
+    root.innerHTML = listed.payload && listed.payload.code
+      ? problemCallout(listed.payload)
+      : `<p class="note empty-state">The job list did not load.</p>`;
+    return;
+  }
+  const items = [...(listed.payload.items || [])];
+  items.sort((left, right) => String(right.created_at || "").localeCompare(String(left.created_at || "")) || String(left.job_id || "").localeCompare(String(right.job_id || "")));
+  if (!items.length) {
+    root.innerHTML = `<p class="note empty-state">No jobs yet. Run design starts one in the background. This list is filled from GET /v1/jobs.</p>`;
+    return;
+  }
+  root.innerHTML = `<ul class="job-list">${items
+    .map((item) => {
+      const state = item.state || "";
+      const running = state === "queued" || state === "running";
+      const stop = running ? `<button type="button" class="secondary" data-cancel="${escapeAttr(item.job_id)}">Stop</button>` : "";
+      return `<li><button type="button" class="secondary" data-job="${escapeAttr(item.job_id)}">${escapeText(item.job_id || "")}</button> ${chip(stateChipKind(state), state || "unknown")} ${stop}</li>`;
+    })
+    .join("")}</ul>`;
+}
+
+async function cancelJob(jobId) {
+  const posted = await call("POST", `/v1/jobs/${jobId}/cancel`);
+  if (posted.payload && posted.payload.code && !posted.payload.job_id) {
+    submitError.innerHTML = lateReveal(problemCallout(posted.payload));
+  } else if (posted.payload && posted.payload.job_id) {
+    renderStatus(posted.payload);
+  }
+  await refreshJobs();
+}
+
+async function checkFeasibility() {
+  const root = document.getElementById("feasibility-root");
+  if (!root) return;
+  if (inputKind() !== "dna") {
+    root.innerHTML = `<p class="note empty-state">This check needs DNA in the box. A protein or a GenBank file is turned into DNA on the server when you run, and the finished design says whether the rules were met.</p>`;
+    return;
+  }
+  let body;
+  try {
+    const parsed = cleanedCds(document.getElementById("cds-text").value);
+    if (!parsed.sequence || parsed.illegal.length || parsed.sequence.length % 3 !== 0) {
+      throw new Error("Paste a DNA coding sequence first. The note under the box says what is wrong.");
+    }
+    body = {
+      cds: parsed.sequence,
+      constraints: constraintsForRequest(),
+      translation_table: Number(document.getElementById("translation-table").value) || 11,
+      five_prime_flank: flankValue("flank-5"),
+      three_prime_flank: flankValue("flank-3"),
+    };
+  } catch (error) {
+    root.innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p><p class="note">Nothing was posted.</p></div>`;
+    return;
+  }
+  root.innerHTML = `<p class="note">Checking the five feasibility tests.</p>`;
+  const response = await call("POST", "/v1/feasibility", body);
+  if (!response.payload || response.payload.code) {
+    root.innerHTML = response.payload && response.payload.code
+      ? problemCallout(response.payload)
+      : `<p class="note empty-state">The feasibility check did not return a report.</p>`;
+    return;
+  }
+  const report = response.payload;
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const findingHtml = findings.length
+    ? `<ul class="finding-list">${findings
+        .map((item) => {
+          const relax = item.suggested_relaxation ? ` ${item.suggested_relaxation}` : "";
+          return `<li><strong>${escapeText(item.detail || "")}</strong> <span class="mono">${escapeText(item.code || "")}</span>${escapeText(relax)}</li>`;
+        })
+        .join("")}</ul>`
+    : `<p class="field-help">No finding was returned.</p>`;
+  const caveat = report.necessary_conditions_only
+    ? "The report marks these checks as necessary conditions only, so a clear result is not a promise that a design exists."
+    : "The finished candidate still carries constraint_report.feasible.";
+  const verdict = report.feasible
+    ? `${chip("feasible", "no finding")}<p class="field-help">These checks found nothing to report. ${escapeText(caveat)}</p>`
+    : `${chip("infeasible", "a rule blocks every synonym")}<p class="field-help">At least one check found a rule the codons cannot satisfy. The sentence is the check’s own detail.</p>`;
+  const checkPlain = {
+    locked_span: "a rule in sequence the search cannot change",
+    counting_bound: "a repeat limit this length cannot meet",
+    per_position: "a codon with no allowed synonym",
+    automaton_reachability: "motif rules that leave no way through",
+    gc_attainability: "a GC window no synonymous sequence can meet",
+  };
+  const checks = Array.isArray(report.checks_run)
+    ? report.checks_run
+        .map((name) => (checkPlain[name] ? `${name} (${checkPlain[name]})` : name))
+        .join("; ")
+    : "";
+  root.innerHTML = `${verdict}${findingHtml}${checks ? `<p class="note">Checks that ran: ${escapeText(checks)}.</p>` : ""}`;
+}
+
+async function loadSequenceFile(path, kind) {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path} could not be loaded.`);
+  document.getElementById("input-kind").value = kind;
+  applyInputKind();
   document.getElementById("cds-text").value = (await response.text()).trim();
-  document.getElementById("host-select").value = "escherichia_coli:511145/MG1655";
-  document.getElementById("host-custom-wrap").hidden = true;
+  refreshSequenceNote();
+  syncRequest();
+}
+
+async function loadDemo() {
+  await loadSequenceFile("/examples/rpsL.cds", "dna");
+  if (!hostsById.size) await loadHosts();
+  await selectInstalledHost("mg1655_ribosomal_usage.json", loadBundledProfile);
+  document.getElementById("host-name").value = "escherichia_coli:511145/MG1655";
   document.getElementById("obj-cai").checked = true;
   document.getElementById("obj-gc").checked = false;
   document.getElementById("obj-violation").checked = false;
   document.getElementById("obj-structure").checked = false;
+  const preset = document.getElementById("objective-preset");
+  if (preset) preset.value = "cai";
   document.getElementById("budget").value = "fast";
   document.getElementById("generations").value = "4";
   document.getElementById("seed").value = "7";
   document.getElementById("constraint-mode").value = "example";
-  if (!loadedProfile) await loadBundledProfile();
   await loadExampleConstraints();
   showConstraintMode();
   refreshSequenceNote();
@@ -1657,6 +2203,13 @@ async function loadDemo() {
 }
 
 function bindGuide() {
+  const kind = document.getElementById("input-kind");
+  if (kind) kind.addEventListener("change", applyInputKind);
+  const locus = document.getElementById("locus");
+  if (locus) locus.addEventListener("input", () => {
+    refreshSequenceNote();
+    syncRequest();
+  });
   const cds = document.getElementById("cds-text");
   if (cds) cds.addEventListener("input", () => {
     refreshSequenceNote();
@@ -1669,20 +2222,46 @@ function bindGuide() {
       if (!chosen) return;
       const reader = new FileReader();
       reader.onload = () => {
-        cds.value = String(reader.result || "");
-        refreshSequenceNote();
-        syncRequest();
+        const text = String(reader.result || "");
+        cds.value = text;
+        const name = (chosen.name || "").toLowerCase();
+        if (name.endsWith(".gb") || name.endsWith(".gbk") || name.endsWith(".genbank") || (/LOCUS/i.test(text) && /ORIGIN/i.test(text))) {
+          document.getElementById("input-kind").value = "construct";
+        }
+        applyInputKind();
       };
       reader.readAsText(chosen);
     });
   }
   document.getElementById("load-demo").addEventListener("click", () => {
     loadDemo().catch((error) => {
-      submitError.innerHTML = `<div class="callout refusal"><strong>${escapeText(error.message)}</strong></div>`;
+      submitError.innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
     });
   });
+  const gfp = document.getElementById("load-gfp");
+  if (gfp) {
+    gfp.addEventListener("click", () => {
+      loadSequenceFile("/examples/BBa_E0040.fa", "dna")
+        .then(() => {
+          document.getElementById("trim-stop").checked = false;
+          refreshSequenceNote();
+          syncRequest();
+        })
+        .catch((error) => {
+          submitError.innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+        });
+    });
+  }
+  const feasibility = document.getElementById("check-feasibility");
+  if (feasibility) {
+    feasibility.addEventListener("click", () => {
+      checkFeasibility().catch((error) => {
+        document.getElementById("feasibility-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+      });
+    });
+  }
   document.getElementById("load-profile").addEventListener("click", () => {
-    loadBundledProfile().catch((error) => {
+    selectInstalledHost("mg1655_ribosomal_usage.json", loadBundledProfile).catch((error) => {
       setProfileNote(error.message);
     });
   });
@@ -1707,14 +2286,13 @@ function bindGuide() {
     reader.readAsText(chosen);
   });
   const host = document.getElementById("host-select");
-  const customWrap = document.getElementById("host-custom-wrap");
-  const applyHost = () => {
-    customWrap.hidden = host.value !== "custom";
-    syncRequest();
-  };
-  host.addEventListener("change", applyHost);
+  host.addEventListener("change", applySelectedHost);
   document.getElementById("host-custom").addEventListener("input", syncRequest);
-  applyHost();
+  const hostName = document.getElementById("host-name");
+  if (hostName) hostName.addEventListener("input", syncRequest);
+  const preset = document.getElementById("objective-preset");
+  if (preset) preset.addEventListener("change", syncRequest);
+  applySelectedHost();
   document.getElementById("constraint-mode").addEventListener("change", () => {
     if (document.getElementById("constraint-mode").value === "example") {
       loadExampleConstraints().catch((error) => {
@@ -1743,7 +2321,7 @@ function bindGuide() {
   const kazusa = document.getElementById("load-kazusa");
   if (kazusa) {
     kazusa.addEventListener("click", () => {
-      loadKazusaProfile().catch((error) => setProfileNote(error.message));
+      selectInstalledHost("kazusa_e_coli_316407.json", loadKazusaProfile).catch((error) => setProfileNote(error.message));
     });
   }
   const trim = document.getElementById("trim-stop");
@@ -1753,6 +2331,14 @@ function bindGuide() {
       syncRequest();
     });
   }
+  ["obj-cai", "obj-gc", "obj-violation", "obj-structure"].forEach((id) => {
+    const node = document.getElementById(id);
+    if (!node) return;
+    node.addEventListener("change", () => {
+      const presetBox = document.getElementById("objective-preset");
+      if (presetBox) presetBox.value = "custom";
+    });
+  });
   ["constraint-bsai", "constraint-bsmbi", "constraint-homo", "constraint-gc", "constraint-homo-run", "constraint-gc-window", "constraint-gc-min", "constraint-gc-max", "constraint-json", "obj-cai", "obj-gc", "obj-violation", "obj-structure", "budget", "generations", "seed", "translation-table", "flank-5", "flank-3"].forEach((id) => {
     const node = document.getElementById(id);
     if (!node) return;
@@ -1791,9 +2377,31 @@ function bindGuide() {
   ["region-start", "region-end"].forEach((id) => {
     document.getElementById(id).addEventListener("change", selectionFromFields);
   });
+  const jobsRoot = document.getElementById("jobs-root");
+  if (jobsRoot) {
+    jobsRoot.addEventListener("click", (event) => {
+      const cancel = event.target.closest("[data-cancel]");
+      if (cancel) {
+        cancelJob(cancel.dataset.cancel);
+        return;
+      }
+      const open = event.target.closest("[data-job]");
+      if (!open) return;
+      history.replaceState(null, "", `#${open.dataset.job}`);
+      showJob(open.dataset.job);
+    });
+  }
   showConstraintMode();
   refreshSequenceNote();
-  loadBundledProfile().catch((error) => setProfileNote(error.message));
+  refreshOptimizedHandoff();
+  loadHosts().catch((error) => setProfileNote(error.message));
+  loadModels().catch((error) => {
+    const note = document.getElementById("model-status");
+    if (note) note.textContent = error.message;
+  });
+  loadEngineStatus();
+  loadVersion();
+  refreshJobs().catch(() => {});
 }
 
 bindGuide();
