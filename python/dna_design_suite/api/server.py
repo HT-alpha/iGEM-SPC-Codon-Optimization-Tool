@@ -44,6 +44,8 @@ _PRESETS = {
     "cai_burden": ["usage.cai", "burden.growth_cost"],
     "cai_structure": ["usage.cai", "structure.local_accessibility"],
     "cai_context": ["usage.cai", "epistasis.context_naturalness"],
+    "harmonize": ["usage.harmonize_rca"],
+    "match_frequency": ["usage.match_frequency"],
 }
 _HOST_FILES = (
     "mg1655_ribosomal_usage.json",
@@ -669,6 +671,68 @@ def list_models() -> dict[str, Any]:
     }
 
 
+def run_vendor_screen(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    from dna_design_suite.vendor.screen import screen_sequence
+
+    cds = body.get("cds") or body.get("sequence")
+    if not isinstance(cds, str) or not cds.strip():
+        return 400, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            400,
+            "vendor screen needs cds",
+        )
+    sets = body.get("sets")
+    if sets is not None and not isinstance(sets, list):
+        return 422, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            422,
+            "sets must be a list of dds_synthesis and/or dds_assembly",
+        )
+    try:
+        return 200, screen_sequence(cds, sets=sets)
+    except ValueError as exc:
+        return 422, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            422,
+            str(exc),
+        )
+
+
+def run_global_fold(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    from dna_design_suite.codon.predictors.global_fold import global_fold_report
+
+    cds = body.get("cds") or body.get("sequence")
+    if not isinstance(cds, str) or not cds.strip():
+        return 400, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            400,
+            "global fold needs cds",
+        )
+    temperature = body.get("temperature_c", 37.0)
+    try:
+        temperature_c = float(temperature)
+    except (TypeError, ValueError):
+        return 422, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            422,
+            "temperature_c must be a number",
+        )
+    try:
+        return 200, global_fold_report(cds, temperature_c=temperature_c)
+    except ValueError as exc:
+        return 422, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            422,
+            str(exc),
+        )
+
+
 def analyse_feasibility(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     """The five checks in `cf-constraints`, on the construct the caller sent."""
     from dna_design_suite import _core
@@ -817,7 +881,7 @@ def import_host_body(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
             400,
             "POST /v1/hosts:import needs text",
         )
-    label = body.get("label") or "user_supplied"
+    label = body.get("label") or body.get("subset") or "user_supplied"
     if label == "genome_wide":
         return 422, problem(
             "CF-HOST-003",
@@ -991,6 +1055,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._unauthorized()
                 return
             self._send(200, list_recalibrations(self.server.api.store, tenant))
+            return
+        if path == "/v1/vendor-screen" and method == "POST":
+            tenant = _tenant(self.headers.get("Authorization"))
+            if tenant is None:
+                self._unauthorized()
+                return
+            status, payload = run_vendor_screen(self._json())
+            self._send(status, payload, problem_body=status >= 400)
+            return
+        if path == "/v1/structure:global" and method == "POST":
+            tenant = _tenant(self.headers.get("Authorization"))
+            if tenant is None:
+                self._unauthorized()
+                return
+            status, payload = run_global_fold(self._json())
+            self._send(status, payload, problem_body=status >= 400)
             return
         if path == "/v1/feasibility" and method == "POST":
             tenant = _tenant(self.headers.get("Authorization"))

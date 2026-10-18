@@ -261,21 +261,25 @@ class GradientPredictor(ScalarPredictor, Protocol):
 class StructureEngine(Protocol):
     """A folding backend. Stateless and pure.
 
-    AMD-013 / DEP-STRU-002. CodonForge ships no folding engine: ViennaRNA and
+    AMD-013 / DEP-STRU-002. DNA Design Suite ships no folding engine: ViennaRNA and
     LinearFold are user-installed and detected at runtime, never vendored. Since
-    CodonForge redistributes neither, their licences' no-fee-redistribution
+    this suite redistributes neither, their licences' no-fee-redistribution
     condition is satisfied by construction.
 
     Three things this protocol deliberately lacks, each removed for a reason:
 
       * `local_accessibility_incremental` - it took a changed range and no
         sequence, which only means anything if the engine retains state between
-        calls. That assumed CodonForge's own kernel, which AMD-013 removed.
+        calls. That assumed an in-repo kernel, which AMD-013 removed.
         A stateless C library cannot implement it, and requiring it would put a
         cache inside every future engine instead of once in P2-10.
       * `global_mfe` - AMD-001 keeps global MFE off the per-move path, and the
         cheapest enforcement is to leave the search loop nothing to call. An
-        exact-tier re-ranking path needs a separate interface.
+        exact-tier re-ranking path needs a separate interface. `DEP-STRU-007`
+        is that separate report: ViennaRNA `RNA.fold` when it is installed,
+        otherwise a Nussinov Watson-Crick pair count up to 400 nt, labelled
+        as a pair count. It is not `DEP-STRU-006` (the opt-in paired-fraction
+        objective) and not a method on this protocol.
       * `supports_*` capability flags - for methods that no longer exist.
 
     Engines are called from the Python side as an L0 term through P2-05's batch

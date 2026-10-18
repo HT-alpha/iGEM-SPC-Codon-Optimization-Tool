@@ -27,7 +27,10 @@ pub mod terms;
 pub use cache::{CacheKey, EvaluationCache};
 pub use compose::{planned_capability, Composer, HostCapability};
 pub use construct::ConstructLayout;
-pub use terms::{CaiTerm, CodonUsageTable, GcContentTerm, UsageSubset, ViolationCountTerm};
+pub use terms::{
+    CaiTerm, CodonUsageTable, GcContentTerm, HarmonizeRcaTerm, MatchFrequencyTerm, UsageSubset,
+    ViolationCountTerm,
+};
 
 /// Version reported in the provenance of every built-in term.
 ///

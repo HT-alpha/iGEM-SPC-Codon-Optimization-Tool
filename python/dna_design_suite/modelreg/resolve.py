@@ -51,6 +51,8 @@ from .store import ArtifactStore
 BUILTIN_TERMS = (
     "usage.cai",
     "usage.gc_content",
+    "usage.harmonize_rca",
+    "usage.match_frequency",
     "constraint.violation_count",
     "structure.local_accessibility",
     "burden.growth_cost",

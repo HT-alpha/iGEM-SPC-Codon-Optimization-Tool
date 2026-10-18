@@ -811,13 +811,13 @@ def _gate_row(_spec: dict, _sequences: dict[str, str]) -> dict:
     stored_by = {row["gene"]: row for row in stored_rows}
     moved = []
     for row in fresh_rows:
-        previous = stored_by[row["gene"]]["codonforge_cai"]
-        if row["codonforge_cai"] + 1e-12 < previous:
+        previous = stored_by[row["gene"]]["suite_cai"]
+        if row["suite_cai"] + 1e-12 < previous:
             moved.append(
                 {
                     "gene": row["gene"],
                     "was": previous,
-                    "now": row["codonforge_cai"],
+                    "now": row["suite_cai"],
                 }
             )
     return {
@@ -826,7 +826,7 @@ def _gate_row(_spec: dict, _sequences: dict[str, str]) -> dict:
         "peak_rss_kb": _rss_kb(),
         "claimed": fresh.get("claimed"),
         "n_claimed": fresh.get("n_claimed"),
-        "codonforge_ge_greedy": fresh.get("codonforge_ge_greedy"),
+        "suite_ge_greedy": fresh.get("suite_ge_greedy"),
         "behind_greedy": fresh.get("behind_greedy"),
         "definition": fresh.get("definition"),
         "regressed": moved,

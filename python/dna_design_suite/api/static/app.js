@@ -124,6 +124,8 @@ const STATE_PLAIN = {
 
 const TERM_PLAIN = {
   "usage.cai": "CAI",
+  "usage.harmonize_rca": "Harmonized RCA",
+  "usage.match_frequency": "Codon-frequency match",
   "usage.gc_content": "GC fraction",
   "constraint.violation_count": "Constraint violations",
   "structure.local_accessibility": "Local mRNA structure",
@@ -1486,6 +1488,7 @@ const EMPTY_CONSTRAINTS = {
 };
 
 let loadedProfile = null;
+let loadedSource = null;
 let loadedConstraints = null;
 
 function syncRegionFields() {
@@ -1787,6 +1790,12 @@ function objectiveFields() {
 function selectedObjectives() {
   const chosen = [];
   if (document.getElementById("obj-cai").checked) chosen.push("usage.cai");
+  if (document.getElementById("obj-harmonize") && document.getElementById("obj-harmonize").checked) {
+    chosen.push("usage.harmonize_rca");
+  }
+  if (document.getElementById("obj-match") && document.getElementById("obj-match").checked) {
+    chosen.push("usage.match_frequency");
+  }
   if (document.getElementById("obj-gc").checked) chosen.push("usage.gc_content");
   if (document.getElementById("obj-violation").checked) chosen.push("constraint.violation_count");
   if (document.getElementById("obj-structure").checked) chosen.push("structure.local_accessibility");
@@ -1805,9 +1814,19 @@ function buildRequest() {
   if (!loadedProfile || !loadedProfile.codon_usage) {
     throw new Error("Load a codon-usage table. The list is the files installed on this computer. The first button loads examples/mg1655_ribosomal_usage.json.");
   }
+  const profile = JSON.parse(JSON.stringify(loadedProfile));
+  const preset = document.getElementById("objective-preset");
+  const harmonize = (preset && preset.value === "harmonize")
+    || (document.getElementById("obj-harmonize") && document.getElementById("obj-harmonize").checked && preset && preset.value === "custom");
+  if (harmonize) {
+    if (!loadedSource || !loadedSource.codon_usage) {
+      throw new Error("Harmonization needs a source organism table. Upload one next to that score. The expression host table is the one already loaded, and this page will not invent the source.");
+    }
+    profile.source_codon_usage = loadedSource.codon_usage;
+  }
   const body = {
     host: selectedHost(),
-    host_profile: loadedProfile,
+    host_profile: profile,
     constraints: constraintsForRequest(),
     five_prime_flank: flankValue("flank-5"),
     three_prime_flank: flankValue("flank-3"),
@@ -2178,6 +2197,71 @@ async function checkFeasibility() {
   root.innerHTML = `${verdict}${findingHtml}${checks ? `<p class="note">Checks that ran: ${escapeText(checks)}.</p>` : ""}`;
 }
 
+function currentDna() {
+  if (inputKind() !== "dna") {
+    throw new Error("This check needs DNA in the box. A protein or a GenBank file is turned into DNA when you run a design, and it is not screened here.");
+  }
+  const parsed = cleanedCds(document.getElementById("cds-text").value);
+  if (!parsed.sequence || parsed.illegal.length) {
+    throw new Error("Paste a DNA sequence of A, C, G and T first. The note under the box says what is wrong.");
+  }
+  return parsed.sequence;
+}
+
+async function readUsageFile(file) {
+  const text = await file.text();
+  const table = Number(document.getElementById("translation-table").value) || 11;
+  const response = await call("POST", "/v1/hosts:import", {
+    text,
+    subset: "user_supplied",
+    translation_table: table,
+    source: file.name,
+  });
+  if (!response.payload || response.payload.code || !response.payload.codon_usage) {
+    const detail = response.payload && (response.payload.detail || response.payload.title);
+    throw new Error(detail || "The usage file was not accepted.");
+  }
+  return response.payload;
+}
+
+async function runVendorScreen() {
+  const root = document.getElementById("vendor-root");
+  const cds = currentDna();
+  root.innerHTML = `<p class="note">Screening synthesis-rule classes against this suite’s presets. This is not a manufacturer score.</p>`;
+  const response = await call("POST", "/v1/vendor-screen", { cds });
+  if (!response.payload || response.payload.code) {
+    root.innerHTML = response.payload && response.payload.code
+      ? problemCallout(response.payload)
+      : `<p class="note empty-state">The vendor screen did not return a report.</p>`;
+    return;
+  }
+  const report = response.payload;
+  const checks = Array.isArray(report.checks) ? report.checks : [];
+  const rows = checks.map((row) => {
+    const mark = row.passed ? chip("feasible", "clear") : chip("infeasible", "flagged");
+    return `<tr><td>${escapeText(row.set || "")}</td><td>${escapeText(row.kind || "")}</td><td>${mark}</td><td class="mono">${escapeText(String(row.count ?? ""))}</td><td>${escapeText(row.detail || "")}</td></tr>`;
+  }).join("");
+  root.innerHTML = `<div class="callout"><p class="human">${escapeText(report.note || "")}</p><p class="note">vendor_score is ${escapeText(String(report.vendor_score))}. Wet-lab expression is ${escapeText(String(report.wet_lab_expression))}. Flags: ${escapeText(String(report.n_flags ?? ""))}. Hairpins are not scored.</p></div><table><thead><tr><th>Set</th><th>Class</th><th>Result</th><th>Count</th><th>Detail</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function runGlobalFold() {
+  const root = document.getElementById("fold-root");
+  const cds = currentDna();
+  root.innerHTML = `<p class="note">Folding the whole sequence. This is not the windowed accessibility objective.</p>`;
+  const response = await call("POST", "/v1/structure:global", { cds, temperature_c: 37 });
+  if (!response.payload || response.payload.code) {
+    root.innerHTML = response.payload && response.payload.code
+      ? problemCallout(response.payload)
+      : `<p class="note empty-state">The fold did not return a report.</p>`;
+    return;
+  }
+  const report = response.payload;
+  const missing = report.value === null || report.value === undefined;
+  const value = missing ? "not computed" : String(report.value);
+  const unit = report.unit ? ` ${report.unit}` : "";
+  root.innerHTML = `<div class="callout"><p class="human">${escapeText(report.label || "")}</p><p class="note">Engine ${escapeText(report.engine || "")}. ${escapeText(report.quantity || "quantity")} ${escapeText(value)}${escapeText(unit)}. Length ${escapeText(String(report.length_nt ?? ""))} nt. Wet-lab expression is ${escapeText(String(report.wet_lab_expression))}.</p></div>`;
+}
+
 async function loadSequenceFile(path, kind) {
   const response = await fetch(path);
   if (!response.ok) throw new Error(`${path} could not be loaded.`);
@@ -2276,23 +2360,48 @@ function bindGuide() {
   document.getElementById("profile-file").addEventListener("change", (event) => {
     const chosen = event.target.files && event.target.files[0];
     if (!chosen) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result || ""));
-        if (!parsed || !parsed.codon_usage) {
-          setProfileNote("That file has no codon_usage object. The bundled table is the shape this page expects.");
-          return;
-        }
-        loadedProfile = parsed;
-        setProfileNote(`Loaded ${chosen.name}.`);
-        syncRequest();
-      } catch (error) {
-        setProfileNote("That file is not JSON.");
-      }
-    };
-    reader.readAsText(chosen);
+    readUsageFile(chosen).then((profile) => {
+      loadedProfile = profile;
+      const subset = profile.codon_usage && profile.codon_usage.subset;
+      const source = profile.codon_usage && profile.codon_usage.source;
+      setProfileNote(`Loaded ${chosen.name}` + (subset ? ` (${subset})` : "") + (source ? `. ${source}` : "."));
+      syncRequest();
+    }).catch((error) => {
+      setProfileNote(error.message);
+    });
   });
+  const sourceFile = document.getElementById("source-file");
+  if (sourceFile) {
+    sourceFile.addEventListener("change", (event) => {
+      const chosen = event.target.files && event.target.files[0];
+      if (!chosen) return;
+      readUsageFile(chosen).then((profile) => {
+        loadedSource = profile;
+        const note = document.getElementById("source-note");
+        if (note) note.textContent = `Source table loaded from ${chosen.name}. Harmonization uses these relative adaptiveness values for the input codons.`;
+        syncRequest();
+      }).catch((error) => {
+        const note = document.getElementById("source-note");
+        if (note) note.textContent = error.message;
+      });
+    });
+  }
+  const vendorButton = document.getElementById("vendor-screen");
+  if (vendorButton) {
+    vendorButton.addEventListener("click", () => {
+      runVendorScreen().catch((error) => {
+        document.getElementById("vendor-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+      });
+    });
+  }
+  const foldButton = document.getElementById("global-fold");
+  if (foldButton) {
+    foldButton.addEventListener("click", () => {
+      runGlobalFold().catch((error) => {
+        document.getElementById("fold-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+      });
+    });
+  }
   const host = document.getElementById("host-select");
   host.addEventListener("change", applySelectedHost);
   document.getElementById("host-custom").addEventListener("input", syncRequest);
@@ -2339,7 +2448,7 @@ function bindGuide() {
       syncRequest();
     });
   }
-  ["obj-cai", "obj-gc", "obj-violation", "obj-structure"].forEach((id) => {
+  ["obj-cai", "obj-gc", "obj-violation", "obj-structure", "obj-harmonize", "obj-match"].forEach((id) => {
     const node = document.getElementById(id);
     if (!node) return;
     node.addEventListener("change", () => {
@@ -2347,7 +2456,7 @@ function bindGuide() {
       if (presetBox) presetBox.value = "custom";
     });
   });
-  ["constraint-bsai", "constraint-bsmbi", "constraint-homo", "constraint-gc", "constraint-homo-run", "constraint-gc-window", "constraint-gc-min", "constraint-gc-max", "constraint-json", "obj-cai", "obj-gc", "obj-violation", "obj-structure", "budget", "generations", "seed", "translation-table", "flank-5", "flank-3"].forEach((id) => {
+  ["constraint-bsai", "constraint-bsmbi", "constraint-homo", "constraint-gc", "constraint-homo-run", "constraint-gc-window", "constraint-gc-min", "constraint-gc-max", "constraint-json", "obj-cai", "obj-gc", "obj-violation", "obj-structure", "obj-harmonize", "obj-match", "budget", "generations", "seed", "translation-table", "flank-5", "flank-3"].forEach((id) => {
     const node = document.getElementById(id);
     if (!node) return;
     node.addEventListener("input", syncRequest);

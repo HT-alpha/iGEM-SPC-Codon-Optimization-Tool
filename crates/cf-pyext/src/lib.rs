@@ -425,6 +425,12 @@ fn term_capabilities(request_json: &str) -> PyResult<String> {
     with_tier_inputs(request_json, pipeline::declared_capabilities)
 }
 
+/// Interaction radius each requested term declares. `DEP-LAND-006`.
+#[pyfunction]
+fn term_radii(request_json: &str) -> PyResult<String> {
+    with_tier_inputs(request_json, pipeline::declared_radii)
+}
+
 /// Score a sequence on each requested term. `P1-30`.
 #[pyfunction]
 fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
@@ -854,6 +860,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(term_directions, m)?)?;
     m.add_function(wrap_pyfunction!(term_roles, m)?)?;
     m.add_function(wrap_pyfunction!(term_capabilities, m)?)?;
+    m.add_function(wrap_pyfunction!(term_radii, m)?)?;
     m.add_function(wrap_pyfunction!(term_scores, m)?)?;
     m.add_function(wrap_pyfunction!(indicator_hypervolume, m)?)?;
     m.add_function(wrap_pyfunction!(indicator_das_dennis, m)?)?;

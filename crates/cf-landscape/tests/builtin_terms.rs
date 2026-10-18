@@ -477,3 +477,45 @@ fn tst_stru_008_the_structure_term_refuses_to_be_scored_in_core() {
     // tier 2's partition check can never be vacuously satisfied.
     assert!(LocalAccessibilityTerm::new(0).is_err());
 }
+
+#[test]
+fn harmonize_rca_delta_matches_a_rescore_and_is_zero_on_the_native_cds() {
+    use cf_landscape::HarmonizeRcaTerm;
+
+    let native = sequence();
+    let target = usage_table("highly_expressed");
+    let source = usage_table("user_supplied");
+    let term = HarmonizeRcaTerm::new(target, source.clone(), &native).unwrap();
+    assert_eq!(term.direction(), cf_types::Direction::Minimize);
+    assert_eq!(term.capability(), Capability::L1);
+    assert!(matches!(
+        term.interaction_radius(),
+        cf_landscape_api::InteractionRadius::Positionwise
+    ));
+    let checked = assert_deltas_are_exact(&term, &native);
+    assert!(checked > 0, "the fixture codon had no synonym");
+    verify_capability(&term, &ctx(&native, &host())).unwrap();
+
+    let same = HarmonizeRcaTerm::new(source.clone(), source, &native).unwrap();
+    let score = same.score(&ctx(&native, &host())).unwrap();
+    assert!(
+        score.abs() < 1e-12,
+        "matching a codon to its own relative adaptiveness is 0, got {score}"
+    );
+}
+
+#[test]
+fn match_frequency_delta_matches_a_rescore_and_is_not_positionwise() {
+    use cf_landscape::MatchFrequencyTerm;
+
+    let base = sequence();
+    let term = MatchFrequencyTerm::new(usage_table("highly_expressed"), 1).unwrap();
+    assert_eq!(term.direction(), cf_types::Direction::Minimize);
+    assert!(matches!(
+        term.interaction_radius(),
+        cf_landscape_api::InteractionRadius::Unbounded
+    ));
+    let checked = assert_deltas_are_exact(&term, &base);
+    assert!(checked > 0, "the fixture codon had no synonym");
+    verify_capability(&term, &ctx(&base, &host())).unwrap();
+}

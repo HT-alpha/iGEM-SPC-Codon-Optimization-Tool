@@ -44,17 +44,22 @@ def parse_usage_table(
     cleaned = text.replace("\r\n", "\n").replace("\r", "\n").strip()
     if not cleaned:
         raise IngestError("CF-SEQ-012", "usage text is empty", location=SourceLocation())
-    kind = source_format if source_format != "auto" else _detect(cleaned)
+    if source_format == "json" or (source_format == "auto" and cleaned[0] in "{["):
+        kind = "json"
+    else:
+        kind = source_format if source_format != "auto" else _detect(cleaned)
     if kind == "kazusa":
         counts, citation = _kazusa_counts(cleaned)
     elif kind == "table":
         counts, citation = _delimited_counts(cleaned)
     elif kind == "cds":
         counts, citation = _cds_counts(cleaned)
+    elif kind == "json":
+        counts, citation = _json_counts(cleaned)
     else:
         raise IngestError(
             "CF-CLI-001",
-            f"format {source_format!r} is not kazusa, table, cds, or auto",
+            f"format {source_format!r} is not kazusa, table, cds, json, or auto",
             location=SourceLocation(),
         )
     if not counts:
@@ -119,24 +124,63 @@ def _kazusa_counts(text: str) -> tuple[dict[str, float], str]:
     return counts, citation
 
 
+def _json_counts(text: str) -> tuple[dict[str, float], str]:
+    try:
+        document = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise IngestError(
+            "CF-HOST-002",
+            f"usage JSON did not parse: {exc.msg}",
+            location=SourceLocation(),
+        ) from exc
+    block = document.get("codon_usage") if isinstance(document, dict) else None
+    table = block.get("table") if isinstance(block, dict) else None
+    if not isinstance(table, dict):
+        raise IngestError(
+            "CF-HOST-002",
+            "usage JSON needs codon_usage.table",
+            location=SourceLocation(),
+        )
+    counts: dict[str, float] = {}
+    for codon, entry in table.items():
+        if not _CODON.match(str(codon).upper()):
+            continue
+        if isinstance(entry, dict):
+            raw = entry.get("relative_adaptiveness", entry.get("count", entry.get("fraction")))
+        else:
+            raw = entry
+        value = _number(str(raw)) if not isinstance(raw, (int, float)) else float(raw)
+        if value is None:
+            continue
+        counts[_dna(str(codon))] = value
+    citation = (
+        "Relative adaptiveness read from a JSON codon_usage.table and "
+        "renormalized within each synonymous family. subset stays the label "
+        "on this call. This is not a downloaded species catalogue."
+    )
+    return counts, citation
+
+
 def _delimited_counts(text: str) -> tuple[dict[str, float], str]:
     lines = [
         line.strip() for line in text.splitlines() if line.strip() and not line.startswith("#")
     ]
     header = _SPLIT.split(lines[0])
+    names = [cell.strip().lower() for cell in header]
+    codon_at = names.index("codon") if "codon" in names else 0
     value_at = _value_column(header)
-    start = 1 if value_at is not None else 0
+    start = 1 if value_at is not None or "codon" in names else 0
     if value_at is None:
-        value_at = 1
+        value_at = 1 if codon_at == 0 else codon_at + 1
     counts: dict[str, float] = {}
     for line in lines[start:]:
         cells = _SPLIT.split(line)
-        if len(cells) <= value_at or not _CODON.match(cells[0].upper()):
+        if len(cells) <= max(codon_at, value_at) or not _CODON.match(cells[codon_at].upper()):
             continue
         value = _number(cells[value_at])
         if value is None:
             continue
-        codon = _dna(cells[0])
+        codon = _dna(cells[codon_at])
         counts[codon] = counts.get(codon, 0.0) + value
     citation = (
         "Codon counts parsed from a delimited table (CoCoPUTs-style codon and "
@@ -227,7 +271,17 @@ def _weights(counts: dict[str, float], translation_table: int) -> tuple[dict[str
 
 def _value_column(header: list[str]) -> int | None:
     names = [cell.strip().lower() for cell in header]
-    for wanted in ("number", "count", "counts", "frequency", "fraction"):
+    for wanted in (
+        "number",
+        "count",
+        "counts",
+        "relative_adaptiveness",
+        "relative_frequency",
+        "frequency_per_thousand",
+        "per_thousand",
+        "frequency",
+        "fraction",
+    ):
         if wanted in names:
             return names.index(wanted)
     return None

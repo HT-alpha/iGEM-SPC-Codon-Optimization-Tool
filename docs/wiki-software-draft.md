@@ -1,14 +1,8 @@
 # DNA Design Suite — Software wiki draft
 
-Paste into the team Software page. Replace the two placeholders before
-publishing. Upload the screenshots named below, or follow the checklist if
-the files are not in the checkout yet.
-
-- Public repository: `{{PUBLIC_REPOSITORY_URL}}`
-- Tag `v2.9.1`: `{{V2_9_1_TAG_URL}}`
-
-The repository this draft was written from is still private. Publishing the
-wiki does not publish the git repository.
+Paste into the team Software page. The repository is private. Package
+version is 0.1.0. There is no release tag. Publishing the wiki does not
+publish the git repository and does not put the package on PyPI.
 
 ## Purpose
 
@@ -33,8 +27,9 @@ Python. The licence is Apache-2.0.
 
 ## Install
 
-Python 3.11 or newer, and Rust (`rustup`). A PyPI wheel is not published
-for v2.9.1. Clone `{{PUBLIC_REPOSITORY_URL}}` and build the extension.
+Python 3.11 or newer, and Rust (`rustup`). The package is version 0.1.0.
+It is not on PyPI, and GitHub Actions is not the install path. Clone this
+private repository and build the extension.
 
 Windows (PowerShell, Anaconda), from the repository directory:
 
@@ -69,9 +64,9 @@ repository `README.md`.
 
 ## What the five phases do here
 
-The plan is `planning/06-build/00-sequencing-overview.md`. The tree at
-`v2.9.1` runs the following. Details and the changelog citations are in
-the README section **Honest limits**.
+The plan is `planning/06-build/00-sequencing-overview.md`. Package 0.1.0
+on the current tip runs the following. Details are in the README section
+**Honest limits**.
 
 | Phase | In this suite |
 | --- | --- |
@@ -85,8 +80,11 @@ the README section **Honest limits**.
 
 - Dwell (`epistasis.dwell_deviation`) is `CF-LAND-001`. The head is
   `not_fitted`. Changelog v2.4.0, v2.7.0, v2.9.1.
-- The host catalogue and `GET /v1/recalibrations` are `CF-CLI-003`. Storing
-  an observation does not refit a model. Changelog v2.9.0.
+- There is no species catalogue. `GET /v1/hosts` lists the example files
+  on disk. `POST /v1/hosts:import` and `seeds import` are wired.
+  `POST /v1/seeds:import` checks a coding sequence against the protein.
+  An unknown route is `CF-CLI-003`. Storing an observation does not refit
+  a model.
 - Gene-copy numbers, s-values, and host-distance penalties are not invented.
   Burden supply is the profile's `trna.gene_copy_number` when present,
   otherwise the codon table. Operon fluxes are the caller's. Changelog
@@ -107,14 +105,14 @@ differ by row; they are in **Setting**.
 
 | Check | Setting | Result | Source |
 | --- | --- | --- | --- |
-| CAI gate `GATE-BEN-001` | 50 *E. coli* K-12 CDS; budget `fast`, 4 generations, seed 7; baseline `cai_greedy`; empty constraints | Claimed. DNA Design Suite meets or equals `cai_greedy` on 50 of 50. `codonforge_ge_greedy: 50`, `behind_greedy: []`. CAI-only. The MFE comparison is not this claim. | `benchmarks/corpus/gates.json`; `CHANGELOG.md` v2.9.1 |
-| `aceB` / `thrA` on that gate | Same gate budget. Native `AGG` (weight 0 in the ribosomal table) | Both score CAI 1.0 with no in-frame `AGG`. The previous record scored 0. The other 48 `codonforge_cai` values are unchanged. | `docs/benchmarks/v2.9.1-validation.md` |
+| CAI gate `GATE-BEN-001` | 50 *E. coli* K-12 CDS; budget `fast`, 4 generations, seed 7; baseline `cai_greedy`; empty constraints | Claimed. DNA Design Suite meets or equals `cai_greedy` on 50 of 50. `suite_ge_greedy: 50`, `behind_greedy: []`. CAI-only. The MFE comparison is not this claim. | `benchmarks/corpus/gates.json`; `CHANGELOG.md` v2.9.1 |
+| `aceB` / `thrA` on that gate | Same gate budget. Native `AGG` (weight 0 in the ribosomal table) | Both score CAI 1.0 with no in-frame `AGG`. The previous record scored 0. The other 48 `suite_cai` values are unchanged. | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained yagF | Assembly rules; CAI only; budget `fast`, generations 0, seed 7 | 1968 nt, CAI 0.9286425884184984, 0 violations, same protein, 0.602 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained waaS | Same | 936 nt, CAI 0.9173459052341191, 0 violations, same protein, 0.194 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained elastin-like VPGVG×20 | Same | 306 nt, CAI 0.43802555520567116, 0 violations, same protein, 0.144 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained yeeJ | Same | 7077 nt, CAI 0.9580065306093907, 0 violations, same protein, 21.386 s | `docs/benchmarks/v2.9.1-validation.md` |
-| Primer design, Table 2 duplex | `5'-CGTTGA-3'` and its complement; SantaLucia 1998 Table 2 | ΔH° −41.2 kcal/mol, ΔS° −115.4 cal/K·mol, ΔG°37 −5.409 kcal/mol, Tm 9.805 °C. Engine matches the hand sum. | `docs/primerforge-validation.md` |
-| Primer design, published self-dimer | `CAGCCACTGATGCCAAGAGA` | ΔG°37 −3.556 kcal/mol. Published OligoAnalyzer cell −3.55 kcal/mol. Difference 0.006 kcal/mol. | `docs/primerforge-validation.md` |
+| Primer design, Table 2 duplex | `5'-CGTTGA-3'` and its complement; SantaLucia 1998 Table 2 | ΔH° −41.2 kcal/mol, ΔS° −115.4 cal/K·mol, ΔG°37 −5.409 kcal/mol, Tm 9.805 °C. Engine matches the hand sum. | `docs/primer-thermo-validation.md` |
+| Primer design, published self-dimer | `CAGCCACTGATGCCAAGAGA` | ΔG°37 −3.556 kcal/mol. Published OligoAnalyzer cell −3.55 kcal/mol. Difference 0.006 kcal/mol. | `docs/primer-thermo-validation.md` |
 | Primer design, yeeJ CDS flanks | 300 nt of the CDS on each side | 20 pairs, product 6843, ΔG −1.28385, not refused, 0.158 s | `docs/benchmarks/v2.9.1-challenging-perf.md` |
 | Primer design, synthetic flanks | yeeJ; `ACGT` repeated, 300 nt each side | 20 pairs, product 7395, ΔG −20.754845, refused (dimer below −9 kcal/mol) | `docs/benchmarks/v2.9.1-challenging-perf.md` |
 | Fold cache, rpsL | CAI + structure, assembly, budget `standard`, 4 generations, seed 7 | Vector unchanged `[0.9731171656422364, 2.581242176257437]`. Wall 1.357 s then 0.561 s. | `docs/benchmarks/v2.9.1-validation.md` |
@@ -140,9 +138,9 @@ the validation table. On the wiki, upload each file and keep the caption.
 
 | File | Caption |
 | --- | --- |
-| `docs/screenshots/codonforge-rpsl.png` | DNA Design Suite tab after **Load the rpsL demo** and **Run design**. The status is the finished job and the front shows the reported candidate. |
-| `docs/screenshots/primerforge-rpsl.png` | Primer design tab after **Load the rpsL sequence** (bases 41–300, flank 40 nt) and **Find primer pairs**. |
-| `docs/screenshots/codonforge-pareto.png` | DNA Design Suite front for a job with more than one scored axis (CAI and local structure, or the explain ranges on the page). |
+| `docs/screenshots/dds-rpsl.png` | DNA Design Suite tab after **Load the rpsL demo** and **Run design**. The status is the finished job and the front shows the reported candidate. |
+| `docs/screenshots/dds-primers-rpsl.png` | Primer design tab after **Load the rpsL sequence** (bases 41–300, flank 40 nt) and **Find primer pairs**. |
+| `docs/screenshots/dds-pareto.png` | DNA Design Suite front for a job with more than one scored axis (CAI and local structure, or the explain ranges on the page). |
 
 If a file is missing, capture it on a machine with a display after
 `python -m dna_design_suite.api`:
@@ -150,22 +148,22 @@ If a file is missing, capture it on a machine with a display after
 1. DNA Design Suite. Open the page. Confirm the ribosomal table note. Click
    **Load the rpsL demo**, then **Run design**. Wait until the status is
    succeeded and the Pareto front has a candidate. Save
-   `codonforge-rpsl.png`.
+   `dds-rpsl.png`.
 2. Primer design. Open the Primer design tab. Click **Load the rpsL sequence**.
    That button selects bases 41–300 and sets the flank to 40 nt. Click
-   **Find primer pairs**. Save `primerforge-rpsl.png` with the pair table
+   **Find primer pairs**. Save `dds-primers-rpsl.png` with the pair table
    in view. **Select the whole sequence** on this CDS leaves no flank for
    the primers to sit in; use it only when the template is longer than the
    amplicon.
 3. Pareto. On DNA Design Suite, load rpsL, tick **Local mRNA structure** as well
    as CAI (ViennaRNA must be installed), set budget to Standard under
-   Advanced, and run. Save `codonforge-pareto.png` showing the front table
+   Advanced, and run. Save `dds-pareto.png` showing the front table
    or the axis ranges. If ViennaRNA is absent, skip this shot and say so;
    do not substitute a CAI-only panel and caption it as a front.
 
 ## Licence and reuse
 
-Apache License, Version 2.0: `{{PUBLIC_REPOSITORY_URL}}` file `LICENSE`,
+Apache License, Version 2.0: file `LICENSE` in this repository,
 and <https://www.apache.org/licenses/LICENSE-2.0>.
 
 Build, test, and the module layout are in `README.md` and

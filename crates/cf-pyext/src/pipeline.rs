@@ -26,6 +26,7 @@ use cf_constraints::{
 };
 use cf_epistasis::{ContextNaturalnessTerm, PottsModel};
 use cf_landscape::terms::constraints::ViolationCountTerm;
+use cf_landscape::terms::harmonize::{HarmonizeRcaTerm, MatchFrequencyTerm};
 use cf_landscape::terms::structure::LocalAccessibilityTerm;
 use cf_landscape::terms::usage::{CaiTerm, CodonUsageTable, GcContentTerm};
 use cf_landscape::ConstructLayout;
@@ -127,6 +128,42 @@ fn installed_context(digest: &str) -> Option<ContextNaturalnessTerm> {
     ContextNaturalnessTerm::new(installed.model.clone(), &installed.artifact_id, digest).ok()
 }
 
+fn source_usage_table(profile: &Value, translation_table: u8) -> Result<CodonUsageTable> {
+    let block = profile.get("source_codon_usage").ok_or_else(|| {
+        CfError::new(
+            code::HOST_TERM_UNSUPPORTED,
+            "usage.harmonize_rca needs host_profile.source_codon_usage, the codon \
+             usage of the organism the input CDS comes from. codon_usage on the \
+             same profile is the expression host. This build does not invent a \
+             source table",
+        )
+    })?;
+    if block.get("table").is_none() {
+        return Err(CfError::new(
+            code::HOST_PROFILE_INVALID,
+            "source_codon_usage has no table",
+        ));
+    }
+    let wrapped = serde_json::json!({ "codon_usage": block });
+    CodonUsageTable::from_host_profile(&wrapped, translation_table)
+}
+
+fn native_cds(profile: &Value, translation_table: u8) -> Result<CodonSequence> {
+    let text = profile
+        .get("harmonize_native_cds")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            CfError::new(
+                code::HOST_TERM_UNSUPPORTED,
+                "usage.harmonize_rca needs host_profile.harmonize_native_cds, the input \
+                 coding sequence whose codons are the source choices. The score compares \
+                 those codons' source relative adaptiveness with the candidate's host \
+                 relative adaptiveness",
+            )
+        })?;
+    CodonSequence::from_cds(text, translation_table)
+}
+
 /// Build a registry holding exactly the terms a job asked for.
 ///
 /// Refuses an unknown term rather than skipping it. A job that asked for four
@@ -152,6 +189,22 @@ pub fn build_registry(
             }
             "usage.gc_content" => {
                 registry.register_default(Box::new(GcContentTerm::new()))?;
+            }
+            "usage.harmonize_rca" => {
+                let table_id = sequence.table().id();
+                let target = CodonUsageTable::from_host_profile(host_profile, table_id)?;
+                let source = source_usage_table(host_profile, table_id)?;
+                let native = native_cds(host_profile, table_id)?;
+                registry
+                    .register_default(Box::new(HarmonizeRcaTerm::new(target, source, &native)?))?;
+            }
+            "usage.match_frequency" => {
+                let table =
+                    CodonUsageTable::from_host_profile(host_profile, sequence.table().id())?;
+                registry.register_default(Box::new(MatchFrequencyTerm::new(
+                    table,
+                    sequence.table().id(),
+                )?))?;
             }
             "structure.local_accessibility" => {
                 // Contract only. The values arrive through the batch path
@@ -199,7 +252,8 @@ pub fn build_registry(
                     code::LAND_TERM_UNKNOWN,
                     format!(
                         "no built-in provider supplies {other}; this build ships \
-                         usage.cai, usage.gc_content, constraint.violation_count, \
+                         usage.cai, usage.gc_content, usage.harmonize_rca, \
+                         usage.match_frequency, constraint.violation_count, \
                          structure.local_accessibility, burden.growth_cost and, when a \
                          verified artifact is installed, epistasis.context_naturalness, \
                          and a job is refused rather than run against fewer terms than \
@@ -313,6 +367,37 @@ pub fn declared_capabilities(inputs: &TierInputs<'_>) -> Result<Value> {
                 Capability::L2 => "L2",
             }),
         );
+    }
+    Ok(Value::Object(out))
+}
+
+/// Interaction radius each requested term declares.
+///
+/// `usage.match_frequency` is unbounded: one codon changes the fraction of
+/// every synonym of that amino acid. Tier 2's red-black partition does not
+/// hold for it, so the planner keeps the term out of tiers 1 and 2 and lets
+/// tier 3 score the whole sequence. Reporting the radius here is what stops
+/// Python from inventing a second copy of the provider's declaration.
+pub fn declared_radii(inputs: &TierInputs<'_>) -> Result<Value> {
+    let registry = build_registry(
+        inputs.terms,
+        inputs.host_profile,
+        inputs.sequence,
+        inputs.constraint_set,
+        inputs.context_digest,
+    )?;
+    let mut out = serde_json::Map::new();
+    for term in inputs.terms {
+        let id = TermId::new(term)?;
+        let provider = registry.get(&id).ok_or_else(|| {
+            CfError::new(code::LAND_TERM_UNKNOWN, format!("{term} is not registered"))
+        })?;
+        let label = match provider.provider.interaction_radius() {
+            cf_landscape_api::InteractionRadius::Positionwise => "positionwise".to_string(),
+            cf_landscape_api::InteractionRadius::Unbounded => "unbounded".to_string(),
+            cf_landscape_api::InteractionRadius::Codons(n) => format!("codons:{n}"),
+        };
+        out.insert(term.clone(), json!(label));
     }
     Ok(Value::Object(out))
 }
