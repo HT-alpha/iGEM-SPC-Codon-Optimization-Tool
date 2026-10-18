@@ -287,8 +287,8 @@ def cai_gate_document(rows: list[dict[str, Any]], *, selected_cds_sha256: str) -
     `cai_greedy`. A protein below that baseline is listed in
     `degenerate_cases.excluded` and the claim is not made.
     """
-    beats_native = all(row["codonforge_cai"] + 1e-12 >= row["native_cai"] for row in rows)
-    behind = [row["gene"] for row in rows if row["codonforge_cai"] + 1e-12 < row["cai_greedy_cai"]]
+    beats_native = all(row["suite_cai"] + 1e-12 >= row["native_cai"] for row in rows)
+    behind = [row["gene"] for row in rows if row["suite_cai"] + 1e-12 < row["cai_greedy_cai"]]
     claimed_n = len(rows) - len(behind)
     definition = (
         "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein "
@@ -313,7 +313,7 @@ def cai_gate_document(rows: list[dict[str, Any]], *, selected_cds_sha256: str) -
                 f"{site['codon']} at codon {site['index']}" for site in row["zero_weight_codons"]
             )
             details.append(
-                f"{row['gene']} ({row['protein_id']}) DNA Design Suite {row['codonforge_cai']} "
+                f"{row['gene']} ({row['protein_id']}) DNA Design Suite {row['suite_cai']} "
                 f"vs cai_greedy {row['cai_greedy_cai']}; {sites or 'no zero-weight sense codon'}"
             )
         reason = (
@@ -344,7 +344,7 @@ def cai_gate_document(rows: list[dict[str, Any]], *, selected_cds_sha256: str) -
         "comparable": True,
         "selected_cds_sha256": selected_cds_sha256,
         "beats_native": beats_native,
-        "codonforge_ge_greedy": claimed_n,
+        "suite_ge_greedy": claimed_n,
         "behind_greedy": behind,
         "degenerate_cases": {"excluded": behind, "explanation": explanation},
         "reason": reason,
@@ -361,7 +361,7 @@ def check_cai_gate(gate: dict[str, Any], rows: list[dict[str, Any]]) -> None:
     if gate.get("claimed") is not True:
         raise BenchError("GATE-BEN-001 is not claimed")
     excluded = set((gate.get("degenerate_cases") or {}).get("excluded") or [])
-    short = [row["gene"] for row in rows if row["codonforge_cai"] + 1e-12 < row["cai_greedy_cai"]]
+    short = [row["gene"] for row in rows if row["suite_cai"] + 1e-12 < row["cai_greedy_cai"]]
     uncovered = [gene for gene in short if gene not in excluded]
     if uncovered:
         raise BenchError("claimed proteins underperform cai_greedy: " + ", ".join(uncovered))
@@ -428,10 +428,10 @@ def run_cai_only(directory: Path, cds_path: Path | None = None) -> dict[str, Any
         if result.job.state != "succeeded" or not result.front.get("candidates"):
             raise BenchError(f"{gene['gene']}: CAI-only design did not return a candidate")
         vector = result.front["candidates"][0].get("objective_vector") or [None]
-        codonforge = vector[0]
+        suite_cai = vector[0]
         native_cai = scored[0]["usage.cai"]
         greedy_cai = scored[1]["usage.cai"]
-        if codonforge is None or native_cai is None or greedy_cai is None:
+        if suite_cai is None or native_cai is None or greedy_cai is None:
             raise BenchError(f"{gene['gene']}: a CAI value is missing")
         zero_weight = [
             {"index": index // 3, "codon": cds[index : index + 3]}
@@ -445,7 +445,7 @@ def run_cai_only(directory: Path, cds_path: Path | None = None) -> dict[str, Any
             "codons": gene["codons"],
             "native_cai": native_cai,
             "cai_greedy_cai": greedy_cai,
-            "codonforge_cai": codonforge,
+            "suite_cai": suite_cai,
             "zero_weight_codons": zero_weight,
         }
 

@@ -186,6 +186,7 @@ class Job:
         capabilities: dict[str, str],
         directions: dict[str, str] | None = None,
         roles: dict[str, str] | None = None,
+        radii: dict[str, str] | None = None,
         checkpoint_dir: Path | None = None,
     ) -> Job:
         """Seal, plan, and return a job ready to run.
@@ -200,7 +201,7 @@ class Job:
                 "an unsealed lockfile cannot pin anything"
             )
 
-        plan = TierPlan.plan(budget, terms, capabilities, directions, roles)
+        plan = TierPlan.plan(budget, terms, capabilities, directions, roles, radii)
         unwired = [tier for tier in budget.stages() if tier not in EXECUTED_TIERS]
         job = cls(
             job_id=job_id,
@@ -365,9 +366,7 @@ class Job:
                     # `best_per_objective` read `plan.scored`. Rewriting the
                     # front here, and not the checkpoint, keeps a resume on
                     # the engine's own order.
-                    member["objectives"] = list(
-                        self._to_plan_order(tuple(member["objectives"]))
-                    )
+                    member["objectives"] = list(self._to_plan_order(tuple(member["objectives"])))
                     self.record_candidate(
                         "mutation", member["cds"], objectives=tuple(member["objectives"])
                     )
@@ -969,9 +968,7 @@ class Job:
             if self._early_structure:
                 cds = self._polish_accessibility(cds)
                 self._stamp_cds(report["incumbent"], cds)
-            self._record_seed(
-                "repair" if cds != polished else "tier2_block_ca", cds
-            )
+            self._record_seed("repair" if cds != polished else "tier2_block_ca", cds)
             self.stage_reports["tier2_block_ca"] = report
             self._absorb_warnings(report.get("warnings", []))
 
@@ -994,9 +991,7 @@ class Job:
         return [
             warning
             for warning in warnings
-            if not (
-                warning.get("code") == "CF-FEAS-008" and warning.get("subject") in evaluated
-            )
+            if not (warning.get("code") == "CF-FEAS-008" and warning.get("subject") in evaluated)
         ]
 
     def _repair_seed(self, cds: str) -> str:

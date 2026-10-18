@@ -183,7 +183,7 @@ stays the default.
 Primer design, added in the DNA Design Suite after the 2026-10-05 sign-off,
 designs primer pairs for a region the user selects on a DNA sequence and
 also checks one pasted pair. Melting temperatures and dimer ΔG use SantaLucia
-1998 Table 2 (`docs/primerforge-validation.md`), as a digested parameter
+1998 Table 2 (`docs/primer-thermo-validation.md`), as a digested parameter
 document, in a clean-room two-state calculation. It does not check specificity
 against a genome, does not wrap Primer3, and does not claim mFold parity for
 hairpins. The forward CaPIP self-dimer is two helices in one register,

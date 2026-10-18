@@ -115,9 +115,9 @@
         <div class="seq-actions">
           <button type="button" id="load-profile">Use E. coli MG1655 ribosomal proteins</button>
           <button type="button" id="load-kazusa" class="secondary">Use Kazusa E. coli genome-wide</button>
-          <label class="file-label" for="profile-file">Upload a usage JSON<input id="profile-file" type="file" accept=".json,application/json"></label>
+          <label class="file-label" for="profile-file">Upload a usage table<input id="profile-file" type="file" accept=".json,.csv,.txt,.fa,.fasta,text/plain,application/json"></label>
         </div>
-        <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. 1.0 means every counted codon is a top synonym of the table that was loaded. Stops and single-codon families are excluded. A codon whose weight is 0 makes the whole CAI 0. Kazusa (taxid 316407) is genome-wide frequencies converted to relative adaptiveness. Loading it replaces the table the search uses, so the result is a different number, not a second column on the ribosomal score. A finished design also reports the Kazusa number beside the table it optimized.</p>
+        <p id="help-profile" class="field-help">CAI (codon adaptation index) compares your gene with this table. 1.0 means every counted codon is a top synonym of the table that was loaded. Stops and single-codon families are excluded. A codon whose weight is 0 makes the whole CAI 0. Kazusa (taxid 316407) is genome-wide frequencies converted to relative adaptiveness. Loading it replaces the table the search uses, so the result is a different number, not a second column on the ribosomal score. Upload accepts a codon_usage JSON, a Kazusa or CoCoPUTs-style CSV or text file, or a FASTA of coding sequences. The server counts or normalizes it and labels the result user-supplied unless you already marked the file. There is still no downloaded catalogue of species.</p>
         <p id="profile-note" class="note" aria-live="polite">No codon table loaded yet.</p>
         <label for="usage-text">Import a usage table or CDS set <span class="optional">optional</span></label>
         <textarea id="usage-text" class="seq" rows="4" spellcheck="false" aria-describedby="help-usage" placeholder="Kazusa text, a codon/count table, or FASTA CDS"></textarea>
@@ -192,9 +192,11 @@
           <option value="cai_burden">CAI and codon-usage burden</option>
           <option value="cai_structure">CAI and local mRNA structure</option>
           <option value="cai_context">CAI and the context model</option>
+          <option value="harmonize">Harmonize source RCA</option>
+          <option value="match_frequency">Match host codon frequencies</option>
           <option value="custom">Scores I tick below</option>
         </select>
-        <p id="help-preset" class="field-help">A preset is expanded by the server. The finished job lists the term ids it actually used. CAI only is the right first design. Structure needs ViennaRNA on this computer. The context model is used only when it is installed. Choose “Scores I tick below” to send the boxes instead of a preset.</p>
+        <p id="help-preset" class="field-help">A preset is expanded by the server. The finished job lists the term ids it actually used. CAI only is the right first design. Harmonize needs a second table: the organism the DNA came from. Match frequency is ranked by the population loop, so use the standard budget if you want the search to move it; a fast budget reports the score and says the seeds were chosen without it. Structure needs ViennaRNA on this computer. The context model is used only when it is installed. Choose “Scores I tick below” to send the boxes instead of a preset.</p>
         <fieldset>
           <legend>Scores. Codon adaptation index is enough for a first design.</legend>
           <label class="check"><input id="obj-cai" type="checkbox" checked> CAI <span class="mono">usage.cai</span></label>
@@ -203,6 +205,14 @@
           <p class="field-help">The share of the gene that is G or C, as one number. The search minimizes it, so selecting it pushes GC down. It is not a target and not a GC window. Use the GC-window rule above if you want a band.</p>
           <label class="check"><input id="obj-violation" type="checkbox"> Constraint violations <span class="mono">constraint.violation_count</span></label>
           <p class="field-help">How many constraint rules the sequence still breaks. The result table says whether this term was ranked on or only reported.</p>
+          <label class="check"><input id="obj-harmonize" type="checkbox"> Harmonize source RCA <span class="mono">usage.harmonize_rca</span></label>
+          <p class="field-help">Minimize the mean absolute difference between each input codon’s relative adaptiveness in the source table and the chosen codon’s relative adaptiveness in the expression-host table. The method is Claassens et al., PLoS ONE 2017. The input DNA’s codons are the source choices. A protein paste is reverse-translated first, so those codons are not a natural gene.</p>
+          <label class="stack" for="source-file">Source organism table, for harmonization
+            <input id="source-file" type="file" accept=".json,.csv,.txt,.fa,.fasta,text/plain,application/json">
+          </label>
+          <p id="source-note" class="field-help">Not loaded. Harmonization refuses to invent this table.</p>
+          <label class="check"><input id="obj-match" type="checkbox"> Match codon frequencies <span class="mono">usage.match_frequency</span></label>
+          <p class="field-help">Minimize the squared difference between the gene’s synonymous codon fractions and the host table’s fractions. This is not CAI. CAI piles onto the top codon. The term couples every synonym of an amino acid, so only the population loop ranks it.</p>
           <label class="check"><input id="obj-structure" type="checkbox"> Local mRNA structure <span class="mono">structure.local_accessibility</span></label>
           <p class="field-help">How folded the messenger RNA is near each codon. ViennaRNA reports an accessibility from its partition function. If it is missing, the job refuses this objective with CF-STRU-003 rather than inventing a score. UNKNOWN means not measured. It is not zero and it is not a bad score.</p>
           <label for="structure-engine">Structure engine</label>
@@ -278,10 +288,14 @@
   <div class="run-row">
     <button type="button" id="submit" class="go">Run design</button>
     <button type="button" id="check-feasibility" class="secondary">Check these rules</button>
-    <p class="note">Run design posts the job and returns immediately. Fast, on the rpsL demo, usually finishes within a minute. Check these rules asks whether the DNA you pasted can satisfy the constraints. It does not start a design.</p>
+    <button type="button" id="vendor-screen" class="secondary">Vendor-class screen</button>
+    <button type="button" id="global-fold" class="secondary">Global fold</button>
+    <p class="note">Run design posts the job and returns immediately. Fast, on the rpsL demo, usually finishes within a minute. Check these rules asks whether the DNA you pasted can satisfy the constraints. It does not start a design. Vendor-class screen flags GC windows, homopolymers, repeats and cloning sites using this suite’s presets. It is not a manufacturer score and not an expression assay. Global fold reports a ViennaRNA minimum free energy when that program is installed, or a labelled Nussinov base-pair count when it is not. That fold is not the windowed accessibility objective.</p>
   </div>
   <div id="submit-error" role="alert"></div>
   <div id="feasibility-root" aria-live="polite"><p class="note empty-state">Rules not checked yet. Check these rules uses the DNA in the box. A protein or a GenBank file is checked on the finished design.</p></div>
+  <div id="vendor-root" aria-live="polite"></div>
+  <div id="fold-root" aria-live="polite"></div>
 
   <div id="codon-helix" class="helix-stage" aria-hidden="true"></div>
   <h2 id="status">Status</h2>

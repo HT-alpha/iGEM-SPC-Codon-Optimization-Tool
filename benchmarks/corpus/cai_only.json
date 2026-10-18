@@ -5,7 +5,7 @@
     "codons": 1025,
     "native_cai": 0.4172795301542131,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -14,7 +14,7 @@
     "codons": 332,
     "native_cai": 0.8509178944841576,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -23,7 +23,7 @@
     "codons": 433,
     "native_cai": 0.8536344350366416,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -32,7 +32,7 @@
     "codons": 471,
     "native_cai": 0.7380120499025711,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -41,7 +41,7 @@
     "codons": 321,
     "native_cai": 0.6857752062356853,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -50,7 +50,7 @@
     "codons": 215,
     "native_cai": 0.6950918053309867,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -59,7 +59,7 @@
     "codons": 639,
     "native_cai": 0.7543230853486205,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -68,7 +68,7 @@
     "codons": 395,
     "native_cai": 0.8088005249701238,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -77,7 +77,7 @@
     "codons": 558,
     "native_cai": 0.8019571828360197,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -86,7 +86,7 @@
     "codons": 235,
     "native_cai": 0.7901926062766395,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -95,7 +95,7 @@
     "codons": 122,
     "native_cai": 0.8596575975602394,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -104,7 +104,7 @@
     "codons": 125,
     "native_cai": 0.7006055324403413,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -113,7 +113,7 @@
     "codons": 104,
     "native_cai": 0.6463463946444975,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -122,7 +122,7 @@
     "codons": 435,
     "native_cai": 0.5369748987213764,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -131,7 +131,7 @@
     "codons": 534,
     "native_cai": 0.0,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": [
       {
         "index": 14,
@@ -145,7 +145,7 @@
     "codons": 888,
     "native_cai": 0.713920149028904,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -154,7 +154,7 @@
     "codons": 631,
     "native_cai": 0.6602230087431212,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -163,7 +163,7 @@
     "codons": 475,
     "native_cai": 0.694287779473651,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -172,7 +172,7 @@
     "codons": 428,
     "native_cai": 0.5987019411238987,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -181,7 +181,7 @@
     "codons": 417,
     "native_cai": 0.6283224888791982,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -190,7 +190,7 @@
     "codons": 313,
     "native_cai": 0.6146728070941132,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -199,7 +199,7 @@
     "codons": 934,
     "native_cai": 0.5622427705341552,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -208,7 +208,7 @@
     "codons": 389,
     "native_cai": 0.6265190575205545,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -217,7 +217,7 @@
     "codons": 290,
     "native_cai": 0.6633378142261386,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -226,7 +226,7 @@
     "codons": 589,
     "native_cai": 0.5699395240654626,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -235,7 +235,7 @@
     "codons": 550,
     "native_cai": 0.6068756266172023,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -244,7 +244,7 @@
     "codons": 256,
     "native_cai": 0.7659312874941596,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -253,7 +253,7 @@
     "codons": 388,
     "native_cai": 0.7580641726675343,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -262,7 +262,7 @@
     "codons": 251,
     "native_cai": 0.6382512766868623,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -271,7 +271,7 @@
     "codons": 884,
     "native_cai": 0.4898785848676633,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -280,7 +280,7 @@
     "codons": 492,
     "native_cai": 0.49378879863471664,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -289,7 +289,7 @@
     "codons": 664,
     "native_cai": 0.7219646990441106,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -298,7 +298,7 @@
     "codons": 478,
     "native_cai": 0.6056140692434927,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -307,7 +307,7 @@
     "codons": 503,
     "native_cai": 0.5353322304313882,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -316,7 +316,7 @@
     "codons": 397,
     "native_cai": 0.545291661425786,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -325,7 +325,7 @@
     "codons": 492,
     "native_cai": 0.6259674590909883,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -334,7 +334,7 @@
     "codons": 524,
     "native_cai": 0.48241784341426236,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -343,7 +343,7 @@
     "codons": 821,
     "native_cai": 0.0,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": [
       {
         "index": 28,
@@ -361,7 +361,7 @@
     "codons": 450,
     "native_cai": 0.44262575092449863,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -370,7 +370,7 @@
     "codons": 385,
     "native_cai": 0.6640557706259073,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -379,7 +379,7 @@
     "codons": 433,
     "native_cai": 0.6660995334894557,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -388,7 +388,7 @@
     "codons": 489,
     "native_cai": 0.6699186085800876,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -397,7 +397,7 @@
     "codons": 144,
     "native_cai": 0.6848491150235231,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -406,7 +406,7 @@
     "codons": 514,
     "native_cai": 0.7080282938066654,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -415,7 +415,7 @@
     "codons": 461,
     "native_cai": 0.690661531791725,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -424,7 +424,7 @@
     "codons": 597,
     "native_cai": 0.5542049507077846,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -433,7 +433,7 @@
     "codons": 170,
     "native_cai": 0.676780357193263,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -442,7 +442,7 @@
     "codons": 730,
     "native_cai": 0.5294833368060958,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -451,7 +451,7 @@
     "codons": 407,
     "native_cai": 0.6657687918792513,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   },
   {
@@ -460,7 +460,7 @@
     "codons": 1343,
     "native_cai": 0.6840985384568226,
     "cai_greedy_cai": 1.0,
-    "codonforge_cai": 1.0,
+    "suite_cai": 1.0,
     "zero_weight_codons": []
   }
 ]

@@ -128,7 +128,7 @@ def test_the_cai_only_gate_is_the_file_that_was_run() -> None:
         scored = score_sequences(request, [cds, cai_greedy(cds, 11, usage)])
         assert scored[0]["usage.cai"] == pytest.approx(recorded["native_cai"])
         assert scored[1]["usage.cai"] == pytest.approx(recorded["cai_greedy_cai"])
-        assert recorded["codonforge_cai"] == 1.0
+        assert recorded["suite_cai"] == 1.0
         assert recorded["cai_greedy_cai"] == 1.0
 
 
@@ -193,7 +193,7 @@ def test_a_below_greedy_score_on_a_claimed_protein_is_refused() -> None:
     gate = json.loads((root / "gates.json").read_text(encoding="utf-8"))[0]
     for row in rows:
         if row["gene"] == "aceB":
-            row["codonforge_cai"] = 0.0
+            row["suite_cai"] = 0.0
     with pytest.raises(BenchError, match="underperform"):
         check_cai_gate(gate, rows)
 

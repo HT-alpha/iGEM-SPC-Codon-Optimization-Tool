@@ -202,6 +202,7 @@ class TierPlan:
         capabilities: dict[str, str],
         directions: dict[str, str] | None = None,
         roles: dict[str, str] | None = None,
+        radii: dict[str, str] | None = None,
     ) -> TierPlan:
         """Decide which terms each tier scores.
 
@@ -221,6 +222,7 @@ class TierPlan:
         """
         directions = directions or {}
         roles = roles or {}
+        radii = radii or {}
         plan = cls(budget=budget)
 
         for term in terms:
@@ -286,6 +288,38 @@ class TierPlan:
                             "be scored by the seeding DP or the block ascent. Tier 3 scores "
                             "it once per generation on the whole population; the seeds those "
                             "earlier tiers produce were chosen without it"
+                        ),
+                        stage="tier_plan",
+                        subject=term,
+                    )
+                )
+                continue
+
+            if radii.get(term) == "unbounded":
+                # `DEP-LAND-006`. An exact delta exists, and it is not local:
+                # `usage.match_frequency` moves every synonym of the edited
+                # amino acid. Handing it to tier 2 would make the red-black
+                # partition false (`CF-SRCH-008`). Tier 3 scores the whole
+                # sequence, which is where the squared error is exact.
+                direction = directions.get(term)
+                if direction not in ("minimize", "maximize"):
+                    raise ValueError(
+                        f"term {term!r} has no declared optimization direction; the registry "
+                        "must supply one, because job_status.resolved_objectives requires it "
+                        "and there is no defensible default"
+                    )
+                plan.scored.append(term)
+                plan.directions[term] = direction
+                plan.warnings.append(
+                    Warning_(
+                        code="CF-SRCH-010",
+                        title="A term is scored by the population loop only",
+                        detail=(
+                            f"{term} couples every synonym of an amino acid, so tiers 1 and 2 "
+                            "cannot carry it without treating distant positions as independent. "
+                            "Tier 3 scores the whole sequence. A fast budget does not run tier 3, "
+                            "and the seeds it returns were chosen without this term. The reported "
+                            "value is still the term's own score."
                         ),
                         stage="tier_plan",
                         subject=term,

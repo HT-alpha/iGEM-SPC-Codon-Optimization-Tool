@@ -1012,7 +1012,13 @@ def test_tst_cli_010_the_two_term_whitelists_agree(store: ArtifactStore) -> None
 
     request = request_for(objectives=["usage.cai"])
     for term in BUILTIN_TERMS:
-        probe = _directions_request_for(request, [term])
+        probed = request
+        if term == "usage.harmonize_rca":
+            profile = dict(request.host_profile)
+            profile["source_codon_usage"] = profile["codon_usage"]
+            profile["harmonize_native_cds"] = request.cds
+            probed = replace(request, host_profile=profile)
+        probe = _directions_request_for(probed, [term])
         # The registry accepts exactly the terms the CLI advertises. A term in
         # one list and not the other raises here.
         roles = json.loads(_core.term_roles(probe))

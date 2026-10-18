@@ -29,15 +29,22 @@ is [`docs/project-status.md`](docs/project-status.md). History is
 The page listens on <http://127.0.0.1:8000/>, opens a browser, and waits
 until Ctrl+C. `--no-browser` skips the window. `--port` chooses another port.
 
-`pip install dna-design-suite` does not resolve: the package is not on PyPI.
-Python 3.11 or newer is required. One wheel per operating system covers
-3.11 through 3.13 (`abi3-py311`). CPython 3.9 and 3.10 are not supported.
+`pip install dna-design-suite` does not resolve: the package is not on PyPI,
+there is no release tag, and this repository stays private. Version 0.1.0
+is the package version. Python 3.11 or newer is required. One wheel per
+operating system covers 3.11 through 3.13 (`abi3-py311`) when a wheel file
+exists. CPython 3.9 and 3.10 are not supported.
 
-### Install a wheel
+The install path from a checkout of this repository is source, below.
+GitHub Actions is not an install path: there is no release, and this README
+does not send you to a workflow artifact. A wheel file is something you
+already have on disk. This README does not claim a wheel is attached to a
+release, and it does not claim the package is published.
 
-Download the wheel for this machine from the GitHub Actions **wheels**
-artifacts on a push to this repository, or from a release once one is
-attached. The artifact names are `wheel-<runner>-<target>` and `sdist`.
+### Install a wheel you already have
+
+Installing one is pip against that file. It is not `pip install dna-design-suite`
+from an index, and it is not a download from a GitHub Actions run.
 
 Linux x86_64. `virtualenv` is the bootstrap `make setup` uses. `python3 -m venv` is only the fallback when virtualenv itself cannot be installed, because that module needs `ensurepip`.
 
@@ -95,16 +102,11 @@ python -m dna_design_suite.api
 
 ### Publishing a release
 
-The wheel workflow uploads artifacts. It does not publish to PyPI and it
-has no PyPI token. To publish, after `python tools/check_release_clearance.py`
-passes:
-
-1. Open the **wheels** run for the tag (or `workflow_dispatch`).
-2. Download every `wheel-*` artifact and the `sdist` artifact.
-3. From a machine that already has a PyPI account and a token you supply
-   yourself: `pip install twine` and `twine upload dist/*`.
-
-Do not add the token to the repository or to the workflow.
+Not done. The package is not on PyPI. There is no release tag. Publishing
+is Hugo's step, from a machine that already has a wheel file, a PyPI
+account, and a token he supplies: `pip install twine` and `twine upload`
+of that file. Do not add the token to the repository. Until that upload,
+install from the source checkout.
 
 ### First run
 
@@ -244,7 +246,8 @@ Benchmark write-ups, in order:
 | v2.9.1 gate, folds, vectors | [`docs/benchmarks/v2.9.1-validation.md`](docs/benchmarks/v2.9.1-validation.md) |
 | v2.9.1 stress timings | [`docs/benchmarks/v2.9.1-challenging-perf.md`](docs/benchmarks/v2.9.1-challenging-perf.md) |
 | v2.9.2 profiles | [`docs/benchmarks/v2.9.2-profiles.md`](docs/benchmarks/v2.9.2-profiles.md) |
-| Primer design thermodynamics | [`docs/primerforge-validation.md`](docs/primerforge-validation.md) |
+| Primer design thermodynamics | [`docs/primer-thermo-validation.md`](docs/primer-thermo-validation.md) |
+| Commercial codon tools | [`docs/benchmarks/commercial-codon-tools.md`](docs/benchmarks/commercial-codon-tools.md) |
 
 ---
 
@@ -270,6 +273,7 @@ is missing from `progress.tiers` as `done` and there is no `CF-ORCH-006`
 warning for it, that is a bug worth reporting.
 
 **Most objective terms.** This build ships `usage.cai`,
+`usage.harmonize_rca`, `usage.match_frequency`,
 `constraint.violation_count`, `structure.local_accessibility`,
 `burden.growth_cost`, and `epistasis.context_naturalness` as rankable
 objectives, plus `usage.gc_content` as a **diagnostic**. The context term is
@@ -278,6 +282,23 @@ artifact, or a host that is not *E. coli*, is `CF-LAND-001` and is not scored
 as zero. Requesting anything else is refused with `CF-LAND-001` rather than
 silently optimizing a smaller objective set — a job that asked for four
 objectives must not quietly optimize three.
+
+`usage.harmonize_rca` minimizes the mean absolute difference between each
+input codon's relative adaptiveness in a source table and the chosen codon's
+relative adaptiveness in the expression-host table. The method is Claassens
+et al., PLoS ONE 2017 (doi:10.1371/journal.pone.0184355), the same per-codon
+replacement Angov et al., PLoS ONE 2008 (doi:10.1371/journal.pone.0002189)
+describe. Pass the source table as `host_profile.source_codon_usage`, or on
+the command line as `--source-profile`. The input CDS is pinned before the
+job id is derived. A missing source table is `CF-HOST-003`. The suite does
+not invent one.
+
+`usage.match_frequency` minimizes the squared difference between the gene's
+synonymous codon fractions and the host table's fractions. One codon changes
+every synonym of that amino acid, so tiers 1 and 2 omit it. A fast budget
+warns `CF-SRCH-010` and still reports the score. Standard and exact rank it
+in the population loop. It is not a bit-identical port of another tool's
+frequency matcher.
 
 `burden.growth_cost` is a tier-3 demand-profile mismatch in `[0, 1)`, unit
 `dimensionless`, minimized. It is not a predicted growth rate. Supply is the
@@ -302,19 +323,60 @@ longer than one 40 nt span is scored out of core, once per generation, and
 that span is folded during those tiers. There is no claim of parity with a
 global minimum free energy or with LinearDesign.
 
+A separate report, `dna_design_suite fold` and `POST /v1/structure:global`,
+labels a whole-sequence fold. When ViennaRNA is installed the value is
+`RNA.fold`'s global minimum free energy in kcal/mol. When it is not, a
+sequence of at most 400 nt gets a Watson-Crick pair count, and the label
+says the unit is base pairs. A longer sequence without ViennaRNA is left
+unscored. That report is not `structure.local_accessibility` and not the
+`nussinov` objective.
+
 A CAI-only job does not fold. The old diagnostic fold is not run.
 
 **The REST server.** `dna_design_suite.api.serve` serves jobs, observations,
 the example host files, a verified model file, recalibrations stored from a
 fitted observation, objective presets (`cai`, `cai_burden`, `cai_structure`,
-`cai_context`), protein input reverse-translated with the caller's usage
-table, construct input read from the GenBank CDS features in the body, and
-`POST /v1/feasibility` (five checks, plus a constructive witness when one
-exists). An empty feasibility body is `400`. `POST /v1/seeds:import` checks
-a coding sequence against the protein. `POST /v1/hosts:import` builds a
-usage table. `POST /v1/measurements` stores a lab number and
-`GET /v1/observations?format=csv` exports it. An unknown route is
-`CF-CLI-003`.
+`cai_context`, `harmonize`, `match_frequency`), protein input
+reverse-translated with the caller's usage table, construct input read from
+the GenBank CDS features in the body, and `POST /v1/feasibility` (five
+checks, plus a constructive witness when one exists). An empty feasibility
+body is `400`. `POST /v1/seeds:import` checks a coding sequence against the
+protein. `POST /v1/hosts:import` builds a usage table. `POST /v1/measurements`
+stores a lab number and `GET /v1/observations?format=csv` exports it. An
+unknown route is `CF-CLI-003`.
+
+**Host tables.** There is no species catalogue. `GET /v1/hosts` lists the
+example files installed with the page. `POST /v1/hosts:import`, and
+`dna_design_suite hosts import`, accept Kazusa text, a delimited table, a
+JSON `codon_usage` block, or a FASTA of coding sequences. Relative
+adaptiveness is each value divided by the maximum in its synonymous family.
+The stored label stays `user_supplied` unless the caller sets
+`highly_expressed`. `genome_wide` is refused (`CF-HOST-003`). Asserting
+`highly_expressed` is not a check that the file is a highly expressed
+reference.
+
+**Vendor-class screen.** `dna_design_suite vendor-screen` and
+`POST /v1/vendor-screen` flag GC windows, homopolymers, repeated 12-mers,
+and the assembly restriction sites and `AGGAGG` motif, using the numbers in
+this suite's synthesis and assembly presets. The checklist is
+[`docs/vendor-screen.md`](docs/vendor-screen.md). `vendor_score` is false.
+Wet-lab expression is out of scope. A gene still has to pass the
+manufacturer's own screen.
+
+```sh
+.venv/bin/python -m dna_design_suite.cli.main hosts import \
+    --input benchmarks/validation/kazusa/e_coli_316407.csv
+.venv/bin/python -m dna_design_suite.cli.main vendor-screen --cds ATGAAATAA
+.venv/bin/python -m dna_design_suite.cli.main fold --cds GGGAAACCC
+.venv/bin/python -m dna_design_suite.cli.main design \
+    --host escherichia_coli:511145/MG1655 \
+    --cds ATGCTGCGTAGCGGCGTGGCGCCGACCAAACTGCGTAGCTAA \
+    --host-profile examples/mg1655_ribosomal_usage.json \
+    --source-profile examples/mg1655_ribosomal_usage.json \
+    --objectives usage.harmonize_rca \
+    --budget fast \
+    --seed 7
+```
 
 **Operon prices.** `design_operon` reports 64 finite differences of
 `burden.growth_cost`. A slot the caller's table cannot score is null. The

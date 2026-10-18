@@ -19,8 +19,12 @@ hard constraints. The search is Rust (tier 1 exact dynamic programming, tier
 lifecycle, ingest, and CLI are Python. `POST /v1/jobs`, `POST /v1/score`,
 `POST /v1/observations`, `GET /v1/observations`, `GET /v1/calibration`,
 `GET /v1/healthz`, and `GET /v1/version` are served by the standard-library
-HTTP server. Hosts, models, recalibrations, seed import, and the five-check
-feasibility analyser answer `CF-CLI-003`.
+HTTP server. `POST /v1/seeds:import` checks a coding sequence against the
+protein. `POST /v1/hosts:import` builds a usage table from a file the caller
+already has. `POST /v1/feasibility` runs the five checks and can report
+`proven_satisfiable` or `proven_unsatisfiable`. `POST /v1/measurements` stores
+a lab number. An unknown route is `CF-CLI-003`. `GET /v1/hosts` is still the
+example files on disk, not a species catalogue.
 
 The page in `python/dna_design_suite/api/static/` is the shared DNA Design Suite and
 Primer design UI. It is a guided form: a coding sequence, a host, the bundled
@@ -52,7 +56,7 @@ or more complete axes use `knee_of_complete_front`. The page and
 
 Primer melting temperatures and dimer ΔG are a clean-room
 two-state calculation from SantaLucia 1998 Table 2
-(`docs/primerforge-validation.md`). `POST /v1/primers/candidates` and
+(`docs/primer-thermo-validation.md`). `POST /v1/primers/candidates` and
 `POST /v1/primers/analyze` are the primer routes.
 
 The synonymous Potts surface (`epistasis.context_naturalness`) is fit on

@@ -1,12 +1,14 @@
 //! The built-in terms.
 //!
-//! Ticket P1-21. Three, and only three:
+//! Ticket P1-21, extended by `DEP-LAND-006`:
 //!
 //! | term | capability | role cap |
 //! | --- | --- | --- |
 //! | [`CaiTerm`] (`usage.cai`) | L1 | Pareto axis |
 //! | [`GcContentTerm`] (`usage.gc_content`) | L1 | diagnostic |
 //! | [`ViolationCountTerm`] (`constraint.violation_count`) | L1 or L0, per set | Pareto axis |
+//! | [`HarmonizeRcaTerm`] (`usage.harmonize_rca`) | L1 | Pareto axis |
+//! | [`MatchFrequencyTerm`] (`usage.match_frequency`) | L1, unbounded radius | Pareto axis |
 //!
 //! Every other term named in the planning package arrives later and with its
 //! own ticket: the epistatic surface in `P3-05` (a synonymous-restricted Potts
@@ -21,8 +23,10 @@
 //! naming it, which is the loud failure the standing rules require.
 
 pub mod constraints;
+pub mod harmonize;
 pub mod structure;
 pub mod usage;
 
 pub use constraints::ViolationCountTerm;
+pub use harmonize::{HarmonizeRcaTerm, MatchFrequencyTerm};
 pub use usage::{CaiTerm, CodonUsageTable, GcContentTerm, UsageSubset};

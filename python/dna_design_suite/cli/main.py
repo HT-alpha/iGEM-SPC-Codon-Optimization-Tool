@@ -69,6 +69,10 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--host")
     d.add_argument("--cds")
     d.add_argument("--host-profile", help="a host_profile.schema.json document")
+    d.add_argument(
+        "--source-profile",
+        help="codon usage of the organism the CDS comes from, for usage.harmonize_rca",
+    )
     d.add_argument("--objectives", default="usage.cai")
     d.add_argument("--constraints")
     d.add_argument("--budget", choices=["fast", "standard", "exact"], default="standard")
@@ -112,10 +116,16 @@ def build_parser() -> argparse.ArgumentParser:
     hosts = sub.add_parser("hosts", help="import a codon-usage table")
     hosts_sub = hosts.add_subparsers(dest="hosts_verb")
     host_import = hosts_sub.add_parser(
-        "import", parents=[common], help="read Kazusa, a table, or CDS"
+        "import",
+        parents=[common],
+        help="read Kazusa text, a delimited or JSON table, or CDS",
     )
     host_import.add_argument("--input", required=True)
-    host_import.add_argument("--format", default="auto", choices=["auto", "kazusa", "table", "cds"])
+    host_import.add_argument(
+        "--format",
+        default="auto",
+        choices=["auto", "kazusa", "table", "cds", "json"],
+    )
     host_import.add_argument("--translation-table", type=int, default=11)
     host_import.add_argument("--organism", default="")
     host_import.add_argument(
@@ -123,6 +133,20 @@ def build_parser() -> argparse.ArgumentParser:
         default="user_supplied",
         choices=["user_supplied", "highly_expressed"],
     )
+
+    screen = sub.add_parser("vendor-screen", help="dry-run synthesis-rule screen")
+    screen.add_argument("--cds", required=True)
+    screen.add_argument(
+        "--set",
+        dest="sets",
+        action="append",
+        choices=["dds_synthesis", "dds_assembly"],
+        help="repeat to choose a set; default is both",
+    )
+
+    fold = sub.add_parser("fold", help="labelled global fold, separate from windowed accessibility")
+    fold.add_argument("--cds", required=True)
+    fold.add_argument("--temperature", type=float, default=37.0)
     return parser
 
 
@@ -160,6 +184,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         return _seeds(args)
     if args.verb == "hosts":
         return _hosts(args)
+    if args.verb == "vendor-screen":
+        return _vendor_screen(args)
+    if args.verb == "fold":
+        return _fold(args)
     return _design(args)
 
 
@@ -335,10 +363,16 @@ def _request(args: argparse.Namespace) -> DesignRequest:
             f"missing required {' and '.join(missing)} (or pass --json)",
             exit_code=EXIT_INVALID_INPUT,
         )
+    profile = _load(args.host_profile)
+    if args.source_profile:
+        source = _load(args.source_profile)
+        block = source.get("codon_usage") if isinstance(source.get("codon_usage"), dict) else source
+        profile = dict(profile)
+        profile["source_codon_usage"] = block
     return DesignRequest(
         host=args.host,
         cds=args.cds,
-        host_profile=_load(args.host_profile),
+        host_profile=profile,
         objectives=[t for t in args.objectives.split(",") if t],
         constraints=_load(args.constraints, _EMPTY_CONSTRAINTS),
         budget=args.budget,
@@ -403,15 +437,25 @@ def _terms(args: argparse.Namespace) -> int:
 
 
 def _probe(term: str) -> str:
-    """A minimal request that constructs one term, to ask its direction."""
+    """A minimal request that constructs one term, to ask its direction.
+
+    `usage.harmonize_rca` compares the input CDS with a source table. The
+    probe uses the same uniform table as both, and pins `ATGTAA` as the
+    input. That is enough to read the direction. It is not a design.
+    """
+    profile = dict(_UNIFORM_PROFILE)
+    cds = "ATGTAA"
+    if term == "usage.harmonize_rca":
+        profile["source_codon_usage"] = profile["codon_usage"]
+        profile["harmonize_native_cds"] = cds
     return json.dumps(
         {
-            "cds": "ATGTAA",
+            "cds": cds,
             "translation_table": 1,
             "five_prime_flank": "",
             "three_prime_flank": "",
             "constraint_set": _EMPTY_CONSTRAINTS,
-            "host_profile": _UNIFORM_PROFILE,
+            "host_profile": profile,
             "host_id": "escherichia_coli:511145/BL21",
             "host_digest": "sha256:" + "0" * 64,
             "terms": [term],
@@ -484,6 +528,28 @@ def _show(path: Path, args: argparse.Namespace) -> int:
         )
     else:
         print(writers.to_json(document))
+    return EXIT_OK
+
+
+def _vendor_screen(args: argparse.Namespace) -> int:
+    from dna_design_suite.vendor.screen import screen_sequence
+
+    try:
+        report = screen_sequence(args.cds, sets=args.sets)
+    except ValueError as exc:
+        raise DesignError("CF-CLI-001", str(exc), exit_code=EXIT_INVALID_INPUT) from exc
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return EXIT_OK
+
+
+def _fold(args: argparse.Namespace) -> int:
+    from dna_design_suite.codon.predictors.global_fold import global_fold_report
+
+    try:
+        report = global_fold_report(args.cds, temperature_c=args.temperature)
+    except ValueError as exc:
+        raise DesignError("CF-CLI-001", str(exc), exit_code=EXIT_INVALID_INPUT) from exc
+    print(json.dumps(report, indent=2, sort_keys=True))
     return EXIT_OK
 
 

@@ -284,6 +284,7 @@ def design(
     (`DEP-CLI-006`). The handle's `result` is that job. It is not a finished
     document returned early.
     """
+    _stamp_harmonize_native(request)
     if background:
         if request.job_id is None:
             request = replace(request, job_id=assigned_job_id(request))
@@ -298,6 +299,7 @@ def _run_design(
     on_segment: Any = None,
 ) -> DesignResult:
     """The body of `design`, on the caller's thread or a pool thread."""
+    _stamp_harmonize_native(request)
     from dna_design_suite.codon.epistasis.dwell import DWELL_TERM, dwell_status
 
     if DWELL_TERM in request.objectives:
@@ -412,6 +414,7 @@ def _run_design(
         # From the registry's own registrations, so a term that cannot be
         # ranked on is demoted here rather than silently optimized.
         roles=json.loads(_core.term_roles(_directions_request(request))),
+        radii=json.loads(_core.term_radii(_directions_request(request))),
         checkpoint_dir=Path(request.checkpoint_dir) if request.checkpoint_dir else None,
     )
 
@@ -442,6 +445,36 @@ def _resume_document(request: DesignRequest, job_id: str) -> dict[str, Any]:
             exit_code=2,
         )
     return Job.load_checkpoint(path)
+
+
+def _stamp_harmonize_native(request: DesignRequest) -> None:
+    """Pin the input CDS as the harmonization source.
+
+    `DEP-LAND-006`. The score compares each candidate codon with the codon
+    that was in the input, under the source organism's relative adaptiveness.
+    Rebuilding that vector from the candidate would score every sequence as
+    zero whenever the source table and the host table are the same object.
+    The stamp is part of the host profile, so it is part of the job identity.
+    A job that did not ask for the term is left untouched.
+    """
+    if "usage.harmonize_rca" not in request.objectives:
+        return
+    profile = dict(request.host_profile)
+    source = profile.get("source_codon_usage")
+    if not isinstance(source, dict) or not isinstance(source.get("table"), dict):
+        raise DesignError(
+            "CF-HOST-003",
+            "usage.harmonize_rca needs host_profile.source_codon_usage with a table "
+            "of relative adaptiveness for the organism the input CDS comes from. "
+            "codon_usage on the same profile is the expression host. The method is "
+            "the mean absolute difference of relative codon adaptiveness (Claassens "
+            "et al., PLoS ONE 2017, doi:10.1371/journal.pone.0184355). This build "
+            "does not invent a source table.",
+            exit_code=2,
+        )
+    native = "".join(request.cds.upper().split()).replace("U", "T")
+    profile["harmonize_native_cds"] = native
+    request.host_profile = profile
 
 
 def _directions_request(request: DesignRequest) -> str:

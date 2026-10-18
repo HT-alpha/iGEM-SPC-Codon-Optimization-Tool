@@ -10,9 +10,10 @@ synonymous coding sequence and refuse a different protein with `CF-SEQ-004`
 and the residue positions (`DEP-API-003`). An empty field is omitted from
 the request identity, so a job that does not set it keeps its lockfile.
 `POST /v1/hosts:import` and `hosts import` turn Kazusa text, a delimited
-count table, or a CDS set into `user_supplied` relative adaptiveness
-(`DEP-API-004`). `genome_wide` is refused (`CF-HOST-003`). Unobserved
-families stay at weight 0 and are named. No pseudocount is added.
+count table, a JSON `codon_usage` block, or a CDS set into `user_supplied`
+relative adaptiveness (`DEP-API-004`). `genome_wide` is refused
+(`CF-HOST-003`). Unobserved families stay at weight 0 and are named. No
+pseudocount is added.
 `POST /v1/measurements` stores the same observation document as
 `POST /v1/observations`, and `GET /v1/observations?format=csv` exports it
 (`DEP-ACT-004`). The GC-fraction line does not change codon choices.
@@ -29,10 +30,46 @@ free energy. The default is still ViennaRNA, and a missing install is still
 synonym. CAG at 74 is blocked by PstI, and every Leu repair of that site
 costs more than the CAG gain. GAC at 88 is blocked by one 12-mer, and every
 feasible repair of that repeat costs more than the GAC gain. The difference
-0.0038104428470379093 is the distance to an infeasible sequence. Harmonization
-and a vendor result screen are not in this change.
+0.0038104428470379093 is the distance to an infeasible sequence.
 
+`usage.harmonize_rca` minimizes the mean absolute difference of relative
+codon adaptiveness between the input CDS under a source table and the
+candidate under the expression-host table (Claassens et al., PLoS ONE 2017,
+doi:10.1371/journal.pone.0184355; Angov et al., PLoS ONE 2008,
+doi:10.1371/journal.pone.0002189). The input CDS is stamped on the host
+profile before the job id, and only when the term was requested. A missing
+source table is `CF-HOST-003`. `usage.match_frequency` minimizes the summed
+squared error of synonymous fractions. Its radius is unbounded, so a fast
+budget warns `CF-SRCH-010` and does not move the seeds for it; standard and
+exact score it in tier 3 (`DEP-LAND-006`).
 
+`vendor-screen` and `POST /v1/vendor-screen` flag this suite's synthesis and
+assembly presets and label the public rule classes those presets correspond
+to. The numeric cutoffs are the presets, not a transcribed GeneArt, IDT,
+GenScript, or Twist threshold. Wet-lab expression stays out of scope
+(`DEP-API-005`). The checklist is `docs/vendor-screen.md`.
+
+`fold` and `POST /v1/structure:global` report a whole-sequence fold. ViennaRNA
+`RNA.fold` supplies kcal/mol when that package imports. Otherwise a sequence
+of at most 400 nt gets a Watson-Crick pair count, labelled as base pairs, and
+a longer sequence is left null (`DEP-STRU-007`). The report is not an
+objective, not windowed accessibility, and not the `nussinov` structure
+engine.
+
+A bounded third repair partner was measured and not kept. On the assembly
+pin set it raised yeeJ from 0.9727484991594185 to 0.9728290623827599 and
+left rpsL, waaS, yagF, and the elastin repeat on their previous digests.
+rpoC assembly fell from 0.9593415607455033 to 0.9588019533475695, because
+the extra repair is greedy: a small rise can block a later rise. The
+published pins stay. rpsL remains 0.9866866273575934. The gap of
+0.0038104428470379093 to the infeasible relaxed bound is still one codon
+(position 88, GAT to GAC). Tier 1 still does not carry a GC window or a
+scattered 12-mer (`CF-SRCH-017`).
+
+The supported install from this private repository is a source checkout
+(`make setup` and `make build`). The package is not on PyPI. There is no
+release tag. Publishing remains a twine upload from a token that is not in
+the repository. GitHub Actions is not the install path.
 
 Seed repair that is still infeasible after the middle-of-window GC pairs now
 tries at most four pair edits spread across the whole stuck window and the
@@ -546,7 +583,7 @@ Confirmed from v2.1.0:
 
 New in this tag:
 
-- The submission and `docs/primerforge-validation.md` state the converged
+- The submission and `docs/primer-thermo-validation.md` state the converged
   fit and the 0.0003 nats observation.
 - EXP-05 is two proteins. `rplL` is infeasible under the constraint set
   (`CF-SRCH-006`). That is a property of the gene under the motif, not a
