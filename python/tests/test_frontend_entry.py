@@ -263,6 +263,20 @@ def test_the_page_names_the_same_illegal_base_as_the_api() -> None:
     assert "data-preset=\"synthesis.json\"" in page
     assert "checks nothing" in page
     assert "informational, not a filter" in APP.read_text(encoding="utf-8")
+    wired = APP.read_text(encoding="utf-8")
+    for route in (
+        "/v1/hosts",
+        "/v1/models",
+        "/v1/feasibility",
+        "/v1/jobs",
+        "objectives_preset",
+        "structure_engines",
+    ):
+        assert route in wired, route
+    assert 'kind: "protein"' in wired
+    assert 'kind: "construct"' in wired
+    assert 'kind: "single_cds"' in wired
+    assert "BBa_E0040" in page
 
 
 def test_product_sequence_is_sliced_from_the_submitted_template() -> None:

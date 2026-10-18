@@ -86,6 +86,10 @@ _EXAMPLE_FILES = {
         "synthesis.json",
         "application/json",
     ),
+    "/examples/BBa_E0040.fa": (
+        "BBa_E0040.fa",
+        "text/plain; charset=utf-8",
+    ),
 }
 
 
@@ -149,11 +153,16 @@ class Api:
                 for record in self.records.values()
                 if record.status["state"] in {"queued", "running"}
             )
+        from dna_design_suite.codon.predictors.structure import available_engines
+
         return {
             "status": "ok",
             "workers_ready": 0,
             "gpu_available": False,
             "queue_depth": depth,
+            # Names `available_engines` actually found. An empty list means
+            # ViennaRNA is not installed; the page must not invent a fold.
+            "structure_engines": available_engines(),
         }
 
     def submit(

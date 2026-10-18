@@ -1041,4 +1041,138 @@ legend { padding: 0 var(--space-1); }
   .seq-actions { flex-wrap: wrap; }
 
   button, .file-label { max-width: 100%; }
+
+  .compare { grid-template-columns: 1fr; }
+
+  .flow { grid-template-columns: 1fr 1fr; }
 }
+
+/* Scientist-facing layout. Same tokens. The column stays readable on a laptop
+   without becoming a narrow card on a wide monitor. */
+
+.nav, .mast, .page {
+  width: 100%;
+  max-width: 76rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--paper);
+}
+
+.tablist {
+  background: var(--track);
+  padding: var(--space-1);
+}
+
+button.tab {
+  background: transparent;
+}
+
+button.tab.active {
+  background: var(--paper);
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0 0 var(--space-3) 0;
+  padding: 0;
+  counter-reset: flow;
+}
+
+.flow li {
+  counter-increment: flow;
+  border: 1px solid var(--rule);
+  background: var(--track);
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.86rem;
+}
+
+.flow li::before {
+  content: counter(flow) ". ";
+  font-family: var(--font-mono);
+  color: var(--recommended);
+}
+
+.status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.status-strip p {
+  margin: 0;
+  max-width: 36rem;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: var(--space-1) var(--space-2);
+  color: var(--label);
+}
+
+.empty-state {
+  border: 1px dashed var(--rule);
+  background: var(--track);
+  padding: var(--space-3);
+  color: var(--label);
+}
+
+.callout .human {
+  margin: 0 0 var(--space-1) 0;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.compare .pane {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: var(--space-2);
+  min-width: 0;
+}
+
+.compare h3 {
+  margin: 0 0 var(--space-1) 0;
+  font-size: 0.92rem;
+}
+
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.job-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+button.warn-toggle {
+  white-space: normal;
+  height: auto;
+  line-height: 1.4;
+}
+
+.finding-list {
+  margin: var(--space-1) 0 0 0;
+  padding-left: 1.2rem;
+}
+
+.finding-list li { margin: var(--space-1) 0; }

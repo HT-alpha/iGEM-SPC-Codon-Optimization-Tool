@@ -22,6 +22,16 @@ long CDS is not refolded between distant codon changes. The penalty matches
 a full fold. The 255-gene corpus and the before/after distributions are
 `docs/benchmarks/v2.10-generality.md`.
 
+The page reads codon tables from `GET /v1/hosts`, models from `GET /v1/models`,
+and whether a folding engine is installed from `structure_engines` on
+`GET /v1/healthz`. A job can be a DNA coding sequence, a protein (reverse
+translated with the caller’s table), or one GenBank CDS. Objective presets
+are sent as `objectives_preset` and expanded by the server. `POST /v1/feasibility`
+runs before a design when the box holds DNA. Jobs stay on `GET /v1/jobs` while
+they run in the background. The one-click sequences are rpsL and the untrimmed
+BBa_E0040 part already in the repository. A missing ViennaRNA install is stated
+as missing. UNKNOWN stays UNKNOWN.
+
 rpoC under the assembly rules returned `CF-SRCH-006`. Single-codon GC
 sweeps left 50 nt windows outside the band, and k-mer repair will not edit
 while that penalty remains, so the cycle stopped. A synonymous CDS exists.
