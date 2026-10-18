@@ -231,6 +231,7 @@ Benchmark write-ups, in order:
 | v2.9.1 stress timings | [`docs/benchmarks/v2.9.1-challenging-perf.md`](docs/benchmarks/v2.9.1-challenging-perf.md) |
 | v2.9.2 profiles | [`docs/benchmarks/v2.9.2-profiles.md`](docs/benchmarks/v2.9.2-profiles.md) |
 | Primer design thermodynamics | [`docs/primerforge-validation.md`](docs/primerforge-validation.md) |
+| Commercial codon tools | [`docs/benchmarks/commercial-codon-tools.md`](docs/benchmarks/commercial-codon-tools.md) |
 
 ---
 
