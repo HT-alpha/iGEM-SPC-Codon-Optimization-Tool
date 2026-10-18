@@ -107,6 +107,8 @@ class JobInputs:
     wall_budget_ms: int | None = None
     #: Resident-set cap in bytes. `None` uses the laptop profile's 8 GiB.
     max_rss_bytes: int | None = None
+    #: Empty or `viennarna` uses the installed fold. `nussinov` is opt-in.
+    structure_engine: str = ""
 
 
 @dataclass
@@ -210,6 +212,24 @@ class Job:
             checkpoint_dir=checkpoint_dir,
         )
         job.warnings.extend(w.to_problem_details() for w in plan.warnings)
+        if inputs.structure_engine == "nussinov":
+            job.warnings.append(
+                Warning_(
+                    code="CF-LAND-013",
+                    title="Structure was scored with an approximate matching, not a free energy",
+                    detail=(
+                        "structure.local_accessibility used the opt-in Nussinov maximum "
+                        "matching (pair score 1 for A-U, G-C and G-U, minimum hairpin of 3; "
+                        "Nussinov and Jacobson, PNAS 1980). The value is the mean paired "
+                        "fraction in [0, 1]. It is not a minimum free energy in kcal/mol and "
+                        "not an unpaired probability. temperature_c does not enter the score. "
+                        "Install ViennaRNA and leave structure_engine empty for the "
+                        "thermodynamic score."
+                    ),
+                    stage="landscape",
+                    subject="structure.local_accessibility",
+                ).to_problem_details()
+            )
         for tier in unwired:
             job.warnings.append(
                 Warning_(
@@ -615,9 +635,15 @@ class Job:
             + len(self.inputs.cds)
             + len(self.inputs.three_prime_flank)
         )
-        if length > structure_diag.SPAN_NT or not structure_diag.is_available():
+        engine = self.inputs.structure_engine or ""
+        if length > structure_diag.SPAN_NT:
             return False
-        self._early_fold = structure_diag.FoldSession()
+        if engine == "nussinov":
+            self._early_fold = structure_diag.FoldSession(engine_name="nussinov")
+        elif not structure_diag.is_available():
+            return False
+        else:
+            self._early_fold = structure_diag.FoldSession()
         self.warnings = [
             warning
             for warning in self.warnings
@@ -766,7 +792,9 @@ class Job:
         axis = len([t for t in self.plan.scored if t != structure_diag.TERM_ID])
 
         if self._fold_session is None:
-            self._fold_session = structure_diag.FoldSession()
+            self._fold_session = structure_diag.FoldSession(
+                engine_name=self.inputs.structure_engine or ""
+            )
         session = self._fold_session
 
         def score(sequences: list[str]) -> list[float | None]:

@@ -44,11 +44,29 @@ def _refusal(code: str, detail: str) -> Exception:
     return DesignError(code, detail, exit_code=2)
 
 
-def require_engine(constraints: dict[str, Any] | None, structure_requested: bool) -> None:
-    """Refuse before a job when a fold was asked for and no engine is installed."""
+def require_engine(
+    constraints: dict[str, Any] | None,
+    structure_requested: bool,
+    structure_engine: str = "",
+) -> None:
+    """Refuse before a job when a fold was asked for and no engine is installed.
+
+    `nussinov` may score the structure objective. It does not supply
+    `mean_unpaired_probability` or `min_free_energy`, so a `local_structure`
+    rule still needs ViennaRNA.
+    """
     from dna_design_suite.codon.orchestrator import structure_diag
 
+    if structure_engine == "nussinov" and rules(constraints):
+        raise _refusal(
+            "CF-STRU-003",
+            "local_structure metrics are ViennaRNA measurements "
+            "(mean unpaired probability or minimum free energy). "
+            "The Nussinov score is a paired fraction, not those metrics.",
+        )
     if not rules(constraints) and not structure_requested:
+        return
+    if structure_engine == "nussinov" and structure_requested:
         return
     if structure_diag.is_available():
         return

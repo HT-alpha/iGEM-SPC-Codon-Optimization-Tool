@@ -161,18 +161,32 @@ recorded in [`CHANGELOG.md`](CHANGELOG.md).
 Stays refused:
 
 - **Dwell.** `epistasis.dwell_deviation` is `CF-LAND-001`. The dwell head is
-  `not_fitted`. No 5′-end offset for GEO GSE53767 was fitted, and those files
-  were not reachable. Changelog: v2.4.0, v2.7.0, v2.9.1.
-- **Seed import.** `POST /v1/seeds:import` is `CF-CLI-003`. Hosts are the
-  example codon-usage files on disk, not an invented catalogue. Models are
-  the verified Potts file, or an empty list with `installed: false`.
-  Changelog: v2.9.0, v2.9.1.
+  `not_fitted`. No paper states one 5′-end A-site offset for GEO GSE53767
+  (Li et al., Cell 2014, center-weight reads of 20–42 nt; the GSE53767 files
+  were not reachable). A zero deviation is not substituted. Changelog:
+  v2.4.0, v2.7.0, v2.9.1.
+- **Hosts.** `GET /v1/hosts` is the example codon-usage files on disk, not an
+  organism catalogue. `POST /v1/hosts:import` reads Kazusa text, a delimited
+  codon table, or a CDS set and stores `user_supplied` relative adaptiveness
+  (count divided by the family maximum; no pseudocount). `genome_wide` is
+  refused because `usage.cai` will not score that subset (`CF-HOST-003`).
+  Models are the verified Potts file, or an empty list with `installed: false`.
 - **No invented supply, s-value, or distance.** Burden uses
   `trna.gene_copy_number` when that map is non-empty, otherwise the codon-usage
   table. A profile with neither is `CF-BURD-004`. The caller supplies every
   operon flux. A Potts request for a non-*E. coli* host, or a missing MG1655
   artifact, is `CF-LAND-001`. No host-distance penalty is applied. Changelog:
   v2.6.0, v2.7.0, v2.8.0, v2.9.1.
+- **rpsL assembly CAI.** Budget `fast`, generations 0, seed 7, the ribosomal
+  table, and `benchmarks/validation/constraints_assembly.json` stay at
+  0.9866866273575934 (SHA-256
+  `0624d04f50821da0804a0cf91fa59b9a6bde2ba8ef6156bb79e9680ba09eedfc`).
+  Codons 74 (`CAA`) and 88 (`GAT`) are the only counted codons off their
+  heaviest synonym. `CAG` creates one PstI site, and the cheapest Leu codon
+  that removes it costs more CAI than `CAG` returns. `GAC` creates one
+  repeated 12-mer, and every feasible repair of that repeat costs more than
+  `GAC` returns. The published difference 0.0038104428470379093 is to that
+  infeasible sequence. No search change in this tree chases it.
 - **`GATE-BEN-001` is CAI-only.** 50 of 50 *E. coli* K-12 proteins, budget
   `fast`, 4 generations, seed 7, baseline `cai_greedy`. DNA Design Suite meets or
   equals that baseline on all 50. The v2.4.2 record was 48 of 50; v2.9.1
@@ -243,8 +257,9 @@ error you get if you call the path.
 with `job_id`, `done()`, and `result(timeout)`. The job runs on a worker
 pool. The call does not silently run synchronously: a handle whose `done()`
 is already true before the job has started would make every timing
-assumption in your code wrong. `CF-CLI-003` remains the answer for seed
-import.
+assumption in your code wrong. `CF-CLI-003` remains the answer for an
+unknown route. Seed import is `POST /v1/seeds:import` and
+`seeds import`.
 
 **The decision stage.** An `exact` budget includes `tier1_seed`,
 `tier2_block_ca`, `tier3_moea`, and `decision`. The decision stage records
@@ -275,13 +290,17 @@ does the same for other reasons. Its provider caps itself at `diagnostic` for
 that reason, and a job requesting it as an objective gets `CF-LAND-014` saying
 so. Bound GC as a *constraint* instead, with `Rule::GcWindow`.
 
-`structure.local_accessibility` needs a user-installed ViennaRNA
-(`pip install ViennaRNA`); DNA Design Suite ships no folding engine (`AMD-013`).
-A construct longer than one 40 nt span is scored out of core, once per
-generation, and `CF-SRCH-010` says tiers 1 and 2 did not fold it. A construct
-that fits in that span is folded with the same ViennaRNA call during those
-tiers. There is no in-core substitute and no claim of parity with a global
-minimum free energy or with LinearDesign.
+`structure.local_accessibility` uses a user-installed ViennaRNA
+(`pip install ViennaRNA`) unless the request sets `structure_engine` to
+`nussinov`. DNA Design Suite ships no thermodynamic engine (`AMD-013`).
+Nussinov is an opt-in maximum matching (pair score 1 for A–U, G–C and G–U,
+hairpin of at least 3; Nussinov and Jacobson, PNAS 1980). The value is the
+mean paired fraction in [0, 1]. It is not a free energy and not an unpaired
+probability, and it is not selected when ViennaRNA is missing. A construct
+longer than one 40 nt span is scored out of core, once per generation, and
+`CF-SRCH-010` says tiers 1 and 2 did not fold it. A construct that fits in
+that span is folded during those tiers. There is no claim of parity with a
+global minimum free energy or with LinearDesign.
 
 A CAI-only job does not fold. The old diagnostic fold is not run.
 
@@ -290,8 +309,12 @@ the example host files, a verified model file, recalibrations stored from a
 fitted observation, objective presets (`cai`, `cai_burden`, `cai_structure`,
 `cai_context`), protein input reverse-translated with the caller's usage
 table, construct input read from the GenBank CDS features in the body, and
-`POST /v1/feasibility` (five checks). An empty feasibility body is `400`.
-Seed import stays `CF-CLI-003`.
+`POST /v1/feasibility` (five checks, plus a constructive witness when one
+exists). An empty feasibility body is `400`. `POST /v1/seeds:import` checks
+a coding sequence against the protein. `POST /v1/hosts:import` builds a
+usage table. `POST /v1/measurements` stores a lab number and
+`GET /v1/observations?format=csv` exports it. An unknown route is
+`CF-CLI-003`.
 
 **Operon prices.** `design_operon` reports 64 finite differences of
 `burden.growth_cost`. A slot the caller's table cannot score is null. The

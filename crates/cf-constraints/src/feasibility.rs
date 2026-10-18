@@ -100,13 +100,65 @@ pub struct Finding {
     pub exact: bool,
 }
 
+/// What the report can prove about the constraint set.
+///
+/// `DEP-CONS-007`. Silence of the five checks is not a proof. A coding
+/// sequence the checker accepts, together with an empty finding list, is a
+/// proof of satisfiability. An exact finding is a proof of unsatisfiability.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Satisfiability {
+    ProvenSatisfiable,
+    ProvenUnsatisfiable,
+    Unknown,
+}
+
+impl Satisfiability {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Satisfiability::ProvenSatisfiable => "proven_satisfiable",
+            Satisfiability::ProvenUnsatisfiable => "proven_unsatisfiable",
+            Satisfiability::Unknown => "unknown",
+        }
+    }
+}
+
+/// How much of the constraint set a witness covers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WitnessScope {
+    /// `ConstraintChecker::is_feasible` accepts this coding sequence, and the
+    /// five checks produced no finding.
+    FullConstraintSet,
+    /// A synonymous assignment that avoids the regular constraints. Other
+    /// checks were not proved by this sequence.
+    RegularConstraints,
+}
+
+impl WitnessScope {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            WitnessScope::FullConstraintSet => "full_constraint_set",
+            WitnessScope::RegularConstraints => "regular_constraints",
+        }
+    }
+}
+
+/// A synonymous coding sequence exhibited by the analyser.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FeasibilityWitness {
+    pub cds: String,
+    pub scope: WitnessScope,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct FeasibilityReport {
-    /// No finding was produced. Not a guarantee of satisfiability: two of the
-    /// five checks are necessary conditions only.
+    /// No finding was produced. A true value is a proof of satisfiability
+    /// only when `satisfiability` is `ProvenSatisfiable`.
     pub feasible: bool,
-    /// Always true, and stated in the report rather than assumed by the reader.
+    /// True when the report does not prove the set satisfiable or
+    /// unsatisfiable. False when a full witness or an exact finding does.
     pub necessary_conditions_only: bool,
+    pub satisfiability: Satisfiability,
+    pub witness: Option<FeasibilityWitness>,
     pub findings: Vec<Finding>,
     /// Every check that ran, whether or not it found anything, so a silent
     /// check is distinguishable from a passing one.
@@ -194,12 +246,191 @@ pub fn analyse(
     findings.sort_by(|a, b| {
         (a.check, a.span_nt, &a.constraint_id).cmp(&(b.check, b.span_nt, &b.constraint_id))
     });
-    Ok(FeasibilityReport {
+    Ok(conclude(space, checker, masking, findings))
+}
+
+/// State cap for witness reconstruction. The reachability check itself stays
+/// exact and uncapped. Past this many states the witness is omitted rather
+/// than built from a truncated path. `DEP-CONS-007`.
+const WITNESS_STATE_CAP: usize = 4096;
+
+fn conclude(
+    space: &DesignSpace,
+    checker: &ConstraintChecker,
+    masking: KmerMasking,
+    findings: Vec<Finding>,
+) -> FeasibilityReport {
+    let exact = findings.iter().any(|finding| finding.exact);
+    let checks_run = CheckId::ALL.to_vec();
+    if findings.is_empty() {
+        if checker.is_feasible(&space.view(masking)) {
+            if let Some(cds) = witness_cds(space) {
+                return FeasibilityReport {
+                    feasible: true,
+                    necessary_conditions_only: false,
+                    satisfiability: Satisfiability::ProvenSatisfiable,
+                    witness: Some(FeasibilityWitness {
+                        cds,
+                        scope: WitnessScope::FullConstraintSet,
+                    }),
+                    findings,
+                    checks_run,
+                };
+            }
+        } else if let Some(cds) = regular_assignment(space, checker) {
+            if assignment_is_feasible(space, checker, masking, &cds) {
+                return FeasibilityReport {
+                    feasible: true,
+                    necessary_conditions_only: false,
+                    satisfiability: Satisfiability::ProvenSatisfiable,
+                    witness: Some(FeasibilityWitness {
+                        cds,
+                        scope: WitnessScope::FullConstraintSet,
+                    }),
+                    findings,
+                    checks_run,
+                };
+            }
+            return FeasibilityReport {
+                feasible: true,
+                necessary_conditions_only: true,
+                satisfiability: Satisfiability::Unknown,
+                witness: Some(FeasibilityWitness {
+                    cds,
+                    scope: WitnessScope::RegularConstraints,
+                }),
+                findings,
+                checks_run,
+            };
+        }
+    }
+    if exact {
+        return FeasibilityReport {
+            feasible: false,
+            necessary_conditions_only: false,
+            satisfiability: Satisfiability::ProvenUnsatisfiable,
+            witness: None,
+            findings,
+            checks_run,
+        };
+    }
+    let regular = if findings.is_empty() {
+        None
+    } else {
+        regular_assignment(space, checker).map(|cds| FeasibilityWitness {
+            cds,
+            scope: WitnessScope::RegularConstraints,
+        })
+    };
+    FeasibilityReport {
         feasible: findings.is_empty(),
         necessary_conditions_only: true,
+        satisfiability: Satisfiability::Unknown,
+        witness: regular,
         findings,
-        checks_run: CheckId::ALL.to_vec(),
-    })
+        checks_run,
+    }
+}
+
+fn witness_cds(space: &DesignSpace) -> Option<String> {
+    if space.regions.len() != 1 {
+        return None;
+    }
+    Some(space.regions[0].1.cds_string())
+}
+
+fn assignment_is_feasible(
+    space: &DesignSpace,
+    checker: &ConstraintChecker,
+    masking: KmerMasking,
+    cds: &str,
+) -> bool {
+    let Some((offset, original)) = space.regions.first() else {
+        return false;
+    };
+    if space.regions.len() != 1 {
+        return false;
+    }
+    let Ok(sequence) = CodonSequence::from_cds(cds, original.table().id()) else {
+        return false;
+    };
+    if sequence.protein() != original.protein() {
+        return false;
+    }
+    let old_len = original.codon_count() * 3;
+    if offset + old_len > space.construct.len() {
+        return false;
+    }
+    let mut construct = Vec::with_capacity(space.construct.len());
+    construct.extend_from_slice(&space.construct[..*offset]);
+    construct.extend_from_slice(cds.as_bytes());
+    construct.extend_from_slice(&space.construct[offset + old_len..]);
+    let region = (*offset, sequence.clone());
+    let spans = vec![(*offset, offset + sequence.codon_count() * 3)];
+    let view = ConstructView::new(&construct, spans)
+        .with_masking(masking)
+        .with_editable_spans(crate::repair::editable_spans(&[region]));
+    checker.is_feasible(&view)
+}
+
+/// Deterministic synonymous assignment that avoids the regular constraints.
+///
+/// The first successful codon at each state is the one with the smaller codon
+/// index. Reconstruction stops, and returns nothing, when a codon layer has
+/// more than [`WITNESS_STATE_CAP`] states.
+fn regular_assignment(space: &DesignSpace, checker: &ConstraintChecker) -> Option<String> {
+    if space.regions.len() != 1 {
+        return None;
+    }
+    let automaton = regular_automaton(checker).ok().flatten()?;
+    let (offset, seq) = &space.regions[0];
+    let mut state = automaton.start();
+    for &byte in &space.construct[..*offset] {
+        state = automaton
+            .step(state, byte)
+            .unwrap_or_else(|| automaton.start());
+    }
+    let mut layers: Vec<BTreeMap<u32, (u32, Codon)>> = Vec::new();
+    let mut prev: BTreeSet<u32> = BTreeSet::from([state]);
+    for index in 0..seq.codon_count() {
+        let mut alternatives: Vec<Codon> = if seq.is_locked(index) {
+            vec![seq.codons()[index]]
+        } else {
+            seq.synonyms_at(index).to_vec()
+        };
+        alternatives.sort_by_key(|codon| codon.index());
+        let mut next: BTreeMap<u32, (u32, Codon)> = BTreeMap::new();
+        for &from in &prev {
+            for alternative in &alternatives {
+                if let Some(to) = automaton.step_codon(from, alternative.to_bytes()) {
+                    next.entry(to).or_insert((from, *alternative));
+                }
+            }
+        }
+        if next.is_empty() || next.len() > WITNESS_STATE_CAP {
+            return None;
+        }
+        prev = next.keys().copied().collect();
+        layers.push(next);
+    }
+    let mut state = *prev.iter().next()?;
+    let mut chosen = vec![seq.codons()[0]; seq.codon_count()];
+    for index in (0..seq.codon_count()).rev() {
+        let (previous, codon) = *layers[index].get(&state)?;
+        chosen[index] = codon;
+        state = previous;
+    }
+    let mut edited = (*seq).clone();
+    for (index, codon) in chosen.into_iter().enumerate() {
+        if edited.codons()[index] == codon {
+            continue;
+        }
+        if edited.is_locked(index) {
+            return None;
+        }
+        edited.substitute(index, codon).ok()?;
+    }
+    Some(edited.cds_string())
 }
 
 // --------------------------------------------------------------------------- //

@@ -84,8 +84,13 @@ class FoldSession:
     is the same number a fresh fold would return.
     """
 
-    def __init__(self, temperature_c: float = TEMPERATURE_C) -> None:
+    def __init__(
+        self,
+        temperature_c: float = TEMPERATURE_C,
+        engine_name: str = "",
+    ) -> None:
         self.temperature_c = temperature_c
+        self.engine_name = engine_name
         self.hits = 0
         self.full_folds = 0
         self.local_edits = 0
@@ -93,6 +98,7 @@ class FoldSession:
         self._penalty: dict[str, float] = {}
         self._windows: dict[str, list[float]] = {}
         self._recent: list[str] = []
+        self._nussinov: Any = None
 
     def evaluate(self, sequences: list[str]) -> list[float]:
         if not sequences:
@@ -140,6 +146,21 @@ class FoldSession:
         if cached is not None:
             self.hits += 1
             return cached
+        if self.engine_name == "nussinov":
+            from dna_design_suite.codon.predictors.nussinov import (
+                NussinovEngine,
+                paired_fraction_penalty,
+            )
+
+            if self._nussinov is None:
+                self._nussinov = NussinovEngine()
+            values = list(
+                self._nussinov.local_accessibility(
+                    sequence, WINDOW_NT, SPAN_NT, self.temperature_c
+                )
+            )
+            self.full_folds += 1
+            return self._remember(sequence, values, paired_fraction_penalty(values))
         cache = self._cache_for()
         parent = self._closest(sequence)
         if parent is None:

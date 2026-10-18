@@ -6,7 +6,7 @@
 //! infeasible — the failure mode a feasibility gate is most likely to have and
 //! least likely to notice.
 
-use cf_constraints::feasibility::{analyse, CheckId, DesignSpace};
+use cf_constraints::feasibility::{analyse, CheckId, DesignSpace, Satisfiability, WitnessScope};
 use cf_constraints::spec::{
     Constraint, ConstraintClass, ConstraintSet, HomopolymerBase, RepairPolicy, Rule, Scope, Strand,
 };
@@ -213,6 +213,9 @@ fn tst_cons_006_check_4_automaton_reachability_is_exact() {
     );
     // Codon 2 is the arginine.
     assert_eq!(findings[0].span_nt, Some((6, 9)));
+    assert_eq!(report.satisfiability, Satisfiability::ProvenUnsatisfiable);
+    assert!(!report.necessary_conditions_only);
+    assert!(report.witness.is_none());
 
     // Leave one arginine codon available and the region becomes reachable.
     let rules: Vec<(&str, Rule)> = vec![
@@ -222,12 +225,24 @@ fn tst_cons_006_check_4_automaton_reachability_is_exact() {
         ("c_m3", motif("CGG")),
         ("c_m4", motif("AGA")),
     ];
+    let survivor = analyse_one(&construct, &[(0, &cds)], &set_with(rules));
     assert_eq!(
-        analyse_one(&construct, &[(0, &cds)], &set_with(rules))
+        survivor
             .findings_for(CheckId::AutomatonReachability)
             .count(),
         0,
         "one surviving synonym is enough"
+    );
+    assert_eq!(survivor.satisfiability, Satisfiability::ProvenSatisfiable);
+    assert!(!survivor.necessary_conditions_only);
+    let witness = survivor
+        .witness
+        .expect("the surviving synonym is a witness");
+    assert_eq!(witness.scope, WitnessScope::FullConstraintSet);
+    assert!(
+        witness.cds.contains("AGG"),
+        "AGG is the only arginine codon left: {}",
+        witness.cds
     );
 }
 
@@ -426,10 +441,42 @@ fn tst_cons_006_feasible_set_produces_no_finding() {
         report.findings
     );
     assert_eq!(report.checks_run.len(), 5, "all five checks must run");
-    assert!(
-        report.necessary_conditions_only,
-        "the report must state that passing is not a guarantee"
+    assert_eq!(
+        report.satisfiability,
+        Satisfiability::ProvenSatisfiable,
+        "the submitted sequence is accepted by the checker, so passing is a proof"
     );
+    assert!(!report.necessary_conditions_only);
+    assert_eq!(
+        report.witness.as_ref().map(|item| item.scope),
+        Some(WitnessScope::FullConstraintSet)
+    );
+}
+
+/// Silence is not a proof when the checker still rejects the sequence and no
+/// synonymous witness was exhibited.
+#[test]
+fn tst_cons_007_silence_without_a_witness_stays_unknown() {
+    let cds = CodonSequence::from_cds("ATGAAAAAAAAAAAAAAATAA", 11).unwrap();
+    let construct = cds.cds_string();
+    let set = set_with(vec![(
+        "c_kmer",
+        Rule::KmerRepeat {
+            k: 4,
+            max_occurrences: 1,
+            count_overlapping: true,
+            canonical_strand: false,
+        },
+    )]);
+    let report = analyse_one(&construct, &[(0, &cds)], &set);
+    assert!(
+        report.feasible,
+        "an actionable repeat is repair's problem, not a finding: {:?}",
+        report.findings
+    );
+    assert_eq!(report.satisfiability, Satisfiability::Unknown);
+    assert!(report.necessary_conditions_only);
+    assert!(report.witness.is_none());
 }
 
 /// An *actionable* violation is repair's problem, not a feasibility finding.

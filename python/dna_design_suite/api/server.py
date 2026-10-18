@@ -6,8 +6,9 @@ Routes whose backing module is not in this build answer `CF-CLI-003` rather
 than an empty document that looks like success.
 
 Jobs run on a thread via `design(background=False)`. `background=True` on
-the library returns a worker-pool handle (`DEP-CLI-006`). Seed import stays
-`CF-CLI-003`.
+the library returns a worker-pool handle (`DEP-CLI-006`). Seed import,
+usage-table import, and the short measurement form are wired (`DEP-API-003`,
+`DEP-API-004`, `DEP-ACT-004`). An unknown route is still `CF-CLI-003`.
 """
 
 from __future__ import annotations
@@ -35,9 +36,9 @@ from dna_design_suite.modelreg import ArtifactStore
 
 _SCHEMA = "1.0.0"
 # Reasons are the product. An empty 200 would look implemented.
-_UNBUILT = {
-    "/v1/seeds:import": "Importing an external tool's output is not wired on this route.",
-}
+# Unknown paths still answer CF-CLI-003 from the dispatcher. This map is
+# empty because the routes that used to live here are implemented.
+_UNBUILT: dict[str, str] = {}
 _PRESETS = {
     "cai": ["usage.cai"],
     "cai_burden": ["usage.cai", "burden.growth_cost"],
@@ -728,6 +729,136 @@ def analyse_feasibility(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     return 200, report
 
 
+def import_seeds_body(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    """`POST /v1/seeds:import`. A rejected seed stays in the SeedSet."""
+    from dna_design_suite import _core
+    from dna_design_suite.ingest.seeds import KNOWN_TOOLS, import_seeds
+
+    tool = body.get("tool") or "manual"
+    if tool not in KNOWN_TOOLS:
+        return 400, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            400,
+            f"tool {tool!r} is not one of {', '.join(sorted(KNOWN_TOOLS))}",
+        )
+    supplied = body.get("seeds")
+    if isinstance(supplied, list) and supplied:
+        specs = []
+        for item in supplied:
+            if not isinstance(item, dict):
+                return 400, problem(
+                    "CF-CLI-001",
+                    "Command-line arguments are missing or malformed",
+                    400,
+                    "each seed needs tool and payload",
+                )
+            specs.append(
+                {
+                    "tool": item.get("tool") or tool,
+                    "payload": item.get("payload") or item.get("sequence") or "",
+                }
+            )
+    else:
+        payload = body.get("payload") or body.get("sequence") or ""
+        if not isinstance(payload, str) or not payload.strip():
+            return 400, problem(
+                "CF-CLI-001",
+                "Command-line arguments are missing or malformed",
+                400,
+                "POST /v1/seeds:import needs a sequence",
+            )
+        specs = [{"tool": tool, "payload": payload}]
+    try:
+        table = int(body.get("translation_table") or 11)
+    except (TypeError, ValueError):
+        return 400, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            400,
+            "translation_table must be an integer",
+        )
+    protein = body.get("target_protein")
+    if not isinstance(protein, str) or not protein:
+        target_cds = body.get("target_cds")
+        if not isinstance(target_cds, str) or not target_cds.strip():
+            return 400, problem(
+                "CF-CLI-001",
+                "Command-line arguments are missing or malformed",
+                400,
+                "POST /v1/seeds:import needs target_protein or target_cds",
+            )
+        try:
+            protein = json.loads(
+                _core.sequence_document(target_cds, table, None, None, None)
+            )["protein"]
+        except ValueError as exc:
+            return 422, problem("CF-SEQ-004", "Sequence does not translate", 422, str(exc))
+    host = body.get("host_id") or body.get("host")
+    document = import_seeds(
+        str(protein),
+        table,
+        specs,
+        host_id=host if isinstance(host, str) else None,
+    )
+    return 200, document
+
+
+def import_host_body(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    """`POST /v1/hosts:import`. Counts become relative adaptiveness."""
+    from dna_design_suite.ingest.errors import IngestError
+    from dna_design_suite.ingest.usage_table import parse_usage_table
+
+    text = body.get("text") or body.get("usage") or ""
+    if not isinstance(text, str) or not text.strip():
+        return 400, problem(
+            "CF-CLI-001",
+            "Command-line arguments are missing or malformed",
+            400,
+            "POST /v1/hosts:import needs text",
+        )
+    label = body.get("label") or "user_supplied"
+    if label == "genome_wide":
+        return 422, problem(
+            "CF-HOST-003",
+            "Host has no data to support a requested term",
+            422,
+            "genome_wide is not stored. usage.cai refuses that subset. "
+            "Send label user_supplied; the source text records the file.",
+        )
+    try:
+        table = int(body.get("translation_table") or 11)
+        profile = parse_usage_table(
+            text,
+            translation_table=table,
+            source_format=str(body.get("format") or "auto"),
+            organism=str(body.get("organism") or ""),
+            label=str(label),
+        )
+    except (IngestError, ValueError) as exc:
+        code = getattr(exc, "code", "CF-CLI-001")
+        detail = getattr(exc, "detail", str(exc))
+        return 422, problem(code, "Codon-usage import failed", 422, detail)
+    return 200, profile
+
+
+def submit_measurement(api: Api, tenant: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    """`POST /v1/measurements`. Stores an observation and does not train a model."""
+    from dna_design_suite.active.measurements import build_observation, codon_model_statement
+    from dna_design_suite.active.observations import ObservationError
+
+    try:
+        document = build_observation(tenant, body)
+    except ObservationError as exc:
+        return 422, problem(exc.code, "Observation failed schema validation", 422, exc.detail)
+    status, payload = api.submit_observation(tenant, document)
+    if status < 400 and isinstance(payload, dict):
+        payload = dict(payload)
+        payload["codon_model"] = "not_trained"
+        payload["statement"] = codon_model_statement()
+    return status, payload
+
+
 def _queued(job_id: str) -> dict[str, Any]:
     from datetime import UTC, datetime
 
@@ -815,6 +946,30 @@ class Handler(BaseHTTPRequestHandler):
                 ),
                 problem_body=True,
             )
+            return
+        if path == "/v1/seeds:import" and method == "POST":
+            tenant = _tenant(self.headers.get("Authorization"))
+            if tenant is None:
+                self._unauthorized()
+                return
+            status, payload = import_seeds_body(self._json())
+            self._send(status, payload, problem_body=status >= 400)
+            return
+        if path == "/v1/hosts:import" and method == "POST":
+            tenant = _tenant(self.headers.get("Authorization"))
+            if tenant is None:
+                self._unauthorized()
+                return
+            status, payload = import_host_body(self._json())
+            self._send(status, payload, problem_body=status >= 400)
+            return
+        if path == "/v1/measurements" and method == "POST":
+            tenant = _tenant(self.headers.get("Authorization"))
+            if tenant is None:
+                self._unauthorized()
+                return
+            status, payload = submit_measurement(self.server.api, tenant, self._json())
+            self._send(status, payload, problem_body=status >= 400)
             return
         if path == "/v1/hosts" and method == "GET":
             tenant = _tenant(self.headers.get("Authorization"))
@@ -935,6 +1090,17 @@ class Handler(BaseHTTPRequestHandler):
             self._send(status, payload, problem_body=status >= 400)
             return
         if path == "/v1/observations" and method == "GET":
+            from dna_design_suite.active.measurements import observations_csv
+
+            if parse_qs(parsed.query).get("format", ["json"])[0] == "csv":
+                documents = self.server.api.observations(tenant)["observations"]
+                payload = observations_csv(documents).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv; charset=utf-8")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
             self._send(200, self.server.api.observations(tenant))
             return
         if path == "/v1/observations" and method == "POST":

@@ -343,7 +343,7 @@ def _store():
 
 
 def test_p1_35_background_true_is_the_documented_handle(docs: dict[str, str]) -> None:
-    """The keyword the README names returns a handle. Seed import stays CF-CLI-003."""
+    """The keyword the README names returns a handle. Unknown routes stay CF-CLI-003."""
     from dna_design_suite.codon.orchestrator import design
 
     assert "seed" in docs["README.md"].lower()

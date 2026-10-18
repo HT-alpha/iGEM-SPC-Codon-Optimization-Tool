@@ -77,9 +77,9 @@ const NEXT_STEP = {
   "CF-CLI-001": "The request was incomplete or not in the shape this server accepts. Check that the coding sequence uses only A, C, G and T, that its length divides by 3, and that a codon-usage table is loaded.",
   "CF-SEQ-013": "The host name is not in the shape genus_species:taxid/strain. The rpsL demo uses escherichia_coli:511145/MG1655. The codon table is chosen separately from that name.",
   "CF-CLI-002": "The job finished without a candidate. A constraint that no synonymous sequence can satisfy is a common cause. Remove a rule and run again.",
-  "CF-CLI-003": "This version does not provide that feature. Codon design accepts DNA, a protein, or one GenBank CDS. Primer design, the other tab, picks PCR primers. Seed import is not wired. Dwell is not scored.",
+  "CF-CLI-003": "This version does not provide that feature. Codon design accepts DNA, a protein, or one GenBank CDS. Primer design, the other tab, picks PCR primers. Dwell is not scored.",
   "CF-IDEM-001": "The same submit was sent twice with different contents. Reload the page and run the design once.",
-  "CF-LAND-001": "That objective is not available. Choose CAI, whole-gene GC fraction, constraint violations, or local mRNA structure.",
+  "CF-LAND-001": "That objective is not available. Dwell is not scored: no A-site offset for GSE53767 is stated, so this version does not invent one. Choose CAI, whole-gene GC fraction, constraint violations, or local mRNA structure.",
   "CF-LAND-004": "That term is reported, not ranked. Leave it unchecked, or keep CAI as the objective.",
   "CF-FEAS-001": "A rule is broken in a part of the sequence the search is not allowed to change. Remove that rule, or clear the fixed flanks under Advanced.",
   "CF-FEAS-002": "A repeat rule cannot be satisfied for a sequence of this length. Raise the allowed count, or drop the rule.",
@@ -92,7 +92,7 @@ const NEXT_STEP = {
   "CF-SRCH-017": "The first pass cannot carry a GC window or a scattered repeat. A repair step built a sequence that satisfies the rules it can check, and the later stages started from that sequence.",
   "CF-FEAS-008": "That rule is not searched in this version, so the design does not treat it as satisfied. local_structure needs the Phase 2 structure engine. min_codon_frequency is not enforced.",
   "CF-SRCH-010": "Local mRNA structure cannot be updated inside one of the search stages, so that stage did not use it. Where the score was not computed, the result says UNKNOWN. UNKNOWN is not zero.",
-  "CF-STRU-003": "No RNA folding program is installed on the computer running this server. DNA Design Suite does not include one. Install ViennaRNA if you need the structure score. CAI does not need it.",
+  "CF-STRU-003": "No RNA folding program is installed on the computer running this server. DNA Design Suite does not include one. Install ViennaRNA for the thermodynamic score. The Nussinov option on the form is an approximate paired fraction, and it is used only when you select it. CAI does not need either.",
   "CF-ORCH-002": "The generation budget ran out before every stage finished. The sequence is from the stages that did finish. Raise generations under Advanced if you want the population stage to run longer.",
   "CF-ORCH-006": "The budget you chose names a stage this version does not run. The stages that did run are listed, and the sequence is from those. Fast and Standard do not ask for the extra stage. Choosing Exact asks for a final ranking that is reported as skipped.",
   "CF-ORCH-007": "A later stage did not beat an earlier one. The sequence shown is the better of the two, and the notice names both stages. The search is allowed to try a change that does not win.",
@@ -1817,6 +1817,14 @@ function buildRequest() {
     generations: Number(document.getElementById("generations").value) || 4,
     ...objectiveFields(),
   };
+  const starting = document.getElementById("starting-cds");
+  if (starting && starting.value.trim()) {
+    body.starting_cds = starting.value.toUpperCase().replace(/[^ACGT]/g, "");
+  }
+  const engine = document.getElementById("structure-engine");
+  if (engine && engine.value === "nussinov") {
+    body.structure_engine = "nussinov";
+  }
   if (kind === "protein") {
     const parsed = cleanedProtein(raw);
     if (!parsed.sequence) throw new Error("Paste a protein sequence, or switch to DNA and load the rpsL demo.");
@@ -2391,6 +2399,44 @@ function bindGuide() {
       showJob(open.dataset.job);
     });
   }
+  const checkSeed = document.getElementById("check-seed");
+  if (checkSeed) checkSeed.addEventListener("click", () => {
+    importSeed().catch((error) => {
+      document.getElementById("seed-note").textContent = error.message;
+    });
+  });
+  const importUsage = document.getElementById("import-usage");
+  if (importUsage) importUsage.addEventListener("click", () => {
+    importUsageTable().catch((error) => {
+      document.getElementById("usage-note").textContent = error.message;
+    });
+  });
+  const usageFile = document.getElementById("usage-file");
+  if (usageFile) usageFile.addEventListener("change", () => {
+    const chosen = usageFile.files && usageFile.files[0];
+    if (!chosen) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      document.getElementById("usage-text").value = String(reader.result || "");
+    };
+    reader.readAsText(chosen);
+  });
+  const saveMeasurement = document.getElementById("save-measurement");
+  if (saveMeasurement) saveMeasurement.addEventListener("click", () => {
+    saveLabMeasurement().catch((error) => {
+      document.getElementById("measure-note").textContent = error.message;
+    });
+  });
+  const exportMeasurements = document.getElementById("export-measurements");
+  if (exportMeasurements) exportMeasurements.addEventListener("click", () => {
+    downloadMeasurements().catch((error) => {
+      document.getElementById("measure-note").textContent = error.message;
+    });
+  });
+  const measureDate = document.getElementById("measure-date");
+  if (measureDate && !measureDate.value) {
+    measureDate.value = new Date().toISOString().slice(0, 10);
+  }
   showConstraintMode();
   refreshSequenceNote();
   refreshOptimizedHandoff();
@@ -2402,6 +2448,96 @@ function bindGuide() {
   loadEngineStatus();
   loadVersion();
   refreshJobs().catch(() => {});
+}
+
+async function importSeed() {
+  const cds = cleanedCds(document.getElementById("cds-text").value).sequence;
+  const starting = document.getElementById("starting-cds").value;
+  const result = await call("POST", "/v1/seeds:import", {
+    tool: document.getElementById("seed-tool").value,
+    payload: starting,
+    target_cds: cds,
+    translation_table: Number(document.getElementById("translation-table").value) || 11,
+    host_id: selectedHost(),
+  });
+  const note = document.getElementById("seed-note");
+  if (result.status >= 400) {
+    note.textContent = `${result.payload.code}: ${result.payload.detail}`;
+    return;
+  }
+  const seed = (result.payload.seeds || [])[0];
+  const acceptance = seed && seed.acceptance;
+  if (!acceptance || !acceptance.accepted) {
+    const diffs = (acceptance && acceptance.protein_diff) || [];
+    const where = diffs.map((item) => `${item.position}:${item.expected}->${item.found}`).join(", ");
+    note.textContent = `Rejected (${acceptance ? acceptance.reason : "empty"}). ${where}`;
+    return;
+  }
+  note.textContent = "Accepted. The protein matches. Run design to start from this CDS.";
+}
+
+async function importUsageTable() {
+  const text = document.getElementById("usage-text").value;
+  const result = await call("POST", "/v1/hosts:import", {
+    text,
+    format: "auto",
+    label: document.getElementById("usage-label").value,
+    translation_table: Number(document.getElementById("translation-table").value) || 11,
+    organism: selectedHost(),
+  });
+  const note = document.getElementById("usage-note");
+  if (result.status >= 400) {
+    note.textContent = `${result.payload.code}: ${result.payload.detail}`;
+    return;
+  }
+  loadedProfile = result.payload;
+  const missing = result.payload.unobserved_families || [];
+  const extra = missing.length ? ` Unobserved families: ${missing.join(", ")}. CAI will refuse this table until those families have a count.` : "";
+  setProfileNote(`Imported a user-supplied table.${extra}`);
+  note.textContent = result.payload.codon_usage.source;
+  syncRequest();
+}
+
+async function saveLabMeasurement() {
+  const cds = document.getElementById("measure-cds").value || document.getElementById("cds-text").value;
+  const date = document.getElementById("measure-date").value;
+  const result = await call("POST", "/v1/measurements", {
+    cds,
+    host_id: document.getElementById("measure-host").value,
+    measures: document.getElementById("measure-kind").value,
+    assay: document.getElementById("measure-assay").value,
+    value: Number(document.getElementById("measure-value").value),
+    unit: document.getElementById("measure-unit").value,
+    condition_id: document.getElementById("measure-condition").value,
+    control_role: document.getElementById("measure-control").value,
+    censoring: document.getElementById("measure-censoring").value,
+    measured_on: date ? `${date}T00:00:00Z` : undefined,
+  });
+  const note = document.getElementById("measure-note");
+  if (result.status >= 400) {
+    note.textContent = `${result.payload.code}: ${result.payload.detail}`;
+    return;
+  }
+  note.textContent = result.payload.statement || "Stored. No sequence model was trained.";
+}
+
+async function downloadMeasurements() {
+  const headers = {};
+  const token = tokenInput.value.trim();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch("/v1/observations?format=csv", { headers });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text);
+  }
+  const blob = new Blob([text], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "measurements.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+  document.getElementById("measure-note").textContent = "Downloaded measurements.csv.";
 }
 
 bindGuide();

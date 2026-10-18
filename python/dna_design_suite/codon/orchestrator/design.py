@@ -124,6 +124,14 @@ class DesignRequest:
     wall_budget_ms: int | None = None
     #: Resident-set cap in bytes. `None` uses the laptop profile's 8 GiB.
     max_rss_bytes: int | None = None
+    #: Synonymous CDS to search from. Empty means the supplied `cds`.
+    #: Omitted from the identity when empty, so a job that does not set it
+    #: keeps the lockfile it had before this field existed. `DEP-API-003`.
+    starting_cds: str = ""
+    #: `viennarna` (the default fold) or `nussinov` (opt-in approximate
+    #: matching). Empty and `viennarna` are omitted from the identity.
+    #: `DEP-STRU-006`.
+    structure_engine: str = ""
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), sort_keys=True)
@@ -141,11 +149,18 @@ class DesignRequest:
     def identity(self) -> str:
         """The canonical form of everything that determines the result."""
         fields = {k: v for k, v in asdict(self).items() if k not in self.PLUMBING}
+        if not fields.get("starting_cds"):
+            fields.pop("starting_cds", None)
+        if fields.get("structure_engine", "") in ("", "viennarna"):
+            fields.pop("structure_engine", None)
         return json.dumps(fields, sort_keys=True)
 
     @classmethod
     def from_json(cls, text: str) -> DesignRequest:
-        return cls(**json.loads(text))
+        payload = json.loads(text)
+        payload.setdefault("starting_cds", "")
+        payload.setdefault("structure_engine", "")
+        return cls(**payload)
 
 
 @dataclass
@@ -214,6 +229,42 @@ def score_sequences(request: DesignRequest, sequences: list[str]) -> list[dict[s
     return scored
 
 
+def _apply_starting_cds(request: DesignRequest) -> DesignRequest:
+    """Use a validated synonymous CDS as the sequence the search starts from.
+
+    The protein must match the request CDS. A difference is `CF-SEQ-004`
+    with the residue positions, the same report seed import already makes.
+    """
+    starting = "".join((request.starting_cds or "").split()).upper().replace("U", "T")
+    if not starting:
+        return request
+    try:
+        target = json.loads(
+            _core.sequence_document(request.cds, request.translation_table, None, None, None)
+        )
+        found = json.loads(
+            _core.sequence_document(starting, request.translation_table, None, None, None)
+        )
+    except ValueError as exc:
+        raise DesignError("CF-SEQ-004", str(exc)) from exc
+    expected = str(target["protein"])
+    actual = str(found["protein"])
+    if expected != actual:
+        diffs = []
+        for index in range(max(len(expected), len(actual))):
+            left = expected[index] if index < len(expected) else "-"
+            right = actual[index] if index < len(actual) else "-"
+            if left != right:
+                diffs.append(f"{index}:{left}->{right}")
+                if len(diffs) == 8:
+                    break
+        raise DesignError(
+            "CF-SEQ-004",
+            "starting CDS translates to a different protein at " + ", ".join(diffs),
+        )
+    return replace(request, cds=starting, starting_cds=starting)
+
+
 def assigned_job_id(request: DesignRequest) -> str:
     """The id `design` will use: the caller's, or the one derived from the request."""
     return request.job_id or _derived_id("job", request.identity())
@@ -261,11 +312,14 @@ def _run_design(
             "a fitted GSE53767 head is not installed",
         )
 
+    request = _apply_starting_cds(request)
     from dna_design_suite.codon.orchestrator import local_structure
 
     local_structure.validate(request.constraints)
     local_structure.require_engine(
-        request.constraints, structure_diag.TERM_ID in request.objectives
+        request.constraints,
+        structure_diag.TERM_ID in request.objectives,
+        request.structure_engine,
     )
 
     from dna_design_suite.codon.epistasis.context import TERM_ID as CONTEXT_TERM
@@ -335,6 +389,7 @@ def _run_design(
         context_digest=request.context_digest,
         wall_budget_ms=request.wall_budget_ms,
         max_rss_bytes=request.max_rss_bytes,
+        structure_engine=request.structure_engine,
     )
 
     job = Job.submit(
