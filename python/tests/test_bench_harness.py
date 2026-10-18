@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.bench import (
+from dna_design_suite.codon.bench import (
     BenchError,
     ExternalTool,
     RunRecord,

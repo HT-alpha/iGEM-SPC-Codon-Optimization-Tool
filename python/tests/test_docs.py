@@ -145,7 +145,7 @@ def test_p1_35_every_documented_make_target_exists(docs: dict[str, str]) -> None
 
 def test_p1_35_every_documented_cli_invocation_parses(docs: dict[str, str]) -> None:
     """The quickstart's flags must be flags the parser accepts."""
-    from codonforge.cli import build_parser
+    from dna_design_suite.cli import build_parser
 
     parser = build_parser()
     blocks = []
@@ -153,8 +153,8 @@ def test_p1_35_every_documented_cli_invocation_parses(docs: dict[str, str]) -> N
         for fenced in re.findall(r"```sh\n(.*?)```", text, re.S):
             joined = fenced.replace("\\\n", " ")
             for line in joined.splitlines():
-                if "codonforge.cli.main" in line:
-                    blocks.append(line.split("codonforge.cli.main", 1)[1])
+                if "dna_design_suite.cli.main" in line:
+                    blocks.append(line.split("dna_design_suite.cli.main", 1)[1])
 
     assert blocks, "the docs show no CLI invocation at all"
     for block in blocks:
@@ -195,42 +195,70 @@ def test_p1_35_documented_error_codes_are_registered(docs: dict[str, str]) -> No
 def test_p1_35_the_background_execution_gap_is_documented_and_real(
     docs: dict[str, str],
 ) -> None:
-    """CF-CLI-003. Documented as raising, and it raises."""
+    """DEP-CLI-006. A handle returns before the worker finishes the job."""
+    import threading
+    import time
+
     readme = docs["README.md"]
     assert "background=True" in readme
     assert "CF-CLI-003" in readme
     assert "silently run synchronously" in readme or "does not silently" in readme
 
-    from codonforge.orchestrator import DesignError, design
+    from dna_design_suite.codon.orchestrator import design
+    from dna_design_suite.codon.orchestrator import job as job_module
 
-    with pytest.raises(DesignError) as excinfo:
-        design(_minimal_request(), _store(), background=True)
-    assert excinfo.value.code == "CF-CLI-003"
+    release = threading.Event()
+    original = job_module.Job.run
+
+    def blocked(self, on_segment=None):
+        assert release.wait(timeout=5)
+        return original(self, on_segment)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(job_module.Job, "run", blocked)
+    try:
+        started = time.perf_counter()
+        handle = design(_minimal_request(), _store(), background=True)
+        elapsed = time.perf_counter() - started
+        assert elapsed < 0.5
+        assert handle.done() is False
+        assert handle.job_id
+        release.set()
+        assert handle.result(timeout=60).job.state == "succeeded"
+    finally:
+        monkeypatch.undo()
 
 
 def test_p1_35_the_tier_skip_semantics_are_documented_and_real(
     docs: dict[str, str],
 ) -> None:
-    """CF-ORCH-006. The README says a planned-but-unrun tier is reported."""
+    """DEP-ORCH-008. An exact budget records decision as done."""
     readme = docs["README.md"]
     assert "CF-ORCH-006" in readme
     assert "skipped" in readme
+    assert "decision" in readme
 
-    from codonforge.orchestrator import design
+    from dna_design_suite.codon.orchestrator import design
 
     request = _minimal_request()
     request.budget = "exact"
     result = design(request, _store())
 
-    warnings = [w for w in result.status["warnings"] if w["code"] == "CF-ORCH-006"]
-    assert warnings, "the README documents CF-ORCH-006 but an exact budget emits none"
     states = {t["tier"]: t["state"] for t in result.status["progress"]["tiers"]}
-    for warning in warnings:
-        assert states[warning["subject"]] == "skipped"
+    assert states["decision"] == "done"
+    decision_skips = [
+        warning
+        for warning in result.status["warnings"]
+        if warning["code"] == "CF-ORCH-006" and warning.get("subject") == "decision"
+    ]
+    assert not decision_skips
+    report = result.job.stage_reports["decision"]
+    assert report["state"] == "done"
+    assert report["rule"] == result.front["recommended"]["rule"]
 
 
 def test_p1_35_the_documented_term_list_is_the_real_one(docs: dict[str, str]) -> None:
-    from codonforge.orchestrator import BUILTIN_TERMS
+    from dna_design_suite.codon.orchestrator import BUILTIN_TERMS
 
     readme = docs["README.md"]
     for term in BUILTIN_TERMS:
@@ -239,11 +267,11 @@ def test_p1_35_the_documented_term_list_is_the_real_one(docs: dict[str, str]) ->
 
 
 def test_p1_35_the_documented_exit_codes_match_the_cli(docs: dict[str, str]) -> None:
-    # `codonforge.cli` re-exports `main` as a function, so the module holding
+    # `dna_design_suite.cli` re-exports `main` as a function, so the module holding
     # the exit codes has to be reached by path rather than by attribute.
     import importlib
 
-    cli_module = importlib.import_module("codonforge.cli.main")
+    cli_module = importlib.import_module("dna_design_suite.cli.main")
 
     readme = docs["README.md"]
     for name, value in (
@@ -259,7 +287,7 @@ def test_p1_35_the_documented_exit_codes_match_the_cli(docs: dict[str, str]) -> 
 
 
 def test_p1_35_the_documented_output_formats_all_exist(docs: dict[str, str]) -> None:
-    from codonforge.cli import build_parser
+    from dna_design_suite.cli import build_parser
 
     parser = build_parser()
     design_parser = next(
@@ -285,7 +313,7 @@ def test_p1_35_the_documented_output_formats_all_exist(docs: dict[str, str]) -> 
 
 
 def test_p1_35_the_documented_stage_names_are_the_real_ones(docs: dict[str, str]) -> None:
-    from codonforge.orchestrator.budget import EXECUTED_TIERS
+    from dna_design_suite.codon.orchestrator.budget import EXECUTED_TIERS
 
     readme = docs["README.md"]
     for tier in EXECUTED_TIERS:
@@ -303,22 +331,22 @@ def _minimal_request():
     sys.path.insert(0, str(Path(__file__).parent))
     from test_cli import request_for
 
-    return request_for()
+    return request_for(generations=0)
 
 
 def _store():
     import tempfile
 
-    from codonforge.modelreg import ArtifactStore
+    from dna_design_suite.modelreg import ArtifactStore
 
     return ArtifactStore(Path(tempfile.mkdtemp()) / "artifacts")
 
 
-def test_p1_35_background_true_is_the_documented_failure(docs: dict[str, str]) -> None:
-    """The keyword the README names is the keyword that raises."""
-    from codonforge.orchestrator import DesignError, design
+def test_p1_35_background_true_is_the_documented_handle(docs: dict[str, str]) -> None:
+    """The keyword the README names returns a handle. Seed import stays CF-CLI-003."""
+    from dna_design_suite.codon.orchestrator import design
 
-    with pytest.raises(DesignError) as excinfo:
-        design(_minimal_request(), _store(), background=True)
-    assert excinfo.value.code == "CF-CLI-003"
-    assert "P1-29" in excinfo.value.detail
+    assert "seed" in docs["README.md"].lower()
+    handle = design(_minimal_request(), _store(), background=True)
+    assert hasattr(handle, "job_id") and hasattr(handle, "done") and hasattr(handle, "result")
+    assert handle.result(timeout=60).job.state == "succeeded"

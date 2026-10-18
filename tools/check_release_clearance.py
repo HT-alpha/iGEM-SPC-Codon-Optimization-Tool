@@ -7,7 +7,7 @@ which every tagged release must pass before a wheel is built.
 Why this is a script and not a line in a planning document
 ----------------------------------------------------------
 `AMD-013` cleared ViennaRNA and LinearFold from their primary licence texts, and
-that analysis is solid. It also concluded that CodonForge does not practise
+that analysis is solid. It also concluded that DNA Design Suite does not practise
 LinearDesign's claimed method, and that conclusion is an engineer reading claim
 text. Claim construction is a legal exercise, the doctrine of equivalents cannot
 be evaluated by reading claims, and grant status for the patent family was never
@@ -37,8 +37,8 @@ CLEARANCE = ROOT / "docs" / "legal-clearance.yaml"
 # and the gate applies. Keyed to what the code *does*, not to a version number
 # someone would have to remember to bump.
 STRUCTURE_SURFACE = [
-    ROOT / "python" / "codonforge" / "predictors" / "structure.py",
-    ROOT / "python" / "codonforge" / "predictors" / "viennarna.py",
+    ROOT / "python" / "dna_design_suite" / "codon" / "predictors" / "structure.py",
+    ROOT / "python" / "dna_design_suite" / "codon" / "predictors" / "viennarna.py",
 ]
 
 REQUIRED_FIELDS = {
@@ -73,7 +73,7 @@ def main() -> int:
         print("BLOCKED: no legal clearance on file.")
         print()
         print("  AMD-013 permits ViennaRNA and LinearFold from their own licence texts,")
-        print("  and concludes CodonForge does not practise LinearDesign's claimed")
+        print("  and concludes DNA Design Suite does not practise LinearDesign's claimed")
         print("  method. The first half is a reading of plain licence terms. The second")
         print("  is an engineer's claim-scope analysis, made without confirming grant")
         print("  status, and it is not a legal opinion.")

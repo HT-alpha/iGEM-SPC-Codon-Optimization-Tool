@@ -19,11 +19,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from test_orchestrator import HOST, host_profile
 
-from codonforge.cli import main as cli_main
-from codonforge.cli import writers
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator import DesignRequest, design
-from codonforge.orchestrator.rationale import build_rationale
+from dna_design_suite.cli import main as cli_main
+from dna_design_suite.cli import writers
+from dna_design_suite.codon.orchestrator import DesignRequest, design
+from dna_design_suite.codon.orchestrator.rationale import build_rationale
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -214,7 +214,7 @@ def test_biobrick_preset_removes_an_ecori_site(tmp_path: Path) -> None:
 
 def test_cli_module_execution_does_not_warn() -> None:
     completed = subprocess.run(
-        [sys.executable, "-W", "error", "-m", "codonforge.cli.main", "--help"],
+        [sys.executable, "-W", "error", "-m", "dna_design_suite.cli.main", "--help"],
         check=False,
         capture_output=True,
         text=True,
@@ -226,7 +226,7 @@ def test_cli_module_execution_does_not_warn() -> None:
 def test_importing_main_from_the_package_still_works() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)
-        from codonforge.cli import main
+        from dna_design_suite.cli import main
 
         assert callable(main)
 

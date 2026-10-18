@@ -14,7 +14,7 @@
 //! Tier 3 is where most hosts land. Its output is a **demand-profile mismatch
 //! score**, not a predicted growth-rate cost, and `DEP-BURD-003` says reporting
 //! the same unit at all three tiers would be the single most misleading thing
-//! CodonForge could do. So the unit, the calibration flag and the rationale tag
+//! DNA Design Suite could do. So the unit, the calibration flag and the rationale tag
 //! are part of the return type rather than something a caller attaches
 //! afterwards and might forget to: [`CapacityEstimate`] cannot be constructed
 //! without them, and tier 3 cannot be constructed claiming to be calibrated.
@@ -141,7 +141,7 @@ impl DataCompleteness {
     /// Highest tier the data supports, never higher. A host with a burden panel
     /// gets tier 1; without it but with ribosome counts, tier 2; otherwise
     /// tier 3, which is where most hosts land and which is the case
-    /// `ADR-0004` says getting right is the difference between CodonForge being
+    /// `ADR-0004` says getting right is the difference between DNA Design Suite being
     /// usable outside model organisms and not.
     pub fn tier(&self) -> u8 {
         if self.has_burden_panel {

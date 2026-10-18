@@ -2,8 +2,8 @@
 
 Paste this when tagging `v2.9.1`. This note does not create the tag.
 
-DNA Design Suite is CodonForge and PrimerForge on one local page. The
-package version stays 0.1.0. `python -m codonforge.cli.main --version`
+DNA Design Suite is DNA Design Suite and Primer design on one local page. The
+package version stays 0.1.0. `python -m dna_design_suite.cli.main --version`
 prints 0.1.0. The suite note is this tag.
 
 ## Install
@@ -17,7 +17,7 @@ conda create -n dna-design python=3.11 -y
 conda activate dna-design
 pip install "maturin>=1.5,<2"
 maturin develop
-python -m codonforge.api
+python -m dna_design_suite.api
 ```
 
 macOS and Linux:
@@ -25,11 +25,11 @@ macOS and Linux:
 ```sh
 make setup
 make build
-.venv/bin/python -m codonforge.api
+.venv/bin/python -m dna_design_suite.api
 ```
 
-The page is <http://127.0.0.1:8000/>. CodonForge is the first tab.
-PrimerForge is the second. ViennaRNA is optional and installed by the user
+The page is <http://127.0.0.1:8000/>. DNA Design Suite is the first tab.
+Primer design is the second. ViennaRNA is optional and installed by the user
 (`pip install 'ViennaRNA==2.7.2'` matches the structure timings below).
 
 Licence: Apache-2.0 (`LICENSE`).

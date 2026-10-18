@@ -17,9 +17,9 @@ Language/runtime rationale: [ADR-0001](../07-decisions/ADR-0001-language-and-run
 ## 2. Directory tree
 
 ```
-codonforge/
+dna-design-suite/
 ├── Cargo.toml                     # Rust workspace root
-├── pyproject.toml                 # Python distribution `codonforge`
+├── pyproject.toml                 # Python distribution `dna-design-suite`
 ├── AGENTS.md
 ├── README.md
 ├── LICENSE                        # Apache-2.0 (see ADR-0001 §6)
@@ -60,10 +60,10 @@ codonforge/
 │   │   ├── src/operators/{mutation,crossover,dedup,seed_inject}.rs
 │   │   ├── src/joint/{ledger_share,price_update,convergence}.rs
 │   │   └── tests/
-│   └── cf-pyext/                  # PyO3 glue -> `codonforge._core`
+│   └── cf-pyext/                  # PyO3 glue -> `dna_design_suite._core`
 │       └── src/lib.rs
 │
-├── python/codonforge/             # ---- python runtimes -------------------
+├── python/dna_design_suite/             # ---- python runtimes -------------------
 │   ├── __init__.py
 │   ├── _core.pyi                  # typed stubs for the Rust extension
 │   ├── ingest/{fasta,genbank,construct,host,riboseq,seeds}/

@@ -125,7 +125,7 @@ codes! {
     BURD_NO_CAPACITY_DATA  => ("CF-BURD-004", 422, "The host lacks the data its capacity tier requires", "planning/03-algorithms/05-burden-penalty-and-capacity.md"),
     STRU_NO_PARAMETERS     => ("CF-STRU-001", 422, "No thermodynamic parameter set was supplied", "planning/00-scope/03-architecture-amendments.md"),
     STRU_BAD_PARAMETERS    => ("CF-STRU-002", 422, "The supplied thermodynamic parameter set is unusable or unattributed", "planning/02-schemas/structure_parameters.schema.json"),
-    STRU_NO_ENGINE         => ("CF-STRU-003", 422, "No structure engine is installed and CodonForge ships none", "planning/00-scope/03-architecture-amendments.md"),
+    STRU_NO_ENGINE         => ("CF-STRU-003", 422, "No structure engine is installed and DNA Design Suite ships none", "planning/00-scope/03-architecture-amendments.md"),
     STRU_BAD_WINDOW        => ("CF-STRU-004", 422, "A structure query asks for a window that cannot be answered", "planning/00-scope/03-architecture-amendments.md"),
     STRU_CACHE_UNPRIMED    => ("CF-STRU-005", 500, "The accessibility cache was used before it was primed", "planning/06-build/02-phase-2-tickets.md"),
     STRU_OUT_OF_CORE       => ("CF-STRU-006", 500, "A structure term was asked for an in-core value it cannot supply", "planning/06-build/02-phase-2-tickets.md"),
@@ -217,7 +217,7 @@ impl CfError {
     pub fn to_problem_details(&self) -> serde_json::Value {
         let entry = self.entry();
         serde_json::json!({
-            "type": format!("https://codonforge.org/problems/{}", entry.code.to_ascii_lowercase()),
+            "type": format!("https://dna_design_suite.org/problems/{}", entry.code.to_ascii_lowercase()),
             "title": entry.title,
             "status": entry.status,
             "code": entry.code,

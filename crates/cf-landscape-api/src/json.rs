@@ -12,7 +12,7 @@
 //! ## Two deliberate asymmetries
 //!
 //! **A `gradients` block is refused on parse.** The response schema admits one
-//! because a provider may offer gradients to some consumer outside CodonForge.
+//! because a provider may offer gradients to some consumer outside DNA Design Suite.
 //! No query this crate can construct asks for one — [`Outputs`] has no such
 //! field — so a response carrying gradients is answering a question this
 //! contract did not pose. Parsing it would mean inventing a semantics for a

@@ -6,7 +6,7 @@
 openapi: 3.1.0
 
 info:
-  title: CodonForge API
+  title: DNA Design Suite API
   version: "1.0.0"
   summary: Epistasis-aware, systems-level, multi-objective codon optimization.
   description: |
@@ -29,7 +29,7 @@ info:
     name: Apache-2.0
 
 servers:
-  - url: https://api.codonforge.org
+  - url: https://api.dna_design_suite.org
   - url: http://localhost:8080
 
 security:
@@ -363,7 +363,7 @@ paths:
       description: |
         Serves three distinct needs with one endpoint: a user asking "how good
         is my current sequence", the benchmark harness placing a competitor
-        tool's output on CodonForge's axes, and a UI computing the "before"
+        tool's output on DNA Design Suite's axes, and a UI computing the "before"
         column of a comparison table. All three must use identical scoring, so
         they share an endpoint rather than three code paths.
       requestBody:

@@ -1,4 +1,4 @@
-//! PyO3 glue producing the `codonforge._core` extension module.
+//! PyO3 glue producing the `dna_design_suite._core` extension module.
 //!
 //! Ticket P1-01.
 //!
@@ -24,7 +24,9 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use cf_constraints::legacy::{self, LegacyScenario};
-use cf_constraints::{ConstraintChecker, ConstraintSet, ConstructView, KmerMasking};
+use cf_constraints::{
+    analyse, ConstraintChecker, ConstraintSet, ConstructView, DesignSpace, KmerMasking,
+};
 use cf_landscape_api::{LandscapeQuery, LandscapeResponse};
 use cf_search::{
     BaselineBudget, CodonWeights, Genotype, JobCheckpoint, OperatorMix, SearchRng, SegmentRequest,
@@ -343,18 +345,31 @@ pub(crate) fn operator_subject(detail: &str) -> String {
 /// Run tier 1 seeding. `P1-30`.
 #[pyfunction]
 #[pyo3(signature = (request_json, beam, seeds))]
-fn search_tier1_seed(request_json: &str, beam: usize, seeds: usize) -> PyResult<String> {
-    with_tier_inputs(request_json, |inputs| {
-        pipeline::run_tier1(inputs, beam, seeds)
-    })
+fn search_tier1_seed(
+    py: Python<'_>,
+    request_json: &str,
+    beam: usize,
+    seeds: usize,
+) -> PyResult<String> {
+    // The DP does not call back into Python. Releasing the interpreter lock
+    // lets a batch of independent designs overlap. The request is copied
+    // first: a borrowed Python string is not safe to read without the lock.
+    let owned = request_json.to_owned();
+    py.allow_threads(|| with_tier_inputs(&owned, |inputs| pipeline::run_tier1(inputs, beam, seeds)))
 }
 
 /// Run tier 2 block coordinate ascent. `P1-30`.
 #[pyfunction]
 #[pyo3(signature = (request_json, block, sweeps))]
-fn search_tier2_polish(request_json: &str, block: usize, sweeps: u32) -> PyResult<String> {
-    with_tier_inputs(request_json, |inputs| {
-        pipeline::run_tier2(inputs, block, sweeps)
+fn search_tier2_polish(
+    py: Python<'_>,
+    request_json: &str,
+    block: usize,
+    sweeps: u32,
+) -> PyResult<String> {
+    let owned = request_json.to_owned();
+    py.allow_threads(|| {
+        with_tier_inputs(&owned, |inputs| pipeline::run_tier2(inputs, block, sweeps))
     })
 }
 
@@ -436,6 +451,7 @@ fn term_scores(request_json: &str, cds: &str) -> PyResult<String> {
 // call site and no clearer here.
 #[allow(clippy::too_many_arguments)]
 fn search_tier3_segment(
+    py: Python<'_>,
     request_json: &str,
     checkpoint_json: Option<&str>,
     population: usize,
@@ -454,18 +470,38 @@ fn search_tier3_segment(
     let scorer = l0_scorer.map(|callable| pipeline::PyL0Scorer::new(callable, l0_axis, l0_budget));
     // Drop a stash left by an earlier call on this thread before this one runs.
     pipeline::clear_escaped_scorer_error();
-    let result = with_tier_inputs(request_json, |inputs| {
-        pipeline::run_tier3_segment(
-            inputs,
-            checkpoint.as_ref(),
-            population,
-            generations,
-            stagnation_window,
-            scorer
-                .as_ref()
-                .map(|s| s as &dyn cf_search::tier3::L0Scorer),
-        )
-    });
+    // A structure batch calls back into Python, so that path keeps the lock.
+    // A CAI-only segment does not, and a gate of fifty of those was waiting
+    // on the lock rather than on the search.
+    let result = if scorer.is_none() {
+        let owned = request_json.to_owned();
+        let owned_checkpoint = checkpoint.clone();
+        py.allow_threads(|| {
+            with_tier_inputs(&owned, |inputs| {
+                pipeline::run_tier3_segment(
+                    inputs,
+                    owned_checkpoint.as_ref(),
+                    population,
+                    generations,
+                    stagnation_window,
+                    None,
+                )
+            })
+        })
+    } else {
+        with_tier_inputs(request_json, |inputs| {
+            pipeline::run_tier3_segment(
+                inputs,
+                checkpoint.as_ref(),
+                population,
+                generations,
+                stagnation_window,
+                scorer
+                    .as_ref()
+                    .map(|s| s as &dyn cf_search::tier3::L0Scorer),
+            )
+        })
+    };
     // `DEP-ORCH-004`. `with_tier_inputs` already ran the scorer's `CfError`
     // through `to_py_err`, which publishes every `CfError` as a problem
     // document and does not consult the stash. When the stash is set, that
@@ -670,6 +706,60 @@ fn constraint_violations(
     .to_string())
 }
 
+/// The five feasibility checks, on the construct the caller sent.
+///
+/// `DEP-API-002`. The analyser already lived in `cf-constraints`. This is the
+/// crossing that lets `POST /v1/feasibility` return it. No check is skipped
+/// and none is invented.
+#[pyfunction]
+fn feasibility_analyse(
+    constraint_set_json: &str,
+    construct: &str,
+    cds: &str,
+    translation_table: u8,
+    flank5_len: usize,
+) -> PyResult<String> {
+    let value: serde_json::Value = serde_json::from_str(constraint_set_json)
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    let set = ConstraintSet::from_json(&value).map_err(to_py_err)?;
+    let checker = ConstraintChecker::compile(&set).map_err(to_py_err)?;
+    let sequence = CodonSequence::from_cds(cds, translation_table).map_err(to_py_err)?;
+    if flank5_len + sequence.codon_count() * 3 > construct.len() {
+        return Err(PyValueError::new_err(
+            "CF-SEQ-001 the coding sequence does not fit in the construct",
+        ));
+    }
+    let space = DesignSpace::new(construct.as_bytes(), vec![(flank5_len, &sequence)]);
+    let report = analyse(&space, &checker, KmerMasking::Assembled).map_err(to_py_err)?;
+    let findings: Vec<serde_json::Value> = report
+        .findings
+        .iter()
+        .map(|finding| {
+            serde_json::json!({
+                "check": finding.check.as_str(),
+                "code": finding.code,
+                "constraint_id": finding.constraint_id,
+                "span_nt": finding.span_nt,
+                "detail": finding.detail,
+                "suggested_relaxation": finding.suggested_relaxation,
+                "exact": finding.exact,
+            })
+        })
+        .collect();
+    let checks_run: Vec<&str> = report
+        .checks_run
+        .iter()
+        .map(|check| check.as_str())
+        .collect();
+    Ok(serde_json::json!({
+        "feasible": report.feasible,
+        "necessary_conditions_only": report.necessary_conditions_only,
+        "checks_run": checks_run,
+        "findings": findings,
+    })
+    .to_string())
+}
+
 #[pyfunction]
 #[pyo3(signature = (request_json, progress=None))]
 fn primer_search(
@@ -724,7 +814,7 @@ fn primer_analyze(forward: &str, reverse: &str) -> PyResult<String> {
 
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("__doc__", "CodonForge compiled core (cf-pyext).")?;
+    m.add("__doc__", "DNA Design Suite compiled core (cf-pyext).")?;
     m.add_function(wrap_pyfunction!(version, m)?)?;
     m.add_function(wrap_pyfunction!(defined_translation_tables, m)?)?;
     m.add_function(wrap_pyfunction!(translate, m)?)?;
@@ -735,6 +825,7 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(synonyms, m)?)?;
     m.add_function(wrap_pyfunction!(constraint_feasible_batch, m)?)?;
     m.add_function(wrap_pyfunction!(constraint_violations, m)?)?;
+    m.add_function(wrap_pyfunction!(feasibility_analyse, m)?)?;
     m.add_function(wrap_pyfunction!(landscape_query_round_trip, m)?)?;
     m.add_function(wrap_pyfunction!(landscape_response_round_trip, m)?)?;
     m.add_function(wrap_pyfunction!(legacy_prefix_accepts, m)?)?;

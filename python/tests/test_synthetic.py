@@ -21,8 +21,8 @@ import json
 
 import pytest
 
-from codonforge import _core
-from codonforge.testkit import synthetic as syn
+from dna_design_suite import _core
+from dna_design_suite.testkit import synthetic as syn
 
 # --------------------------------------------------------------------------- #
 # TST-SYN-001 — the toy exhaustive space

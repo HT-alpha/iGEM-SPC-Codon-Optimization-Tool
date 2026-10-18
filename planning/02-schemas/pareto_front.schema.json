@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/pareto_front.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/pareto_front.schema.json",
   "title": "ParetoFront",
   "description": "The design job's deliverable (BRIEF-2.2-c): per-candidate objective vector plus per-position rationale tags.\n\nTHREE THINGS THIS SCHEMA REFUSES TO OMIT, each because omitting it makes the result unreproducible or unusable:\n  1. `landscape_lockfile_digest` - without the exact artifact set, an objective vector is a number without a meaning.\n  2. `reference_point` and `indicator_versions` - hypervolume is not comparable across different reference points, and 'our hypervolume beat theirs' is otherwise unfalsifiable.\n  3. `robustness` - ADR-0005 makes uncertainty a ranking input, so the probability that a candidate stays non-dominated under resampling is part of the answer, not a footnote.\n\nFRONT SIZE. With 5 objectives almost everything is non-dominated, so the raw front can contain thousands of candidates. `candidates` therefore holds the REDUCED front (see AMD-008 and cf-decision), and `reduction` records exactly how it was reduced so a user can ask for the full set.",
   "type": "object",
@@ -525,7 +525,7 @@
         "object",
         "null"
       ],
-      "description": "Which candidate CodonForge reports as its answer, and why.\n\nEvery member of a Pareto front is non-dominated, so the front alone does not name one. The orchestrator does have a total order - feasible over infeasible, then higher scalarized score, then smallest digest - and it is the rule CF-ORCH-007 uses to guarantee that a later stage regressing never changes the reported answer. Exposing the outcome here means a caller reads that decision instead of re-deriving it, which is the P1-31 'consume emitted documents, never recompute them' discipline applied to the front.\n\nThe scalarization can exclude axes that are still on the front (an out-of-core term scored only by tier 3). `informed_by` / `not_informed_by` name that exclusion rather than leaving a reader to discover it. Both lists are produced by the same loop as the score.\n\nNull when the job produced no candidates.",
+      "description": "Which candidate DNA Design Suite reports as its answer, and why.\n\nEvery member of a Pareto front is non-dominated, so the front alone does not name one. The orchestrator does have a total order - feasible over infeasible, then higher scalarized score, then smallest digest - and it is the rule CF-ORCH-007 uses to guarantee that a later stage regressing never changes the reported answer. Exposing the outcome here means a caller reads that decision instead of re-deriving it, which is the P1-31 'consume emitted documents, never recompute them' discipline applied to the front.\n\nThe scalarization can exclude axes that are still on the front (an out-of-core term scored only by tier 3). `informed_by` / `not_informed_by` name that exclusion rather than leaving a reader to discover it. Both lists are produced by the same loop as the score.\n\nNull when the job produced no candidates.",
       "properties": {
         "candidate_id": {
           "type": "string"

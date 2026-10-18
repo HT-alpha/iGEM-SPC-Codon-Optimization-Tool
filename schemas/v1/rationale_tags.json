@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/rationale_tags.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/rationale_tags.json",
   "title": "RationaleTagVocabulary",
   "description": "The CLOSED vocabulary of per-position and per-candidate rationale tags used by the Pareto decision-support layer (BRIEF-2.2-c: 'per-position rationale tags').\n\nWhy closed: an open-ended free-text explanation cannot be tested, cannot be translated, and cannot be aggregated across candidates. Every tag here has (a) a machine-checkable trigger condition stated in terms of LandscapeResponse fields, and (b) a user-facing template. Adding a tag is a minor schema version bump; changing a trigger is a major one, because a downstream user may have filtered on it.\n\nThis document is data, not a schema. It is validated against `rationale_tags_meta.schema.json`.",
   "version": "1.0.0",

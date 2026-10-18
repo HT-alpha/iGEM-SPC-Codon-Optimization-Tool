@@ -23,10 +23,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from test_orchestrator import CDS, FIVE_PRIME, HOST, THREE_PRIME, constraint_set, host_profile
 
-from codonforge import _core
-from codonforge.cli import main as cli_main
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator import DesignError, DesignRequest, design
+from dna_design_suite import _core
+from dna_design_suite.cli import main as cli_main
+from dna_design_suite.codon.orchestrator import DesignError, DesignRequest, design
+from dna_design_suite.modelreg import ArtifactStore
 
 SEED = 20260828
 
@@ -146,18 +146,26 @@ def test_tst_cli_003_a_fast_budget_runs_fewer_tiers_and_says_so(
     assert all(state == "done" for state in states.values())
 
 
-def test_tst_cli_003_an_exact_budget_still_warns_about_the_decision_stage(
+def test_tst_cli_003_an_exact_budget_runs_the_decision_stage(
     store: ArtifactStore,
 ) -> None:
-    """Assembling two tiers must not silence the warning about a third.
+    """`decision` records the same recommendation and does not change the CDS.
 
-    `decision` is `P2-08`'s. If wiring tiers 1 and 2 had removed the mechanism
-    rather than satisfied it for those two, this would be green and wrong.
+    Dropping `decision` from `EXECUTED_TIERS` makes the progress row skipped
+    and this assertion fails. The candidate is still the knee, or the scalar
+    best, that the front already names.
     """
-    result = design(request_for(budget="exact"), store)
+    result = design(request_for(budget="exact", generations=0), store)
     placeholders = [w for w in result.status["warnings"] if w["code"] == "CF-ORCH-006"]
-    assert [w["subject"] for w in placeholders] == ["decision"]
-    assert placeholders[0]["stage"] == "tier_plan"
+    assert placeholders == []
+    states = {tier["tier"]: tier["state"] for tier in result.status["progress"]["tiers"]}
+    assert states["decision"] == "done"
+    report = result.job.stage_reports["decision"]
+    assert report["state"] == "done"
+    assert result.front["recommended"]["rule"] == report["rule"]
+    digest = report["candidate_digest"]
+    assert isinstance(digest, str) and ":" in digest
+    assert result.front["recommended"]["candidate_id"] == "cand_" + digest.split(":")[1][:16]
 
 
 # --------------------------------------------------------------------------- #
@@ -385,12 +393,28 @@ def test_tst_cli_002_exit_codes_match_the_documented_table(
     assert cli_main(["feasibility", "--cds", CDS, "--constraints", str(bad)]) == 3
 
 
-def test_tst_cli_002_background_is_refused_rather_than_faked(store: ArtifactStore) -> None:
-    """DEP-CLI-004. Returning a finished handle would be worse than refusing."""
-    with pytest.raises(DesignError) as excinfo:
-        design(request_for(), store, background=True)
-    assert excinfo.value.code == "CF-CLI-003"
-    assert "P1-29" in excinfo.value.detail
+def test_tst_cli_002_background_returns_a_handle(store: ArtifactStore, monkeypatch) -> None:
+    """DEP-CLI-006. A synchronous implementation blocks on Job.run."""
+    import threading
+
+    from dna_design_suite.codon.orchestrator import job as job_module
+
+    release = threading.Event()
+    original = job_module.Job.run
+
+    def blocked(self, on_segment=None):
+        assert release.wait(timeout=5)
+        return original(self, on_segment)
+
+    monkeypatch.setattr(job_module.Job, "run", blocked)
+    started = __import__("time").perf_counter()
+    handle = design(request_for(generations=0), store, background=True)
+    elapsed = __import__("time").perf_counter() - started
+    assert elapsed < 0.5
+    assert handle.done() is False
+    release.set()
+    result = handle.result(timeout=60)
+    assert result.job.state == "succeeded"
 
 
 def test_tst_cli_002_an_unknown_objective_is_refused(store: ArtifactStore) -> None:
@@ -508,7 +532,9 @@ def test_p1_30_warning_provenance_survives_the_cli(
         assert warning["stage"]
         assert warning["subject"]
         assert warning["code"].startswith("CF-")
-    assert {w["subject"] for w in warnings} >= {"potts_guided", "block_gibbs", "decision"}
+    subjects = {w["subject"] for w in warnings}
+    assert {"potts_guided", "block_gibbs"} <= subjects
+    assert "decision" not in {w["subject"] for w in warnings if w["code"] == "CF-ORCH-006"}
 
 
 def _write(request: DesignRequest, store: ArtifactStore) -> str:
@@ -728,7 +754,7 @@ def test_tst_cli_008_a_real_job_runs_tier_3_and_its_front_reaches_job_status(
 def test_tst_cli_008_the_front_reaches_the_cli_output(
     store: ArtifactStore, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    from codonforge.cli import main as cli_main
+    from dna_design_suite.cli import main as cli_main
 
     path = tmp_path / "request.json"
     path.write_text(request_for().to_json(), encoding="utf-8")
@@ -806,7 +832,7 @@ def test_p2_11_the_structure_term_completed_the_diagnostic_to_axis_transition(
     dangerous state: a term ranked on while still described as diagnostic would
     order the front by a dimension the document says was never optimized.
     """
-    from codonforge.orchestrator import structure_diag
+    from dna_design_suite.codon.orchestrator import structure_diag
 
     result = design(request_for(objectives=["usage.cai", structure_diag.TERM_ID]), store)
     front = result.front
@@ -863,7 +889,7 @@ def test_tst_cli_009_the_front_states_its_answer_rather_than_implying_it(
     them" discipline, and a re-derivation drifts the moment the backend rule
     changes - silently, because both sides still look self-consistent.
     """
-    from codonforge.orchestrator import structure_diag
+    from dna_design_suite.codon.orchestrator import structure_diag
 
     result = design(request_for(objectives=["usage.cai", "structure.local_accessibility"]), store)
     front = result.front
@@ -954,7 +980,7 @@ def test_tst_cli_012_a_recommendation_names_the_axes_it_ignored(
     a second list built from capabilities would be the duplicated-rule
     pattern this project keeps finding.
     """
-    from codonforge.orchestrator import structure_diag
+    from dna_design_suite.codon.orchestrator import structure_diag
 
     result = design(request_for(objectives=["usage.cai", structure_diag.TERM_ID]), store)
     recommended = result.front["recommended"]
@@ -982,7 +1008,7 @@ def test_tst_cli_010_the_two_term_whitelists_agree(store: ArtifactStore) -> None
     discovering they disagree the way this round did, when a term was added to
     one and the other silently rejected every job that asked for it.
     """
-    from codonforge.orchestrator.design import BUILTIN_TERMS
+    from dna_design_suite.codon.orchestrator.design import BUILTIN_TERMS
 
     request = request_for(objectives=["usage.cai"])
     for term in BUILTIN_TERMS:
@@ -997,7 +1023,7 @@ def test_tst_cli_010_the_two_term_whitelists_agree(store: ArtifactStore) -> None
 
 
 def _directions_request_for(request, terms: list[str]) -> str:
-    from codonforge.orchestrator.design import _directions_request
+    from dna_design_suite.codon.orchestrator.design import _directions_request
 
     return _directions_request(replace(request, objectives=terms))
 

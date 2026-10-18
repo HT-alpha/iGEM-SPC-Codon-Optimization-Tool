@@ -3,7 +3,7 @@
     "gate": "GATE-BEN-001",
     "definition": "cai_only",
     "claimed": true,
-    "claim": "CAI-only front, 50 of 50 E. coli K-12 proteins, cai_greedy baseline, CodonForge meets or exceeds baseline on all 50.",
+    "claim": "CAI-only front, 50 of 50 E. coli K-12 proteins, cai_greedy baseline, DNA Design Suite meets or exceeds baseline on all 50.",
     "n_proteins": 50,
     "n_claimed": 50,
     "comparable": true,
@@ -15,6 +15,6 @@
       "excluded": [],
       "explanation": "No protein is excluded. aceB and thrA contain AGG, which has weight 0 in the 54 ribosomal CDS, so usage.cai is 0 while any counted AGG remains. DEP-SRCH-020 linearizes search on the sum of log-weights in that case. On this record both meet cai_greedy. The MFE comparison is not this claim."
     },
-    "reason": "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein relative adaptiveness for every arm, including codons whose count in the 54 ribosomal CDS is 0. Arms: the native CDS, cai_greedy, and one CodonForge design (budget fast, 4 generations, seed 7, no structure objective, no forbidden motif). Claimed only when the CodonForge value is at least cai_greedy on every protein. The MFE comparison against LinearDesign or CDSfold is not this record."
+    "reason": "CAI-only. One axis, usage.cai, maximized. Same ribosomal-protein relative adaptiveness for every arm, including codons whose count in the 54 ribosomal CDS is 0. Arms: the native CDS, cai_greedy, and one DNA Design Suite design (budget fast, 4 generations, seed 7, no structure objective, no forbidden motif). Claimed only when the DNA Design Suite value is at least cai_greedy on every protein. The MFE comparison against LinearDesign or CDSfold is not this record."
   }
 ]

@@ -186,7 +186,7 @@ The ledger is per-run, shared across the population, and decays on a generation 
 
 ## 5. Feasibility analysis before the search starts
 
-The existing prototype's failure mode is instructive: after exhausting 1 000 restarts it prints `Error: Exceeded max restarts (1000) without finding a solution.` and stops. The user learns nothing about *why*, or which constraint to relax. CodonForge runs a feasibility analysis at submission and returns a specific, actionable diagnosis instead.
+The existing prototype's failure mode is instructive: after exhausting 1 000 restarts it prints `Error: Exceeded max restarts (1000) without finding a solution.` and stops. The user learns nothing about *why*, or which constraint to relax. DNA Design Suite runs a feasibility analysis at submission and returns a specific, actionable diagnosis instead.
 
 ```
 ANALYSE_FEASIBILITY(protein, flanks, C) -> FeasibilityReport

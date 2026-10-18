@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from codonforge import _core
-from codonforge.bench.baselines import cai_greedy
-from codonforge.bench.corpus import (
+from dna_design_suite import _core
+from dna_design_suite.codon.bench.baselines import cai_greedy
+from dna_design_suite.codon.bench.corpus import (
     BenchError,
     cai_gate_document,
     check_cai_gate,
@@ -26,8 +26,8 @@ from codonforge.bench.corpus import (
     select_genes,
     verify_shipped_cds,
 )
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator.design import DesignRequest, design, score_sequences
+from dna_design_suite.codon.orchestrator.design import DesignRequest, design, score_sequences
+from dna_design_suite.modelreg import ArtifactStore
 
 
 def test_the_ribosomal_weight_table_lists_every_codon() -> None:
@@ -137,7 +137,7 @@ def test_aceb_and_thra_meet_cai_greedy_at_the_gate_budget(tmp_path: Path) -> Non
 
     The gate budget is fast, 4 generations, seed 7. A 20-generation run of the
     old linearization still scored 0. This is the same two proteins, and the
-    assertion is the one the gate uses: CodonForge at least `cai_greedy`, and
+    assertion is the one the gate uses: DNA Design Suite at least `cai_greedy`, and
     the protein unchanged.
     """
     panel = load_panel()
@@ -205,7 +205,7 @@ def test_excluding_a_protein_that_meets_cai_greedy_is_refused() -> None:
     gate["n_claimed"] = 49
     gate["claim"] = (
         "CAI-only front, 49 of 50 E. coli K-12 proteins (aceB excluded, "
-        "see degenerate_cases), cai_greedy baseline, CodonForge meets or exceeds "
+        "see degenerate_cases), cai_greedy baseline, DNA Design Suite meets or exceeds "
         "baseline on all 49."
     )
     gate["degenerate_cases"] = {"excluded": ["aceB"]}
@@ -218,6 +218,6 @@ def test_a_replaced_corpus_file_is_refused(tmp_path: Path, monkeypatch: pytest.M
     fake = tmp_path / "other.fna.gz"
     with gzip.open(fake, "wt", encoding="utf-8") as handle:
         handle.write(">not-the-cited-dump\nATG\n")
-    monkeypatch.setattr("codonforge.bench.corpus.CDS_PATH", fake)
+    monkeypatch.setattr("dna_design_suite.codon.bench.corpus.CDS_PATH", fake)
     with pytest.raises(BenchError, match="sha256"):
         verify_shipped_cds(panel)

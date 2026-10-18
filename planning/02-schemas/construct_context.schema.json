@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/construct_context.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/construct_context.schema.json",
   "title": "ConstructContext",
   "description": "Multi-cistron construct layout and regulatory metadata (BRIEF-2.2-c).\n\nWHY THIS IS A FIRST-CLASS SCHEMA RATHER THAN A FASTA HEADER. The systems-level joint search optimizes several CDSs against one shared resource ledger, so it needs to know which CDSs share a cell, what their expected relative expression is, and which of them the user actually cares about. None of that survives a FASTA round-trip. It is also what lets the k-mer/repeat constraints be evaluated over the WHOLE construct - including the immutable backbone - which is exactly what the existing `codon_6.0.py` prototype does by masking CDSs out of the insert before counting.\n\nELEMENT SPANS ARE NUCLEOTIDE-BASED; everything downstream of ingest is codon-based. The conversion happens once, at ingest, and is the only place in the system where a frame error is possible.",
   "type": "object",

@@ -11,17 +11,18 @@ import json
 
 from test_orchestrator import HOST
 
-from codonforge import _core
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator.design import DesignRequest
-from codonforge.orchestrator.operon import (
+from dna_design_suite import _core
+from dna_design_suite.codon.orchestrator.design import DesignRequest
+from dna_design_suite.codon.orchestrator.operon import (
     Cistron,
     _growth,
     _joint_cost,
     _weighted_counts,
     codon_counts,
+    codon_index,
     design_operon,
 )
+from dna_design_suite.modelreg import ArtifactStore
 
 # M L *, both starting on the host's preferred leucine codon.
 CDS = "ATGCTGTAA"
@@ -86,11 +87,20 @@ def test_joint_cost_is_the_shared_ledger(tmp_path) -> None:
     assert result.swaps_per_pass[1] == 0
     piled = _joint_cost([CDS, CDS], [1.0, 1.0], TABLE, profile)
     assert result.joint_growth_cost < piled
+    counts = _weighted_counts(result.sequences, result.fluxes, TABLE)
+    slot = codon_index("CTG")
+    bumped = list(counts)
+    bumped[slot] += 1.0
+    assert len(result.shadow_prices) == 64
+    assert result.shadow_prices[slot] == _growth(profile, TABLE, bumped) - direct
+    assert result.shadow_prices[codon_index("AAA")] is None
+    assert result.nsga_evaluations > 1
+    assert result.joint_growth_cost <= result.pre_nsga_joint_growth_cost
 
 
 def test_a_synonym_swap_matches_a_full_recount_of_the_ledger() -> None:
     """The joint pass edits two count slots. Those slots are the full recount."""
-    from codonforge.orchestrator.operon import _ledger_counts
+    from dna_design_suite.codon.orchestrator.operon import _ledger_counts
 
     profile = leucine_profile()
     sequences = [CDS, "ATGTTATAA"]
@@ -112,7 +122,7 @@ def test_ignoring_the_other_cistron_leaves_the_worse_joint(tmp_path, monkeypatch
         del previous, swap
         return real(sequences[:1], fluxes[:1], translation_table)
 
-    monkeypatch.setattr("codonforge.orchestrator.operon._ledger_counts", only_the_first)
+    monkeypatch.setattr("dna_design_suite.codon.orchestrator.operon._ledger_counts", only_the_first)
     broken = design_operon(
         [Cistron(CDS, 1.0, "a"), Cistron(CDS, 1.0, "b")],
         ArtifactStore(tmp_path / "broken"),
@@ -126,8 +136,10 @@ def test_ignoring_the_other_cistron_leaves_the_worse_joint(tmp_path, monkeypatch
         host_digest="sha256:" + "1" * 64,
     )
     monkeypatch.undo()
-    assert broken.sequences == broken.independent_sequences
-    ignored = _joint_cost(broken.sequences, [1.0, 1.0], TABLE, profile)
+    assert broken.swaps_per_pass == [0, 0]
+    assert broken.pre_nsga_joint_growth_cost == _joint_cost(
+        broken.independent_sequences, [1.0, 1.0], TABLE, profile
+    )
     honest = design_operon(
         [Cistron(CDS, 1.0, "a"), Cistron(CDS, 1.0, "b")],
         ArtifactStore(tmp_path / "honest"),
@@ -140,7 +152,29 @@ def test_ignoring_the_other_cistron_leaves_the_worse_joint(tmp_path, monkeypatch
         passes=2,
         host_digest="sha256:" + "1" * 64,
     )
-    assert honest.joint_growth_cost < ignored
+    assert honest.joint_growth_cost < broken.pre_nsga_joint_growth_cost
+
+
+def test_nsga_keeps_a_joint_sequence_only_when_its_cost_falls() -> None:
+    """Dropping the comparison in `_adopt_joint` keeps the worse operon."""
+    from dna_design_suite.codon.orchestrator.operon import _adopt_joint
+
+    profile = leucine_profile()
+    left = [CDS, CDS]
+    right = [CDS, "ATGTTATAA"]
+    left_cost = _joint_cost(left, [1.0, 1.0], TABLE, profile)
+    right_cost = _joint_cost(right, [1.0, 1.0], TABLE, profile)
+    assert left_cost != right_cost
+    if left_cost < right_cost:
+        better, worse = left, right
+        better_cost, worse_cost = left_cost, right_cost
+    else:
+        better, worse = right, left
+        better_cost, worse_cost = right_cost, left_cost
+    kept, _cost = _adopt_joint(worse, worse_cost, better, better_cost)
+    assert kept == better
+    kept, _cost = _adopt_joint(better, better_cost, worse, worse_cost)
+    assert kept == better
 
 
 def _directions(request: DesignRequest) -> str:

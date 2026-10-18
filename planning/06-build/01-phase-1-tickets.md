@@ -16,7 +16,7 @@ Every ticket below names its module, its deliverable, its acceptance tests and i
 
 | Id | Title | Module | Deliverable | Acceptance | Deps | Size |
 | --- | --- | --- | --- | --- | --- | --- |
-| `P1-01` | Workspace scaffold | — | Cargo workspace with the 18 crate/package directories of the repo layout; `pyproject.toml`; `maturin` build of `codonforge._core`; dev container with both toolchains | `maturin develop` then `import codonforge` succeeds on Linux/macOS/Windows | — | M |
+| `P1-01` | Workspace scaffold | — | Cargo workspace with the 18 crate/package directories of the repo layout; `pyproject.toml`; `maturin` build of `dna_design_suite._core`; dev container with both toolchains | `maturin develop` then `import dna_design_suite` succeeds on Linux/macOS/Windows | — | M |
 | `P1-02` | CI pipelines | — | Per-module test jobs; `clippy` + `ruff` + `mypy`; wheel build matrix (manylinux, macOS arm64/x86, Windows); nightly benchmark job stub | A PR touching one crate runs that crate's isolated slice | `P1-01` | M |
 | `P1-03` | Schemas into the tree | — | Copy `planning/02-schemas/*.schema.json` to `schemas/v1/`; wire `validate_planning_package.py` into CI; add a drift check that fails if a Rust struct or `.pyi` stub diverges from its schema | Schema-validation job green; a deliberate drift fails it | `P1-01` | M |
 | `P1-04` | Error taxonomy | `cf-types` | The `CF-*` code registry, `ProblemDetails` construction, and a test that every emitted code is documented | `TST-API-004` (code registry portion) | `P1-01` | S |
@@ -304,7 +304,7 @@ The archive lives in `cf-orchestrator`, not in the library surface that first im
 
 **Documentation rots silently, so the claims are asserted.** `TST-DOC-001` checks that every `make` target the docs name exists, every CLI invocation they show parses against the real parser, every `CF-*` code they cite is registered, every output format they list is accepted, and every built-in term is documented. A quickstart that no longer works is worse than none: it costs the reader their first hour and their confidence.
 
-**The capability boundaries are documented as behaviour, not as a roadmap.** Each gap says what happens if you try it — `background=True` raises `CF-CLI-003`, a planned-but-unexecuted tier is reported `skipped` with `CF-ORCH-006`, an unavailable term is refused with `CF-LAND-001` — and each is tested to actually do that. The README says outright that a missing `CF-ORCH-006` warning for a skipped tier is a bug worth reporting.
+**The capability boundaries are documented as behaviour, not as a roadmap.** `background=True` returns a worker-pool handle (`DEP-CLI-006`). A planned-but-unexecuted tier is reported `skipped` with `CF-ORCH-006`. An `exact` budget's `decision` stage is `done` (`DEP-ORCH-008`). An unavailable term is refused with `CF-LAND-001`. Each of those is tested. The README says outright that a missing `CF-ORCH-006` warning for a skipped tier is a bug worth reporting. Seed import stays `CF-CLI-003`.
 
 **The `virtualenv` fallback is documented as the supported path** in all three documents, with the reason (`ensurepip` ships separately on Debian and Ubuntu), and a test scans the docs, the `Makefile` and the CI workflows for any bare `python3 -m venv` without a `virtualenv` fallback nearby. Left undocumented it reads as an oddity to simplify away, and the failure it prevents looks like a broken checkout rather than a missing package.
 

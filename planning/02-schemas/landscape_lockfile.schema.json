@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/landscape_lockfile.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/landscape_lockfile.schema.json",
   "title": "LandscapeLockfile",
   "description": "The exact set of artifacts, engines, data and RNG state that produced a result. Analogous to a package-manager lockfile, and it is the mechanism that makes three otherwise-conflicting requirements compatible at once:\n\n  * results are reproducible and auditable (BRIEF-2.2-d);\n  * a submitted wet-lab observation triggers recalibration WITHOUT blocking or perturbing other users' in-flight jobs (BRIEF-2.4-b) - because every job pins its lockfile at submission, a new artifact version appearing mid-job is simply not visible to it;\n  * host/dataset-specific model versions are selected at query time by a documented ladder (BRIEF-2.4-c) - the ladder runs ONCE, at pin time, and its outcome is recorded here rather than re-derived per query.\n\nA lockfile is immutable and content-addressed. Replaying a job means loading its lockfile and re-running; if any digest is unavailable the replay fails loudly rather than substituting a newer artifact.",
   "type": "object",

@@ -1,7 +1,7 @@
 # Algorithm (e) — The Saturating Burden Penalty and Host-Capacity Estimation
 
 Satisfies: `BRIEF-2.3-e`.
-Owning module: `cf-burden` (penalty in Rust; capacity calibration in `codonforge.burden.calibrate`).
+Owning module: `cf-burden` (penalty in Rust; capacity calibration in `dna_design_suite.burden.calibrate`).
 Related: [ADR-0004](../07-decisions/ADR-0004-resource-ledger-granularity.md), [`04-systems-level-joint-search.md`](04-systems-level-joint-search.md) §2 for the ledger this consumes.
 
 ---
@@ -94,7 +94,7 @@ FIT_CAPACITY_TIER2(host) -> (θ, uncertainty)
 
 ### 2.3 Tier 3 — relative-to-native normalization (the no-data case)
 
-This is the tier that most hosts land in, and getting it right is the difference between CodonForge being usable outside model organisms and not.
+This is the tier that most hosts land in, and getting it right is the difference between DNA Design Suite being usable outside model organisms and not.
 
 **Assumption:** a host's tRNA pools are, on average, matched to its own native codon demand. This is the same empirical regularity that underlies tAI — tRNA gene copy number tracks genomic codon usage — so tier 3 is not a fabrication, it is a documented approximation.
 
@@ -117,7 +117,7 @@ At tier 3 the quantity `u_α = D_α/S_α` is **how much the construct's demand p
 2. `g_max` is set to 1 and `burden.growth_cost` is documented as a dimensionless mismatch score in `[0,1)`, **not** a predicted growth-rate cost. The API returns unit `dimensionless` at this tier.
 3. `Uncertainty.calibrated = false` and the decision layer attaches the `low_confidence_host` rationale tag.
 
-`DEP-BURD-003` — The architecture proposal treats the burden model as predicting host burden. This plan states that for hosts without proteomics or tRNA abundance data (tier 3) the burden term is a demand-profile mismatch score and must not be presented as a growth-rate prediction. Reporting the same unit at all three tiers would be the single most misleading thing CodonForge could do.
+`DEP-BURD-003` — The architecture proposal treats the burden model as predicting host burden. This plan states that for hosts without proteomics or tRNA abundance data (tier 3) the burden term is a demand-profile mismatch score and must not be presented as a growth-rate prediction. Reporting the same unit at all three tiers would be the single most misleading thing DNA Design Suite could do.
 
 ### 2.4 User configuration
 

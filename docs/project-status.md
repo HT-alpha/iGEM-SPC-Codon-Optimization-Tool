@@ -8,12 +8,12 @@ re-measurement is in `docs/benchmarks/v2.9.1-validation.md`. The
 challenging-sequence timings are in
 `docs/benchmarks/v2.9.1-challenging-perf.md`. Where those jobs spend their
 time, and what to change next, is `docs/benchmarks/v2.9.2-profiles.md`.
-The package version stays 0.1.0. `python -m codonforge.cli.main --version`
+The package version stays 0.1.0. `python -m dna_design_suite.cli.main --version`
 prints 0.1.0.
 
 ## Shipped and working
 
-CodonForge designs an *E. coli* coding sequence under explicit objectives and
+DNA Design Suite designs an *E. coli* coding sequence under explicit objectives and
 hard constraints. The search is Rust (tier 1 exact dynamic programming, tier
 2 block coordinate ascent, tier 3 a multi-objective population). The job
 lifecycle, ingest, and CLI are Python. `POST /v1/jobs`, `POST /v1/score`,
@@ -22,10 +22,10 @@ lifecycle, ingest, and CLI are Python. `POST /v1/jobs`, `POST /v1/score`,
 HTTP server. Hosts, models, recalibrations, seed import, and the five-check
 feasibility analyser answer `CF-CLI-003`.
 
-The page in `python/codonforge/api/static/` is the shared CodonForge and
-PrimerForge UI. It is a guided form: a coding sequence, a host, the bundled
+The page in `python/dna_design_suite/api/static/` is the shared DNA Design Suite and
+Primer design UI. It is a guided form: a coding sequence, a host, the bundled
 MG1655 ribosomal usage table, optional constraints, and objectives with the
-terms named in plain language. `python -m codonforge.api` binds port 8000,
+terms named in plain language. `python -m dna_design_suite.api` binds port 8000,
 opens a browser, and blocks until interrupted. The DNA view is the SVG helix
 in `helix.js` (CSS keyframes, B-form geometry measured from PDB 1BNA). Primer
 selection uses `document.elementFromPoint` so a drag still names the
@@ -85,7 +85,7 @@ seed 7) is in `benchmarks/corpus/cai_only.json`.
 
 `GATE-BEN-001` is claimed with this scope, and only this scope:
 
-> CAI-only front, 50 of 50 E. coli K-12 proteins, cai_greedy baseline, CodonForge meets or exceeds baseline on all 50.
+> CAI-only front, 50 of 50 E. coli K-12 proteins, cai_greedy baseline, DNA Design Suite meets or exceeds baseline on all 50.
 
 The 50 scores are the 4-generation run (budget `fast`, seed 7). Equality
 counts as meeting `cai_greedy`. `check_cai_gate` checks the claim against

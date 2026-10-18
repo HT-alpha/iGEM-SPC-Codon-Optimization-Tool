@@ -1,4 +1,4 @@
-# PrimerForge thermodynamic validation
+# Primer design thermodynamic validation
 
 Parameters are SantaLucia J Jr, Proc Natl Acad Sci USA 1998;95(4):1460–1465,
 Table 2 (PMC19045). Tm uses Eq. 3 of that paper. Strand concentration and

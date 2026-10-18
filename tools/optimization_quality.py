@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""How close CodonForge's search gets to an optimum, and where it stops moving.
+"""How close DNA Design Suite's search gets to an optimum, and where it stops moving.
 
 Part B of the v2.9.3 design-quality study. Exact numbers are the output of
 this process. The unconstrained CAI optimum is the per-codon maximum of the
@@ -43,8 +43,8 @@ sys.path.insert(0, str(ROOT / "benchmarks" / "validation"))
 import cai_independent  # noqa: E402
 
 import benchmark_common as common  # noqa: E402
-from codonforge import _core  # noqa: E402
-from codonforge.modelreg import ArtifactStore  # noqa: E402
+from dna_design_suite import _core  # noqa: E402
+from dna_design_suite.modelreg import ArtifactStore  # noqa: E402
 
 BASES = "ACGT"
 BASE_INDEX = {base: index for index, base in enumerate(BASES)}

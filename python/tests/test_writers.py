@@ -29,10 +29,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 from test_cli import request_for
 from test_orchestrator import HOST
 
-from codonforge import _core
-from codonforge.cli import writers
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator import design
+from dna_design_suite import _core
+from dna_design_suite.cli import writers
+from dna_design_suite.codon.orchestrator import design
+from dna_design_suite.modelreg import ArtifactStore
 
 
 @pytest.fixture()
@@ -58,7 +58,7 @@ def test_p1_31_emitted_genbank_reingests_to_the_same_digest(result) -> None:
     sequence that merely looked similar and this would catch it.
     """
     pytest.importorskip("Bio")
-    from codonforge.ingest import genbank
+    from dna_design_suite.ingest import genbank
 
     document = result.sequence_document()
     emitted = writers.to_genbank(result.front, document)
@@ -294,7 +294,7 @@ def test_p1_31_writers_do_not_need_anything_the_checkpoint_lacks(
 def test_p1_31_every_output_format_reaches_the_cli(
     store: ArtifactStore, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    from codonforge.cli import main as cli_main
+    from dna_design_suite.cli import main as cli_main
 
     path = tmp_path / "request.json"
     path.write_text(request_for().to_json(), encoding="utf-8")

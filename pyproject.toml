@@ -3,9 +3,9 @@ requires = ["maturin>=1.5,<2"]
 build-backend = "maturin"
 
 [project]
-name = "codonforge"
+name = "dna-design-suite"
 version = "0.1.0"
-description = "Epistasis-aware, systems-level, multi-objective codon optimization"
+description = "DNA Design Suite: a codon optimization tool and a primer design tool"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
@@ -27,9 +27,9 @@ dependencies = [
 # There is still deliberately NO extra that installs a structure engine, and the
 # reason has changed: it is no longer that ViennaRNA's licence forbids it - it
 # does not, for a free distribution - but that a runtime dependency declared
-# here is one CodonForge's own wheel asserts a relationship with. Detection at
+# here is one DNA Design Suite's own wheel asserts a relationship with. Detection at
 # runtime keeps the wheel's dependency set entirely Apache-2.0 and keeps the
-# user, not CodonForge, the party who installed ViennaRNA.
+# user, not DNA Design Suite, the party who installed ViennaRNA.
 #
 # LinearDesign's method stays excluded on patent grounds regardless (AMD-013).
 [project.optional-dependencies]
@@ -47,11 +47,11 @@ structure-tests = [
 ]
 
 [project.scripts]
-codonforge = "codonforge.cli.main:main"
+dna-design-suite = "dna_design_suite.cli.main:main"
 
 [tool.maturin]
 manifest-path = "crates/cf-pyext/Cargo.toml"
-module-name = "codonforge._core"
+module-name = "dna_design_suite._core"
 python-source = "python"
 
 [tool.pytest.ini_options]

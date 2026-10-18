@@ -8,7 +8,7 @@ union leaves at least one extreme out.
 
 from __future__ import annotations
 
-from codonforge.decision.reduce import reduce_candidates
+from dna_design_suite.codon.decision.reduce import reduce_candidates
 
 
 def _candidate(cid: str, vector: list[float]) -> dict:

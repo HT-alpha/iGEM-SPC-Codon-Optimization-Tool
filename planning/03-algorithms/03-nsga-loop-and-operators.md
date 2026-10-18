@@ -10,7 +10,7 @@ Related: [ADR-0005](../07-decisions/ADR-0005-uncertainty-and-pareto-ranking.md) 
 
 **The synonymous design space is a product space.** An individual is an assignment `x ∈ ∏ᵢ Syn(aᵢ)`. Every position is chosen independently, and every choice preserves the protein. Two consequences:
 
-- **Every mutation and every crossover at codon boundaries produces a valid individual.** There is no repair, no penalty and no rejection sampling needed for the protein constraint — the one constraint that matters most. Most MOEA applications to sequence design spend their complexity budget here; CodonForge gets it free by choosing the right genotype.
+- **Every mutation and every crossover at codon boundaries produces a valid individual.** There is no repair, no penalty and no rejection sampling needed for the protein constraint — the one constraint that matters most. Most MOEA applications to sequence design spend their complexity budget here; DNA Design Suite gets it free by choosing the right genotype.
 - **What *can* break is the hard sequence constraints** (restriction sites, repeats, GC windows). These are handled by constraint-domination plus the repair operator of [`06-constraint-repair.md`](06-constraint-repair.md), never by discarding individuals.
 
 Genotype representation: `Vec<u8>` of codon indices, length `L`, plus a cached 64-bit hash for duplicate suppression and a cached field table for `O(W·S)` deltas.
@@ -24,7 +24,7 @@ Genotype representation: `Vec<u8>` of codon indices, length `L`, plus a cached 6
 | `M ≤ 3` | **NSGA-II** | Crowding distance is a good, cheap diversity proxy in low dimension, and NSGA-II has no reference-direction bookkeeping. |
 | `M ≥ 4` | **NSGA-III** (default) | Crowding distance degrades badly as `M` grows: nearly every individual becomes non-dominated, so selection pressure comes almost entirely from the diversity operator, and crowding distance is a poor one in high dimension. Reference-direction niching supplies structured, predictable coverage instead. |
 
-CodonForge's default objective set (`epistasis.dwell_deviation`, `structure.local_accessibility`, `burden.growth_cost`, `usage.cai`, optionally `kinetics.pause_concordance` and `lm.naturalness`) is `M = 4…6`, so **NSGA-III is the default**, and the plan is written around it.
+DNA Design Suite's default objective set (`epistasis.dwell_deviation`, `structure.local_accessibility`, `burden.growth_cost`, `usage.cai`, optionally `kinetics.pause_concordance` and `lm.naturalness`) is `M = 4…6`, so **NSGA-III is the default**, and the plan is written around it.
 
 `DEP-SRCH-003` — The architecture proposal writes "NSGA-II/III" without choosing. This plan chooses NSGA-III for `M ≥ 4` and keeps NSGA-II only for `M ≤ 3`, with the switch automatic and recorded in the job status.
 

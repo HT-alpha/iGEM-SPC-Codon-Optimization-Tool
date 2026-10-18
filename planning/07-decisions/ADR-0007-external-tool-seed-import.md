@@ -6,7 +6,7 @@
 
 ## Question as posed
 
-> Should CodonForge be able to import a LinearDesign/CDSfold or CodonTransformer output as a seed candidate for its population search, to make migration easier for existing users? If so, what is the interface for that?
+> Should DNA Design Suite be able to import a LinearDesign/CDSfold or CodonTransformer output as a seed candidate for its population search, to make migration easier for existing users? If so, what is the interface for that?
 
 ## Decision
 
@@ -45,14 +45,14 @@ A user who pastes the wrong file must be told which residue disagrees, not that 
 
 ### Provenance survives to the output
 
-`ParetoFront.candidates[].provenance.seed_source` records the originating tool, and the `seed_derived` rationale tag renders as *"Derived from a LinearDesign seed after 128 generations"*. This is what turns a migration feature into an evidence feature: a user can see directly whether CodonForge improved on the tool they were using.
+`ParetoFront.candidates[].provenance.seed_source` records the originating tool, and the `seed_derived` rationale tag renders as *"Derived from a LinearDesign seed after 128 generations"*. This is what turns a migration feature into an evidence feature: a user can see directly whether DNA Design Suite improved on the tool they were using.
 
 ## Why this earns its place in Phase 1
 
 Three uses, one mechanism:
 
-1. **Migration.** An existing user keeps their current workflow and adds CodonForge on top rather than replacing it.
-2. **Benchmarking.** `BRIEF-2.5` requires MFE/CAI trade-off comparisons against LinearDesign and CDSfold. Placing a competitor's output on CodonForge's own axes *is* seed import plus `/v1/score`. Without it, the benchmark needs a parallel, unvalidated ingestion path — and benchmark code that differs from product code is how benchmark claims become wrong.
+1. **Migration.** An existing user keeps their current workflow and adds DNA Design Suite on top rather than replacing it.
+2. **Benchmarking.** `BRIEF-2.5` requires MFE/CAI trade-off comparisons against LinearDesign and CDSfold. Placing a competitor's output on DNA Design Suite's own axes *is* seed import plus `/v1/score`. Without it, the benchmark needs a parallel, unvalidated ingestion path — and benchmark code that differs from product code is how benchmark claims become wrong.
 3. **Warm starts.** A user re-running a design after changing one constraint can seed from the previous job's front (`tool: previous_job`), which is both faster and produces a more comparable result.
 
 ## Adapters and what they must not do
@@ -68,7 +68,7 @@ Three uses, one mechanism:
 
 **Adapters operate purely at the nucleotide level.** No adapter imports a tokenizer, a model or a scoring function from the originating tool. This keeps `cf-ingest` free of a dependency on `cf-biophys-lm` and keeps the module graph acyclic; it also means adding an adapter is ~30 lines and no new dependency.
 
-`reported_metrics` stores the originating tool's own claimed metrics *separately* from CodonForge's recomputation, so a discrepancy is visible rather than hidden. Different tools compute CAI against different reference sets, and silently overwriting one with the other would produce comparison tables that neither tool's authors would recognize.
+`reported_metrics` stores the originating tool's own claimed metrics *separately* from DNA Design Suite's recomputation, so a discrepancy is visible rather than hidden. Different tools compute CAI against different reference sets, and silently overwriting one with the other would produce comparison tables that neither tool's authors would recognize.
 
 ## Consequences
 

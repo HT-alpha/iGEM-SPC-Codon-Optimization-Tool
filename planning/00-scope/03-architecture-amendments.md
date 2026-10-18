@@ -2,7 +2,7 @@
 
 The brief's closing note asks for exactly this document:
 
-> If any part of the CodonForge architecture proposal turns out, under detailed planning, to be impractical or underspecified in a way this brief did not anticipate, Opus 5 Max should say so explicitly and propose a specific amendment rather than silently working around it.
+> If any part of the DNA Design Suite architecture proposal turns out, under detailed planning, to be impractical or underspecified in a way this brief did not anticipate, Opus 5 Max should say so explicitly and propose a specific amendment rather than silently working around it.
 
 Twelve items. Each states what the architecture says, why detailed planning found it a problem, the specific proposed amendment, and what it costs to ignore. Everything here is already reflected in the plan; this document is the consolidated, reviewable list.
 
@@ -110,7 +110,7 @@ There is a second, subtler issue: split conformal gives **marginal** coverage �
 
 **What the architecture says.** An "epistatic fitness surface", fit by DCA/Potts methods borrowed from protein contact prediction.
 
-**Why it is a problem.** In molecular genetics, *epistasis* normally means non-additive interaction between mutations at the protein or organism level. What CodonForge models is **context-dependence of synonymous codon effects on translation**: codon-pair effects, ribosome footprint interactions, local decoding context. That is statistical epistasis in the fitness-landscape sense, but a reader from protein science will initially expect something else — and the DCA/Potts borrowing reinforces the wrong reading, because DCA in its home domain infers *structural* contacts.
+**Why it is a problem.** In molecular genetics, *epistasis* normally means non-additive interaction between mutations at the protein or organism level. What DNA Design Suite models is **context-dependence of synonymous codon effects on translation**: codon-pair effects, ribosome footprint interactions, local decoding context. That is statistical epistasis in the fitness-landscape sense, but a reader from protein science will initially expect something else — and the DCA/Potts borrowing reinforces the wrong reading, because DCA in its home domain infers *structural* contacts.
 
 **Proposed amendment.** Keep `epistasis` as the internal namespace (renaming it now would churn every schema), but in all user-facing and published material use **"context-dependent codon effects"** or **"translational context model"**, with a single sentence disambiguating on first use. Add a glossary entry. The term ids already read well under this reading: `epistasis.context_naturalness`, `epistasis.dwell_deviation`.
 
@@ -198,13 +198,13 @@ And in the architecture document: state the coverage claim as *"context-aware fo
 - **LinearFold** — the same licence text, with the same no-fee-redistribution clause. The ecosystem generally treats it as non-commercial out of caution (VaxPress ships it only in a `[nonfree]` extra).
 - **LinearDesign** — licence listed as "Other", and **Baidu Research has filed a patent on the LinearDesign algorithm**. Patent encumbrance is a distinct risk from licensing and is not cured by a permissive licence.
 
-Vendoring any of these makes CodonForge's own distribution non-redistributable-for-fee, which forecloses commercial support, paid hosting, and inclusion in most distributions.
+Vendoring any of these makes DNA Design Suite's own distribution non-redistributable-for-fee, which forecloses commercial support, paid hosting, and inclusion in most distributions.
 
 **Proposed amendment.**
 
-1. Ship CodonForge under **Apache-2.0** (its explicit patent grant matters given the LinearDesign filing).
+1. Ship DNA Design Suite under **Apache-2.0** (its explicit patent grant matters given the LinearDesign filing).
 2. Define a **`StructureEngine` plugin seam** and ship a **permissively-licensed windowed-accessibility kernel as the default** — which `AMD-001` already makes the preferred engine on performance grounds, so the two amendments reinforce each other.
-3. ViennaRNA and LinearFold back ends are **feature-gated and user-installed**, detected at runtime, never vendored. There is deliberately **no `pip install codonforge[nonfree]` extra**, because an extra that pulls them in would make CodonForge's wheel non-redistributable.
+3. ViennaRNA and LinearFold back ends are **feature-gated and user-installed**, detected at runtime, never vendored. There is deliberately **no `pip install codonforge[nonfree]` extra**, because an extra that pulls them in would make DNA Design Suite's wheel non-redistributable.
 4. Benchmarks against LinearDesign/CDSfold run against **user-installed** binaries or against **published output**, via the seed-import path of [ADR-0007](../07-decisions/ADR-0007-external-tool-seed-import.md). CI runs them in a separate, non-distributed job.
 5. Add a licence-and-patent review to the Phase 2 exit checklist.
 6. **Thermodynamic parameters are input data, not shipped constants.** `DEP-STRU-001`. This clause was missing and is the part of `AMD-009` that was in fact discovered late: the amendment verifies the licence position of the folding *code* and says nothing about the nearest-neighbour parameter set that code needs to compute anything. Those parameters have the same class of problem — the published sets are embedded in tools whose licences are exactly what this amendment rejects — so a kernel with a table baked in is either carrying invented values, which the no-fabricated-constants rule forbids, or redistributing data whose terms nobody here has verified. The kernel therefore ships with **no** parameter table: a `structure_parameters` document supplies one, carries its own provenance and citation, and its digest is recorded in the landscape lockfile like any other artifact. A run with no parameter set is refused with a named error rather than falling back to a plausible default.
@@ -271,7 +271,7 @@ The existing prototype in this repository shows the failure mode exactly. After 
 
 **Status:** Corrects `AMD-009` clauses 2 and 3. `AMD-009` is not withdrawn — its patent reasoning, its no-vendoring instinct and its `DEP-STRU-001` clause all survive.
 
-**Project context that changes the analysis.** CodonForge is an iGEM competition entry, distributed freely and not sold. `AMD-009` was written against an implicit commercial-open-source release, and its conclusions followed from that premise rather than from the licence texts themselves.
+**Project context that changes the analysis.** DNA Design Suite is an iGEM competition entry, distributed freely and not sold. `AMD-009` was written against an implicit commercial-open-source release, and its conclusions followed from that premise rather than from the licence texts themselves.
 
 ### What was verified, and from where
 
@@ -303,10 +303,10 @@ Wrong in one respect, and it is the one that mattered: `AMD-009` treated the no-
 
 ### Corrected scope
 
-1. **ViennaRNA may be a depended-upon library, and becomes the intended default structure engine.** Not vendored: the user installs it, CodonForge detects and calls it. Under that arrangement CodonForge redistributes neither the code nor its parameter tables, so condition (1) is satisfied by construction rather than by promise.
+1. **ViennaRNA may be a depended-upon library, and becomes the intended default structure engine.** Not vendored: the user installs it, DNA Design Suite detects and calls it. Under that arrangement DNA Design Suite redistributes neither the code nor its parameter tables, so condition (1) is satisfied by construction rather than by promise.
 2. **LinearFold is permitted on the same terms**, with the paper citation its licence requires.
 3. **Attribution is mandatory, not optional.** Condition (2) is a licence term. Credit to the ViennaRNA authors and the Institute for Theoretical Chemistry of the University of Vienna, and the LinearFold citation above, belong in a `NOTICE` file and in the docs — not only in a source comment.
-4. **CodonForge's own distribution stays free of charge.** This is now a licence obligation inherited from a dependency, not merely a project preference. If the project ever contemplates charging, this amendment stops applying and both licences must be re-examined.
+4. **DNA Design Suite's own distribution stays free of charge.** This is now a licence obligation inherited from a dependency, not merely a project preference. If the project ever contemplates charging, this amendment stops applying and both licences must be re-examined.
 5. **Bundling remains a separate decision from depending.** A free bundle would satisfy condition (1), but it would make the combined distribution non-Apache-2.0 and would carry the `naview.c` carve-out. Depending without bundling avoids both questions, and is what this amendment adopts.
 6. **The from-scratch windowed-accessibility kernel is no longer required.** It existed because the licensed engines were treated as unavailable as defaults. `P2-08` becomes an engine binding rather than a folding implementation.
 
@@ -326,7 +326,7 @@ Dependent claims narrow further: claim 2 to a stochastic CFG, claim 4/10 to an o
 
 **What this means for the architecture, precisely.** The claimed method is *not* "joint MFE plus codon optimisation" in the abstract — it is that problem solved by **CFG × DFA intersection**. The CFG intersection is a required element of both independent claims, and a method claim is not literally infringed unless every element is present.
 
-CodonForge has **no context-free grammar anywhere**: no SCFG, no nonterminals, no bifurcation rules, no CYK or inside-outside parsing. Its structure term is windowed local accessibility, and `AMD-001` already excluded global MFE from the search loop on performance grounds — which incidentally puts the architecture far from claim 4's objective function as well. Tier 1 does use an automaton, but for *regular-language constraint* tracking (motif and site avoidance) over an additive objective, with no grammar intersected onto it.
+DNA Design Suite has **no context-free grammar anywhere**: no SCFG, no nonterminals, no bifurcation rules, no CYK or inside-outside parsing. Its structure term is windowed local accessibility, and `AMD-001` already excluded global MFE from the search loop on performance grounds — which incidentally puts the architecture far from claim 4's objective function as well. Tier 1 does use an automaton, but for *regular-language constraint* tracking (motif and site avoidance) over an additive objective, with no grammar intersected onto it.
 
 So the honest reading is that the architecture does not practise the claimed method, and the exclusion is cheap to maintain: nothing in the plan wants a CFG intersection.
 

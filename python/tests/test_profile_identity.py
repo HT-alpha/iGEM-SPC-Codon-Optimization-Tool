@@ -21,10 +21,10 @@ from pathlib import Path
 
 import pytest
 
-from codonforge import _core
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator.design import DesignRequest, design
-from codonforge.predictors import available_engines
+from dna_design_suite import _core
+from dna_design_suite.codon.orchestrator.design import DesignRequest, design
+from dna_design_suite.codon.predictors import available_engines
+from dna_design_suite.modelreg import ArtifactStore
 
 ROOT = Path(__file__).resolve().parents[2]
 HOST = "escherichia_coli:511145/BL21"

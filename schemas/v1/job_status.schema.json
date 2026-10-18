@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://codonforge.org/schemas/v1/job_status.schema.json",
+  "$id": "https://dna_design_suite.org/schemas/v1/job_status.schema.json",
   "title": "DesignJobStatus",
   "description": "The body of GET /v1/jobs/{job_id} (BRIEF-2.4-a).\n\nPROGRESS IS REPORTED PER TIER, not as a single percentage. A three-tier search has genuinely different phases with different cost profiles, and a single bar that jumps from 5% to 90% is worse than no bar. `current_front_summary` lets a UI show a live hypervolume trace, which is the only progress signal that actually correlates with result quality.",
   "type": "object",
@@ -280,7 +280,7 @@
     },
     "primer_result": {
       "type": ["object", "null"],
-      "description": "Present when this job is a PrimerForge search. Codon jobs omit it. The object is the ranked pair front from cf-primer-search.",
+      "description": "Present when this job is a Primer design search. Codon jobs omit it. The object is the ranked pair front from cf-primer-search.",
       "additionalProperties": true
     }
   },

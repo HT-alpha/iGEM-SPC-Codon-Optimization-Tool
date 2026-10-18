@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from codonforge.epistasis.artifact import ArtifactError
-from codonforge.epistasis.dwell import dwell_status, verify_dwell
-from codonforge.modelreg import ArtifactStore
-from codonforge.orchestrator.design import DesignError, DesignRequest, design
+from dna_design_suite.codon.epistasis.artifact import ArtifactError
+from dna_design_suite.codon.epistasis.dwell import dwell_status, verify_dwell
+from dna_design_suite.codon.orchestrator.design import DesignError, DesignRequest, design
+from dna_design_suite.modelreg import ArtifactStore
 
 
 def test_requesting_dwell_without_a_fitted_head_is_cf_land_001(tmp_path: Path) -> None:
