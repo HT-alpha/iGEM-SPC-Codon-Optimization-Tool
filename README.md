@@ -16,7 +16,7 @@ The text is [`LICENSE`](LICENSE). `pyproject.toml` and `Cargo.toml` declare
 the same identifier. ViennaRNA is optional, installed by you, and is not
 part of this licence.
 
-Validation for v2.5.0 through v2.9.2 is in [`docs/benchmarks/`](docs/benchmarks/).
+Validation notes, including v2.5.0 through v2.9.2, are in [`docs/benchmarks/`](docs/benchmarks/).
 The Software-wiki draft, including one validation table, is
 [`docs/wiki-software-draft.md`](docs/wiki-software-draft.md). Current status
 is [`docs/project-status.md`](docs/project-status.md). History is
@@ -206,7 +206,8 @@ for hairpins. Commercial distribution is outside the AMD-013 note in
 iGEM educational project, and the reviewer states that the email is not a
 formal legal opinion.
 
-The suite note is v2.9.2. The package version stays 0.1.0.
+The status note is the current tip. The package version is 0.1.0.
+There is no release tag, and the package is not on PyPI.
 `python -m dna_design_suite.cli.main --version` prints 0.1.0.
 
 ---

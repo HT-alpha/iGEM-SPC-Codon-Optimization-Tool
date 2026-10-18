@@ -1,15 +1,18 @@
 # Project status
 
-Canonical status for the DNA Design Suite at `v2.9.2`. Older notes in
-`docs/igem-submission.md` and `CHANGELOG.md` keep the history of how each
-release got here. The CAI gate claim is the one in `benchmarks/corpus/gates.json`.
-The v2.6.0 fronts are in `docs/benchmarks/v2.6.0-phase2.md`. The v2.9.1
-re-measurement is in `docs/benchmarks/v2.9.1-validation.md`. The
-challenging-sequence timings are in
-`docs/benchmarks/v2.9.1-challenging-perf.md`. Where those jobs spend their
-time, and what to change next, is `docs/benchmarks/v2.9.2-profiles.md`.
-The package version stays 0.1.0. `python -m dna_design_suite.cli.main --version`
-prints 0.1.0.
+Canonical status for the DNA Design Suite at the current tip of this private
+repository. The package version is 0.1.0. There is no release tag. The
+package is not on PyPI. `python -m dna_design_suite.cli.main --version`
+prints 0.1.0. Older notes in `docs/igem-submission.md` and `CHANGELOG.md`
+keep the history. The unreleased delta on top of the v2.9.2 note is the
+top of `CHANGELOG.md`. The CAI gate claim is the one in
+`benchmarks/corpus/gates.json`. The v2.6.0 fronts are in
+`docs/benchmarks/v2.6.0-phase2.md`. The v2.9.1 re-measurement is in
+`docs/benchmarks/v2.9.1-validation.md`. The challenging-sequence timings
+are in `docs/benchmarks/v2.9.1-challenging-perf.md`. Where those jobs
+spent their time on the v2.9.2 tree is
+`docs/benchmarks/v2.9.2-profiles.md`. That file is a measurement of that
+tree. It is not a version number for this tip.
 
 ## Shipped and working
 
@@ -19,12 +22,61 @@ hard constraints. The search is Rust (tier 1 exact dynamic programming, tier
 lifecycle, ingest, and CLI are Python. `POST /v1/jobs`, `POST /v1/score`,
 `POST /v1/observations`, `GET /v1/observations`, `GET /v1/calibration`,
 `GET /v1/healthz`, and `GET /v1/version` are served by the standard-library
-HTTP server. `POST /v1/seeds:import` checks a coding sequence against the
-protein. `POST /v1/hosts:import` builds a usage table from a file the caller
-already has. `POST /v1/feasibility` runs the five checks and can report
-`proven_satisfiable` or `proven_unsatisfiable`. `POST /v1/measurements` stores
-a lab number. An unknown route is `CF-CLI-003`. `GET /v1/hosts` is still the
+HTTP server. An unknown route is `CF-CLI-003`.
+
+`POST /v1/seeds:import`, `seeds import`, and `starting_cds` accept a
+synonymous coding sequence and refuse a different protein with `CF-SEQ-004`
+and the residue positions (`DEP-API-003`). `POST /v1/hosts:import` and
+`hosts import` turn Kazusa text, a delimited count table, a JSON
+`codon_usage` block, or a CDS set into `user_supplied` relative
+adaptiveness (`DEP-API-004`). `genome_wide` is refused (`CF-HOST-003`).
+Unobserved families stay at weight 0 and are named. No elongation rate,
+tRNA copy number, or pseudocount is invented. `GET /v1/hosts` is still the
 example files on disk, not a species catalogue.
+
+`POST /v1/feasibility` runs the five checks and reports `satisfiability`
+(`DEP-CONS-007`). A synonymous CDS the checker accepts, with no findings,
+is `proven_satisfiable`, and `necessary_conditions_only` is false. An
+exact finding with no such witness is `proven_unsatisfiable`, and
+`necessary_conditions_only` is false. Anything else stays `unknown`, and
+`necessary_conditions_only` stays true. `POST /v1/measurements`
+stores the same observation document as `POST /v1/observations`
+(`DEP-ACT-004`). The GC-fraction line does not change codon choices.
+
+`usage.harmonize_rca` minimizes the mean absolute difference of relative
+codon adaptiveness between the input CDS under a source table and the
+candidate under the expression-host table (Claassens et al., PLoS ONE 2017,
+doi:10.1371/journal.pone.0184355; Angov et al., PLoS ONE 2008,
+doi:10.1371/journal.pone.0002189). A missing source table is `CF-HOST-003`.
+`usage.match_frequency` minimizes the summed squared error of synonymous
+fractions. Its radius is unbounded, so tiers 1 and 2 omit it. A fast budget
+warns `CF-SRCH-010` and does not move the seeds for it. Standard and exact
+score it in tier 3 (`DEP-LAND-006`). Neither term is a bit-identical port
+of another tool, and neither is a measured expression change.
+
+`structure_engine=nussinov` is an opt-in maximum matching for
+`structure.local_accessibility` (`DEP-STRU-006`): pair score 1 for A–U,
+G–C and G–U, hairpin of at least 3, mean paired fraction in [0, 1]. It is
+not a free energy and not an unpaired probability. `select_engine()` does
+not choose it. The default engine is still ViennaRNA, installed by the
+user. A missing install on that default is `CF-STRU-003`.
+
+`vendor-screen` and `POST /v1/vendor-screen` flag this suite's synthesis
+and assembly presets and label the public rule classes those presets
+correspond to (`DEP-API-005`). The numeric cutoffs are the presets, not a
+transcribed GeneArt, IDT, GenScript, or Twist threshold. `vendor_score` is
+false. The screen is not a manufacturer score and not an expression assay.
+Wet-lab expression stays out of scope. The checklist is
+`docs/vendor-screen.md`.
+
+`fold` and `POST /v1/structure:global` report a whole-sequence fold
+(`DEP-STRU-007`). ViennaRNA `RNA.fold` supplies kcal/mol when that package
+imports. Otherwise a sequence of at most 400 nt gets a Watson-Crick pair
+count, labelled as base pairs, and a longer sequence is left null. The
+report is not an objective, not windowed accessibility, and not the
+`nussinov` structure engine.
+
+The published assembly pins recorded in `CHANGELOG.md` are unchanged.
 
 The page in `python/dna_design_suite/api/static/` is the shared DNA Design Suite and
 Primer design UI. It is a guided form: a coding sequence, a host, the bundled
@@ -36,11 +88,12 @@ selection uses `document.elementFromPoint` so a drag still names the
 nucleotide under the pointer when Chrome retargets the event. A region can
 also be typed.
 
-Structure scoring uses ViennaRNA, installed by the user and not vendored.
+Structure scoring uses ViennaRNA, installed by the user and not vendored,
+unless the request sets `structure_engine` to `nussinov`. With ViennaRNA,
 `structure.local_accessibility` is windowed accessibility (`Codons(14)` from
 a 40 nt span). When a job requests it, tier 3 ranks on that penalty and the
-recommended candidate is informed by it. A request with no engine installed
-is `CF-STRU-003`. A CAI-only job does not need the engine. A `local_structure`
+recommended candidate is informed by it. A ViennaRNA request with no engine
+installed is `CF-STRU-003`. A CAI-only job does not need the engine. A `local_structure`
 rule with a declared span is measured the same way, and that id is not
 reported as `CF-FEAS-008`. A missing span is `CF-STRU-004`.
 `min_codon_frequency` is still `CF-FEAS-008`.
@@ -124,6 +177,12 @@ score 1.0, equal to `cai_greedy`, and neither designed CDS contains in-frame
 - The original MFE/CAI frontier against LinearDesign or CDSfold was not run.
   LinearDesign stays outside AMD-013. Bundled thermodynamic tables, EXP-06,
   and `P3-14` stay held.
+- `vendor_score` is false. The vendor-class screen does not transcribe a
+  manufacturer cutoff and does not report wet-lab expression.
+- The global fold report is not an objective. Without ViennaRNA, a sequence
+  longer than 400 nt is left null. The Nussinov paired fraction is not a
+  free energy.
+- An unknown route stays `CF-CLI-003`.
 
 ## What would make an unclaimed item claimable
 

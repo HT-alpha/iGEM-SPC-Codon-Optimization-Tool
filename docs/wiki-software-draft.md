@@ -76,6 +76,16 @@ on the current tip runs the following. Details are in the README section
 | 4 | `design_operon`: a synonymous swap is kept only when the caller-supplied flux-weighted burden falls. |
 | 5 | `POST /v1/observations` stores a validated measurement. The secondary model is a least-squares line of one uncensored numeric readout on CDS GC fraction, or `not_fitted`. |
 
+Also on this tip, and named in `docs/project-status.md`: seed import,
+host import, `POST /v1/measurements`, feasibility `proven_satisfiable` /
+`proven_unsatisfiable` (anything else stays `unknown`),
+`usage.harmonize_rca`, `usage.match_frequency`, the Nussinov opt-in
+(mean paired fraction, not a free energy), `vendor-screen`
+(`DEP-API-005`; `vendor_score` is false), and the global fold report
+(`DEP-STRU-007`). Dwell stays `CF-LAND-001`. An unknown route stays
+`CF-CLI-003`. The published assembly pins recorded in `CHANGELOG.md` are
+unchanged.
+
 ## What this version refuses
 
 - Dwell (`epistasis.dwell_deviation`) is `CF-LAND-001`. The head is
@@ -101,29 +111,36 @@ on the current tip runs the following. Details are in the README section
 ## Validation
 
 One table. Every figure is copied from the file in **Source**. Budgets
-differ by row; they are in **Setting**.
+differ by row; they are in **Setting**. Wall times belong to that cited
+measurement. They are not a retiming of this tip and not a hardware
+specification for another machine.
 
 | Check | Setting | Result | Source |
 | --- | --- | --- | --- |
 | CAI gate `GATE-BEN-001` | 50 *E. coli* K-12 CDS; budget `fast`, 4 generations, seed 7; baseline `cai_greedy`; empty constraints | Claimed. DNA Design Suite meets or equals `cai_greedy` on 50 of 50. `suite_ge_greedy: 50`, `behind_greedy: []`. CAI-only. The MFE comparison is not this claim. | `benchmarks/corpus/gates.json`; `CHANGELOG.md` v2.9.1 |
 | `aceB` / `thrA` on that gate | Same gate budget. Native `AGG` (weight 0 in the ribosomal table) | Both score CAI 1.0 with no in-frame `AGG`. The previous record scored 0. The other 48 `suite_cai` values are unchanged. | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained yagF | Assembly rules; CAI only; budget `fast`, generations 0, seed 7 | 1968 nt, CAI 0.9286425884184984, 0 violations, same protein, 0.602 s | `docs/benchmarks/v2.9.1-validation.md` |
-| Constrained waaS | Same | 936 nt, CAI 0.9173459052341191, 0 violations, same protein, 0.194 s | `docs/benchmarks/v2.9.1-validation.md` |
+| Constrained waaS | v2.9.1 measurement. Assembly rules; CAI only; budget `fast`, generations 0, seed 7 | 936 nt, CAI 0.9173459052341191, 0 violations, same protein, 0.194 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Constrained elastin-like VPGVG×20 | Same | 306 nt, CAI 0.43802555520567116, 0 violations, same protein, 0.144 s | `docs/benchmarks/v2.9.1-validation.md` |
-| Constrained yeeJ | Same | 7077 nt, CAI 0.9580065306093907, 0 violations, same protein, 21.386 s | `docs/benchmarks/v2.9.1-validation.md` |
+| Constrained yeeJ | v2.9.1 measurement. Assembly rules; CAI only; budget `fast`, generations 0, seed 7 | 7077 nt, CAI 0.9580065306093907, 0 violations, same protein, 21.386 s | `docs/benchmarks/v2.9.1-validation.md` |
 | Primer design, Table 2 duplex | `5'-CGTTGA-3'` and its complement; SantaLucia 1998 Table 2 | ΔH° −41.2 kcal/mol, ΔS° −115.4 cal/K·mol, ΔG°37 −5.409 kcal/mol, Tm 9.805 °C. Engine matches the hand sum. | `docs/primer-thermo-validation.md` |
 | Primer design, published self-dimer | `CAGCCACTGATGCCAAGAGA` | ΔG°37 −3.556 kcal/mol. Published OligoAnalyzer cell −3.55 kcal/mol. Difference 0.006 kcal/mol. | `docs/primer-thermo-validation.md` |
 | Primer design, yeeJ CDS flanks | 300 nt of the CDS on each side | 20 pairs, product 6843, ΔG −1.28385, not refused, 0.158 s | `docs/benchmarks/v2.9.1-challenging-perf.md` |
 | Primer design, synthetic flanks | yeeJ; `ACGT` repeated, 300 nt each side | 20 pairs, product 7395, ΔG −20.754845, refused (dimer below −9 kcal/mol) | `docs/benchmarks/v2.9.1-challenging-perf.md` |
 | Fold cache, rpsL | CAI + structure, assembly, budget `standard`, 4 generations, seed 7 | Vector unchanged `[0.9731171656422364, 2.581242176257437]`. Wall 1.357 s then 0.561 s. | `docs/benchmarks/v2.9.1-validation.md` |
-| Fold cache, waaS | Same | Vector unchanged `[0.9086209272414913, 1.775449070836324]`. Wall 4.211 s then 2.255 s. | `docs/benchmarks/v2.9.1-validation.md` |
+| Fold cache, waaS | v2.9.1 measurement. CAI + structure, assembly, budget `standard`, 4 generations, seed 7 | Vector unchanged `[0.9086209272414913, 1.775449070836324]`. Wall 4.211 s then 2.255 s. | `docs/benchmarks/v2.9.1-validation.md` |
 | Operon lacZ + thrA | Fluxes 1 and 2; burden; budget `fast`, generations 0, seed 7 | Joint cost 0.4452346719259927, swaps `[26, 0]`. Wall 9.185 s then 1.632 s. | `CHANGELOG.md` v2.9.1; `docs/benchmarks/v2.9.1-challenging-perf.md` |
-| Stress, yeeJ standard | CAI, assembly, budget `standard`, 4 generations | Wall 25.446 s, CAI 0.9580065306093907, same vector as generations 0. Tier 3 ran 4/4. The sweep reports no infeasible CDS. | `docs/benchmarks/v2.9.1-challenging-perf.md` |
+| Stress, yeeJ standard | v2.9.1 measurement. CAI, assembly, budget `standard`, 4 generations | Wall 25.446 s, CAI 0.9580065306093907, same vector as generations 0 on that tree. Tier 3 ran 4/4. The sweep reports no infeasible CDS. | `docs/benchmarks/v2.9.1-challenging-perf.md` |
 
 The generations-12 constrained rerun (different CAI values) is
 `docs/benchmarks/v2.5.0-validation.md`. The v2.6.0 fronts, including
 three-objective knees, are `docs/benchmarks/v2.6.0-phase2.md`. v2.9.1
 re-measured the phase 2 vectors and records them as unchanged.
+
+The waaS and yeeJ CAIs in this table are those v2.9.1 settings. The later
+CAI-only assembly comparison, budget `standard` and 4 generations, is
+`docs/benchmarks/commercial-codon-tools.md`. This draft does not copy
+those figures and does not replace the rows above.
 
 `burden.growth_cost` is a dimensionless demand mismatch. It is not a
 predicted growth rate. CAI 1.0 on an empty constraint set means every
