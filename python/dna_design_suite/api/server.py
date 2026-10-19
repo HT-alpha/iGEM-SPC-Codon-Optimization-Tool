@@ -86,6 +86,10 @@ _EXAMPLE_FILES = {
         "golden_gate.json",
         "application/json",
     ),
+    "/examples/gibson.json": (
+        "gibson.json",
+        "application/json",
+    ),
     "/examples/synthesis.json": (
         "synthesis.json",
         "application/json",
@@ -757,6 +761,43 @@ def run_vendor_screen(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         )
 
 
+def run_gibson(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+    """Homology arms and direct repeats. The body is not a design job."""
+    from dna_design_suite.codon.gibson import GibsonError, assess
+
+    if not isinstance(body.get("cds"), str):
+        return 422, problem(
+            "CF-GIB-003",
+            "Gibson assembly input is malformed",
+            422,
+            "POST /v1/gibson needs cds",
+        )
+    arm_length = body.get("arm_length", 40)
+    if isinstance(arm_length, bool) or not isinstance(arm_length, int):
+        return 422, problem(
+            "CF-GIB-003",
+            "Gibson assembly input is malformed",
+            422,
+            "arm_length must be an integer",
+        )
+    try:
+        report = assess(
+            body.get("cds") or "",
+            body.get("five_prime_flank") or "",
+            body.get("three_prime_flank") or "",
+            arm_length=arm_length,
+        )
+    except GibsonError as exc:
+        return 422, problem(exc.code, _gibson_title(exc.code), 422, exc.detail)
+    return 200, report
+
+
+def _gibson_title(code: str) -> str:
+    from dna_design_suite.codon.gibson import TITLES
+
+    return TITLES.get(code, "Gibson assembly input is malformed")
+
+
 def run_global_fold(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
     from dna_design_suite.codon.predictors.global_fold import global_fold_report
 
@@ -1111,6 +1152,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._unauthorized()
                 return
             self._send(200, list_recalibrations(self.server.api.store, tenant))
+            return
+        if path == "/v1/gibson" and method == "POST":
+            tenant = _tenant(self.headers.get("Authorization"))
+            if tenant is None:
+                self._unauthorized()
+                return
+            status, payload = run_gibson(self._json())
+            self._send(status, payload, problem_body=status >= 400)
             return
         if path == "/v1/vendor-screen" and method == "POST":
             tenant = _tenant(self.headers.get("Authorization"))

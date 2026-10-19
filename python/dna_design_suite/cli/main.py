@@ -75,6 +75,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     d.add_argument("--objectives", default="usage.cai")
     d.add_argument("--constraints")
+    d.add_argument(
+        "--assembly",
+        choices=["gibson"],
+        help="load examples/gibson.json when --constraints is omitted",
+    )
+    d.add_argument("--five-prime-flank", default="", help="immutable sequence before the CDS")
+    d.add_argument("--three-prime-flank", default="", help="immutable sequence after the CDS")
+    d.add_argument(
+        "--gibson-arm-length",
+        type=int,
+        default=40,
+        help="junction slice copied from each flank when --assembly gibson is set",
+    )
     d.add_argument("--budget", choices=["fast", "standard", "exact"], default="standard")
     d.add_argument("--seed", type=int, default=0)
     d.add_argument("--generations", type=int, default=12)
@@ -97,7 +110,19 @@ def build_parser() -> argparse.ArgumentParser:
     feas = sub.add_parser("feasibility", parents=[common], help="analyse a constraint set")
     feas.add_argument("--cds", required=True)
     feas.add_argument("--constraints", required=True)
+    feas.add_argument("--five-prime-flank", default="")
+    feas.add_argument("--three-prime-flank", default="")
     feas.add_argument("--translation-table", type=int, default=11)
+
+    gibson = sub.add_parser(
+        "gibson",
+        parents=[common],
+        help="homology arms and direct repeats for a CDS and its flanks",
+    )
+    gibson.add_argument("--cds", required=True)
+    gibson.add_argument("--five-prime-flank", default="")
+    gibson.add_argument("--three-prime-flank", default="")
+    gibson.add_argument("--arm-length", type=int, default=40)
 
     sub.add_parser("terms", parents=[common], help="list built-in terms and directions")
 
@@ -196,6 +221,8 @@ def _dispatch(args: argparse.Namespace) -> int:
         return _vendor_screen(args)
     if args.verb == "fold":
         return _fold(args)
+    if args.verb == "gibson":
+        return _gibson(args)
     return _design(args)
 
 
@@ -291,7 +318,7 @@ def _design(args: argparse.Namespace) -> int:
 
     if result.job.state == "failed":
         return _failed(result, args.output)
-    _emit(result, args.output)
+    _emit(result, args.output, args)
     return EXIT_OK
 
 
@@ -340,7 +367,7 @@ def _exit_for_code(code: str) -> int:
     return EXIT_DESIGN_FAILED
 
 
-def _emit(result: Any, output: str) -> None:
+def _emit(result: Any, output: str, args: argparse.Namespace | None = None) -> None:
     """Render a finished design in the requested format.
 
     Every branch below hands the *documents* to a writer. None of them reaches
@@ -361,10 +388,41 @@ def _emit(result: Any, output: str) -> None:
         print(result.to_sbol(), end="")
     else:
         _render(result)
+    if (
+        args is not None
+        and getattr(args, "assembly", None) == "gibson"
+        and output in {"table", "explain"}
+        and result.front
+    ):
+        from dna_design_suite.codon.gibson import assess, format_text
+
+        cds = result.best()["sequences"][0]["cds"]
+        report = assess(
+            cds,
+            args.five_prime_flank or "",
+            args.three_prime_flank or "",
+            arm_length=args.gibson_arm_length,
+        )
+        print(format_text(report), end="")
 
 
 def _request(args: argparse.Namespace) -> DesignRequest:
     if args.json_file:
+        extra = []
+        if args.assembly:
+            extra.append("--assembly")
+        if args.five_prime_flank:
+            extra.append("--five-prime-flank")
+        if args.three_prime_flank:
+            extra.append("--three-prime-flank")
+        if args.gibson_arm_length != 40:
+            extra.append("--gibson-arm-length")
+        if extra:
+            raise DesignError(
+                "CF-CLI-001",
+                "--json already carries the request. Drop " + ", ".join(extra) + ".",
+                exit_code=EXIT_INVALID_INPUT,
+            )
         return DesignRequest.from_json(Path(args.json_file).read_text(encoding="utf-8"))
     missing = [flag for flag, value in (("--host", args.host), ("--cds", args.cds)) if not value]
     if missing:
@@ -373,6 +431,22 @@ def _request(args: argparse.Namespace) -> DesignRequest:
             f"missing required {' and '.join(missing)} (or pass --json)",
             exit_code=EXIT_INVALID_INPUT,
         )
+    if args.assembly == "gibson" and args.constraints:
+        raise DesignError(
+            "CF-CLI-001",
+            "--assembly gibson loads examples/gibson.json. Drop --constraints, "
+            "or pass that file yourself and drop --assembly.",
+            exit_code=EXIT_INVALID_INPUT,
+        )
+    if args.assembly == "gibson":
+        from dna_design_suite.codon.gibson import GibsonError, constraint_set
+
+        try:
+            constraints = constraint_set()
+        except GibsonError as exc:
+            raise DesignError(exc.code, exc.detail, exit_code=EXIT_INVALID_INPUT) from exc
+    else:
+        constraints = _load(args.constraints, _EMPTY_CONSTRAINTS)
     profile = _load(args.host_profile)
     if args.source_profile:
         source = _load(args.source_profile)
@@ -384,7 +458,9 @@ def _request(args: argparse.Namespace) -> DesignRequest:
         cds=args.cds,
         host_profile=profile,
         objectives=[t for t in args.objectives.split(",") if t],
-        constraints=_load(args.constraints, _EMPTY_CONSTRAINTS),
+        constraints=constraints,
+        five_prime_flank=_flank(args.five_prime_flank, "five_prime_flank"),
+        three_prime_flank=_flank(args.three_prime_flank, "three_prime_flank"),
         budget=args.budget,
         seed=args.seed,
         generations=args.generations,
@@ -485,11 +561,15 @@ def _feasibility(args: argparse.Namespace) -> int:
     except DesignError as error:
         print(f"{error.code}: {error.detail}", file=sys.stderr)
         return error.exit_code
+    flank5 = _flank(args.five_prime_flank, "five_prime_flank")
+    flank3 = _flank(args.three_prime_flank, "three_prime_flank")
+    construct = flank5 + args.cds + flank3
+    start = len(flank5)
     report = json.loads(
         _core.constraint_violations(
             json.dumps(constraints),
-            args.cds,
-            [(0, len(args.cds))],
+            construct,
+            [(start, start + len(args.cds))],
             "assembled",
         )
     )
@@ -541,6 +621,24 @@ def _show(path: Path, args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _gibson(args: argparse.Namespace) -> int:
+    from dna_design_suite.codon.gibson import GibsonError, assess
+
+    try:
+        report = assess(
+            args.cds,
+            args.five_prime_flank or "",
+            args.three_prime_flank or "",
+            arm_length=args.arm_length,
+        )
+    except GibsonError as exc:
+        return _report(exc.code, exc.detail, EXIT_INVALID_INPUT)
+    print(json.dumps(report, indent=2, sort_keys=True))
+    if any(item["code"] == "CF-GIB-001" for item in report["problems"]):
+        return EXIT_INFEASIBLE
+    return EXIT_OK
+
+
 def _vendor_screen(args: argparse.Namespace) -> int:
     from dna_design_suite.vendor.screen import screen_sequence
 
@@ -561,6 +659,17 @@ def _fold(args: argparse.Namespace) -> int:
         raise DesignError("CF-CLI-001", str(exc), exit_code=EXIT_INVALID_INPUT) from exc
     print(json.dumps(report, indent=2, sort_keys=True))
     return EXIT_OK
+
+
+def _flank(value: str | None, label: str) -> str:
+    text = "".join((value or "").upper().split())
+    if any(base not in "ACGT" for base in text):
+        raise DesignError(
+            "CF-CLI-001",
+            f"{label} contains a character that is not A, C, G or T",
+            exit_code=EXIT_INVALID_INPUT,
+        )
+    return text
 
 
 def _load(path: str | None, empty: dict[str, Any] | None = None) -> dict[str, Any]:

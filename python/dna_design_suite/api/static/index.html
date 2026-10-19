@@ -152,9 +152,10 @@
         <div class="seq-actions" id="constraint-presets">
           <button type="button" class="secondary" data-preset="biobrick_rfc10.json">BioBrick RFC[10]</button>
           <button type="button" class="secondary" data-preset="golden_gate.json">Golden Gate</button>
+          <button type="button" class="secondary" data-preset="gibson.json">Gibson</button>
           <button type="button" class="secondary" data-preset="synthesis.json">Synthesis</button>
         </div>
-        <p class="field-help">Each button loads that preset into the JSON box and sends it. BioBrick RFC[10] forbids EcoRI, XbaI, SpeI, PstI and NotI. Golden Gate forbids BsaI and BsmBI. Synthesis forbids a 50 nt GC window outside 40–60%, a homopolymer longer than 6, and a repeated 12-mer. A rule this version does not search is reported as CF-FEAS-008 rather than treated as satisfied.</p>
+        <p class="field-help">Each button loads that preset into the JSON box and sends it. BioBrick RFC[10] forbids EcoRI, XbaI, SpeI, PstI and NotI. Golden Gate forbids BsaI and BsmBI. Synthesis forbids a 50 nt GC window outside 40–60%, a homopolymer longer than 6, and a repeated 12-mer. Gibson forbids that same repeated 12-mer on the 5′ flank, the coding sequence, and the 3′ flank as one string. Paste the promoter and the terminator into the flanks under Advanced. A clear Gibson result does not guarantee that the fragments will assemble. A rule this version does not search is reported as CF-FEAS-008 rather than treated as satisfied.</p>
         <div id="constraint-builder" hidden>
           <fieldset>
             <legend>Common synthesis and cloning limits</legend>
@@ -265,7 +266,11 @@
       <div class="v">
         <label for="flank-5">5′ flank <input id="flank-5" class="seq" type="text" spellcheck="false" autocomplete="off"></label>
         <label for="flank-3">3′ flank <input id="flank-3" class="seq" type="text" spellcheck="false" autocomplete="off"></label>
-        <p class="field-help">Bases before and after the coding sequence that must not change, such as a ribosome binding site you already chose. Leave blank if the coding sequence is the whole design.</p>
+        <p class="field-help">Bases before and after the coding sequence that must not change, such as a promoter and a terminator. The Gibson repeat rule counts these together with the coding sequence. A 12-mer that occurs once in the promoter and once in the gene is a repeat the search can try to remove from the gene. A repeat that sits only in the flank is reported and left in place. Leave both blank if the coding sequence is the whole design. Sequence you do not paste is not scanned.</p>
+        <label for="gibson-arm-length">Gibson homology arm length
+          <input id="gibson-arm-length" class="narrow" type="number" min="20" max="150" value="40" aria-describedby="help-gibson-arm">
+        </label>
+        <p id="help-gibson-arm" class="field-help">Used by Gibson report, not by the codon search. Each arm is this many bases copied from the end of the 5′ flank and the start of the 3′ flank. 40 is the default. 20 to 150 is the accepted range. Melting temperature is not computed, and bases are not invented when a flank is shorter than this number.</p>
       </div>
     </div>
     <div class="rail">
@@ -290,12 +295,14 @@
     <button type="button" id="check-feasibility" class="secondary">Check these rules</button>
     <button type="button" id="vendor-screen" class="secondary">Vendor-class screen</button>
     <button type="button" id="global-fold" class="secondary">Global fold</button>
+    <button type="button" id="gibson-report" class="secondary">Gibson report</button>
     <p class="note">Run design posts the job and returns immediately. Fast, on the rpsL demo, usually finishes within a minute. Check these rules asks whether the DNA you pasted can satisfy the constraints. It does not start a design. Vendor-class screen flags GC windows, homopolymers, repeats and cloning sites using this suite’s presets. It is not a manufacturer score and not an expression assay. Global fold reports a ViennaRNA minimum free energy when that program is installed, or a labelled Nussinov base-pair count when it is not. That fold is not the windowed accessibility objective.</p>
   </div>
   <div id="submit-error" role="alert"></div>
   <div id="feasibility-root" aria-live="polite"><p class="note empty-state">Rules not checked yet. Check these rules uses the DNA in the box. A protein or a GenBank file is checked on the finished design.</p></div>
   <div id="vendor-root" aria-live="polite"></div>
   <div id="fold-root" aria-live="polite"></div>
+  <div id="gibson-root" aria-live="polite"></div>
 
   <div id="codon-helix" class="helix-stage" aria-hidden="true"></div>
   <h2 id="status">Status</h2>

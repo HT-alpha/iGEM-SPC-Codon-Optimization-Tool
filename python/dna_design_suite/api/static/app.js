@@ -99,6 +99,9 @@ const NEXT_STEP = {
   "CF-ORCH-006": "The budget you chose names a stage this version does not run. The stages that did run are listed, and the sequence is from those. Fast and Standard do not ask for the extra stage. Choosing Exact asks for a final ranking that is reported as skipped.",
   "CF-ORCH-007": "A later stage did not beat an earlier one. The sequence shown is the better of the two, and the notice names both stages. The search is allowed to try a change that does not win.",
   "CF-PRIM-001": "No primer pair passed the filters. Select a longer region, widen the product-size range, or move the melting-temperature target.",
+  "CF-GIB-001": "The flank is shorter than the homology arm. The arm is copied from the flank. Paste a longer neighbor, or lower the arm length. Missing bases are not invented.",
+  "CF-GIB-002": "That side has no flank, so no arm was copied there and the repeat scan did not see a neighbor on that side.",
+  "CF-GIB-003": "The Gibson report could not be built. The detail says whether the sequence or the arm length is the problem.",
   "CF-PRIM-002": "There is not enough sequence beside the region for a primer. Select a region further from the end, or paste a longer template.",
   "CF-PRIM-003": "The selected region does not sit inside the sequence. Select again, or use Select the whole sequence.",
   "CF-PRIM-006": "A letter in the template is not A, C, G or T, or a minimum is larger than its maximum. The detail names the base and its position in the header-stripped sequence. Lowercase bases are accepted.",
@@ -796,6 +799,7 @@ async function loadFront(jobId) {
   if (front.status === 200 && front.payload && !front.payload.code) {
     codonHelix.setState(renderFront(front.payload) ? "result" : "error");
     fillComparison(front.payload);
+    fillGibson(front.payload);
   } else {
     showFrontFailure(front);
     codonHelix.setState("error");
@@ -2368,6 +2372,81 @@ async function readUsageFile(file) {
   return response.payload;
 }
 
+function renderGibsonReport(report) {
+  if (!report || report.code) return problemCallout(report || {});
+  const limits = (report.limitations || []).map((item) => `<li>${escapeText(item)}</li>`).join("");
+  const arms = report.homology_arms || {};
+  const armLine = (label, arm) => {
+    if (!arm) return "";
+    if (arm.designed) {
+      return `<p><strong>${escapeText(label)}</strong> <span class="mono">${escapeText(arm.sequence || "")}</span> <span class="note">${escapeText(arm.detail || "")}</span></p>`;
+    }
+    return `<p><strong>${escapeText(label)}</strong> ${chip("warning", arm.code || "not designed")} ${escapeText(arm.detail || "")}</p>`;
+  };
+  const repeats = report.recombination || {};
+  const sites = Array.isArray(repeats.sites) ? repeats.sites : [];
+  const siteHtml = sites.length
+    ? `<ul class="finding-list">${sites.map((site) => `<li><span class="mono">${escapeText(site.kmer || "")}</span> ${escapeText(site.class || "")} ×${escapeText(String(site.count))} ${site.actionable ? "the search can try to edit this" : "only in a flank"}</li>`).join("")}</ul>`
+    : `<p class="field-help">No exact ${escapeText(String(repeats.k || ""))}-mer is over the limit in the scanned string.</p>`;
+  const fragment = arms.fragment
+    ? `<p class="mono">${escapeText(arms.fragment)}</p>`
+    : `<p class="note">No insert sequence.</p>`;
+  return `<h3>Gibson report</h3>
+    <p>${escapeText(report.guarantee_statement || "")}</p>
+    ${armLine("5′ arm", arms.five_prime)}
+    ${armLine("3′ arm", arms.three_prime)}
+    <p class="field-help">${escapeText(arms.fragment_note || "")} ${escapeText(arms.method || "")}</p>
+    ${fragment}
+    <p>${escapeText(String(repeats.n_sites || 0))} repeat(s) over the limit. ${escapeText(String(repeats.n_actionable || 0))} touch the coding sequence. ${escapeText(String(repeats.n_flank_only || 0))} sit only in the flanks.</p>
+    ${siteHtml}
+    <ul>${limits}</ul>`;
+}
+
+async function postGibson(cds, flanks) {
+  const arm = document.getElementById("gibson-arm-length");
+  const source = flanks || {
+    five: flankValue("flank-5"),
+    three: flankValue("flank-3"),
+  };
+  return call("POST", "/v1/gibson", {
+    cds,
+    five_prime_flank: source.five || "",
+    three_prime_flank: source.three || "",
+    arm_length: arm ? Number(arm.value) : 40,
+  });
+}
+
+async function runGibsonReport() {
+  const root = document.getElementById("gibson-root");
+  if (!root) return;
+  const cds = currentDna();
+  root.innerHTML = `<p class="note">Reading homology arms and direct repeats on the DNA in the box and the flanks under Advanced.</p>`;
+  const response = await postGibson(cds);
+  root.innerHTML = renderGibsonReport(response.payload);
+}
+
+async function fillGibson(front) {
+  const root = document.getElementById("gibson-root");
+  if (!root || !lastSubmitted) return;
+  const constraints = lastSubmitted.constraints || {};
+  if (constraints.constraint_set_id !== "cst_gibson") return;
+  try {
+    const recommended = front.recommended || {};
+    const candidates = front.candidates || [];
+    const candidate = candidates.find((item) => item.candidate_id === recommended.candidate_id) || candidates[0];
+    const designed = candidate && candidate.sequences && candidate.sequences[0] ? candidate.sequences[0].cds || "" : "";
+    if (!designed) return;
+    root.innerHTML = `<p class="note">Gibson report for the recommended coding sequence and the flanks on this job.</p>`;
+    const response = await postGibson(designed, {
+      five: lastSubmitted.five_prime_flank || "",
+      three: lastSubmitted.three_prime_flank || "",
+    });
+    root.innerHTML = renderGibsonReport(response.payload);
+  } catch (error) {
+    root.innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+  }
+}
+
 async function runVendorScreen() {
   const root = document.getElementById("vendor-root");
   const cds = currentDna();
@@ -2535,6 +2614,14 @@ function bindGuide() {
     vendorButton.addEventListener("click", () => {
       runVendorScreen().catch((error) => {
         document.getElementById("vendor-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+      });
+    });
+  }
+  const gibsonButton = document.getElementById("gibson-report");
+  if (gibsonButton) {
+    gibsonButton.addEventListener("click", () => {
+      runGibsonReport().catch((error) => {
+        document.getElementById("gibson-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
       });
     });
   }

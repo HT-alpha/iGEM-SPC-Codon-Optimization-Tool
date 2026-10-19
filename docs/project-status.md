@@ -69,6 +69,15 @@ false. The screen is not a manufacturer score and not an expression assay.
 Wet-lab expression stays out of scope. The checklist is
 `docs/vendor-screen.md`.
 
+`examples/gibson.json`, `gibson`, and `POST /v1/gibson` apply the synthesis
+preset’s exact 12-mer rule to the 5′ flank, the CDS, and the 3′ flank, and
+they copy a homology arm from each supplied flank (`DEP-API-006`). The
+default arm is 40 nt, accepted from 20 to 150. No bases are invented.
+Overlap melting temperature is not computed. Omitted vector sequence,
+circular wrap, mismatches, and inverted repeats are not scanned. A clear
+report does not mean the fragments will assemble. The limits are
+`docs/gibson-assembly.md`.
+
 `fold` and `POST /v1/structure:global` report a whole-sequence fold
 (`DEP-STRU-007`). ViennaRNA `RNA.fold` supplies kcal/mol when that package
 imports. Otherwise a sequence of at most 400 nt gets a Watson-Crick pair
