@@ -1,0 +1,205 @@
+name: native wheel install
+
+# Install the published PyPI wheels on the two platforms publish.yml cannot
+# load: Linux aarch64 and macOS Intel (x86_64). publish.yml cross-builds
+# those wheels and install-checks the Linux x86_64 and macOS arm64 wheels
+# instead.
+#
+# This file does not build or upload. It does not run on tags. It never
+# selects TestPyPI or PyPI. The only index it reads is https://pypi.org/simple.
+#
+# macos-13, macos-13-large, and macos-13-xlarge were retired on 4 December
+# 2025. macos-15-intel is the standard Intel label GitHub documents for
+# public repositories (free). ubuntu-24.04-arm is the standard arm64 label.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cursor/native-wheel-install-5449
+    paths:
+      - .github/workflows/native-wheel-install.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-wheel-install-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  install:
+    name: ${{ matrix.runner }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04-arm
+            python: "3.11"
+            arch: aarch64
+          - runner: ubuntu-24.04-arm
+            python: "3.13"
+            arch: aarch64
+          - runner: macos-15-intel
+            python: "3.11"
+            arch: x86_64
+          - runner: macos-15-intel
+            python: "3.13"
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: require the native architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "uname -m=$(uname -m)"
+          echo "RUNNER_OS=${RUNNER_OS}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH}"
+          echo "ImageOS=${ImageOS:-}"
+          echo "ImageVersion=${ImageVersion:-}"
+          uname -a
+          test "$(uname -m)" = "${{ matrix.arch }}"
+
+      - name: install dna-design-suite from PyPI into a clean venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/dds"
+          "$RUNNER_TEMP/dds/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/dds/bin/python" -m pip install \
+            --index-url https://pypi.org/simple \
+            --only-binary=dna-design-suite \
+            --no-cache-dir \
+            --report "$RUNNER_TEMP/pip-report.json" \
+            'dna-design-suite==0.1.0.post1'
+          "$RUNNER_TEMP/dds/bin/python" - "$RUNNER_TEMP/pip-report.json" "${{ matrix.arch }}" <<'PY'
+          import json
+          import platform
+          import sys
+
+          report_path, arch = sys.argv[1], sys.argv[2]
+          report = json.loads(open(report_path, encoding="utf-8").read())
+          rows = [
+              item
+              for item in report["install"]
+              if item["metadata"]["name"] == "dna-design-suite"
+          ]
+          if len(rows) != 1:
+              raise SystemExit(f"expected one dna-design-suite row, got {rows!r}")
+          row = rows[0]
+          version = row["metadata"]["version"]
+          url = row["download_info"]["url"]
+          print(f"installed_version={version}")
+          print(f"wheel_url={url}")
+          print(f"platform.machine={platform.machine()}")
+          if version != "0.1.0.post1":
+              raise SystemExit(f"unexpected version {version}")
+          if not url.endswith(".whl") or ".tar.gz" in url:
+              raise SystemExit(f"sdist or non-wheel was selected: {url}")
+          if "cp311-abi3" not in url:
+              raise SystemExit(f"wheel is not the abi3 cp311 build: {url}")
+          if arch == "aarch64":
+              if "aarch64" not in url or "manylinux" not in url:
+                  raise SystemExit(f"Linux aarch64 wheel was not selected: {url}")
+          elif arch == "x86_64":
+              if "macosx" not in url or "x86_64" not in url:
+                  raise SystemExit(f"macOS x86_64 wheel was not selected: {url}")
+          else:
+              raise SystemExit(f"unknown arch {arch}")
+          if platform.machine() != arch:
+              raise SystemExit(
+                  f"interpreter machine {platform.machine()} != runner arch {arch}"
+              )
+          import dna_design_suite._core as core
+
+          print(f"core_file={core.__file__}")
+          print(f"core_version={core.version()}")
+          if ".so" not in core.__file__:
+              raise SystemExit(f"compiled extension was not loaded: {core.__file__}")
+          PY
+          {
+            echo "### ${{ matrix.runner }} / Python ${{ matrix.python }}"
+            echo
+            echo '```'
+            "$RUNNER_TEMP/dds/bin/python" -c 'import json,sys; r=json.load(open(sys.argv[1]));
+          rows=[i for i in r["install"] if i["metadata"]["name"]=="dna-design-suite"];
+          print(rows[0]["download_info"]["url"])' "$RUNNER_TEMP/pip-report.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: CLI version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$("$RUNNER_TEMP/dds/bin/dna-design-suite" --version)"
+          echo "dna-design-suite --version: ${version}"
+          module="$("$RUNNER_TEMP/dds/bin/python" -m dna_design_suite.cli.main --version)"
+          echo "python -m dna_design_suite.cli.main --version: ${module}"
+          test "$version" = "0.1.0"
+          test "$module" = "0.1.0"
+
+      - name: rpsL demo
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/dds/bin/python" -m dna_design_suite.cli.main design \
+            --host escherichia_coli:511145/MG1655 \
+            --cds "$(tr -d '\n' < examples/rpsL.cds)" \
+            --host-profile examples/mg1655_ribosomal_usage.json \
+            --constraints examples/rpsL_constraints.json \
+            --objectives usage.cai \
+            --budget fast \
+            --generations 4 \
+            --seed 7 \
+            --output explain | tee "$RUNNER_TEMP/rpsl-explain.txt"
+          grep -q 'usage.cai' "$RUNNER_TEMP/rpsl-explain.txt"
+          grep -q 'succeeded' "$RUNNER_TEMP/rpsl-explain.txt"
+
+      - name: API healthz
+        shell: bash
+        run: |
+          set -euo pipefail
+          port=8765
+          "$RUNNER_TEMP/dds/bin/python" -m dna_design_suite.api \
+            --host 127.0.0.1 --port "$port" --no-browser \
+            > "$RUNNER_TEMP/api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/api.pid"
+          cleanup() {
+            if [[ -f "$RUNNER_TEMP/api.pid" ]]; then
+              kill "$(cat "$RUNNER_TEMP/api.pid")" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+          ok=0
+          for _ in $(seq 1 40); do
+            if curl -fsS "http://127.0.0.1:${port}/v1/healthz" -o "$RUNNER_TEMP/healthz.json"; then
+              ok=1
+              break
+            fi
+            sleep 1
+          done
+          echo "--- api log ---"
+          cat "$RUNNER_TEMP/api.log"
+          if [[ "$ok" != 1 ]]; then
+            echo "GET /v1/healthz did not succeed" >&2
+            exit 1
+          fi
+          echo "--- healthz ---"
+          cat "$RUNNER_TEMP/healthz.json"
+          echo
+          "$RUNNER_TEMP/dds/bin/python" - "$RUNNER_TEMP/healthz.json" <<'PY'
+          import json
+          import sys
+
+          body = json.loads(open(sys.argv[1], encoding="utf-8").read())
+          print(body)
+          if body.get("status") != "ok":
+              raise SystemExit(f"healthz status is not ok: {body}")
+          PY

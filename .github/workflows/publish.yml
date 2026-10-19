@@ -125,10 +125,12 @@ jobs:
 
   # abi3-py311 wheels install on every supported CPython. Prove 3.11 and 3.13
   # on each runner that can load the wheel it just built. macos-latest is
-  # arm64, so the x86_64 macOS wheel is built above and published, and the
-  # install check uses the arm64 wheel. Linux aarch64 is cross-compiled on
-  # the x86_64 runner; the wheel is published, and the install check uses
-  # the x86_64 wheel.
+  # arm64, so this job install-checks the arm64 macOS wheel. Linux aarch64
+  # is cross-compiled on the x86_64 runner, so this job install-checks the
+  # x86_64 Linux wheel. The published macOS x86_64 and Linux aarch64 wheels
+  # were install-tested from PyPI on ubuntu-24.04-arm and macos-15-intel
+  # by native-wheel-install.yml. Run 39258362760:
+  # https://github.com/HT-alpha/iGEM-SPC-Codon-Optimization-Tool/actions/runs/39258362760
   install:
     name: install ${{ matrix.python }} (${{ matrix.artifact }})
     needs: build
