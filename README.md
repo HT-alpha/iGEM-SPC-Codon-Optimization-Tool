@@ -197,6 +197,43 @@ On Windows PowerShell, pass the CDS with
 
 ---
 
+## Gibson assembly
+
+The codon tool can count an exact repeated 12-mer across a coding sequence
+and the flanks you supply, and it can copy a homology arm from each flank.
+The constraint file is [`examples/gibson.json`](examples/gibson.json). The
+limits, including what is not scanned, are
+[`docs/gibson-assembly.md`](docs/gibson-assembly.md). A report with no
+repeat over the limit does not mean the fragments will assemble.
+
+```sh
+python -m dna_design_suite.cli.main design \
+    --host escherichia_coli:511145/MG1655 \
+    --cds "$(tr -d '\n' < examples/rpsL.cds)" \
+    --host-profile examples/mg1655_ribosomal_usage.json \
+    --assembly gibson \
+    --five-prime-flank TTGACAATTAATCATCGGCTCGTATAATGTGTGGA \
+    --three-prime-flank AAAGCCCGCTCTAGAGGATCCCCG \
+    --objectives usage.cai \
+    --budget fast \
+    --generations 4 \
+    --seed 7 \
+    --output explain
+```
+
+The arm and repeat report on a sequence you already have:
+
+```sh
+python -m dna_design_suite.cli.main gibson \
+    --cds ATGTAA \
+    --five-prime-flank TTGACAATTAATCATCGGCTCGTATAATGTGTGGA \
+    --three-prime-flank AAAGCCCGCTCTAGAGGATCCCCG \
+    --arm-length 20
+```
+
+`--arm-length` accepts 20 to 150. The default is 40. On Windows PowerShell,
+pass the CDS the same way as the rpsL example above.
+
 ## Honest limits
 
 The phase plan is

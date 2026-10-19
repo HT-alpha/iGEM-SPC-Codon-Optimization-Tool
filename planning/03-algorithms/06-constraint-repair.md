@@ -295,3 +295,9 @@ When no attempt is feasible, the job fails. The problem is `CF-SRCH-006`, stage 
 `DEP-SRCH-021` — Once that seed is feasible, CAI ascent is not limited to the 24-by-6 local pairs of `DEP-SRCH-018`. A heavier codon is tried together with a repair at the violation it creates, including a 12-mer copy elsewhere in the CDS and a GC window wider than four codons. An edit that does not raise CAI, or that leaves the checker unsatisfied, is discarded.
 
 `DEP-SRCH-022` — The four attempts are all scored. Stopping at the first feasible sequence left the higher-CAI attempt unbuilt: on waaS the weight-ordered most-frequent start is feasible and the low-index start of the same assignment is a higher CAI. The seed stays deterministic. No job seed is read here.
+
+---
+
+## 9. Gibson uses this checker
+
+`DEP-API-006`. Gibson does not add a repeat counter. `examples/gibson.json` is one blocking `kmer_repeat`: k = 12, `max_occurrences` 1, overlapping counts, direct strand only, scope `construct`. The view is the caller’s 5′ flank, the CDS, and the 3′ flank. A 12-mer shared by a flank and the CDS is actionable, because one copy touches an editable base, so seed repair can change the CDS. A 12-mer that never touches the CDS stays non-actionable (`DEP-CONS-002`). The homology-arm report copies a slice of a flank. It does not edit the CDS and it does not count repeats a second time.

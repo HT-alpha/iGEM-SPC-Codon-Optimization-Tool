@@ -17,6 +17,7 @@ SOURCE = ROOT / "examples"
 DEST = ROOT / "python" / "dna_design_suite" / "api" / "examples"
 NAMES = (
     "biobrick_rfc10.json",
+    "gibson.json",
     "golden_gate.json",
     "kazusa_e_coli_316407.json",
     "mg1655_ribosomal_usage.json",

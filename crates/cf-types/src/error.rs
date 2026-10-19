@@ -146,6 +146,11 @@ codes! {
     PRIM_CONFIG            => ("CF-PRIM-006", 422, "Primer search configuration is malformed", "planning/02-schemas/primer_parameters.schema.json"),
     PRIM_TRUNCATED         => ("CF-PRIM-007", 200, "Primer candidates were limited to those closest to the Tm target before dimer evaluation", "planning/02-schemas/primer_parameters.schema.json"),
 
+    // ---- CF-GIB: Gibson context, homology arms, direct repeats -------------
+    GIB_ARM_TOO_SHORT      => ("CF-GIB-001", 422, "A homology arm cannot be copied from the supplied flank", "planning/04-api/01-rest-api.md"),
+    GIB_NO_FLANK           => ("CF-GIB-002", 200, "No flanking sequence was supplied on this side", "planning/04-api/01-rest-api.md"),
+    GIB_INPUT              => ("CF-GIB-003", 422, "Gibson assembly input is malformed", "planning/04-api/01-rest-api.md"),
+
     // ---- CF-CLI: command line and library surface --------------------------
     CLI_BAD_ARGUMENTS      => ("CF-CLI-001", 400, "Command-line arguments are missing or malformed", "planning/04-api/02-cli-and-library.md"),
     CLI_EMPTY_FRONT        => ("CF-CLI-002", 200, "The job produced no candidates", "planning/02-schemas/pareto_front.schema.json"),

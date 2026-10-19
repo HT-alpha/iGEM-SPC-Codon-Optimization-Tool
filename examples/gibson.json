@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "constraint_set_id": "cst_gibson",
+  "name": "Gibson: an exact 12-mer may occur once on the supplied construct (5' flank + CDS + 3' flank). Direct repeats only. The search can edit the CDS. A repeat that sits only in a flank is reported and left in place. Passing this rule does not guarantee assembly.",
+  "constraints": [
+    {
+      "id": "c_gibson_kmer12",
+      "class": "blocking",
+      "scope": "construct",
+      "rule": {
+        "kind": "kmer_repeat",
+        "k": 12,
+        "max_occurrences": 1,
+        "count_overlapping": true,
+        "canonical_strand": false
+      }
+    }
+  ],
+  "repair_policy": {}
+}

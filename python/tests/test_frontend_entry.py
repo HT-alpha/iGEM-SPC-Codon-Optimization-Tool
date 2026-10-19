@@ -260,6 +260,7 @@ def test_the_page_names_the_same_illegal_base_as_the_api() -> None:
     assert 'id="trim-stop"' in page
     assert "data-preset=\"biobrick_rfc10.json\"" in page
     assert "data-preset=\"golden_gate.json\"" in page
+    assert "data-preset=\"gibson.json\"" in page
     assert "data-preset=\"synthesis.json\"" in page
     assert "checks nothing" in page
     assert "informational, not a filter" in APP.read_text(encoding="utf-8")

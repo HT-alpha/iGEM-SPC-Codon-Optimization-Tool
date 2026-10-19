@@ -21,6 +21,18 @@ refused (`CF-SBOL-002`). There is no SBOL import and no round trip. Codon
 usage and design constraints are annotations. No `sbol:Constraint` object is
 written.
 
+Gibson assembly context is `examples/gibson.json`, the `gibson` command, and
+`POST /v1/gibson` (`DEP-API-006`). The constraint is the synthesis preset’s
+exact 12-mer, counted on the 5′ flank, the CDS, and the 3′ flank together.
+`design --five-prime-flank` and `--three-prime-flank` pass those flanks.
+`--assembly gibson` loads the file when `--constraints` is omitted. A
+homology arm is a 20–150 nt slice of the supplied flank, default 40. No
+bases are invented. Overlap melting temperature is not computed. A repeat
+that never touches the CDS is reported and not edited. Omitted vector
+sequence, circular wrap, mismatches, and inverted repeats are not scanned.
+A clear report does not guarantee assembly. The same rule is used for every
+gene and every organism. The limits are `docs/gibson-assembly.md`.
+
 `POST /v1/seeds:import`, `seeds import`, and `starting_cds` accept a
 synonymous coding sequence and refuse a different protein with `CF-SEQ-004`
 and the residue positions (`DEP-API-003`). An empty field is omitted from
