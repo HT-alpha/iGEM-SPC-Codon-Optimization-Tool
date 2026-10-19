@@ -59,6 +59,13 @@ dna-design-suite = "dna_design_suite.cli.main:main"
 manifest-path = "crates/cf-pyext/Cargo.toml"
 module-name = "dna_design_suite._core"
 python-source = "python"
+# PEP 639 records these as License-File. Maturin writes that metadata from
+# the repository root, and an sdist whose PKG-INFO names a file the archive
+# does not contain is rejected (400 License-File LICENSE does not exist).
+include = [
+  { path = "LICENSE", format = "sdist" },
+  { path = "NOTICE", format = "sdist" },
+]
 
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
