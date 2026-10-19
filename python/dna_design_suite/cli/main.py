@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "--output",
-        choices=["table", "json", "fasta", "genbank", "csv", "explain"],
+        choices=["table", "json", "fasta", "genbank", "csv", "explain", "sbol"],
         default="table",
     )
     common.add_argument("--store", default=".dna-design-suite/artifacts")
@@ -172,6 +172,14 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _dispatch(args: argparse.Namespace) -> int:
+    if getattr(args, "output", None) == "sbol" and args.verb != "design":
+        raise DesignError(
+            "CF-SBOL-002",
+            "sbol export is a design result: the recommended candidate, the sequence "
+            "document, the host profile, and the constraint set. "
+            "Run design --output sbol. This command does not carry those documents.",
+            exit_code=EXIT_INVALID_INPUT,
+        )
     if args.verb == "terms":
         return _terms(args)
     if args.verb == "front":
@@ -349,6 +357,8 @@ def _emit(result: Any, output: str) -> None:
         print(writers.to_csv(result.front), end="")
     elif output == "explain":
         print(writers.explain(result.front, result.status), end="")
+    elif output == "sbol":
+        print(result.to_sbol(), end="")
     else:
         _render(result)
 

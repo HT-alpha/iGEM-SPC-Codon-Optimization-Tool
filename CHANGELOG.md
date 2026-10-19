@@ -5,6 +5,16 @@
 Package version stays 0.1.0. This note is the DNA Design Suite delta on top
 of v2.9.2.
 
+`--output sbol`, `DesignResult.to_sbol()`, and
+`GET /v1/jobs/{id}/front?format=sbol` write SBOL 3 N-Triples for the
+recommended coding sequence, its sequence features, the host profile, and
+the constraint set (`DEP-SBOL-001`). The writer is pySBOL3 (`sbol3`), an
+optional extra `dna-design-suite[sbol]`. A missing install is `CF-SBOL-001`.
+`Document.validate()` must report no errors and no warnings or the file is
+refused (`CF-SBOL-002`). There is no SBOL import and no round trip. Codon
+usage and design constraints are annotations. No `sbol:Constraint` object is
+written.
+
 `POST /v1/seeds:import`, `seeds import`, and `starting_cds` accept a
 synonymous coding sequence and refuse a different protein with `CF-SEQ-004`
 and the residue positions (`DEP-API-003`). An empty field is omitted from

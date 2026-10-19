@@ -111,6 +111,16 @@ Renders a candidate's per-position rationale as an aligned text or HTML view: th
   [0,6) structure_relaxed_initiation  (structure.local_accessibility +0.11, conf 0.81)
 ```
 
+### 3.4 SBOL 3 export
+
+`DEP-SBOL-001`. `TST-SBOL-001`.
+
+`dna-design-suite design --output sbol` writes sorted N-Triples. The same bytes are `DesignResult.to_sbol()` and `GET /v1/jobs/{id}/front?format=sbol`. All three call `dna_design_suite.export.sbol.to_sbol` on the front, the sequence document, the host profile, and the constraint set. The writer does not translate the CDS again and does not choose a candidate other than `front.recommended`.
+
+The file contains the recommended coding sequence (5' flank, CDS, 3' flank), sequence features for that CDS, the flanks, `locked_codons`, and rationale annotations whose codon spans lie inside the CDS, plus the sequence document's protein string when it is present. The host profile and the constraint set are annotations in `https://dna_design_suite.org/sbol`. SBOL 3 has no codon-usage class. `sbol:Constraint` means a topological relation between features, so the export creates none.
+
+pySBOL3 (distribution name `sbol3`) is the optional extra `sbol`. A missing install is `CF-SBOL-001`. `Document.validate()` must report no errors and no warnings or the export raises `CF-SBOL-002` and returns no file. There is no SBOL import and no round trip. FASTA and CSV still list every candidate on the front.
+
 ---
 
 ## 4. Configuration precedence

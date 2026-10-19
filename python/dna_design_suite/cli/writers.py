@@ -1,5 +1,9 @@
 """Output writers: FASTA, GenBank, CSV, JSON, and the aligned `explain`.
 
+SBOL 3 is `dna_design_suite.export.sbol.to_sbol`. It follows the same rule —
+render documents, do not recompute them — and it needs the optional `sbol3`
+library, so it does not live in this module's import graph.
+
 Ticket P1-31. Acceptance: emitted GenBank re-ingests to the same digest.
 
 ## The one rule these all follow

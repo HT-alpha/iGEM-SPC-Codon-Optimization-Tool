@@ -13,6 +13,7 @@ usage-table import, and the short measurement form are wired (`DEP-API-003`,
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import subprocess
@@ -128,6 +129,12 @@ class Record:
     status: dict[str, Any]
     front: dict[str, Any] | None = None
     lockfile: dict[str, Any] | None = None
+    #: Documents SBOL export renders. Stored with the front so a later GET
+    #: does not rebuild them. `DEP-SBOL-001`.
+    sequence_document: dict[str, Any] | None = None
+    host_profile: dict[str, Any] | None = None
+    constraints: dict[str, Any] | None = None
+    design_host: str | None = None
     cancel: threading.Event = field(default_factory=threading.Event)
 
 
@@ -252,8 +259,14 @@ class Api:
             record.status = result.status
             # A failed job's archive still holds the unchanged input. Publishing
             # that document would present the input as the design.
-            record.front = result.front if result.job.state == "succeeded" else None
+            succeeded = result.job.state == "succeeded" and result.front is not None
+            record.front = result.front if succeeded else None
             record.lockfile = result.lockfile.to_json()
+            if succeeded:
+                record.sequence_document = result.sequence_document()
+                record.host_profile = copy.deepcopy(request.host_profile)
+                record.constraints = copy.deepcopy(request.constraints)
+                record.design_host = request.host
 
     def get(self, tenant: str, job_id: str) -> tuple[int, dict[str, Any]]:
         record = self._visible(tenant, job_id)
@@ -293,6 +306,49 @@ class Api:
                 f"reduction {method!r} is not a presentation method",
             )
         return 200, present(record.front, names[resolved], max_candidates)
+
+    def sbol(self, tenant: str, job_id: str) -> tuple[int, dict[str, Any] | str]:
+        """SBOL 3 for the stored design, the same documents `design --output sbol` writes."""
+        from dna_design_suite.export.sbol import SbolExportError, to_sbol
+
+        record = self._visible(tenant, job_id)
+        if isinstance(record, dict):
+            return 403, record
+        if record.front is None:
+            if record.status.get("state") == "failed" and record.status.get("problem"):
+                return 409, record.status["problem"]
+            return 409, problem(
+                "CF-CLI-003",
+                "A requested surface needs a capability this build does not have",
+                409,
+                "the job has not produced a front yet",
+            )
+        if (
+            record.sequence_document is None
+            or record.host_profile is None
+            or record.constraints is None
+        ):
+            return 422, problem(
+                "CF-SBOL-002",
+                "SBOL 3 export refused the documents or failed validation",
+                422,
+                "the job did not retain the sequence document, host profile, and constraint set",
+            )
+        try:
+            text = to_sbol(
+                record.front,
+                record.sequence_document,
+                record.host_profile,
+                record.constraints,
+                design_host=record.design_host,
+            )
+        except SbolExportError as exc:
+            title = {
+                "CF-SBOL-001": "SBOL 3 export needs the optional sbol3 library",
+                "CF-SBOL-002": "SBOL 3 export refused the documents or failed validation",
+            }.get(exc.code, exc.code)
+            return 422, problem(exc.code, title, 422, exc.detail)
+        return 200, text
 
     def lockfile(self, tenant: str, job_id: str) -> tuple[int, dict[str, Any]]:
         record = self._visible(tenant, job_id)
@@ -853,9 +909,9 @@ def import_seeds_body(body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
                 "POST /v1/seeds:import needs target_protein or target_cds",
             )
         try:
-            protein = json.loads(
-                _core.sequence_document(target_cds, table, None, None, None)
-            )["protein"]
+            protein = json.loads(_core.sequence_document(target_cds, table, None, None, None))[
+                "protein"
+            ]
         except ValueError as exc:
             return 422, problem("CF-SEQ-004", "Sequence does not translate", 422, str(exc))
     host = body.get("host_id") or body.get("host")
@@ -1231,6 +1287,24 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if method == "GET" and tail == "front":
                 query = parse_qs(parsed.query)
+                export_format = query.get("format", ["json"])[0]
+                if export_format == "sbol":
+                    status, payload = self.server.api.sbol(tenant, job_id)
+                    if status != 200 or not isinstance(payload, str):
+                        body = payload if isinstance(payload, dict) else {}
+                        self._send(status, body, problem_body=True)
+                        return
+                    encoded = payload.encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/n-triples; charset=utf-8")
+                    self.send_header(
+                        "Content-Disposition",
+                        f'attachment; filename="{_sbol_filename(job_id)}"',
+                    )
+                    self.send_header("Content-Length", str(len(encoded)))
+                    self.end_headers()
+                    self.wfile.write(encoded)
+                    return
                 reduction = query.get("reduction", ["default"])[0]
                 try:
                     limit = int(query.get("max_candidates", ["20"])[0])
@@ -1306,6 +1380,13 @@ class Server(ThreadingHTTPServer):
     def __init__(self, address: tuple[str, int], api: Api) -> None:
         super().__init__(address, Handler)
         self.api = api
+
+
+def _sbol_filename(job_id: str) -> str:
+    cleaned = "".join(
+        character if character.isalnum() or character in "._-" else "_" for character in job_id
+    )
+    return (cleaned or "design") + ".nt"
 
 
 def _primer_payload(payload: dict[str, Any], query: str) -> dict[str, Any]:

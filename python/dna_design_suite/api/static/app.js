@@ -93,6 +93,8 @@ const NEXT_STEP = {
   "CF-FEAS-008": "That rule is not searched in this version, so the design does not treat it as satisfied. local_structure needs the Phase 2 structure engine. min_codon_frequency is not enforced.",
   "CF-SRCH-010": "Local mRNA structure cannot be updated inside one of the search stages, so that stage did not use it. Where the score was not computed, the result says UNKNOWN. UNKNOWN is not zero.",
   "CF-STRU-003": "No RNA folding program is installed on the computer running this server. DNA Design Suite does not include one. Install ViennaRNA for the thermodynamic score. The Nussinov option on the form is an approximate paired fraction, and it is used only when you select it. CAI does not need either.",
+  "CF-SBOL-001": "SBOL 3 export needs the optional sbol3 library on the computer running this server. Install it with pip install 'dna-design-suite[sbol]' and restart the server. The page does not build the file itself.",
+  "CF-SBOL-002": "SBOL 3 export did not produce a file. The detail from the server is the reason. This is an export only; the page cannot import an SBOL file.",
   "CF-ORCH-002": "The generation budget ran out before every stage finished. The sequence is from the stages that did finish. Raise generations under Advanced if you want the population stage to run longer.",
   "CF-ORCH-006": "The budget you chose names a stage this version does not run. The stages that did run are listed, and the sequence is from those. Fast and Standard do not ask for the extra stage. Choosing Exact asks for a final ranking that is reported as skipped.",
   "CF-ORCH-007": "A later stage did not beat an earlier one. The sequence shown is the better of the two, and the notice names both stages. The search is allowed to try a change that does not win.",
@@ -643,8 +645,10 @@ function resultSummary(front) {
       <button type="button" data-export="fasta">Download FASTA</button>
       <button type="button" data-export="genbank">Download GenBank</button>
       <button type="button" data-export="csv">Download CSV</button>
+      <button type="button" data-export="sbol">Download SBOL 3</button>
     </div>
-    <p class="field-help">FASTA and CSV include every design on this front. GenBank is the one named above. The numbers are the ones in the result document.</p>
+    <p id="export-note" class="field-help"></p>
+    <p class="field-help">FASTA and CSV include every design on this front. GenBank and SBOL 3 are the recommended one. SBOL 3 is fetched from this server. It is an export, not an import, and it does not round-trip. The numbers in FASTA, CSV, and GenBank are the ones in the result document.</p>
   </section>`;
 }
 
@@ -699,7 +703,41 @@ function exportFront(kind) {
   else if (kind === "genbank") {
     const index = recommendedIndex(front);
     downloadText(`${stamp}.gb`, toGenbank(front, sequenceDocumentFor(front, index), index), "text/plain");
+  } else if (kind === "sbol") {
+    exportSbol(front, stamp).catch((error) => setExportNote(error && error.message ? error.message : "SBOL 3 download failed."));
   }
+}
+
+async function exportSbol(front, stamp) {
+  const note = document.getElementById("export-note");
+  if (note) note.textContent = "Fetching SBOL 3 from this server.";
+  if (!front.job_id) {
+    setExportNote("This result has no job id, so the server cannot write SBOL 3 for it.");
+    return;
+  }
+  const headers = {};
+  const token = tokenInput.value.trim();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`/v1/jobs/${encodeURIComponent(front.job_id)}/front?format=sbol`, { headers });
+  const text = await response.text();
+  if (!response.ok) {
+    let detail = text;
+    try {
+      const problem = JSON.parse(text);
+      detail = [problem.code, problem.detail].filter(Boolean).join(": ");
+    } catch (_error) {
+      detail = text || `HTTP ${response.status}`;
+    }
+    setExportNote(detail);
+    return;
+  }
+  downloadText(`${stamp}.nt`, text, "application/n-triples");
+  setExportNote("Downloaded SBOL 3 (N-Triples). Export only: this file is not an import and does not round-trip.");
+}
+
+function setExportNote(message) {
+  const note = document.getElementById("export-note");
+  if (note) note.textContent = message;
 }
 
 function downloadText(filename, text, type) {

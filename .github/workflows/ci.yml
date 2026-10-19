@@ -135,7 +135,7 @@ jobs:
         run: |
           python -m pip install -q virtualenv
           python -m virtualenv .venv
-          .venv/bin/pip install -q maturin pytest jsonschema pyyaml biopython ViennaRNA
+          .venv/bin/pip install -q maturin pytest jsonschema pyyaml biopython ViennaRNA 'sbol3>=1.2,<2'
       - name: build the core into the environment
         run: .venv/bin/maturin develop
       - run: .venv/bin/pytest -q
@@ -146,6 +146,9 @@ jobs:
           # The helix geometry and state-machine tests run helix.js under Node,
           # which GitHub's runners ship. Turns a missing Node into a failure.
           CF_REQUIRE_NODE: "1"
+          # SBOL 3 export is optional at install time. CI installs sbol3 so a
+          # skip cannot hide a broken exporter.
+          CF_REQUIRE_SBOL: "1"
 
   # The vendored NCBI tables are generated, not hand-written. If regenerating
   # them changes the file, either upstream changed or somebody edited the

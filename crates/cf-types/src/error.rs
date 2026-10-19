@@ -151,6 +151,10 @@ codes! {
     CLI_EMPTY_FRONT        => ("CF-CLI-002", 200, "The job produced no candidates", "planning/02-schemas/pareto_front.schema.json"),
     CLI_NOT_IN_PHASE_1     => ("CF-CLI-003", 501, "A requested surface needs a capability this build does not have", "planning/04-api/02-cli-and-library.md"),
 
+    // ---- CF-SBOL: SBOL 3 export (optional sbol3 library) -------------------
+    SBOL_LIBRARY_MISSING   => ("CF-SBOL-001", 422, "SBOL 3 export needs the optional sbol3 library", "planning/04-api/02-cli-and-library.md"),
+    SBOL_EXPORT_REFUSED    => ("CF-SBOL-002", 422, "SBOL 3 export refused the documents or failed validation", "planning/04-api/02-cli-and-library.md"),
+
     // ---- CF-ORCH: job lifecycle --------------------------------------------
     ORCH_CHECKPOINT_INVALID => ("CF-ORCH-001", 422, "Checkpoint document is malformed", "planning/06-build/01-phase-1-tickets.md"),
     ORCH_BUDGET_EXHAUSTED  => ("CF-ORCH-002", 200, "Compute budget was exhausted before the tier plan completed", "planning/07-decisions/ADR-0008-compute-budget-and-scaling.md"),

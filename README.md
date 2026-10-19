@@ -424,7 +424,21 @@ renormalized). A CAI-only job does not fold, so it does not warn
 still succeeds and warns `CF-LAND-014`: that term is reported, not ranked.
 
 Other formats: `--output json` (the schema-validated documents, verbatim),
-`fasta`, `genbank`, `csv`, `table`.
+`fasta`, `genbank`, `csv`, `sbol`, `table`.
+
+`--output sbol` writes SBOL 3 N-Triples for the recommended coding sequence,
+its sequence features, the host profile, and the constraint set. The bytes
+come from the optional sbol3 library (pySBOL3). That library's
+Document.validate() must report no errors and no warnings, or the command
+refuses the file. Install it with pip install 'dna-design-suite[sbol]'. A
+missing library is CF-SBOL-001. A document that cannot be exported, or that
+the validator rejects, is CF-SBOL-002. There is no SBOL import and no round
+trip. Codon-usage tables and design rules are annotations, because SBOL 3 has
+no codon-usage class and its Constraint class is about feature topology. The
+export writes no sbol:Constraint objects. FASTA and CSV still list every
+candidate. SBOL 3, like GenBank, is the recommended one. The same documents
+are result.to_sbol() in Python and GET /v1/jobs/{id}/front?format=sbol on the
+local server.
 
 ### Or from Python
 
