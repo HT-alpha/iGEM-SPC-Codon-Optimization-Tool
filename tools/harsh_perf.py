@@ -362,14 +362,21 @@ def _design_pin(spec: dict, payload: dict) -> dict:
     if kind == "structure":
         # Pinned by test_yeej_structure_vector_and_fold_counts. The CAI axis
         # sits under the assembly-only seed because the structure term moves it.
-        expected = [0.9723247970586831, 2.4166863375261896]
+        # The structure axis is ViennaRNA and moves by a few ulps across libm
+        # builds; the test records the measured gap. local_edits is 11 after
+        # overlapping codon edits share one region fold.
+        expected_cai = 0.9723247970586831
+        expected_structure = 2.4166863375261896
+        vector = payload.get("vector") or []
         folds = payload.get("folds") or {}
         ok = (
-            payload.get("vector") == expected
+            len(vector) == 2
+            and vector[0] == expected_cai
+            and abs(vector[1] - expected_structure) <= 1e-12
             and payload.get("actionable_violations") == 0
             and folds.get("hits") == 12
             and folds.get("full_folds") == 1
-            and folds.get("local_edits") == 18
+            and folds.get("local_edits") == 11
         )
         return {"ok": ok, "detail": f"vector={payload.get('vector')} folds={folds}"}
     clean = payload.get("actionable_violations", 0) == 0
