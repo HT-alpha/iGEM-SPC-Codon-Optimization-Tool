@@ -125,10 +125,11 @@ jobs:
 
   # abi3-py311 wheels install on every supported CPython. Prove 3.11 and 3.13
   # on each runner that can load the wheel it just built. macos-latest is
-  # arm64, so the x86_64 macOS wheel is built above and published, and the
-  # install check uses the arm64 wheel. Linux aarch64 is cross-compiled on
-  # the x86_64 runner; the wheel is published, and the install check uses
-  # the x86_64 wheel.
+  # arm64, so this job installs the arm64 macOS wheel. ubuntu-latest is
+  # x86_64, so this job installs the x86_64 Linux wheel. The macOS x86_64
+  # and Linux aarch64 wheels are cross-built above. The copies on PyPI were
+  # install-tested on native hardware in pypi-native-install.yml, run
+  # 39259965028: ubuntu-24.04-arm and macos-15-intel, Python 3.11 and 3.13.
   install:
     name: install ${{ matrix.python }} (${{ matrix.artifact }})
     needs: build

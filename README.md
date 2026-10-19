@@ -178,8 +178,15 @@ docker run --rm -p 8000:8000 --entrypoint python dna-design-suite \
 `.github/workflows/publish.yml` builds Linux (x86_64 and aarch64), macOS
 (x86_64 and arm64), and Windows x86_64 wheels, plus an sdist. The wheels
 are `abi3-py311`, so one file per platform installs on Python 3.11, 3.12,
-and 3.13. The workflow installs the Linux x86_64, macOS arm64, and Windows
-wheels on 3.11 and 3.13 before any upload.
+and 3.13. That workflow installs the Linux x86_64, macOS arm64, and Windows
+wheels on 3.11 and 3.13 before any upload. The macOS x86_64 and Linux
+aarch64 wheels are cross-built there, and they were install-tested from
+PyPI on native hardware. Run
+[39259965028](https://github.com/HT-alpha/iGEM-SPC-Codon-Optimization-Tool/actions/runs/39259965028)
+passed on `ubuntu-24.04-arm` and on `macos-15-intel`, each on Python 3.11
+and 3.13: a clean virtualenv, `pip install --only-binary :all: dna-design-suite`,
+the packaged rpsL demo, `dna-design-suite --version` (`0.1.0`), and
+`GET /v1/healthz` (HTTP 200, `"status": "ok"`).
 
 The upload uses GitHub Trusted Publishing (OpenID Connect, `id-token:
 write`). No PyPI token is stored in the repository.
