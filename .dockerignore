@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+venv
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+*.egg-info
+target
+dist
+wheels
+benchmarks/results
+python/dna_design_suite/_core*.so
+python/dna_design_suite/_core*.pyd
+python/dna_design_suite/_core*.dylib
