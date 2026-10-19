@@ -5,9 +5,10 @@ name: wheels
 # serves every supported CPython (3.11 through 3.13). CPython 3.9 and 3.10
 # are outside requires-python.
 #
-# This workflow uploads artifacts. It does not publish to PyPI and it must
-# not gain a PyPI token. Hugo publishes by downloading the artifacts and
-# running twine himself. The steps are in the README.
+# This workflow uploads artifacts. It does not publish. Publishing is
+# `.github/workflows/publish.yml`, which uses GitHub Trusted Publishing.
+# This file must not gain a PyPI token, and its `on:` must not list tags:
+# a branch filter is what keeps a tag push from starting a build.
 
 on:
   push:

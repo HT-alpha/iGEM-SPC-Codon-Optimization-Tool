@@ -29,9 +29,9 @@ is [`docs/project-status.md`](docs/project-status.md). History is
 The page listens on <http://127.0.0.1:8000/>, opens a browser, and waits
 until Ctrl+C. `--no-browser` skips the window. `--port` chooses another port.
 
-`pip install dna-design-suite` does not resolve: the package is not on PyPI,
-there is no release tag, and this repository stays private. Version 0.1.0
-is the package version. Python 3.11 or newer is required. One wheel per
+`pip install dna-design-suite` does not resolve from PyPI. The real index
+has not been published. Version 0.1.0 is the package version, and the tag
+`v0.1.0` names that commit. Python 3.11 or newer is required. One wheel per
 operating system covers 3.11 through 3.13 (`abi3-py311`) when a wheel file
 exists. CPython 3.9 and 3.10 are not supported.
 
@@ -154,11 +154,25 @@ docker run --rm -p 8000:8000 --entrypoint python dna-design-suite \
 
 ### Publishing a release
 
-Not done. The package is not on PyPI. There is no release tag. Publishing
-is Hugo's step, from a machine that already has a wheel file, a PyPI
-account, and a token he supplies: `pip install twine` and `twine upload`
-of that file. Do not add the token to the repository. Until that upload,
-install from the source checkout.
+`.github/workflows/publish.yml` builds Linux (x86_64 and aarch64), macOS
+(x86_64 and arm64), and Windows x86_64 wheels, plus an sdist. The wheels
+are `abi3-py311`, so one file per platform installs on Python 3.11, 3.12,
+and 3.13. The workflow installs the Linux x86_64, macOS arm64, and Windows
+wheels on 3.11 and 3.13 before any upload.
+
+The upload uses GitHub Trusted Publishing (OpenID Connect, `id-token:
+write`). No PyPI token is stored in the repository.
+
+A pull request builds and installs. It does not upload. Uploading is a
+manual run of the same workflow. The `index` input chooses the destination:
+
+- `build-only` builds and stops.
+- `testpypi` uploads to TestPyPI, environment `testpypi`.
+- `pypi` uploads to PyPI, environment `pypi`.
+
+A push or a tag does not select `pypi`. A version on PyPI is permanent.
+Until that upload is done on purpose, install from a wheel file you already
+have, from Docker, or from source.
 
 ### First run
 
@@ -296,7 +310,7 @@ iGEM educational project, and the reviewer states that the email is not a
 formal legal opinion.
 
 The status note is the current tip. The package version is 0.1.0.
-There is no release tag, and the package is not on PyPI.
+The tag `v0.1.0` names that commit. The package is not on PyPI.
 `python -m dna_design_suite.cli.main --version` prints 0.1.0.
 
 ---
