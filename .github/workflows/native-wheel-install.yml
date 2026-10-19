@@ -81,7 +81,7 @@ jobs:
             --only-binary=dna-design-suite \
             --no-cache-dir \
             --report "$RUNNER_TEMP/pip-report.json" \
-            'dna-design-suite==0.1.0.post1'
+            'dna-design-suite==0.1.1'
           "$RUNNER_TEMP/dds/bin/python" - "$RUNNER_TEMP/pip-report.json" "${{ matrix.arch }}" <<'PY'
           import json
           import platform
@@ -102,7 +102,7 @@ jobs:
           print(f"installed_version={version}")
           print(f"wheel_url={url}")
           print(f"platform.machine={platform.machine()}")
-          if version != "0.1.0.post1":
+          if version != "0.1.1":
               raise SystemExit(f"unexpected version {version}")
           if not url.endswith(".whl") or ".tar.gz" in url:
               raise SystemExit(f"sdist or non-wheel was selected: {url}")
@@ -145,8 +145,8 @@ jobs:
           echo "dna-design-suite --version: ${version}"
           module="$("$RUNNER_TEMP/dds/bin/python" -m dna_design_suite.cli.main --version)"
           echo "python -m dna_design_suite.cli.main --version: ${module}"
-          test "$version" = "0.1.0"
-          test "$module" = "0.1.0"
+          test "$version" = "0.1.1"
+          test "$module" = "0.1.1"
 
       - name: rpsL demo
         shell: bash
