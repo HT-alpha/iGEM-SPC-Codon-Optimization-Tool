@@ -167,13 +167,7 @@ jobs:
   publish-testpypi:
     name: publish to TestPyPI
     needs: [build, sdist, install]
-    # pull_request on this branch is how this change publishes once: the
-    # cloud-agent token cannot call workflow_dispatch (HTTP 403, actions=write
-    # is refused). Remove that clause before merge. A push and a tag still
-    # do not select this job, and they never select publish-pypi.
-    if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.index == 'testpypi') ||
-      (github.event_name == 'pull_request' && github.head_ref == 'cursor/pypi-trusted-publishing-bfe8')
+    if: github.event_name == 'workflow_dispatch' && inputs.index == 'testpypi'
     runs-on: ubuntu-latest
     environment:
       name: testpypi
