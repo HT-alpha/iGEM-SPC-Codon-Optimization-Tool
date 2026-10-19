@@ -8,27 +8,32 @@
 </head>
 <body>
 <a class="skip" href="#tab-codon">Skip to codon design</a>
-<nav class="nav" aria-label="DNA Design Suite">
-  <div class="nav-brand">DNA Design Suite</div>
-  <div class="tablist" role="tablist" aria-label="Tools">
-    <button type="button" class="tab active" id="tab-btn-codon" role="tab" aria-selected="true" aria-controls="tab-codon" data-tab="codon">Codon design</button>
-    <button type="button" class="tab" id="tab-btn-primer" role="tab" aria-selected="false" aria-controls="tab-primer" data-tab="primer">Primer design</button>
-  </div>
-  <p class="note nav-note" id="suite-version">DNA Design Suite. Codon design rewrites a gene for a host. Primer design picks a PCR pair.</p>
-</nav>
-
-<header class="mast">
-  <div class="k">Start here</div>
-  <div class="v">
-    <h1>DNA Design Suite</h1>
-    <p class="sub">Paste DNA, a protein, or a GenBank file. Choose a codon table and the rules. Run design. The job keeps running in the background, and the finished gene can be copied or saved as FASTA, GenBank, a CSV of the scores, or SBOL 3.</p>
-    <div class="status-strip">
-      <p id="calibration" class="note">epistasis.context_naturalness absent</p>
-      <p id="engine-status" class="note" aria-live="polite">Checking whether ViennaRNA is installed.</p>
-      <p id="model-status" class="note" aria-live="polite">Checking installed models.</p>
+<header class="site-header">
+  <div class="site-header-inner">
+    <div class="brand-lockup">
+      <div class="brand-row">
+        <h1>DNA Design Suite</h1>
+        <p class="version-badge">Version <span id="suite-version">…</span></p>
+      </div>
+      <p class="tagline">Codon design rewrites a gene for a host. Primer design picks a PCR pair.</p>
     </div>
+    <nav class="nav" aria-label="DNA Design Suite">
+      <div class="tablist" role="tablist" aria-label="Tools">
+        <button type="button" class="tab active" id="tab-btn-codon" role="tab" aria-selected="true" aria-controls="tab-codon" data-tab="codon">Codon design</button>
+        <button type="button" class="tab" id="tab-btn-primer" role="tab" aria-selected="false" aria-controls="tab-primer" data-tab="primer">Primer design</button>
+      </div>
+    </nav>
   </div>
 </header>
+
+<div class="intro">
+  <p class="sub">Paste DNA, a protein, or a GenBank file. Choose a codon table and the rules. Run design. The job keeps running in the background, and the finished gene can be copied or saved as FASTA, GenBank, a CSV of the scores, or SBOL 3.</p>
+  <div class="status-strip" aria-label="Runtime status">
+    <p id="calibration" class="note">epistasis.context_naturalness absent</p>
+    <p id="engine-status" class="note" aria-live="polite">Checking whether ViennaRNA is installed.</p>
+    <p id="model-status" class="note" aria-live="polite">Checking installed models.</p>
+  </div>
+</div>
 
 <div class="page" id="tab-codon" role="tabpanel" aria-labelledby="tab-btn-codon">
   <ol class="flow" aria-label="Codon design steps">
@@ -304,16 +309,22 @@
   <div id="fold-root" aria-live="polite"></div>
   <div id="gibson-root" aria-live="polite"></div>
 
-  <div id="codon-helix" class="helix-stage" aria-hidden="true"></div>
-  <h2 id="status">Status</h2>
-  <div id="status-root" aria-live="polite"><p class="note empty-state">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p></div>
+  <section class="results-panel" aria-labelledby="status">
+    <div id="codon-helix" class="helix-stage" aria-hidden="true"></div>
+    <h2 id="status">Status</h2>
+    <div id="status-root" aria-live="polite"><p class="note empty-state">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p></div>
+  </section>
 
-  <h2 id="jobs-heading">Background jobs</h2>
-  <div id="jobs-root" aria-live="polite"><p class="note empty-state">No jobs yet. Run design starts one in the background. This list is filled from GET /v1/jobs.</p></div>
+  <section class="results-panel" aria-labelledby="jobs-heading">
+    <h2 id="jobs-heading">Background jobs</h2>
+    <div id="jobs-root" aria-live="polite"><p class="note empty-state">No jobs yet. Run design starts one in the background. This list is filled from GET /v1/jobs.</p></div>
+  </section>
 
-  <h2 id="front">Pareto front</h2>
-  <p class="note">The designs the search kept. When there is one objective, this is that one design. The recommended candidate is marked. A column is a score the search used. UNKNOWN means that score was not measured. FASTA, GenBank, and CSV download from this result.</p>
-  <div id="front-root"><p class="note empty-state">No front yet. A finished job fills this panel. A failure names its code and the reason in words.</p></div>
+  <section class="results-panel" aria-labelledby="front">
+    <h2 id="front">Pareto front</h2>
+    <p class="note">The designs the search kept. When there is one objective, this is that one design. The recommended candidate is marked. A column is a score the search used. UNKNOWN means that score was not measured. FASTA, GenBank, and CSV download from this result.</p>
+    <div id="front-root"><p class="note empty-state">No front yet. A finished job fills this panel. A failure names its code and the reason in words.</p></div>
+  </section>
 
   <section class="step" aria-labelledby="step-measurement">
     <h2 id="step-measurement"><span class="step-no">6</span> Lab measurement <span class="optional">optional</span></h2>
@@ -408,7 +419,8 @@
     <button type="button" id="select-all" class="secondary">Select the whole sequence</button>
   </div>
 
-  <h2>Sequence</h2>
+  <section class="step" aria-labelledby="primer-seq-heading">
+  <h2 id="primer-seq-heading">Sequence</h2>
   <label for="primer-sequence">Template DNA</label>
   <textarea id="primer-sequence" class="seq" rows="4" spellcheck="false" placeholder="ACGT..." aria-describedby="help-primer-seq"></textarea>
   <p id="help-primer-seq" class="field-help">Paste the DNA you will amplify. A FASTA header (a line starting with &gt; or ;) is dropped before numbering, the same way the API drops it, so the header does not shift the region. Lowercase is read as uppercase. A letter that is not A, C, G or T is named with its position and the search does not run. The sequence is drawn in lines of 60 bases. The number at each end of a line is the first or last base on that line, counting from 1. The numbers along the top are the position within the line. Drag across the letters, including from one line to the next, or type a start and end. The readout above the sequence is the start, the end, and the length. On a phone, Select the whole sequence is the sure path.</p>
@@ -458,11 +470,15 @@
       <div id="primer-progress" aria-live="polite"></div>
     </div>
   </div>
+  </section>
+  <section class="results-panel" aria-label="Primer results">
   <div id="primer-helix" class="helix-stage" aria-hidden="true"></div>
   <div id="primer-error" role="alert"></div>
   <div id="primer-results"><p class="note empty-state">No primer pairs yet. Paste a template, choose a region, then Find primer pairs. You can also paste a pair you already have and check it below.</p></div>
+  </section>
 
-  <h2>Check a pair you already have</h2>
+  <section class="step" aria-labelledby="primer-manual-heading">
+  <h2 id="primer-manual-heading">Check a pair you already have</h2>
   <p class="note">Paste two primers. This posts to /v1/primers/analyze and returns immediately. It does not search.</p>
   <label for="manual-forward">Forward primer
     <input id="manual-forward" class="seq" spellcheck="false" autocomplete="off">
@@ -470,8 +486,9 @@
   <label for="manual-reverse">Reverse primer
     <input id="manual-reverse" class="seq" spellcheck="false" autocomplete="off">
   </label>
-  <button id="manual-check" type="button">Check this pair</button>
+  <button id="manual-check" type="button" class="secondary">Check this pair</button>
   <div id="manual-detail"></div>
+  </section>
 </div>
 <noscript><p class="callout refusal">This page needs JavaScript. The server is running; enable JavaScript and reload.</p></noscript>
 <script type="module" src="/app.js"></script>

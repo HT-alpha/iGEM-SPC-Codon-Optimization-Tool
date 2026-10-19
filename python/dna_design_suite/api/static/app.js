@@ -1051,7 +1051,10 @@ frontRoot.addEventListener("click", (event) => {
   if (exporter) exportFront(exporter.dataset.export);
 });
 
+const EMPTY_STATUS = `<p class="note empty-state">No job yet. A running job fills the tier tracks from GET /v1/jobs/{id}.</p>`;
+
 submitButton.addEventListener("click", async () => {
+  if (submitButton.disabled) return;
   submitError.innerHTML = "";
   let body;
   try {
@@ -1065,12 +1068,18 @@ submitButton.addEventListener("click", async () => {
     return;
   }
   lastSubmitted = body;
+  markBusy(submitButton, true);
+  statusRoot.innerHTML = `<p class="note empty-state" aria-busy="true">Submitting the design.</p>`;
   try {
     const posted = await call("POST", "/v1/jobs", body);
-    if (!posted.payload) return;
+    if (!posted.payload) {
+      statusRoot.innerHTML = EMPTY_STATUS;
+      return;
+    }
     if (posted.payload.code && !posted.payload.job_id) {
       submitError.innerHTML = lateReveal(problemCallout(posted.payload));
       frontRoot.innerHTML = lateReveal(problemCallout(posted.payload));
+      statusRoot.innerHTML = EMPTY_STATUS;
       codonHelix.setState("error");
       return;
     }
@@ -1081,7 +1090,10 @@ submitButton.addEventListener("click", async () => {
     poll(posted.payload.job_id);
   } catch (error) {
     submitError.innerHTML = lateReveal(`<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`);
+    statusRoot.innerHTML = EMPTY_STATUS;
     codonHelix.setState("error");
+  } finally {
+    markBusy(submitButton, false);
   }
 });
 
@@ -1520,6 +1532,7 @@ async function pollPrimers(jobId) {
 }
 
 document.getElementById("primer-search").addEventListener("click", async () => {
+  const button = document.getElementById("primer-search");
   document.getElementById("primer-error").innerHTML = "";
   document.getElementById("primer-results").innerHTML = "";
   if (!selection) {
@@ -1535,39 +1548,56 @@ document.getElementById("primer-search").addEventListener("click", async () => {
   const sequence = cleaned.sequence;
   submittedPrimerTemplate = sequence;
   submittedRegionLabel = selectionLabel(selection);
-  let posted;
+  markBusy(button, true);
+  document.getElementById("primer-results").innerHTML = `<p class="note empty-state" aria-busy="true">Searching for primer pairs.</p>`;
   try {
-    posted = await call("POST", "/v1/primers/candidates", {
+    const posted = await call("POST", "/v1/primers/candidates", {
       sequence,
       region: selection,
       config: primerConfig(),
     });
+    if (!posted.payload) {
+      document.getElementById("primer-results").innerHTML = `<p class="note empty-state">No primer pairs yet. Paste a template, choose a region, then Find primer pairs. You can also paste a pair you already have and check it below.</p>`;
+      return;
+    }
+    if (posted.payload.code && !posted.payload.job_id) {
+      document.getElementById("primer-error").innerHTML = lateReveal(problemCallout(posted.payload));
+      document.getElementById("primer-results").innerHTML = lateReveal(problemCallout(posted.payload));
+      primerHelix.setState("error");
+      return;
+    }
+    await pollPrimers(posted.payload.job_id);
   } catch (error) {
     showPrimerFailure(error);
-    return;
+  } finally {
+    markBusy(button, false);
   }
-  if (!posted.payload) return;
-  if (posted.payload.code && !posted.payload.job_id) {
-    document.getElementById("primer-error").innerHTML = lateReveal(problemCallout(posted.payload));
-    document.getElementById("primer-results").innerHTML = lateReveal(problemCallout(posted.payload));
-    primerHelix.setState("error");
-    return;
-  }
-  pollPrimers(posted.payload.job_id);
 });
 
 document.getElementById("manual-check").addEventListener("click", async () => {
-  const posted = await call("POST", "/v1/primers/analyze", {
-    forward: document.getElementById("manual-forward").value.toUpperCase().replace(/[^ACGT]/g, ""),
-    reverse: document.getElementById("manual-reverse").value.toUpperCase().replace(/[^ACGT]/g, ""),
-  });
+  const button = document.getElementById("manual-check");
   const root = document.getElementById("manual-detail");
-  if (!posted.payload) return;
-  if (posted.payload.code && !posted.payload.forward_sequence) {
-    root.innerHTML = problemCallout(posted.payload);
-    return;
+  markBusy(button, true);
+  if (root) root.innerHTML = `<p class="note empty-state" aria-busy="true">Checking this pair.</p>`;
+  try {
+    const posted = await call("POST", "/v1/primers/analyze", {
+      forward: document.getElementById("manual-forward").value.toUpperCase().replace(/[^ACGT]/g, ""),
+      reverse: document.getElementById("manual-reverse").value.toUpperCase().replace(/[^ACGT]/g, ""),
+    });
+    if (!posted.payload) {
+      if (root) root.innerHTML = `<p class="note empty-state">The check did not return a result.</p>`;
+      return;
+    }
+    if (posted.payload.code && !posted.payload.forward_sequence) {
+      root.innerHTML = problemCallout(posted.payload);
+      return;
+    }
+    root.innerHTML = `<div class="reveal">${detailPanel(posted.payload)}</div>`;
+  } catch (error) {
+    if (root) root.innerHTML = `<div class="callout refusal"><strong>The request did not complete.</strong> <span class="note">${escapeText(error)}</span></div>`;
+  } finally {
+    markBusy(button, false);
   }
-  root.innerHTML = `<div class="reveal">${detailPanel(posted.payload)}</div>`;
 });
 
 function refreshPrimerZones() {
@@ -2228,16 +2258,27 @@ async function loadEngineStatus() {
   }
 }
 
+function markBusy(button, busy) {
+  if (!button) return;
+  button.disabled = Boolean(busy);
+  if (busy) button.setAttribute("aria-busy", "true");
+  else button.removeAttribute("aria-busy");
+}
+
 async function loadVersion() {
   const note = document.getElementById("suite-version");
   if (!note) return;
   try {
     const response = await fetch("/v1/version");
     const payload = await response.json();
-    if (payload && payload.version) note.textContent = `DNA Design Suite ${payload.version}. Codon design rewrites a gene for a host. Primer design picks a PCR pair.`;
+    if (payload && payload.version) {
+      note.textContent = String(payload.version);
+      return;
+    }
   } catch (error) {
-    note.textContent = "DNA Design Suite. Codon design rewrites a gene for a host. Primer design picks a PCR pair.";
+    /* The product name stays in the header. */
   }
+  note.textContent = "unavailable";
 }
 
 function stateChipKind(state) {
@@ -2570,9 +2611,14 @@ function bindGuide() {
   const feasibility = document.getElementById("check-feasibility");
   if (feasibility) {
     feasibility.addEventListener("click", () => {
-      checkFeasibility().catch((error) => {
-        document.getElementById("feasibility-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
-      });
+      const root = document.getElementById("feasibility-root");
+      if (root) root.innerHTML = `<p class="note empty-state" aria-busy="true">Checking these rules.</p>`;
+      markBusy(feasibility, true);
+      checkFeasibility()
+        .catch((error) => {
+          document.getElementById("feasibility-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+        })
+        .finally(() => markBusy(feasibility, false));
     });
   }
   document.getElementById("load-profile").addEventListener("click", () => {
@@ -2612,25 +2658,40 @@ function bindGuide() {
   const vendorButton = document.getElementById("vendor-screen");
   if (vendorButton) {
     vendorButton.addEventListener("click", () => {
-      runVendorScreen().catch((error) => {
-        document.getElementById("vendor-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
-      });
+      const root = document.getElementById("vendor-root");
+      if (root) root.innerHTML = `<p class="note empty-state" aria-busy="true">Running the vendor-class screen.</p>`;
+      markBusy(vendorButton, true);
+      runVendorScreen()
+        .catch((error) => {
+          document.getElementById("vendor-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+        })
+        .finally(() => markBusy(vendorButton, false));
     });
   }
   const gibsonButton = document.getElementById("gibson-report");
   if (gibsonButton) {
     gibsonButton.addEventListener("click", () => {
-      runGibsonReport().catch((error) => {
-        document.getElementById("gibson-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
-      });
+      const root = document.getElementById("gibson-root");
+      if (root) root.innerHTML = `<p class="note empty-state" aria-busy="true">Building the Gibson report.</p>`;
+      markBusy(gibsonButton, true);
+      runGibsonReport()
+        .catch((error) => {
+          document.getElementById("gibson-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+        })
+        .finally(() => markBusy(gibsonButton, false));
     });
   }
   const foldButton = document.getElementById("global-fold");
   if (foldButton) {
     foldButton.addEventListener("click", () => {
-      runGlobalFold().catch((error) => {
-        document.getElementById("fold-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
-      });
+      const root = document.getElementById("fold-root");
+      if (root) root.innerHTML = `<p class="note empty-state" aria-busy="true">Folding the sequence.</p>`;
+      markBusy(foldButton, true);
+      runGlobalFold()
+        .catch((error) => {
+          document.getElementById("fold-root").innerHTML = `<div class="callout refusal"><p class="human">${escapeText(error.message)}</p></div>`;
+        })
+        .finally(() => markBusy(foldButton, false));
     });
   }
   const host = document.getElementById("host-select");
