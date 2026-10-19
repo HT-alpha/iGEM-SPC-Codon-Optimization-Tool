@@ -584,6 +584,137 @@ table.data tr.is-hot td {
   white-space: normal;
 }
 
+.seq-block.viewer {
+  white-space: normal;
+  overflow: auto;
+  max-height: 28rem;
+  letter-spacing: 0;
+  line-height: 1.35;
+  padding: var(--space-1) var(--space-2);
+}
+
+.seq-ruler-head,
+.seq-line {
+  display: grid;
+  grid-template-columns: 5.75rem max-content 5.75rem;
+  column-gap: var(--space-2);
+  align-items: start;
+}
+
+.seq-ruler-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--track);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 2px;
+  margin-bottom: 2px;
+  color: var(--ink-dim);
+}
+
+.seq-bases {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.nt-group {
+  display: inline-flex;
+  flex: none;
+}
+
+.viewer .nt {
+  display: inline-block;
+  width: 1ch;
+  text-align: center;
+  flex: none;
+  line-height: 1.45;
+}
+
+.nt-gap {
+  width: 0.55ch;
+  flex: none;
+}
+
+.scale-tick {
+  width: 10ch;
+  flex: none;
+  text-align: left;
+  color: var(--ink-dim);
+}
+
+.seq-ruler {
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  user-select: none;
+}
+
+.seq-ruler-start { text-align: right; }
+.seq-ruler-end { text-align: left; }
+
+.seq-line.is-start .seq-ruler-start .line-pos,
+.seq-line.is-end .seq-ruler-end .line-pos {
+  color: var(--recommended);
+  font-weight: 600;
+}
+
+.roi-mark {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--recommended);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.roi-mark:empty { display: none; }
+
+.viewer .nt.nt-a { color: var(--base-a); }
+.viewer .nt.nt-t { color: var(--base-t); }
+.viewer .nt.nt-g { color: var(--base-g); }
+.viewer .nt.nt-c { color: var(--base-c); }
+
+.viewer .nt.selected,
+.viewer .nt.amplicon {
+  background: var(--recommended);
+  color: var(--paper);
+}
+
+.viewer .nt.sel-start { box-shadow: inset 2px 0 0 var(--ink); }
+.viewer .nt.sel-end { box-shadow: inset -2px 0 0 var(--ink); }
+
+.viewer-window {
+  margin: 0 0 var(--space-1) 0;
+}
+
+.selection-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  margin: 0 0 var(--space-2) 0;
+  padding: var(--space-2);
+  background: var(--track);
+  border: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.selection-readout strong {
+  font-weight: 600;
+  color: var(--recommended);
+  font-size: 1.05rem;
+}
+
+.selection-readout.has-selection {
+  border-color: var(--recommended);
+}
+
+.selection-readout .note {
+  margin: 0;
+}
+
 .codon {
   margin-right: 0.4em;
 }

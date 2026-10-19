@@ -5,6 +5,12 @@
 Package version stays 0.1.0. This note is the DNA Design Suite delta on top
 of v2.9.2.
 
+Primer design draws the template in lines of 60 bases. Each line shows the
+first and last base number, counting from 1, and the readout above the
+sequence shows the selection's start, end, and length. A drag that crosses
+lines and the start and end boxes set the same region. Find primer pairs
+sends that region.
+
 `--output sbol`, `DesignResult.to_sbol()`, and
 `GET /v1/jobs/{id}/front?format=sbol` write SBOL 3 N-Triples for the
 recommended coding sequence, its sequence features, the host profile, and
