@@ -1,9 +1,10 @@
 # Project status
 
-Canonical status for the DNA Design Suite at the current tip of this private
-repository. The package version is 0.1.0. There is no release tag. The
-package is not on PyPI. `python -m dna_design_suite.cli.main --version`
-prints 0.1.0. Older notes in `docs/igem-submission.md` and `CHANGELOG.md`
+Canonical status for the DNA Design Suite at the current tip. The package
+version is 0.1.0.post1. Tag `v0.1.0` is the 0.1.0 release, and that release
+is on PyPI. `pip install dna-design-suite` is the install.
+`python -m dna_design_suite.cli.main --version` prints the core version,
+0.1.0. Older notes in `docs/igem-submission.md` and `CHANGELOG.md`
 keep the history. The unreleased delta on top of the v2.9.2 note is the
 top of `CHANGELOG.md`. The CAI gate claim is the one in
 `benchmarks/corpus/gates.json`. The v2.6.0 fronts are in

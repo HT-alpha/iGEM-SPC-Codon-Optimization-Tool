@@ -8,7 +8,7 @@ prints 0.1.0. The suite note is this tag.
 
 ## Install
 
-A wheel is not on PyPI. From a checkout, with Python 3.11+ and Rust:
+`pip install dna-design-suite` is the install. Tag `v0.1.0` is the 0.1.0 release. From a checkout, with Python 3.11+ and Rust:
 
 Windows (PowerShell, Anaconda), from the repository directory:
 

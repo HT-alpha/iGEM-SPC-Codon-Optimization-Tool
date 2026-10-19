@@ -97,9 +97,7 @@ def test_the_installed_artifact_is_the_objective(tmp_path: Path) -> None:
         )
     )
     assert vector[0] == pytest.approx(scored["nats_per_codon"])
-    pinned = next(
-        entry for entry in result.job.lockfile.resolution if entry.term_id == TERM_ID
-    )
+    pinned = next(entry for entry in result.job.lockfile.resolution if entry.term_id == TERM_ID)
     assert pinned.digest == document["digest"]
     assert pinned.resolved_by == "pin"
     assert result.job.inputs.tier2_block >= window

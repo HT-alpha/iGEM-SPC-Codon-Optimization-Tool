@@ -229,7 +229,8 @@ def _run_design(spec: dict) -> dict:
                 ),
                 "actionable_violations": actionable,
                 "protein_identical": _core.translate(designed, 11) == _core.translate(cds, 11),
-                "in_frame_agg": designed.count("AGG") and sum(
+                "in_frame_agg": designed.count("AGG")
+                and sum(
                     1
                     for index in range(0, len(designed), 3)
                     if designed[index : index + 3] == "AGG"

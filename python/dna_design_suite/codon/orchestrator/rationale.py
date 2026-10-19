@@ -90,9 +90,7 @@ def _zero_weight(
             f"loaded table, so CAI is 0. Replacing every 0 in that table with the "
             f"smallest positive weight {floor:.6g} scores {shown}."
         )
-        notes.append(
-            _annotation("cai_zero_weight", {"start": position, "end": position + 1}, text)
-        )
+        notes.append(_annotation("cai_zero_weight", {"start": position, "end": position + 1}, text))
     return notes
 
 
@@ -123,8 +121,7 @@ def _deviations(tier_request: str, cds: str) -> list[dict[str, Any]]:
         blocked = item.get("constraints_if_reverted") or []
         if blocked:
             reason = (
-                "putting this codon back to "
-                f"{item['baseline']} would raise {', '.join(blocked)}"
+                f"putting this codon back to {item['baseline']} would raise {', '.join(blocked)}"
             )
         else:
             reason = (

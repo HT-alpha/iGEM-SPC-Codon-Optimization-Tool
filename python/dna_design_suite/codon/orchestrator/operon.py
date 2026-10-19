@@ -364,9 +364,7 @@ def design_operon(
     )
 
 
-def _shadow_prices(
-    host_profile: dict, translation_table: int, counts: list[float]
-) -> list[float]:
+def _shadow_prices(host_profile: dict, translation_table: int, counts: list[float]) -> list[float]:
     """64 finite differences of the existing burden, one extra count each."""
     base = _growth(host_profile, translation_table, counts)
     prices: list[float | None] = []
@@ -426,9 +424,7 @@ def _nsga_joint(
     evaluations = 1
     for cistron_index, cds in enumerate(incumbent):
         positions = list(range(len(cds) // 3))
-        positions.sort(
-            key=lambda position: _unit_interval(seed, 0, cistron_index, position, 0)
-        )
+        positions.sort(key=lambda position: _unit_interval(seed, 0, cistron_index, position, 0))
         for position in positions[:_NSGA_POSITIONS]:
             codon = cds[position * 3 : (position + 1) * 3]
             options = [

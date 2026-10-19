@@ -126,6 +126,15 @@ def test_yeej_structure_vector_and_fold_counts(tmp_path: Path) -> None:
     rather than one ``substitute`` per codon (18). The objective vector is
     unchanged: each region fold is the same penalty as folding those codons
     one at a time.
+
+    The structure axis is a mean of ViennaRNA ``pfl_fold_up`` logs. Three
+    processes on this machine, ViennaRNA 2.7.2, agreed on
+    ``2.4166863375261896``. The GitHub ubuntu-latest run of the same test,
+    also resolving ViennaRNA to 2.7.2, returned ``2.4166863375261873``.
+    The absolute gap is 2.3e-15. The CAI axis did not move. ``1e-12`` is the
+    same absolute band the CAI pins in ``tools/harsh_perf.py`` already use,
+    about 400 times the measured gap and far below the v2.9.3 front
+    ``2.408954059933615``.
     """
     if "viennarna" not in available_engines():
         if os.environ.get("CF_REQUIRE_STRUCTURE_ENGINE") == "1":
@@ -152,7 +161,8 @@ def test_yeej_structure_vector_and_fold_counts(tmp_path: Path) -> None:
     assert result.job.state == "succeeded", result.status.get("problem")
     assert result.front is not None
     vector = result.front["candidates"][0]["objective_vector"]
-    assert vector == [0.9723247970586831, 2.4166863375261896]
+    assert vector[0] == 0.9723247970586831
+    assert abs(vector[1] - 2.4166863375261896) <= 1e-12
     designed = result.front["candidates"][0]["sequences"][0]["cds"]
     assert _core.translate(designed, 11) == _core.translate(cds, 11)
     session = result.job._fold_session
