@@ -1,0 +1,238 @@
+name: publish
+
+# Build every release wheel and the sdist, then optionally upload them with
+# GitHub Trusted Publishing. PyPI's pending publisher is bound to this
+# filename and to the environment names below. Do not rename the file, the
+# environments, or the package.
+#
+# Triggers:
+# - pull_request builds and installs. It never uploads.
+# - workflow_dispatch uploads only when `index` is `testpypi` or `pypi`.
+#   The default is `build-only`.
+# There is no `push` trigger and no `tags` trigger. A tag push must not
+# start this workflow, and it must not start any other workflow either.
+# The real index (`pypi`) runs only from a manual dispatch that selects it.
+# Versions on PyPI are permanent.
+#
+# Authentication is the workflow's OIDC token (`id-token: write`). There is
+# no PyPI token and no repository secret.
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      index:
+        description: "build-only uploads nothing. testpypi uploads to TestPyPI. pypi uploads to the real index and is permanent."
+        type: choice
+        required: true
+        default: build-only
+        options:
+          - build-only
+          - testpypi
+          - pypi
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  legal-clearance:
+    name: legal clearance (AMD-013)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: require sign-off before a structure-kernel release
+        run: python tools/check_release_clearance.py
+
+  build:
+    name: ${{ matrix.platform.artifact }}
+    needs: legal-clearance
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { os: ubuntu-latest, target: x86_64, manylinux: auto, artifact: wheel-linux-x86_64 }
+          - { os: ubuntu-latest, target: aarch64, manylinux: auto, artifact: wheel-linux-aarch64 }
+          - { os: macos-latest, target: x86_64, artifact: wheel-macos-x86_64 }
+          - { os: macos-latest, target: aarch64, artifact: wheel-macos-arm64 }
+          - { os: windows-latest, target: x64, artifact: wheel-windows-x64 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python tools/stage_wheel_examples.py
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist
+          manylinux: ${{ matrix.platform.manylinux }}
+      - name: wheel filename
+        shell: bash
+        run: |
+          echo "wheels:"
+          ls -1 dist
+          {
+            echo "### ${{ matrix.platform.artifact }}"
+            echo
+            echo '```'
+            ls -1 dist
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.platform.artifact }}
+          path: dist/*
+          if-no-files-found: error
+
+  sdist:
+    name: sdist
+    needs: legal-clearance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install "maturin>=1.5,<2"
+      - run: python tools/stage_wheel_examples.py
+      - run: maturin sdist --out dist
+      - name: sdist filename
+        shell: bash
+        run: |
+          echo "sdist:"
+          ls -1 dist
+          {
+            echo "### sdist"
+            echo
+            echo '```'
+            ls -1 dist
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: sdist
+          path: dist/*
+          if-no-files-found: error
+
+  # abi3-py311 wheels install on every supported CPython. Prove 3.11 and 3.13
+  # on each runner that can load the wheel it just built. macos-latest is
+  # arm64, so the x86_64 macOS wheel is built above and published, and the
+  # install check uses the arm64 wheel. Linux aarch64 is cross-compiled on
+  # the x86_64 runner; the wheel is published, and the install check uses
+  # the x86_64 wheel.
+  install:
+    name: install ${{ matrix.python }} (${{ matrix.artifact }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, artifact: wheel-linux-x86_64, python: "3.11" }
+          - { os: ubuntu-latest, artifact: wheel-linux-x86_64, python: "3.13" }
+          - { os: macos-latest, artifact: wheel-macos-arm64, python: "3.11" }
+          - { os: macos-latest, artifact: wheel-macos-arm64, python: "3.13" }
+          - { os: windows-latest, artifact: wheel-windows-x64, python: "3.11" }
+          - { os: windows-latest, artifact: wheel-windows-x64, python: "3.13" }
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist
+      - name: install the wheel and import the core
+        shell: bash
+        run: |
+          ls -1 dist
+          python -m pip install --only-binary=:all: dist/*.whl
+          python -c "
+          import dna_design_suite
+          assert dna_design_suite.core_available(), 'wheel did not ship the compiled core'
+          print('core', dna_design_suite.core_version())
+          print('file', dna_design_suite.__file__)
+          "
+          dna-design-suite --version
+
+  publish-testpypi:
+    name: publish to TestPyPI
+    needs: [build, sdist, install]
+    if: github.event_name == 'workflow_dispatch' && inputs.index == 'testpypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/dna-design-suite
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - name: download wheels and sdist
+        uses: actions/download-artifact@v7
+        with:
+          pattern: wheel-*
+          merge-multiple: true
+          path: dist
+      - name: download sdist
+        uses: actions/download-artifact@v7
+        with:
+          name: sdist
+          path: dist
+      - name: distributions
+        shell: bash
+        run: |
+          echo "uploading:"
+          find dist -type f -printf '%f\n' | sort
+      - name: publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+          skip-existing: true
+          verbose: true
+
+  publish-pypi:
+    name: publish to PyPI
+    needs: [build, sdist, install]
+    if: github.event_name == 'workflow_dispatch' && inputs.index == 'pypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/dna-design-suite
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    steps:
+      - name: download wheels and sdist
+        uses: actions/download-artifact@v7
+        with:
+          pattern: wheel-*
+          merge-multiple: true
+          path: dist
+      - name: download sdist
+        uses: actions/download-artifact@v7
+        with:
+          name: sdist
+          path: dist
+      - name: distributions
+        shell: bash
+        run: |
+          echo "uploading:"
+          find dist -type f -printf '%f\n' | sort
+      - name: publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
+          verbose: true
