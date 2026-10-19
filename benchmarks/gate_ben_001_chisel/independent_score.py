@@ -307,6 +307,16 @@ def _names(genes: list[str]) -> str:
     return ", ".join(genes)
 
 
+def _in_frame_codon_counts(sequence: str, codons: set[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    span = len(sequence) - (len(sequence) % 3)
+    for start in range(0, span, 3):
+        codon = sequence[start : start + 3]
+        if codon in codons:
+            counts[codon] = counts.get(codon, 0) + 1
+    return counts
+
+
 def compare_rows(document: dict[str, Any]) -> dict[str, Any]:
     """Paired counts. Panel order, not sorted by a score."""
     order = document["meta"]["gene_order"]
@@ -537,8 +547,9 @@ def render_report(document: dict[str, Any]) -> str:
         "One head-to-head, measured at commit "
         f"`{meta['git_commit']}`. The sequences and the scores are in "
         "`docs/benchmarks/gate-ben-001-dnachisel-rows.json`, written by this "
-        "run. CAI in this note is the Sharp and Li geometric mean of a fixed "
-        "weight table. It is a sequence statistic. It is not a predicted "
+        "run. Rewriting this note from that JSON does not re-run either "
+        "optimizer. CAI in this note is the Sharp and Li geometric mean of a "
+        "fixed weight table. It is a sequence statistic. It is not a predicted "
         "expression level, and this note makes no wet-lab claim."
     )
     lines.append("")
@@ -712,6 +723,35 @@ def render_report(document: dict[str, Any]) -> str:
     if cai_any["tie"]:
         lines.append("CAI tie, not conditioned on feasibility: " + _names(cai_any["tie"]) + ".")
         lines.append("")
+    if not cai_any["dnachisel_higher"] and not cai_any["tie"] and cai_any["n"]:
+        lines.append("DNA Chisel CAI is higher on no gene in that set, and there is no CAI tie.")
+        lines.append("")
+    gaps = []
+    for gene in order:
+        suite_cai = paired[gene]["dna_design_suite"].get("cai")
+        chisel_cai = paired[gene]["dnachisel"].get("cai")
+        if suite_cai is None or chisel_cai is None:
+            continue
+        gaps.append((abs(suite_cai - chisel_cai), gene, suite_cai, chisel_cai))
+    if gaps:
+        delta, gene, suite_cai, chisel_cai = min(gaps)
+        lines.append(
+            "Closest CAI pair among genes both tools returned: "
+            f"{gene}, absolute difference {delta}, DNA Design Suite {suite_cai}, "
+            f"DNA Chisel {chisel_cai}."
+        )
+        lines.append("")
+    missing_cai = [
+        gene
+        for gene in order
+        if paired[gene]["dna_design_suite"].get("cai") is None
+        or paired[gene]["dnachisel"].get("cai") is None
+    ]
+    if missing_cai:
+        lines.append(
+            "No CAI is reported where a tool returned no sequence: " + _names(missing_cai) + "."
+        )
+        lines.append("")
     lines.append(
         "CAI where both sequences are feasible (translation matches and "
         f"every hard constraint passes): DNA Design Suite higher on "
@@ -732,6 +772,38 @@ def render_report(document: dict[str, Any]) -> str:
     if cai_ok["tie"]:
         lines.append("CAI tie among feasible pairs: " + _names(cai_ok["tie"]) + ".")
         lines.append("")
+    if not cai_ok["dnachisel_higher"] and not cai_ok["tie"] and cai_ok["n"]:
+        lines.append(
+            "Among feasible pairs, DNA Chisel CAI is higher on no gene and there is no CAI tie."
+        )
+        lines.append("")
+    zeros = set(meta["zero_weight_codons"])
+    zero_notes: list[str] = []
+    for gene in order:
+        for tool in ("dna_design_suite", "dnachisel"):
+            row = paired[gene][tool]
+            sequence = row.get("sequence")
+            if not sequence:
+                continue
+            counts = _in_frame_codon_counts(sequence, zeros)
+            if not counts and row.get("cai") != 0:
+                continue
+            rendered = ", ".join(f"{codon} × {counts[codon]}" for codon in sorted(counts)) or "none"
+            zero_notes.append(
+                f"{gene}, {tool}: {rendered}; CAI {row.get('cai')}; feasible {row.get('feasible')}"
+            )
+    if zero_notes:
+        lines.append(
+            "A reported CAI of 0 is the geometric mean when a counted codon has "
+            "weight 0. DNA Chisel's own objective replaces that weight with 0.001 "
+            "before the logarithm, so the codon stays available to its search. The "
+            "shared constraints do not ban it. In-frame weight-0 codons in returned "
+            "sequences:"
+        )
+        lines.append("")
+        for note in zero_notes:
+            lines.append(f"- {note}")
+        lines.append("")
     feasible = comparison["feasible"]
     lines.append(
         "Feasible sequences: both "
@@ -746,8 +818,18 @@ def render_report(document: dict[str, Any]) -> str:
             "DNA Chisel feasible and DNA Design Suite not: " + _names(feasible["chisel_only"]) + "."
         )
         lines.append("")
-    if not feasible["chisel_only"] and len(feasible["both"]) == len(order):
-        lines.append("Feasibility is a tie on all 50: both tools are feasible on every gene.")
+    if not feasible["chisel_only"] and not feasible["suite_only"]:
+        if feasible["neither"]:
+            lines.append(
+                "Feasibility is a tie: there is no gene where one tool is feasible "
+                "and the other is not. Neither tool is feasible on "
+                + _names(feasible["neither"])
+                + "."
+            )
+        else:
+            lines.append(
+                f"Feasibility is a tie on all {len(order)}: both tools are feasible on every gene."
+            )
         lines.append("")
     translation = comparison["translation"]
     lines.append(
@@ -796,6 +878,22 @@ def render_report(document: dict[str, Any]) -> str:
         if returned["neither"]:
             lines.append("Neither tool returned a sequence: " + _names(returned["neither"]) + ".")
         lines.append("")
+        failed = [
+            gene
+            for gene in order
+            if gene in set(returned["neither"] + returned["suite_only"] + returned["chisel_only"])
+        ]
+        if failed:
+            lines.append("Stored failure text, from the measurement JSON:")
+            lines.append("")
+            for gene in failed:
+                for tool in ("dna_design_suite", "dnachisel"):
+                    row = paired[gene][tool]
+                    if row.get("sequence"):
+                        continue
+                    error = " ".join(str(row.get("error") or "").split())
+                    lines.append(f"- {gene}, {tool}, {row.get('error_type')}: {error}")
+            lines.append("")
     lines.append("Per hard constraint, on genes where both tools returned a sequence:")
     lines.append("")
     lines.append(
@@ -804,7 +902,16 @@ def render_report(document: dict[str, Any]) -> str:
         "Chisel violation sum |"
     )
     lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
-    for constraint_id, slot in comparison["per_constraint"].items():
+    constraint_order = [
+        constraint_id
+        for constraint_id in meta["constraint_ids"]
+        if constraint_id in comparison["per_constraint"]
+    ]
+    for constraint_id in comparison["per_constraint"]:
+        if constraint_id not in constraint_order:
+            constraint_order.append(constraint_id)
+    for constraint_id in constraint_order:
+        slot = comparison["per_constraint"][constraint_id]
         lines.append(
             f"| `{constraint_id}` | {len(slot['both_pass'])} | "
             f"{len(slot['suite_fail_chisel_pass'])} | "
@@ -812,7 +919,8 @@ def render_report(document: dict[str, Any]) -> str:
             f"{slot['suite_violations']} | {slot['chisel_violations']} |"
         )
     lines.append("")
-    for constraint_id, slot in comparison["per_constraint"].items():
+    for constraint_id in constraint_order:
+        slot = comparison["per_constraint"][constraint_id]
         if slot["suite_fail_chisel_pass"]:
             lines.append(
                 f"`{constraint_id}`, DNA Design Suite fails and DNA Chisel passes: "
@@ -836,6 +944,11 @@ def render_report(document: dict[str, Any]) -> str:
         f"on {gc['n_dnachisel_higher']}, equal on {gc['n_tie']}."
     )
     lines.append("")
+    if gc["dnachisel_higher"]:
+        lines.append(
+            "DNA Chisel global GC higher, not an objective: " + _names(gc["dnachisel_higher"]) + "."
+        )
+        lines.append("")
     if gc["tie"]:
         lines.append("Global GC equal: " + _names(gc["tie"]) + ".")
         lines.append("")
@@ -849,6 +962,9 @@ def render_report(document: dict[str, Any]) -> str:
         f"equal on {len(solver['tie'])}."
     )
     lines.append("")
+    if solver["suite_faster"]:
+        lines.append("DNA Design Suite solver time faster: " + _names(solver["suite_faster"]) + ".")
+        lines.append("")
     if solver["chisel_faster"]:
         lines.append("DNA Chisel solver time faster: " + _names(solver["chisel_faster"]) + ".")
         lines.append("")
@@ -872,6 +988,12 @@ def render_report(document: dict[str, Any]) -> str:
         "not the same boundary on both sides; it is reported anyway."
     )
     lines.append("")
+    if wall["chisel_faster"]:
+        lines.append("DNA Chisel wall time lower: " + _names(wall["chisel_faster"]) + ".")
+        lines.append("")
+    if wall["tie"]:
+        lines.append("Wall time equal: " + _names(wall["tie"]) + ".")
+        lines.append("")
     lines.append("## Per gene")
     lines.append("")
     lines.append(
