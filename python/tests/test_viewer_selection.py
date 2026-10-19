@@ -149,18 +149,24 @@ def test_the_selection_label_is_one_based_and_inclusive() -> None:
 
 
 def test_a_pointer_between_lines_names_the_nearer_line() -> None:
-    assert _node(
-        """
+    assert (
+        _node(
+            """
         const lines = [{top: 0, bottom: 20}, {top: 28, bottom: 48}];
         return m.nearestLineIndex(26, lines, 8);
         """
-    ) == 1
-    assert _node(
-        """
+        )
+        == 1
+    )
+    assert (
+        _node(
+            """
         const lines = [{top: 0, bottom: 20}, {top: 28, bottom: 48}];
         return m.nearestLineIndex(200, lines, 8);
         """
-    ) is None
+        )
+        is None
+    )
 
 
 def test_a_pointer_in_a_gap_names_the_nearer_base() -> None:

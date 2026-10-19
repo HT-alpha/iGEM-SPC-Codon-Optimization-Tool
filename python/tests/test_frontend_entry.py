@@ -139,7 +139,7 @@ def test_the_page_explains_the_words_a_first_run_needs() -> None:
         "mg1655_ribosomal_usage.json",
         "rpsL",
         "What this version does not do",
-        "name=\"viewport\"",
+        'name="viewport"',
         "Run design",
         "Find primer pairs",
         "Select the whole sequence",
@@ -164,9 +164,7 @@ def test_the_module_entry_point_asks_for_port_8000_and_a_browser(monkeypatch) ->
         opener=None,
         block=True,
     ):
-        captured.update(
-            host=host, port=port, open_browser=open_browser, block=block, store=store
-        )
+        captured.update(host=host, port=port, open_browser=open_browser, block=block, store=store)
         if open_browser:
             (opener or (lambda url: captured.setdefault("opened", []).append(url)))(
                 f"http://{host}:{port}/"
@@ -244,9 +242,7 @@ def test_the_page_names_the_same_illegal_base_as_the_api() -> None:
         "  untrimmed: tail.length,"
         "}));"
     )
-    completed = subprocess.run(
-        [NODE, "-e", script], check=False, capture_output=True, text=True
-    )
+    completed = subprocess.run([NODE, "-e", script], check=False, capture_output=True, text=True)
     assert completed.returncode == 0, completed.stderr
     reported = json.loads(completed.stdout)
     cleaned = reported["cleaned"]
@@ -258,10 +254,10 @@ def test_the_page_names_the_same_illegal_base_as_the_api() -> None:
     assert reported["trimmed"] == 717
     page = INDEX.read_text(encoding="utf-8")
     assert 'id="trim-stop"' in page
-    assert "data-preset=\"biobrick_rfc10.json\"" in page
-    assert "data-preset=\"golden_gate.json\"" in page
-    assert "data-preset=\"gibson.json\"" in page
-    assert "data-preset=\"synthesis.json\"" in page
+    assert 'data-preset="biobrick_rfc10.json"' in page
+    assert 'data-preset="golden_gate.json"' in page
+    assert 'data-preset="gibson.json"' in page
+    assert 'data-preset="synthesis.json"' in page
     assert "checks nothing" in page
     assert "informational, not a filter" in APP.read_text(encoding="utf-8")
     wired = APP.read_text(encoding="utf-8")
@@ -297,9 +293,7 @@ def test_product_sequence_is_sliced_from_the_submitted_template() -> None:
         "];"
         "console.log(JSON.stringify(cases));"
     )
-    completed = subprocess.run(
-        [NODE, "-e", script], check=False, capture_output=True, text=True
-    )
+    completed = subprocess.run([NODE, "-e", script], check=False, capture_output=True, text=True)
     assert completed.returncode == 0, completed.stderr
     assert json.loads(completed.stdout) == ["GTAC", "ZZ", "", "", ""]
     assert "submittedPrimerTemplate = sequence" in source

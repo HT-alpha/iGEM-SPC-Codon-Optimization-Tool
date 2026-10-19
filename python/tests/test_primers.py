@@ -91,9 +91,7 @@ def test_a_fasta_header_does_not_change_the_primer_pair(base: str) -> None:
             "primer_length_range": {"min": 18, "max": 22},
         },
     }
-    status, posted = _call(
-        "POST", f"{base}/v1/primers/candidates", {**body, "sequence": raw}
-    )
+    status, posted = _call("POST", f"{base}/v1/primers/candidates", {**body, "sequence": raw})
     assert status == 202
     plain = _wait(base, posted["job_id"])
     status, posted = _call(
@@ -297,9 +295,7 @@ def test_yeej_primer_job_omits_the_amplicon_by_default(base: str) -> None:
     assert code == 200
     assert b'"product_sequence"' not in bare
     assert len(bare) == 1613, len(bare)
-    code, full = _bytes(
-        "GET", f"{base}/v1/primers/{job_id}/pair/{pair_id}?product_sequence=true"
-    )
+    code, full = _bytes("GET", f"{base}/v1/primers/{job_id}/pair/{pair_id}?product_sequence=true")
     assert code == 200
     restored = json.loads(full)
     assert restored["product_sequence"] == product

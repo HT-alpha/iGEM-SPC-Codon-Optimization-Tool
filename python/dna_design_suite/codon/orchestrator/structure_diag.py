@@ -155,9 +155,7 @@ class FoldSession:
             if self._nussinov is None:
                 self._nussinov = NussinovEngine()
             values = list(
-                self._nussinov.local_accessibility(
-                    sequence, WINDOW_NT, SPAN_NT, self.temperature_c
-                )
+                self._nussinov.local_accessibility(sequence, WINDOW_NT, SPAN_NT, self.temperature_c)
             )
             self.full_folds += 1
             return self._remember(sequence, values, paired_fraction_penalty(values))

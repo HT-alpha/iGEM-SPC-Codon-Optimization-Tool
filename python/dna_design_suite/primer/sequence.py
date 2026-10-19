@@ -25,7 +25,5 @@ def clean_template(text: str) -> tuple[str, str | None]:
     sequence = "".join("".join(kept).upper().split())
     for index, base in enumerate(sequence):
         if base not in "ACGT":
-            return "", (
-                f"CF-PRIM-006 base {base} at position {index + 1} is not A, C, G or T"
-            )
+            return "", (f"CF-PRIM-006 base {base} at position {index + 1} is not A, C, G or T")
     return sequence, None
