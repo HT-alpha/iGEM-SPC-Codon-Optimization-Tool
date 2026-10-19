@@ -51,10 +51,10 @@ The wheels are `abi3-py311`, so one file per platform installs on 3.11,
 3.12, and 3.13. PyPI serves Linux x86_64, Linux aarch64, macOS Intel
 (x86_64), macOS Apple Silicon (arm64), and Windows x86_64.
 
-This file is package version 0.1.0.post1. Tag `v0.1.0` is the 0.1.0
-release. The post-release changes this README and the version string. The
-compiled core stays 0.1.0, which is what `dna-design-suite --version`
-prints. ViennaRNA is optional and is not inside the wheel.
+This file is package version 0.1.1. The compiled core is 0.1.1, which is
+what `dna-design-suite --version` prints, and what `GET /v1/version`
+reports. Tag `v0.1.0` is the 0.1.0 release. ViennaRNA is optional and is
+not inside the wheel.
 
 `virtualenv` is the bootstrap `make setup` uses. `python3 -m venv` is only
 the fallback when virtualenv itself cannot be installed, because that
@@ -70,7 +70,7 @@ Linux x86_64:
 
 ```sh
 python3 -m virtualenv .venv
-.venv/bin/pip install dna_design_suite-0.1.0.post1-cp311-abi3-manylinux_*.whl
+.venv/bin/pip install dna_design_suite-0.1.1-cp311-abi3-manylinux_*.whl
 .venv/bin/python -m dna_design_suite.api
 ```
 
@@ -79,7 +79,7 @@ Windows (PowerShell, Anaconda), from the directory that contains the wheel:
 ```powershell
 conda create -n dna-design python=3.11 -y
 conda activate dna-design
-pip install .\dna_design_suite-0.1.0.post1-cp311-abi3-win_amd64.whl
+pip install .\dna_design_suite-0.1.1-cp311-abi3-win_amd64.whl
 python -m dna_design_suite.api
 ```
 
@@ -208,8 +208,11 @@ manual run of the same workflow. The `index` input chooses the destination:
 - `pypi` uploads to PyPI, environment `pypi`.
 
 A push or a tag does not select `pypi`. A version on PyPI is permanent.
-0.1.0 is already on PyPI. 0.1.0.post1 is the same code with this README.
-Uploading it is a manual run of that workflow with `index` set to `pypi`.
+0.1.0 and 0.1.0.post1 are already on PyPI. 0.1.1 is this tree: the package
+and the compiled core both report 0.1.1. Uploading it is two manual runs
+of that workflow on `main` after this release is merged. The first sets
+`index` to `testpypi`. The second sets `index` to `pypi`. Pushing tag
+`v0.1.1` names the merge commit and does not start the upload.
 
 ### First run
 
@@ -346,9 +349,10 @@ for hairpins. Commercial distribution is outside the AMD-013 note in
 iGEM educational project, and the reviewer states that the email is not a
 formal legal opinion.
 
-The status note is the current tip. The package version is 0.1.0.post1.
-Tag `v0.1.0` is the 0.1.0 release, and that release is on PyPI.
-`python -m dna_design_suite.cli.main --version` prints the core version, 0.1.0.
+The status note is the current tip. The package version is 0.1.1, and the
+compiled core is 0.1.1. Tag `v0.1.0` is the 0.1.0 release, and 0.1.0 and
+0.1.0.post1 are on PyPI. `python -m dna_design_suite.cli.main --version`
+prints 0.1.1. `GET /v1/version` reports 0.1.1.
 
 ---
 

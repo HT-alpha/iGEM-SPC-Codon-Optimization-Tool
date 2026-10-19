@@ -1,12 +1,16 @@
 # Project status
 
 Canonical status for the DNA Design Suite at the current tip. The package
-version is 0.1.0.post1. Tag `v0.1.0` is the 0.1.0 release, and that release
-is on PyPI. `pip install dna-design-suite` is the install.
-`python -m dna_design_suite.cli.main --version` prints the core version,
-0.1.0. Older notes in `docs/igem-submission.md` and `CHANGELOG.md`
-keep the history. The unreleased delta on top of the v2.9.2 note is the
-top of `CHANGELOG.md`. The CAI gate claim is the one in
+version is 0.1.1, and the compiled core reports 0.1.1.
+`python -m dna_design_suite.cli.main --version` prints 0.1.1.
+`GET /v1/version` reports 0.1.1. Tag `v0.1.0` is the 0.1.0 release.
+0.1.0 and 0.1.0.post1 are on PyPI. `pip install dna-design-suite` installs
+what PyPI currently serves. 0.1.1 is uploaded by a manual dispatch of
+`.github/workflows/publish.yml` (`index` = `testpypi`, then `index` =
+`pypi`). A tag push does not upload. Older notes in
+`docs/igem-submission.md` and `CHANGELOG.md` keep the history. The 0.1.1
+note is the top of `CHANGELOG.md`. The delta on top of the v2.9.2 note
+follows it. The CAI gate claim is the one in
 `benchmarks/corpus/gates.json`. The v2.6.0 fronts are in
 `docs/benchmarks/v2.6.0-phase2.md`. The v2.9.1 re-measurement is in
 `docs/benchmarks/v2.9.1-validation.md`. The challenging-sequence timings

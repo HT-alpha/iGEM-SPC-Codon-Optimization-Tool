@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.1.1
+
+Package version and compiled core are both 0.1.1.
+`dna-design-suite --version` and
+`python -m dna_design_suite.cli.main --version` print 0.1.1.
+`GET /v1/version` reports 0.1.1. Tag `v0.1.0` remains the 0.1.0 release.
+0.1.0 and 0.1.0.post1 stay on PyPI. A tag push does not upload this
+version. Uploading is a manual dispatch of `.github/workflows/publish.yml`
+on `main`: `index` = `testpypi`, then `index` = `pypi`.
+
+The codon and primer tabs share one neutral palette, one accent, and scales
+for space, type, and radius (`#54`). Controls, endpoints, and result
+documents are unchanged. Before and after screenshots are
+`docs/screenshots/frontend-redesign/`.
+
+`.github/workflows/native-wheel-install.yml` installs the published
+`dna-design-suite==0.1.0.post1` wheel from PyPI on `ubuntu-24.04-arm` and
+`macos-15-intel` (`#52`). It does not build or upload. The pin stays
+0.1.0.post1, which is the wheel PyPI serves until this version is uploaded.
+The clean environment is created with `virtualenv`. A bare
+`python -m venv` needs `ensurepip`, which is not always installed.
+Run
+[39258362760](https://github.com/HT-alpha/iGEM-SPC-Codon-Optimization-Tool/actions/runs/39258362760)
+passed on Python 3.11 and 3.13. Each job checked the rpsL demo
+(`usage.cai`, `succeeded`), `dna-design-suite --version` (0.1.0), and
+`GET /v1/healthz` (`"status": "ok"`).
+
+The yeeJ fold-count figures in `docs/benchmarks/v2.9.4-harsh-perf.md` and
+`docs/benchmarks/v2.9.5-seed-bottleneck.md` stay the 18 October records
+(`#51`). Current output is 12 hits, 1 full fold, and 11 local edits. That
+count first appears in `bf582aa`.
+
+`docs/benchmarks/gate-ben-001-dnachisel.md` is one head-to-head of DNA
+Design Suite and DNA Chisel 3.2.16 on the 50 `GATE-BEN-001` proteins under
+`benchmarks/validation/constraints_assembly.json` (`#55`). Headline CAI,
+GC, translation, and constraint counts are scored with Biopython 1.81, not
+the design engine. The sequences were produced at `499f0f3`. On the 49
+genes both tools returned, DNA Design Suite CAI is higher on 49 and DNA
+Chisel on 0. Neither tool returned a sequence for aceF. DNA Chisel's rpoB
+sequence contains one in-frame AGG and scores CAI 0. Solver time sums to
+18.616265151001244 s for DNA Design Suite and 13.283595282001215 s for DNA
+Chisel. The note names the genes where global GC or wall time favors DNA
+Chisel. It does not replace the empty-constraint `GATE-BEN-001` claim.
+
 ## Unreleased
 
 Package version stays 0.1.0. This note is the DNA Design Suite delta on top

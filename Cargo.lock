@@ -28,11 +28,11 @@ dependencies = [
 
 [[package]]
 name = "cf-biophys-kinetics"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "cf-biophys-structure"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-types",
  "serde_json",
@@ -40,7 +40,7 @@ dependencies = [
 
 [[package]]
 name = "cf-burden"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-landscape-api",
  "cf-types",
@@ -49,7 +49,7 @@ dependencies = [
 
 [[package]]
 name = "cf-constraints"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-types",
  "regex",
@@ -60,7 +60,7 @@ dependencies = [
 
 [[package]]
 name = "cf-epistasis"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-landscape-api",
  "cf-types",
@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "cf-landscape"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-constraints",
  "cf-landscape-api",
@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "cf-landscape-api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-types",
  "serde",
@@ -87,11 +87,11 @@ dependencies = [
 
 [[package]]
 name = "cf-metrics"
-version = "0.1.0"
+version = "0.1.1"
 
 [[package]]
 name = "cf-primer-search"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-metrics",
  "cf-primer-thermo",
@@ -102,7 +102,7 @@ dependencies = [
 
 [[package]]
 name = "cf-primer-thermo"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-types",
  "serde",
@@ -112,7 +112,7 @@ dependencies = [
 
 [[package]]
 name = "cf-pyext"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-burden",
  "cf-constraints",
@@ -130,7 +130,7 @@ dependencies = [
 
 [[package]]
 name = "cf-search"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "cf-constraints",
  "cf-landscape-api",
@@ -142,7 +142,7 @@ dependencies = [
 
 [[package]]
 name = "cf-types"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "regex",
  "serde",

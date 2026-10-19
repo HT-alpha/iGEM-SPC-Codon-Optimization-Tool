@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "dna-design-suite"
-version = "0.1.0.post1"
+version = "0.1.1"
 description = "DNA Design Suite: a codon optimization tool and a primer design tool"
 readme = "README.md"
 requires-python = ">=3.11"
