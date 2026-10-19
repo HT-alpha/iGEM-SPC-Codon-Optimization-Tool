@@ -284,8 +284,15 @@ paths:
           schema: { type: integer, minimum: 1, default: 20 }
         - name: format
           in: query
+          description: |
+            `sbol` is SBOL 3 sorted N-Triples for the recommended candidate,
+            its sequence features, the host profile, and the constraint set
+            (`DEP-SBOL-001`). It is an export. This build does not import SBOL.
+            `json` is the pareto front. `fasta`, `genbank`, and `csv` remain
+            listed for clients that already send them; this server still
+            returns the front JSON for those three and the page renders them.
           schema:
-            enum: [json, fasta, genbank, csv]
+            enum: [json, fasta, genbank, csv, sbol]
             default: json
       responses:
         "200":
@@ -297,6 +304,12 @@ paths:
               schema: { type: string }
             text/csv:
               schema: { type: string }
+            application/n-triples:
+              schema:
+                type: string
+                description: |
+                  SBOL 3 sorted N-Triples when `format=sbol`. Produced by
+                  pySBOL3 and refused unless `Document.validate()` is clean.
         "404": { $ref: "#/components/responses/Problem" }
         "409":
           description: Job has not produced a front yet.

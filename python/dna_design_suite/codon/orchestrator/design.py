@@ -212,6 +212,23 @@ class DesignResult:
             {"status": self.status, "front": self.front}, indent=indent, sort_keys=True
         )
 
+    def to_sbol(self) -> str:
+        """SBOL 3 for the recommended candidate and the request documents.
+
+        The writer renders ``front``, ``sequence_document()``, the host
+        profile, and the constraint set. It does not score the sequence again.
+        A missing ``sbol3`` install is ``CF-SBOL-001``.
+        """
+        from dna_design_suite.export.sbol import to_sbol
+
+        return to_sbol(
+            self.front or {},
+            self.sequence_document(),
+            self.job.inputs.host_profile,
+            self.job.inputs.constraint_set,
+            design_host=self.job.inputs.host_id,
+        )
+
 
 def score_sequences(request: DesignRequest, sequences: list[str]) -> list[dict[str, Any]]:
     """Score existing CDS strings on this request's landscape.

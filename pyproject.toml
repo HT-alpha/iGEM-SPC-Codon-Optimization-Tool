@@ -45,6 +45,12 @@ dev = [
 structure-tests = [
   "ViennaRNA>=2.6",
 ]
+# Optional SBOL 3 export (`DEP-SBOL-001`). pySBOL3 (`sbol3`) is MIT-licensed.
+# It is not imported unless a caller asks for SBOL, and a missing install is
+# `CF-SBOL-001`. The default install does not depend on it.
+sbol = [
+  "sbol3>=1.2,<2",
+]
 
 [project.scripts]
 dna-design-suite = "dna_design_suite.cli.main:main"
