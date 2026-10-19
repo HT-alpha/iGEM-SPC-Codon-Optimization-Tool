@@ -167,12 +167,7 @@ jobs:
   publish-testpypi:
     name: publish to TestPyPI
     needs: [build, sdist, install]
-    # One pull request from this branch publishes 0.1.0.post1 to TestPyPI.
-    # workflow_dispatch is HTTP 403 for the cloud-agent token. Remove this
-    # clause after that upload. It does not select the real index.
-    if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.index == 'testpypi') ||
-      (github.event_name == 'pull_request' && github.head_ref == 'cursor/pypi-post1-readme-bfe8')
+    if: github.event_name == 'workflow_dispatch' && inputs.index == 'testpypi'
     runs-on: ubuntu-latest
     environment:
       name: testpypi
