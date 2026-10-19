@@ -11,6 +11,8 @@ name: wheels
 
 on:
   push:
+    # Every branch. A branch filter is what keeps a tag push from starting this workflow.
+    branches: ["**"]
   workflow_dispatch:
   schedule:
     # Weekly, so a platform breakage is found before a release rather than
