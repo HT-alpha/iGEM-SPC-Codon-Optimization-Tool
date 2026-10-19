@@ -9,6 +9,7 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 /.venv/
+benchmarks/gate_ben_001_chisel/.score-venv/
 /venv/
 
 # Build outputs
