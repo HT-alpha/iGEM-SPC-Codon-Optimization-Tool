@@ -1,8 +1,10 @@
 # DNA Design Suite — Software wiki draft
 
 Paste into the team Software page. The repository is public. Package
-version is 0.1.0.post1. Tag `v0.1.0` is the 0.1.0 release, and that release
-is on PyPI. Publishing the wiki does not cut a new package version.
+version is 0.1.1, and the compiled core reports 0.1.1. Tag `v0.1.0` is
+the 0.1.0 release. 0.1.0 and 0.1.0.post1 are on PyPI. 0.1.1 is uploaded by
+a manual dispatch of `.github/workflows/publish.yml`. Publishing the wiki
+does not cut a new package version.
 
 ## Purpose
 
@@ -27,7 +29,8 @@ Python. The licence is Apache-2.0.
 
 ## Install
 
-Python 3.11 or newer. The package is version 0.1.0.post1.
+Python 3.11 or newer. The package is version 0.1.1. The compiled core
+reports 0.1.1.
 
 ```sh
 pip install dna-design-suite
@@ -70,7 +73,7 @@ repository `README.md`.
 
 ## What the five phases do here
 
-The plan is `planning/06-build/00-sequencing-overview.md`. Package 0.1.0
+The plan is `planning/06-build/00-sequencing-overview.md`. Package 0.1.1
 on the current tip runs the following. Details are in the README section
 **Honest limits**.
 

@@ -71,7 +71,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m venv "$RUNNER_TEMP/dds"
+          # virtualenv, not `python -m venv`: that module needs ensurepip,
+          # which is not always installed. Same bootstrap as `make setup`.
+          python -m pip install -q virtualenv
+          python -m virtualenv "$RUNNER_TEMP/dds"
           "$RUNNER_TEMP/dds/bin/python" -m pip install --upgrade pip
           "$RUNNER_TEMP/dds/bin/python" -m pip install \
             --index-url https://pypi.org/simple \
