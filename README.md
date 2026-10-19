@@ -35,7 +35,7 @@ is the package version. Python 3.11 or newer is required. One wheel per
 operating system covers 3.11 through 3.13 (`abi3-py311`) when a wheel file
 exists. CPython 3.9 and 3.10 are not supported.
 
-The install path from a checkout of this repository is source, below.
+From a checkout, install with Docker or from source. Both are below.
 GitHub Actions is not an install path: there is no release, and this README
 does not send you to a workflow artifact. A wheel file is something you
 already have on disk. This README does not claim a wheel is attached to a
@@ -99,6 +99,58 @@ module command works in any environment the package was installed into:
 ```sh
 python -m dna_design_suite.api
 ```
+
+### Install with Docker
+
+Docker is enough. The image is built from this checkout. Rust and maturin
+run in the image build. ViennaRNA is optional and is not included.
+
+```sh
+docker build -t dna-design-suite .
+```
+
+Design the bundled rpsL sequence. The files are in the image:
+
+```sh
+docker run --rm --entrypoint sh dna-design-suite -c '
+  dna-design-suite design \
+    --host escherichia_coli:511145/MG1655 \
+    --cds "$(tr -d "\n" < /opt/dna-design-suite/examples/rpsL.cds)" \
+    --host-profile /opt/dna-design-suite/examples/mg1655_ribosomal_usage.json \
+    --constraints /opt/dna-design-suite/examples/rpsL_constraints.json \
+    --objectives usage.cai \
+    --budget fast \
+    --generations 4 \
+    --seed 7 \
+    --output explain
+'
+```
+
+To design a sequence from the host, mount the directory that holds it and
+pass those paths. From the repository directory, the same demo is:
+
+```sh
+docker run --rm -v "$PWD:/work" -w /work dna-design-suite design \
+    --host escherichia_coli:511145/MG1655 \
+    --cds "$(tr -d '\n' < examples/rpsL.cds)" \
+    --host-profile examples/mg1655_ribosomal_usage.json \
+    --constraints examples/rpsL_constraints.json \
+    --objectives usage.cai \
+    --budget fast \
+    --generations 4 \
+    --seed 7 \
+    --output explain
+```
+
+The page and the REST service listen on port 8000. Publish that port. A
+browser on the host opens <http://127.0.0.1:8000/>.
+
+```sh
+docker run --rm -p 8000:8000 --entrypoint python dna-design-suite \
+    -m dna_design_suite.api --host 0.0.0.0 --port 8000 --no-browser
+```
+
+`GET /v1/healthz` and `GET /v1/version` need no credential.
 
 ### Publishing a release
 
