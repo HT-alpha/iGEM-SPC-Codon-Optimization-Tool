@@ -8,7 +8,7 @@
 
 import { toCsv, toFasta, toGenbank } from "/formats.js";
 import { createHelix } from "/helix.js";
-import { nucleotideIndex } from "/viewer.js";
+import { nearestBase, nearestLineIndex, nucleotideIndex, renderSequenceLines, selectionLabel } from "/viewer.js";
 
 const tokenInput = document.getElementById("token");
 const requestInput = document.getElementById("request");
@@ -1112,16 +1112,17 @@ let viewStart = 0;
 let hoverSites = null;
 let lastPrimerResult = null;
 
-function rulerStep(length) {
-  if (length > 5000) return 100;
-  if (length > 500) return 50;
-  return 10;
-}
-
 function visibleWindow(sequence) {
   if (sequence.length <= 10000) return { start: 0, text: sequence };
-  const start = Math.max(0, Math.min(viewStart, sequence.length - 2000));
+  const start = Math.max(0, Math.min(viewStart, Math.max(0, sequence.length - 2000)));
   return { start, text: sequence.slice(start, start + 2000) };
+}
+
+function clampSelection(sequenceLength) {
+  if (!selection) return;
+  const end = Math.min(selection.end, sequenceLength);
+  const start = Math.max(0, Math.min(selection.start, end));
+  selection = end > start ? { start, end } : null;
 }
 
 function drawViewer() {
@@ -1129,23 +1130,30 @@ function drawViewer() {
   const cleaned = cleanedTemplate(primerSequence.value);
   const sequence = cleaned.sequence;
   const templateProblem = primerTemplateProblem(cleaned);
+  clampSelection(sequence.length);
   const windowed = visibleWindow(sequence);
   viewStart = windowed.start;
-  const step = rulerStep(sequence.length);
   let html = "";
-  for (let index = 0; index < windowed.text.length; index += 1) {
-    const absolute = windowed.start + index;
-    if (absolute % step === 0) html += `<span class="note">${absolute}</span> `;
-    html += `<span class="nt" data-index="${absolute}">${windowed.text[index]}</span>`;
-  }
   if (sequence.length > 10000) {
-    html = `<p class="note">Showing ${windowed.start}–${windowed.start + windowed.text.length} of ${sequence.length}. <button type="button" id="viewer-back" data-jump="-2000">Back</button> <button type="button" id="viewer-forward" data-jump="2000">Forward</button></p>` + html;
+    const from = windowed.start + 1;
+    const to = windowed.start + windowed.text.length;
+    html += `<p class="note viewer-window">Showing bases ${from}–${to} of ${sequence.length}. <button type="button" id="viewer-back" data-jump="-2000">Back</button> <button type="button" id="viewer-forward" data-jump="2000">Forward</button></p>`;
   }
   if (templateProblem) {
-    html = `<p class="callout refusal">${escapeText(templateProblem)}</p>` + html;
+    html += `<p class="callout refusal">${escapeText(templateProblem)}</p>`;
   }
-  viewer.innerHTML = html || `<span class="note">Paste a sequence.</span>`;
+  html += windowed.text
+    ? renderSequenceLines(windowed.text, windowed.start)
+    : `<span class="note">Paste a sequence.</span>`;
+  viewer.innerHTML = html;
   applyHighlight();
+}
+
+function baseClass(letter) {
+  if (letter === "A" || letter === "C" || letter === "G" || letter === "T") {
+    return `nt nt-${letter.toLowerCase()}`;
+  }
+  return "nt";
 }
 
 function applyHighlight() {
@@ -1153,13 +1161,15 @@ function applyHighlight() {
   const flank = Number(document.getElementById("primer-flank").value) || 200;
   viewer.querySelectorAll("[data-index]").forEach((node) => {
     const absolute = Number(node.dataset.index);
-    let klass = "nt";
+    let klass = baseClass(node.textContent);
     if (hoverSites) {
       if (absolute >= hoverSites.forwardStart && absolute < hoverSites.forwardEnd) klass += " bind-f";
       else if (absolute >= hoverSites.reverseStart && absolute < hoverSites.reverseEnd) klass += " bind-r";
       else if (absolute >= hoverSites.ampStart && absolute < hoverSites.ampEnd) klass += " amplicon";
     } else if (selection && absolute >= selection.start && absolute < selection.end) {
       klass += " selected";
+      if (absolute === selection.start) klass += " sel-start";
+      if (absolute === selection.end - 1) klass += " sel-end";
     } else if (selection && absolute >= selection.start - flank && absolute < selection.start) {
       klass += " flank";
     } else if (selection && absolute >= selection.end && absolute < selection.end + flank) {
@@ -1167,40 +1177,97 @@ function applyHighlight() {
     }
     if (node.className !== klass) node.className = klass;
   });
-  const note = document.getElementById("primer-selection");
-  if (note) {
-    note.textContent = selection
-      ? `Bases ${selection.start + 1}–${selection.end} (${selection.end - selection.start} nt). Both ends are included.`
-      : "No region selected.";
-  }
+  viewer.querySelectorAll(".seq-line").forEach((line) => {
+    const start = Number(line.dataset.lineStart);
+    const end = Number(line.dataset.lineEnd);
+    const marksStart = Boolean(selection) && selection.start >= start && selection.start < end;
+    const marksEnd = Boolean(selection) && selection.end - 1 >= start && selection.end - 1 < end;
+    line.classList.toggle("is-start", marksStart);
+    line.classList.toggle("is-end", marksEnd);
+    const startMark = line.querySelector(".roi-mark-start");
+    const endMark = line.querySelector(".roi-mark-end");
+    if (startMark) startMark.textContent = marksStart ? `start ${selection.start + 1}` : "";
+    if (endMark) endMark.textContent = marksEnd ? `end ${selection.end}` : "";
+  });
+  writeSelectionReadout();
   syncRegionFields();
+}
+
+function writeSelectionReadout() {
+  const note = document.getElementById("primer-selection");
+  if (!note) return;
+  const label = selectionLabel(selection);
+  if (!label) {
+    note.classList.remove("has-selection");
+    note.textContent = "No region selected.";
+    return;
+  }
+  note.classList.add("has-selection");
+  note.innerHTML = `<span>Start <strong>${label.startBase}</strong></span><span>End <strong>${label.endBase}</strong></span><span>Length <strong>${label.length} bp</strong></span><span class="note">Both ends are included.</span>`;
 }
 
 function showSelectionTip(event) {
   const tip = document.getElementById("selection-tip");
-  if (!tip || !selection) return;
-  const bases = selection.end - selection.start;
+  const label = selectionLabel(selection);
+  if (!tip || !label) return;
   tip.hidden = false;
-  tip.textContent = bases + " bp selected";
-  tip.style.left = event.clientX + 12 + "px";
-  tip.style.top = event.clientY + 16 + "px";
+  tip.textContent = `${label.startBase}–${label.endBase} · ${label.length} bp`;
+  tip.style.left = `${event.clientX + 12}px`;
+  tip.style.top = `${event.clientY + 16}px`;
 }
 
 function indexAt(event) {
-  return nucleotideIndex(event.target, document.elementFromPoint(event.clientX, event.clientY));
+  const direct = nucleotideIndex(event.target, document.elementFromPoint(event.clientX, event.clientY));
+  if (direct !== null) return direct;
+  return indexNearPointer(event.clientX, event.clientY);
+}
+
+function indexNearPointer(x, y) {
+  if (!viewer) return null;
+  const rows = [...viewer.querySelectorAll(".seq-line")];
+  if (!rows.length) return null;
+  const lineIndex = nearestLineIndex(
+    y,
+    rows.map((row) => {
+      const rect = row.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom };
+    }),
+  );
+  if (lineIndex === null) return null;
+  const bases = [...rows[lineIndex].querySelectorAll("[data-index]")].map((node) => {
+    const rect = node.getBoundingClientRect();
+    return { index: Number(node.dataset.index), left: rect.left, right: rect.right };
+  });
+  return nearestBase(x, bases);
+}
+
+function revealSelection() {
+  if (!viewer || !selection) return;
+  const node = viewer.querySelector(`[data-index="${selection.start}"]`);
+  if (node && typeof node.scrollIntoView === "function") {
+    node.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+
+function nudgeViewerScroll(event) {
+  if (!viewer) return;
+  const rect = viewer.getBoundingClientRect();
+  const edge = 28;
+  if (event.clientY > rect.bottom - edge && event.clientY < rect.bottom + 48) viewer.scrollTop += 18;
+  else if (event.clientY < rect.top + edge && event.clientY > rect.top - 48) viewer.scrollTop -= 18;
 }
 
 if (viewer) {
   viewer.addEventListener("pointerdown", (event) => {
-    const index = indexAt(event);
-    if (index === null) {
-      const jump = event.target.closest("[data-jump]");
-      if (jump) {
-        viewStart = Math.max(0, viewStart + Number(jump.dataset.jump));
-        drawViewer();
-      }
+    const jump = event.target.closest("[data-jump]");
+    if (jump) {
+      viewStart = Math.max(0, viewStart + Number(jump.dataset.jump));
+      drawViewer();
       return;
     }
+    if (event.target.closest(".seq-ruler-head")) return;
+    const index = indexAt(event);
+    if (index === null) return;
     dragAnchor = index;
     hoverSites = null;
     selection = { start: index, end: index + 1 };
@@ -1210,6 +1277,7 @@ if (viewer) {
   });
   viewer.addEventListener("pointermove", (event) => {
     if (dragAnchor === null) return;
+    nudgeViewerScroll(event);
     const index = indexAt(event);
     if (index === null) return;
     selection = { start: Math.min(dragAnchor, index), end: Math.max(dragAnchor, index) + 1 };
@@ -1296,6 +1364,18 @@ function worstSeverity(flags) {
 }
 
 let submittedPrimerTemplate = "";
+let submittedRegionLabel = null;
+
+function bindingLine(pair) {
+  const bits = [];
+  if (Number.isInteger(pair.forward_start) && Number.isInteger(pair.forward_end)) {
+    bits.push(`Forward binds bases ${pair.forward_start + 1}–${pair.forward_end}`);
+  }
+  if (Number.isInteger(pair.reverse_start) && Number.isInteger(pair.reverse_end)) {
+    bits.push(`Reverse binds bases ${pair.reverse_start + 1}–${pair.reverse_end}`);
+  }
+  return bits.join(". ");
+}
 
 function productSequenceOf(pair, template) {
   if (pair && pair.product_sequence) return pair.product_sequence;
@@ -1309,6 +1389,7 @@ function productSequenceOf(pair, template) {
 }
 
 function detailPanel(pair) {
+  const binds = bindingLine(pair);
   const flags = clientFlags(pair)
     .map((flag) => `<div class="zone-chip ${zoneClass(flag)}">${escapeText(flag.property)} ${escapeText(flag.observed)} · ${escapeText(flag.threshold)}</div>`)
     .join("");
@@ -1322,6 +1403,7 @@ function detailPanel(pair) {
     <p><strong>Reverse</strong> <span class="mono">${escapeText(pair.reverse_sequence)}</span> <button type="button" data-copy="${escapeAttr(pair.reverse_sequence || "")}">Copy reverse primer</button></p>
     <pre class="mono mono-reveal">${escapeText(pair.hairpin_diagram_reverse || "")}</pre>
     <p>Hairpin ΔG ${escapeText(pair.hairpin_dG_reverse)} · self-dimer ΔG ${escapeText(pair.self_dimer_dG_reverse)} · 3′ clamp, informational, not a filter: ${pair.gc_clamp_reverse ? "G or C" : "not G or C"}</p>
+    ${binds ? `<p>${escapeText(binds)}.</p>` : ""}
     <p><strong>Pair</strong> hetero-dimer ΔG ${escapeText(pair.hetero_dimer_dG)} · 3′ ΔG ${escapeText(pair.hetero_dimer_3prime_dG)} · Tm mismatch ${escapeText(pair.tm_mismatch)} · product ${escapeText(pair.product_size)}</p>
     <p class="note">Self-dimer and heterodimer ΔG use SantaLucia 1998 Table 2 Watson–Crick stacks only: no dangling ends and no mismatch stacks, so they are not primer3 calc_homodimer. Melting temperature is the same SantaLucia model and matches primer3-py at 1 M sodium.</p>
     <pre class="mono mono-reveal">${escapeText(pair.hetero_dimer_alignment || "")}</pre>
@@ -1356,6 +1438,7 @@ function renderPrimerResult(result) {
     <div class="callout pulse-once"><strong>Recommended</strong> <code>${escapeText(recommended.pair_id)}</code><br>
     informed_by <code>primer.tm_mismatch</code> <code>primer.worst_dimer_penalty</code> <code>primer.gc_balance</code> <code>primer.product_deviation</code></div>
     <p class="note">Specificity against genome not checked. ${escapeText(result.parameter_citation || "")}</p>
+    ${submittedRegionLabel ? `<p class="note">Region in this request: bases ${submittedRegionLabel.startBase}–${submittedRegionLabel.endBase}, ${submittedRegionLabel.length} bp. Both ends are included.</p>` : ""}
     <div class="hscroll"><table class="data"><thead><tr><th>pair</th><th>Tm mismatch</th><th>worst dimer ΔG</th><th>GC balance</th><th>product</th><th>zone</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div id="primer-detail">${detailPanel(recommended)}</div>
   </div>`;
@@ -1447,6 +1530,7 @@ document.getElementById("primer-search").addEventListener("click", async () => {
   }
   const sequence = cleaned.sequence;
   submittedPrimerTemplate = sequence;
+  submittedRegionLabel = selectionLabel(selection);
   let posted;
   try {
     posted = await call("POST", "/v1/primers/candidates", {
@@ -1507,7 +1591,7 @@ function refreshPrimerZones() {
   }
 }
 
-["primer-tm", "primer-pmin", "primer-pmax"].forEach((id) => {
+["primer-tm", "primer-pmin", "primer-pmax", "primer-flank"].forEach((id) => {
   const input = document.getElementById(id);
   if (!input) return;
   input.addEventListener("input", () => {
@@ -1529,12 +1613,23 @@ let loadedProfile = null;
 let loadedSource = null;
 let loadedConstraints = null;
 
+function writeField(input, value) {
+  if (!input || document.activeElement === input) return;
+  if (input.value !== value) input.value = value;
+}
+
 function syncRegionFields() {
   const start = document.getElementById("region-start");
   const end = document.getElementById("region-end");
-  if (!start || !end || !selection) return;
-  start.value = String(selection.start + 1);
-  end.value = String(selection.end);
+  if (!start || !end) return;
+  const label = selectionLabel(selection);
+  if (!label) {
+    writeField(start, "");
+    writeField(end, "");
+    return;
+  }
+  writeField(start, String(label.startBase));
+  writeField(end, String(label.endBase));
 }
 
 function selectionFromFields() {
@@ -1542,6 +1637,7 @@ function selectionFromFields() {
   const sequence = cleanedTemplate(primerSequence.value).sequence;
   const startBox = document.getElementById("region-start");
   const endBox = document.getElementById("region-end");
+  if (startBox.value.trim() === "" || endBox.value.trim() === "") return;
   const startBase = Number(startBox.value);
   const endBase = Number(endBox.value);
   if (!Number.isInteger(startBase) || !Number.isInteger(endBase)) return;
@@ -1549,7 +1645,17 @@ function selectionFromFields() {
   const end = Math.min(sequence.length, endBase);
   if (end <= start) return;
   selection = { start, end };
+  if (sequence.length > 10000) {
+    const windowEnd = viewStart + 2000;
+    if (start < viewStart || start >= windowEnd) {
+      viewStart = Math.max(0, Math.min(start - 60, Math.max(0, sequence.length - 2000)));
+      drawViewer();
+      revealSelection();
+      return;
+    }
+  }
   applyHighlight();
+  revealSelection();
 }
 
 function cleanedTemplate(raw) {
@@ -2514,7 +2620,9 @@ function bindGuide() {
         primerSequence.value = text.trim();
         document.getElementById("primer-flank").value = "40";
         selection = { start: 40, end: 300 };
+        viewStart = 0;
         drawViewer();
+        revealSelection();
       })
       .catch((error) => {
         document.getElementById("primer-error").innerHTML = `<div class="callout refusal"><strong>${escapeText(error.message)}</strong></div>`;
@@ -2527,10 +2635,14 @@ function bindGuide() {
       return;
     }
     selection = { start: 0, end: sequence.length };
+    viewStart = 0;
     drawViewer();
+    revealSelection();
   });
   ["region-start", "region-end"].forEach((id) => {
-    document.getElementById(id).addEventListener("change", selectionFromFields);
+    const input = document.getElementById(id);
+    input.addEventListener("change", selectionFromFields);
+    input.addEventListener("input", selectionFromFields);
   });
   const jobsRoot = document.getElementById("jobs-root");
   if (jobsRoot) {

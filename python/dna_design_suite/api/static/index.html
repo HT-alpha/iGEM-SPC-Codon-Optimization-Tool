@@ -404,12 +404,12 @@
   <h2>Sequence</h2>
   <label for="primer-sequence">Template DNA</label>
   <textarea id="primer-sequence" class="seq" rows="4" spellcheck="false" placeholder="ACGT..." aria-describedby="help-primer-seq"></textarea>
-  <p id="help-primer-seq" class="field-help">Paste the DNA you will amplify. A FASTA header (a line starting with &gt; or ;) is dropped before numbering, the same way the API drops it, so the header does not shift the region. Lowercase is read as uppercase. A letter that is not A, C, G or T is named with its position and the search does not run. Then drag across the letters, or type a start and end. On a phone, Select the whole sequence is the sure path.</p>
+  <p id="help-primer-seq" class="field-help">Paste the DNA you will amplify. A FASTA header (a line starting with &gt; or ;) is dropped before numbering, the same way the API drops it, so the header does not shift the region. Lowercase is read as uppercase. A letter that is not A, C, G or T is named with its position and the search does not run. The sequence is drawn in lines of 60 bases. The number at each end of a line is the first or last base on that line, counting from 1. The numbers along the top are the position within the line. Drag across the letters, including from one line to the next, or type a start and end. The readout above the sequence is the start, the end, and the length. On a phone, Select the whole sequence is the sure path.</p>
   <div class="viewer-layout">
     <div>
-      <div id="primer-viewer" class="seq-block viewer" tabindex="0" role="application" aria-label="Sequence viewer. Drag across bases to choose the region to amplify, or type the start and end."></div>
+      <p id="primer-selection" class="selection-readout" aria-live="polite">No region selected.</p>
+      <div id="primer-viewer" class="seq-block viewer" tabindex="0" role="application" aria-label="Sequence viewer. Lines of 60 bases, with the first and last base number on each line. Drag across bases, including onto the next line, to choose the region to amplify, or type the start and end."></div>
       <div id="selection-tip" class="selection-tip" hidden></div>
-      <p id="primer-selection" class="note">No region selected.</p>
       <div class="region-fields">
         <label for="region-start">Start base
           <input id="region-start" class="seq narrow" type="number" min="1" inputmode="numeric" aria-describedby="help-region">
@@ -418,7 +418,7 @@
           <input id="region-end" class="seq narrow" type="number" min="1" inputmode="numeric">
         </label>
       </div>
-      <p id="help-region" class="field-help">Bases are numbered from 1, and both ends are included. The viewer highlights the same stretch. Keyboard: tab to these boxes. You do not have to drag.</p>
+      <p id="help-region" class="field-help">Bases are numbered from 1, and both ends are included. Typing a start and an end moves the highlight. Dragging the highlight fills these boxes. Keyboard: tab to these boxes. You do not have to drag.</p>
     </div>
     <div class="config-panel">
       <h2>Primer settings</h2>

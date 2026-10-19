@@ -92,7 +92,87 @@ def test_the_page_asks_for_the_element_under_the_pointer_and_keeps_capture() -> 
         in js
     )
     assert "viewer.setPointerCapture(event.pointerId)" in js
-    assert 'import { nucleotideIndex } from "/viewer.js";' in js
+    assert 'from "/viewer.js"' in js
+    assert "nucleotideIndex" in js
+    assert "nearestLineIndex" in js
+    assert "nearestBase" in js
+    assert "renderSequenceLines" in js
+    assert "selectionLabel" in js
+
+
+def test_a_sequence_longer_than_one_line_wraps() -> None:
+    """Sixty bases fill one line. The next base starts the next line."""
+    report = _node(
+        """
+        const width = m.BASES_PER_LINE;
+        const html = m.renderSequenceLines("A".repeat(width + 1), 0);
+        return {
+          lines: (html.match(/class="seq-line"/g) || []).length,
+          opensSecond: html.includes('data-line-start="' + width + '"'),
+          numbersSecond: html.includes('>' + (width + 1) + '</span>'),
+          keepsIndex: html.includes('data-index="' + width + '"'),
+        };
+        """
+    )
+    assert report == {
+        "lines": 2,
+        "opensSecond": True,
+        "numbersSecond": True,
+        "keepsIndex": True,
+    }
+
+
+def test_line_numbers_are_one_based_and_follow_the_window_origin() -> None:
+    html = _node('return m.renderSequenceLines("ACGT", 100);')
+    assert 'data-index="100"' in html
+    assert 'data-index="103"' in html
+    assert ">101</span>" in html
+    assert ">104</span>" in html
+
+
+def test_an_illegal_base_is_escaped() -> None:
+    html = _node('return m.renderSequenceLines("A<G&T", 0);')
+    assert "&lt;" in html
+    assert "&amp;" in html
+    assert "<G" not in html
+
+
+def test_the_selection_label_is_one_based_and_inclusive() -> None:
+    """The rpsL demo posts {start: 40, end: 300}, which is bases 41–300."""
+    assert _node("return m.selectionLabel({start: 40, end: 300});") == {
+        "startBase": 41,
+        "endBase": 300,
+        "length": 260,
+    }
+    assert _node("return m.selectionLabel(null);") is None
+    assert _node("return m.selectionLabel({start: 5, end: 5});") is None
+
+
+def test_a_pointer_between_lines_names_the_nearer_line() -> None:
+    assert _node(
+        """
+        const lines = [{top: 0, bottom: 20}, {top: 28, bottom: 48}];
+        return m.nearestLineIndex(26, lines, 8);
+        """
+    ) == 1
+    assert _node(
+        """
+        const lines = [{top: 0, bottom: 20}, {top: 28, bottom: 48}];
+        return m.nearestLineIndex(200, lines, 8);
+        """
+    ) is None
+
+
+def test_a_pointer_in_a_gap_names_the_nearer_base() -> None:
+    assert _node(
+        """
+        const bases = [
+          {index: 61, left: 8, right: 16},
+          {index: 70, left: 80, right: 88},
+        ];
+        return [m.nearestBase(40, bases), m.nearestBase(70, bases), m.nearestBase(12, bases)];
+        """
+    ) == [61, 70, 61]
 
 
 @pytest.fixture()
