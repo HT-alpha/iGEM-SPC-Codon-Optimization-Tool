@@ -29,28 +29,48 @@ is [`docs/project-status.md`](docs/project-status.md). History is
 The page listens on <http://127.0.0.1:8000/>, opens a browser, and waits
 until Ctrl+C. `--no-browser` skips the window. `--port` chooses another port.
 
-`pip install dna-design-suite` does not resolve from PyPI. The real index
-has not been published. Version 0.1.0 is the package version, and the tag
-`v0.1.0` names that commit. Python 3.11 or newer is required. One wheel per
-operating system covers 3.11 through 3.13 (`abi3-py311`) when a wheel file
-exists. CPython 3.9 and 3.10 are not supported.
-
-From a checkout, install with Docker or from source. Both are below.
-GitHub Actions is not an install path: there is no release, and this README
-does not send you to a workflow artifact. A wheel file is something you
-already have on disk. This README does not claim a wheel is attached to a
-release, and it does not claim the package is published.
-
-### Install a wheel you already have
-
-Installing one is pip against that file. It is not `pip install dna-design-suite`
-from an index, and it is not a download from a GitHub Actions run.
-
-Linux x86_64. `virtualenv` is the bootstrap `make setup` uses. `python3 -m venv` is only the fallback when virtualenv itself cannot be installed, because that module needs `ensurepip`.
+### Install from PyPI
 
 ```sh
 python3 -m virtualenv .venv
-.venv/bin/pip install dna-design-suite-0.1.0-cp311-abi3-manylinux_*.whl
+.venv/bin/pip install dna-design-suite
+.venv/bin/python -m dna_design_suite.api
+```
+
+Windows (PowerShell, Anaconda):
+
+```powershell
+conda create -n dna-design python=3.11 -y
+conda activate dna-design
+pip install dna-design-suite
+python -m dna_design_suite.api
+```
+
+Python 3.11 or newer is required. CPython 3.9 and 3.10 are not supported.
+The wheels are `abi3-py311`, so one file per platform installs on 3.11,
+3.12, and 3.13. PyPI serves Linux x86_64, Linux aarch64, macOS Intel
+(x86_64), macOS Apple Silicon (arm64), and Windows x86_64.
+
+This file is package version 0.1.0.post1. Tag `v0.1.0` is the 0.1.0
+release. The post-release changes this README and the version string. The
+compiled core stays 0.1.0, which is what `dna-design-suite --version`
+prints. ViennaRNA is optional and is not inside the wheel.
+
+`virtualenv` is the bootstrap `make setup` uses. `python3 -m venv` is only
+the fallback when virtualenv itself cannot be installed, because that
+module needs `ensurepip`.
+
+A wheel file you already have, a source build, and Docker are below.
+
+### Install a wheel you already have
+
+Installing one is pip against that file.
+
+Linux x86_64:
+
+```sh
+python3 -m virtualenv .venv
+.venv/bin/pip install dna_design_suite-0.1.0.post1-cp311-abi3-manylinux_*.whl
 .venv/bin/python -m dna_design_suite.api
 ```
 
@@ -59,12 +79,13 @@ Windows (PowerShell, Anaconda), from the directory that contains the wheel:
 ```powershell
 conda create -n dna-design python=3.11 -y
 conda activate dna-design
-pip install .\dna-design-suite-0.1.0-cp311-abi3-win_amd64.whl
+pip install .\dna_design_suite-0.1.0.post1-cp311-abi3-win_amd64.whl
 python -m dna_design_suite.api
 ```
 
-The filename ends in `win_amd64` on 64-bit Windows. ViennaRNA is still
-optional and is not inside the wheel.
+The filename ends in `win_amd64` on 64-bit Windows, `macosx_*_arm64` on
+Apple Silicon, `macosx_*_x86_64` on Intel Macs, and `manylinux*_aarch64`
+on Linux aarch64. ViennaRNA is still optional and is not inside the wheel.
 
 ### Install from source
 
@@ -171,8 +192,8 @@ manual run of the same workflow. The `index` input chooses the destination:
 - `pypi` uploads to PyPI, environment `pypi`.
 
 A push or a tag does not select `pypi`. A version on PyPI is permanent.
-Until that upload is done on purpose, install from a wheel file you already
-have, from Docker, or from source.
+0.1.0 is already on PyPI. 0.1.0.post1 is the same code with this README.
+Uploading it is a manual run of that workflow with `index` set to `pypi`.
 
 ### First run
 
@@ -309,9 +330,9 @@ for hairpins. Commercial distribution is outside the AMD-013 note in
 iGEM educational project, and the reviewer states that the email is not a
 formal legal opinion.
 
-The status note is the current tip. The package version is 0.1.0.
-The tag `v0.1.0` names that commit. The package is not on PyPI.
-`python -m dna_design_suite.cli.main --version` prints 0.1.0.
+The status note is the current tip. The package version is 0.1.0.post1.
+Tag `v0.1.0` is the 0.1.0 release, and that release is on PyPI.
+`python -m dna_design_suite.cli.main --version` prints the core version, 0.1.0.
 
 ---
 

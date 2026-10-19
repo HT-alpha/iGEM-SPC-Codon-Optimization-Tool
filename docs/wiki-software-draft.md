@@ -1,8 +1,8 @@
 # DNA Design Suite — Software wiki draft
 
-Paste into the team Software page. The repository is private. Package
-version is 0.1.0. There is no release tag. Publishing the wiki does not
-publish the git repository and does not put the package on PyPI.
+Paste into the team Software page. The repository is public. Package
+version is 0.1.0.post1. Tag `v0.1.0` is the 0.1.0 release, and that release
+is on PyPI. Publishing the wiki does not cut a new package version.
 
 ## Purpose
 
@@ -27,9 +27,15 @@ Python. The licence is Apache-2.0.
 
 ## Install
 
-Python 3.11 or newer, and Rust (`rustup`). The package is version 0.1.0.
-It is not on PyPI, and GitHub Actions is not the install path. Clone this
-private repository and build the extension.
+Python 3.11 or newer. The package is version 0.1.0.post1.
+
+```sh
+pip install dna-design-suite
+```
+
+The wheels are `abi3-py311` for Linux x86_64, Linux aarch64, macOS Intel,
+macOS Apple Silicon, and Windows x86_64. A source build needs Rust
+(`rustup`) and is the route below.
 
 Windows (PowerShell, Anaconda), from the repository directory:
 
