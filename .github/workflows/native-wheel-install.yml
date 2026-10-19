@@ -17,7 +17,6 @@ on:
   push:
     branches:
       - cursor/native-wheel-install-5449
-      - cursor/native-wheel-pin-011-9cda
     paths:
       - .github/workflows/native-wheel-install.yml
 
