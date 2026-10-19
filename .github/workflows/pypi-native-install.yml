@@ -1,0 +1,137 @@
+name: pypi-native-install
+
+# Install the wheels already published on PyPI, on the two architectures
+# publish.yml cross-builds and does not install.
+#
+# GitHub's standard runner table (public repositories, docs.github.com
+# "GitHub-hosted runners", read 2026-10-19) still lists Intel macOS images:
+# `macos-15-intel` and `macos-26-intel`. `macos-13` is retired. This
+# workflow uses `macos-15-intel`, the x86_64 label GitHub added when
+# macOS 13 closed. Linux aarch64 uses `ubuntu-24.04-arm`.
+#
+# This file does not build a wheel and does not upload to PyPI or TestPyPI.
+# `pip install --only-binary :all:` refuses the sdist.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/pypi-native-install.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-native-install-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-15-intel]
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: clean venv, PyPI wheel only
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner_os=${RUNNER_OS} runner_arch=${RUNNER_ARCH} runner_name=${RUNNER_NAME}"
+          uname -sm
+          python -c 'import sys; print(sys.version)'
+          python -m pip install --disable-pip-version-check -q virtualenv
+          rm -rf "${RUNNER_TEMP}/dds-venv"
+          python -m virtualenv "${RUNNER_TEMP}/dds-venv"
+          "${RUNNER_TEMP}/dds-venv/bin/python" -m pip install \
+            --disable-pip-version-check \
+            --only-binary :all: \
+            --index-url https://pypi.org/simple \
+            dna-design-suite
+          "${RUNNER_TEMP}/dds-venv/bin/python" -c '
+          import platform
+          import sys
+          from importlib.metadata import distribution
+          from pathlib import Path
+
+          import dna_design_suite
+
+          print("sys.version", sys.version)
+          print("machine", platform.machine())
+          print("package", dna_design_suite.__file__)
+          wheel = distribution("dna-design-suite").read_text("WHEEL")
+          print(wheel)
+          if wheel is None or "Tag:" not in wheel:
+              raise SystemExit("installed distribution has no WHEEL metadata")
+          if not dna_design_suite.core_available():
+              raise SystemExit("wheel did not ship the compiled core")
+          import dna_design_suite._core as core
+
+          print("core_file", core.__file__)
+          print("core_version", dna_design_suite.core_version())
+          examples = Path(dna_design_suite.__file__).resolve().parent / "api" / "examples"
+          cds = examples / "rpsL.cds"
+          if not cds.is_file():
+              raise SystemExit("packaged rpsL demo is missing: " + str(cds))
+          print("examples", examples)
+          '
+
+      - name: rpsL demo and CLI version
+        shell: bash
+        run: |
+          set -euo pipefail
+          py="${RUNNER_TEMP}/dds-venv/bin/python"
+          examples="$("$py" -c 'import dna_design_suite; from pathlib import Path; print(Path(dna_design_suite.__file__).resolve().parent / "api" / "examples")')"
+          echo "cli entry: dna-design-suite -> dna_design_suite.cli.main:main"
+          "${RUNNER_TEMP}/dds-venv/bin/dna-design-suite" --version
+          "$py" -m dna_design_suite.cli.main --version
+          "$py" -m dna_design_suite.cli.main design \
+            --host escherichia_coli:511145/MG1655 \
+            --cds "$(tr -d '\n' < "${examples}/rpsL.cds")" \
+            --host-profile "${examples}/mg1655_ribosomal_usage.json" \
+            --constraints "${examples}/rpsL_constraints.json" \
+            --objectives usage.cai \
+            --budget fast \
+            --generations 4 \
+            --seed 7 \
+            --output explain
+
+      - name: API healthz
+        shell: bash
+        run: |
+          set -euo pipefail
+          py="${RUNNER_TEMP}/dds-venv/bin/python"
+          log="${RUNNER_TEMP}/api.log"
+          "$py" -m dna_design_suite.api --host 127.0.0.1 --port 8765 --no-browser >"$log" 2>&1 &
+          echo $! >"${RUNNER_TEMP}/api.pid"
+          cleanup() {
+            if [[ -f "${RUNNER_TEMP}/api.pid" ]]; then
+              kill "$(cat "${RUNNER_TEMP}/api.pid")" >/dev/null 2>&1 || true
+            fi
+          }
+          trap cleanup EXIT
+          for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+            if "$py" -c '
+          import json
+          import urllib.request
+          with urllib.request.urlopen("http://127.0.0.1:8765/v1/healthz", timeout=2) as response:
+              body = response.read().decode()
+              print("healthz", response.status, body)
+              payload = json.loads(body)
+              if response.status != 200 or payload.get("status") != "ok":
+                  raise SystemExit(1)
+          '; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "healthz did not respond" >&2
+          cat "$log" >&2 || true
+          exit 1
